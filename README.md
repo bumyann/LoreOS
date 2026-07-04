@@ -1,22 +1,22 @@
 # LoreOS // Universal Editor
 
-Wanted an all-in-one so I didn't have to navigate 47 different sites just to get work done. Lorebook on one tab, char card on another, preset on a third — I was losing my mind. SLEd existed and I genuinely loved it, but I also needed everything else. So I just. made it. now it's all in one place and I don't have to copy-paste templates from 4 different text files anymore.
+Wanted an all-in-one so I didn't have to navigate 47 different sites just to get work done. Lorebook on one tab, char card on another, preset on a third... girl, I'm not dealing with all that. SLEd existed and I absolutely adored it, but I also needed everything else or I'd genuinely tweak out. Soooo here we are. Now it's all in one place and I don't have to copy-paste templates from 4 different text files anymore!
 
-Also, manually scrolling through a 2000 word description to fix every single gendered pronoun one by one? Not doing that. The pronoun tool exists because I'm lazy and I have standards.
+Disclaimer: Vibe-coded with AI assistance because I don't code shit, I just write lots of lore and have poor impulse control. Tested before publishing because I'm not a rat^2. Built for SillyTavern, JanitorAI, and SaucepanAI workflows but honestly it's just a file, do whatever you want with it. Made everything in one file on purpose because I'm not downloading folders of code when I already have so many as is.
 
-Disclaimer: vibe-coded with AI assistance. Tested before publishing because I'm not feral about it. Built for SillyTavern, JanitorAI, and SaucepanAI workflows but honestly it's just a file, do whatever you want with it.
+https://bumyann.github.io/LoreOS-Universal-Editor/
 
 ---
 
-## What's in it
+## What's In It
 
-**📖 Lorebook editor** — import, edit, export ST-format lorebooks. multi-tab editing, search & replace (with regex), merge entries from other lorebooks, export as JSON / plain text / public markdown. template library so you're not copy-pasting the same entry formats forever.
+**📖 Lorebook Editor** — Import, edit, export ST-format lorebooks. multi-tab editing, search & replace (with regex), merge entries from other lorebooks, export as JSON. Exporting as plain text/markdown also available, in case you want to dump your lore content in JanitorAI's public script pages without painstakingly copypasting each individual entry and editing everything.
 
-**🎭 Character card editor** — V2 and V3 spec support. import/export JSON or PNG cards (actual PNG tEXt chunk embed, not fake). attach a lorebook directly to a character card (`character_book` field — ST reads this on import). pronoun → macro converter that handles verb agreement so you don't have to. template library for field content.
+**🎭 Character Card Editor** — V2 and V3 spec support. Import/export JSON or PNG cards (actual PNG tEXt chunk embed, not fake). Attach a lorebook directly to a character card (`character_book` field — ST reads this on import). Pronoun macro converter that handles verb agreement so you don't have to.
 
-**⚙ Chat completion preset editor** — full ST preset JSON support. sampler sliders, prompt tree with drag-to-reorder, collapse/expand nodes, sticky search bar, ST system anchor identifiers labelled properly. prompt library with one-click anchor insertion. variable scanner for `{{setvar}}` patterns with rename-across-all.
+**⚙ Chat Completion Preset Editor** — Full ST preset JSON support. Sampler sliders, prompt tree with drag-to-reorder, collapse/expand nodes, sticky search bar, ST system anchor identifiers labelled properly. Prompt library with one-click anchor insertion. Variable scanner for `{{setvar}}` patterns with rename-across-all.
 
-**✦ General** — fully customizable colour scheme (all vars, both modes, saved theme slots). custom site title. everything stored in localStorage, nothing leaves your browser. single HTML file, works offline.
+**✦ General** — Fully customizable colour scheme (all vars, both modes, saved theme slots). Custom site title. everything stored in localStorage, nothing leaves your browser. Might do something about the fonts in the future. Template libraries all across, separated for each section so you don't have to go on a wild goose chase for templates you found in 2021 and forgot the link for.
 
 ---
 
@@ -32,15 +32,13 @@ Disclaimer: vibe-coded with AI assistance. Tested before publishing because I'm 
 - Library: save and load named lorebook snapshots
 - Template library: reusable entry content snippets
 - Fullscreen field editor (⛶) on every textarea
-- **Ctrl+T** — open template library from any focused field
 
 ### 🎭 Character Card
 - Import JSON cards or PNG cards (reads embedded tEXt chunk)
 - Export as JSON or PNG (embeds card data into the image file)
-- Upload a base image once — it stays attached to the card
 - V2 and V3 card spec, selectable
 - Attach a lorebook to a character (`character_book`) — ST will offer to import it alongside the card
-- **Pronoun → Macro tool**: highlights he/him, she/her, or they/them pronouns in your text. click to convert to ST macros (`{{sub}}`, `{{obj}}`, `{{poss}}`, `{{poss_p}}`, `{{ref}}`). verb agreement gets fixed automatically (e.g. "where are they" → "where is {{sub}}"). ambiguous cases (his/her) flagged in yellow — click to cycle through options. manual mode only, you're in control.
+- **Pronoun → Macro tool**: highlights he/him, she/her, or they/them pronouns in your text. click to convert to pronoun macros (`{{sub}}`, `{{obj}}`, `{{poss}}`, `{{poss_p}}`, `{{ref}}`). verb agreement gets fixed automatically (e.g. "where are they" → "where is {{sub}}"). ambiguous cases (his/her) flagged in yellow — click to cycle through options. 
 - Character library with duplicate and delete
 - Template library for field snippets (descriptions, system prompts, etc.)
 
@@ -62,11 +60,9 @@ Disclaimer: vibe-coded with AI assistance. Tested before publishing because I'm 
 - Export preserves full ST format including prompt_order
 
 ### ✦ General
-- **◑** — toggle dark/light mode
-- **⚙** — full colour customiser: edit all CSS variables for both modes, save named theme slots, custom site title
-- **?** — quick reference cheat sheet
-- **Ctrl+T** — template library from any field
-- **Ctrl+D** — toggle theme
+- **◑** — Toggle dark/light mode
+- **⚙** — Full colour customiser: edit all CSS variables for both modes, save named theme slots, custom site title
+- **?** — Quick reference cheat sheet
 - All data in `localStorage` — nothing leaves your browser
 - Single HTML file, works fully offline
 - Mobile-friendly: swipe from left edge to open sidebar, bottom navigation bar
@@ -75,15 +71,15 @@ Disclaimer: vibe-coded with AI assistance. Tested before publishing because I'm 
 
 ## Usage
 
+### Browser
 1. Download `index.html`
 2. Open it in any modern browser
 3. That's it
 
-No install. No server. No dependencies.
+Alternatively, you can head on to https://bumyann.github.io/LoreOS-Universal-Editor/ to try it online!
 
-### Run locally on desktop (for PWA install)
-
-PWA install requires HTTP, not a local file. Easiest way on desktop:
+### Local Server
+#### Desktop
 
 ```bash
 # Python (usually pre-installed on mac/linux, available on windows too)
@@ -91,38 +87,23 @@ python -m http.server 8080
 # open http://localhost:8080 in your browser
 ```
 
-Then install from the browser address bar.
-
-### Run locally on Android with Termux
-
+#### Android (Termux)
 1. Install [Termux](https://f-droid.org/packages/com.termux/) from F-Droid (not the Play Store version)
 2. Run:
 ```bash
 termux-setup-storage
-pkg update && pkg install python
-```
-3. Copy `index.html` to your phone, then in Termux:
-```bash
-cd /sdcard/Download
+pkg update && pkg install git python
+git clone https://github.com/bumyann/LoreOS-Universal-Editor
+cd LoreOS
 python -m http.server 8080
 ```
-4. Open Chrome → `http://localhost:8080`
-5. Three dot menu → **Add to Home Screen**
-
----
-
-## Notes
-
-- Data lives in `localStorage`. Clearing your browser data will wipe your libraries. Export regularly.
-- PNG card embed uses the standard `tEXt` chunk with keyword `chara` — compatible with ST and JanitorAI PNG format.
-- The `character_book` field follows the V2/V3 spec and is read natively by SillyTavern.
-- Title and colour scheme are fully customizable from the ⚙ settings panel. Saved themes persist across sessions.
+3. Open Chrome → `http://localhost:8080`
+4. Three dot menu → **Add to Home Screen**
 
 ---
 
 ## Credits
-
-Inspired by [SLEd](https://github.com/ActualBroeckchen/SLEd) by ActualBroeckchen (CC0). LoreOS is its own thing but SLEd is where the lorebook editor idea started — go check it out.
+Inspired by [SLEd](https://github.com/ActualBroeckchen/SLEd) by ActualBroeckchen! LoreOS is its own thing but SLEd is where the lorebook editor idea started — go check it out!!
 
 ---
 
