@@ -945,6 +945,50 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
         </div>
       </div>
 
+      <!-- FONTS -->
+      <div class="settings-section">
+        <div class="settings-section-title">Fonts</div>
+        <div style="display:flex;flex-direction:column;gap:.65rem">
+          <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);letter-spacing:.4px;line-height:1.6">
+            Three font roles: <strong style="color:var(--txd)">Display</strong> (titles, headings) · <strong style="color:var(--txd)">UI</strong> (labels, badges) · <strong style="color:var(--txd)">Body</strong> (content, textareas)<br>
+            Enter a Google Fonts name and click Load GF, or upload a file (.ttf / .woff2).
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:.3rem">
+            <span class="settings-lbl">Display (--fp) — default: VT323</span>
+            <div style="display:flex;gap:.4rem;align-items:center">
+              <input type="text" id="stgFontFP" class="finput" style="flex:1;font-size:.78rem" placeholder="VT323">
+              <button class="btn btn-s btn-sm" data-font-role="fp">Load GF</button>
+              <label class="btn btn-s btn-sm" style="cursor:pointer;margin:0">Upload<input type="file" accept=".ttf,.woff,.woff2,.otf" data-font-upload="fp" style="display:none"></label>
+              <button class="btn btn-err btn-sm" data-font-reset="fp" title="Reset to default">↺</button>
+            </div>
+            <span id="stgFontStatusFP" style="font-family:var(--fx);font-size:.65rem;color:var(--txm)"></span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:.3rem">
+            <span class="settings-lbl">UI (--fx) — default: Pixelify Sans</span>
+            <div style="display:flex;gap:.4rem;align-items:center">
+              <input type="text" id="stgFontFX" class="finput" style="flex:1;font-size:.78rem" placeholder="Pixelify Sans">
+              <button class="btn btn-s btn-sm" data-font-role="fx">Load GF</button>
+              <label class="btn btn-s btn-sm" style="cursor:pointer;margin:0">Upload<input type="file" accept=".ttf,.woff,.woff2,.otf" data-font-upload="fx" style="display:none"></label>
+              <button class="btn btn-err btn-sm" data-font-reset="fx" title="Reset to default">↺</button>
+            </div>
+            <span id="stgFontStatusFX" style="font-family:var(--fx);font-size:.65rem;color:var(--txm)"></span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:.3rem">
+            <span class="settings-lbl">Body (--fb) — default: Noto Sans</span>
+            <div style="display:flex;gap:.4rem;align-items:center">
+              <input type="text" id="stgFontFB" class="finput" style="flex:1;font-size:.78rem" placeholder="Noto Sans">
+              <button class="btn btn-s btn-sm" data-font-role="fb">Load GF</button>
+              <label class="btn btn-s btn-sm" style="cursor:pointer;margin:0">Upload<input type="file" accept=".ttf,.woff,.woff2,.otf" data-font-upload="fb" style="display:none"></label>
+              <button class="btn btn-err btn-sm" data-font-reset="fb" title="Reset to default">↺</button>
+            </div>
+            <span id="stgFontStatusFB" style="font-family:var(--fx);font-size:.65rem;color:var(--txm)"></span>
+          </div>
+        </div>
+      </div>
+
       <div class="modal-foot" style="justify-content:space-between">
         <button class="btn btn-s" data-close="settingsModal">Close</button>
         <button class="btn btn-p" id="stgApplyBtn">Apply</button>
@@ -1084,7 +1128,9 @@ document.addEventListener('DOMContentLoaded', () => {
   wireFullscreen();
   wireTplLibrary();
   wireSettings();
+  wireFonts();
   applyAllCustomisations();
+  applyFonts();
 });
 
 function loadPrefs() {
@@ -4832,6 +4878,14 @@ function openSettings() {
   // Title
   g('stgTitleMain').value = cfg.titleMain || 'LoreOS';
   g('stgTitleSub').value = cfg.titleSub !== undefined ? cfg.titleSub : 'Universal Editor';
+  // Pre-fill font inputs
+  const savedFonts = fontsGet();
+  Object.keys(FONT_ROLES).forEach(role => {
+    const inputEl = g(`stgFont${role.toUpperCase()}`);
+    const statusEl = g(`stgFontStatus${role.toUpperCase()}`);
+    if (inputEl) inputEl.value = savedFonts[role]?.name || '';
+    if (statusEl) statusEl.textContent = savedFonts[role] ? `✓ active: ${savedFonts[role].name}` : '';
+  });
   // Mode
   stgEditingMode = document.body.classList.contains('pink') ? 'pink' : 'dark';
   updateSettingsModeLabel();
@@ -5013,6 +5067,139 @@ function loadThemeSlot(name, themeData) {
   g('stgTitleMain').value = cfg.titleMain || 'LoreOS';
   g('stgTitleSub').value = cfg.titleSub || '';
   toast(`Loaded theme "${name}".`, 'ok');
+}
+// ═══════════════════════════════════════════════════════
+// FONT MANAGEMENT
+// ═══════════════════════════════════════════════════════
+
+const FONT_ROLES = { fp: '--fp', fx: '--fx', fb: '--fb' };
+const FONT_DEFAULTS = { fp: 'VT323', fx: 'Pixelify Sans', fb: 'Noto Sans' };
+const FONT_STORAGE_KEY = 'aet_fonts';
+
+function fontsGet() { try { return JSON.parse(localStorage.getItem(FONT_STORAGE_KEY) || '{}'); } catch(e) { return {}; } }
+function fontsSet(d) { localStorage.setItem(FONT_STORAGE_KEY, JSON.stringify(d)); }
+
+// Apply saved fonts on load
+function applyFonts() {
+  const saved = fontsGet();
+  Object.entries(FONT_ROLES).forEach(([role, cssVar]) => {
+    const data = saved[role];
+    if (!data) return;
+    if (data.type === 'gf') {
+      loadGoogleFont(role, data.name, false);
+    } else if (data.type === 'upload') {
+      injectUploadedFont(role, data.name, data.dataUrl, false);
+    }
+  });
+}
+
+function loadGoogleFont(role, name, save = true) {
+  const cssVar = FONT_ROLES[role];
+  const linkId = `gf-font-${role}`;
+  const existing = document.getElementById(linkId);
+  if (existing) existing.remove();
+
+  const urlName = name.trim().replace(/ /g, '+');
+  const link = document.createElement('link');
+  link.id = linkId;
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${urlName}&display=swap`;
+  link.onload = () => {
+    document.body.style.setProperty(cssVar, `'${name.trim()}', sans-serif`);
+    const statusEl = g(`stgFontStatus${role.toUpperCase()}`);
+    if (statusEl) statusEl.textContent = `✓ loaded "${name.trim()}" from Google Fonts`;
+  };
+  link.onerror = () => {
+    const statusEl = g(`stgFontStatus${role.toUpperCase()}`);
+    if (statusEl) statusEl.textContent = `✗ couldn't load "${name.trim()}" — check the name`;
+  };
+  document.head.appendChild(link);
+
+  if (save) {
+    const d = fontsGet(); d[role] = { type: 'gf', name: name.trim() }; fontsSet(d);
+  }
+}
+
+function injectUploadedFont(role, name, dataUrl, save = true) {
+  const cssVar = FONT_ROLES[role];
+  const styleId = `uploaded-font-${role}`;
+  const existing = document.getElementById(styleId);
+  if (existing) existing.remove();
+
+  const ext = name.split('.').pop().toLowerCase();
+  const fmt = ext === 'woff2' ? 'woff2' : ext === 'woff' ? 'woff' : 'truetype';
+  const fontName = `CustomFont_${role}`;
+  const style = document.createElement('style');
+  style.id = styleId;
+  style.textContent = `@font-face { font-family: '${fontName}'; src: url('${dataUrl}') format('${fmt}'); }`;
+  document.head.appendChild(style);
+  document.body.style.setProperty(cssVar, `'${fontName}', sans-serif`);
+
+  const statusEl = g(`stgFontStatus${role.toUpperCase()}`);
+  if (statusEl) statusEl.textContent = `✓ loaded "${name}" from file`;
+
+  if (save) {
+    const d = fontsGet(); d[role] = { type: 'upload', name, dataUrl }; fontsSet(d);
+  }
+}
+
+function resetFont(role) {
+  const cssVar = FONT_ROLES[role];
+  const defaultName = FONT_DEFAULTS[role];
+  // remove any injected style/link
+  document.getElementById(`gf-font-${role}`)?.remove();
+  document.getElementById(`uploaded-font-${role}`)?.remove();
+  document.body.style.removeProperty(cssVar);
+  // clear from storage
+  const d = fontsGet(); delete d[role]; fontsSet(d);
+  const inputEl = g(`stgFont${role.toUpperCase()}`);
+  const statusEl = g(`stgFontStatus${role.toUpperCase()}`);
+  if (inputEl) inputEl.value = '';
+  if (statusEl) statusEl.textContent = `↺ reset to ${defaultName}`;
+  toast(`Font reset to ${defaultName}.`, 'ok');
+}
+
+function wireFonts() {
+  // Pre-fill inputs with saved font names
+  const saved = fontsGet();
+  Object.keys(FONT_ROLES).forEach(role => {
+    const data = saved[role];
+    const inputEl = g(`stgFont${role.toUpperCase()}`);
+    if (inputEl && data?.name) inputEl.value = data.name;
+  });
+
+  // Load GF buttons
+  document.querySelectorAll('[data-font-role]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const role = btn.dataset.fontRole;
+      const name = g(`stgFont${role.toUpperCase()}`)?.value.trim();
+      if (!name) { toast('Enter a font name first.', 'warn'); return; }
+      const statusEl = g(`stgFontStatus${role.toUpperCase()}`);
+      if (statusEl) statusEl.textContent = 'loading…';
+      loadGoogleFont(role, name);
+    });
+  });
+
+  // Upload buttons
+  document.querySelectorAll('[data-font-upload]').forEach(input => {
+    input.addEventListener('change', e => {
+      const role = input.dataset.fontUpload;
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        injectUploadedFont(role, file.name, ev.target.result);
+        const inputEl = g(`stgFont${role.toUpperCase()}`);
+        if (inputEl) inputEl.value = file.name;
+      };
+      reader.readAsDataURL(file);
+      e.target.value = '';
+    });
+  });
+
+  // Reset buttons
+  document.querySelectorAll('[data-font-reset]').forEach(btn => {
+    btn.addEventListener('click', () => resetFont(btn.dataset.fontReset));
+  });
 }
 </script>
 </body>
