@@ -1118,23 +1118,23 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
         </div>
       </div>
 
-      <!-- GIST SYNC -->
+      <!-- JSONBIN SYNC -->
       <div class="settings-section">
-        <div class="settings-section-title">☁ Gist Sync</div>
+        <div class="settings-section-title">☁ Cloud Sync</div>
         <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);line-height:1.6;margin-bottom:.5rem">
-          Sync all your data across devices via a private GitHub Gist.<br>
-          Generate a PAT at <strong style="color:var(--txd)">github.com → Settings → Developer settings → Personal access tokens</strong> with only the <code>gist</code> scope.
+          Sync all your data across devices via JSONBin.io (free).<br>
+          Get a free API key at <strong style="color:var(--txd)">jsonbin.io → Account → API Keys</strong>. Leave Bin ID blank to create a new bin automatically.
         </div>
         <div style="display:flex;flex-direction:column;gap:.4rem">
           <div class="settings-row">
-            <span class="settings-lbl">GitHub PAT (gist scope only)</span>
+            <span class="settings-lbl">JSONBin API Key</span>
             <div style="display:flex;gap:.4rem">
-              <input type="password" id="syncPatInput" class="finput" style="flex:1;font-size:.78rem" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+              <input type="password" id="syncPatInput" class="finput" style="flex:1;font-size:.78rem" placeholder="$2a$10$xxxxxxxxxxxxxxxxxxxx">
               <button class="btn btn-s btn-sm" id="syncTogglePatVisibility" title="Show/hide">👁</button>
             </div>
           </div>
           <div class="settings-row">
-            <span class="settings-lbl">Gist ID <span style="color:var(--txm)">(auto-filled after first connect)</span></span>
+            <span class="settings-lbl">Bin ID <span style="color:var(--txm)">(auto-filled after first connect)</span></span>
             <input type="text" id="syncGistId" class="finput" style="font-size:.78rem" placeholder="leave blank to create new">
           </div>
           <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-top:.2rem">
@@ -1218,7 +1218,7 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
             <li><strong>Ctrl+D</strong> — toggle theme from anywhere</li>
             <li><strong>Ctrl+T</strong> — open template library</li>
             <li>All data stored in <strong>localStorage</strong> — nothing leaves your browser unless you enable Gist Sync</li>
-            <li><strong>☁ Gist Sync</strong> (Settings) — sync all data across devices via a private GitHub Gist using a PAT (gist scope only)</li>
+            <li><strong>☁ Cloud Sync</strong> (Settings) — sync all data across devices via JSONBin.io (free). Get an API key at jsonbin.io, leave Bin ID blank on first connect to auto-create.</li>
             <li>Single HTML file — works fully offline</li>
             <li>Mobile-friendly — swipe right from edge to open sidebar</li>
           </ul>
@@ -5582,7 +5582,7 @@ function wireFonts() {
 }
 
 // ═══════════════════════════════════════════════════════
-// GIST SYNC
+// JSONBIN SYNC
 // ═══════════════════════════════════════════════════════
 const SYNC_KEYS = [
   'aet_lorebook','aet_tabs','aet_activeTab','aet_nextUid',
@@ -5593,10 +5593,10 @@ const SYNC_KEYS = [
   'aet_font_fp','aet_font_fx','aet_font_fb',
   'aet_theme_slots',
 ];
-const GIST_FILENAME = 'loreos-data.json';
 const SYNC_PAT_KEY = 'aet_sync_pat';
-const SYNC_GIST_KEY = 'aet_sync_gist_id';
+const SYNC_GIST_KEY = 'aet_sync_gist_id'; // reused as bin ID key
 const SYNC_AUTO_KEY = 'aet_sync_auto';
+const JSONBIN_BASE = 'https://api.jsonbin.io/v3';
 
 function syncSetStatus(msg, type='info') {
   const el = g('syncStatus');
@@ -5626,40 +5626,43 @@ function syncRestoreData(bundle) {
 }
 
 async function syncConnect() {
-  const pat = g('syncPatInput').value.trim();
-  const gistIdInput = g('syncGistId').value.trim();
-  if (!pat) { syncSetStatus('PAT is required.', 'err'); return; }
+  const apiKey = g('syncPatInput').value.trim();
+  const binIdInput = g('syncGistId').value.trim();
+  if (!apiKey) { syncSetStatus('API key is required.', 'err'); return; }
 
   syncSetStatus('Connecting...', 'info');
-
-  // Save PAT
-  localStorage.setItem(SYNC_PAT_KEY, pat);
+  localStorage.setItem(SYNC_PAT_KEY, apiKey);
 
   try {
-    if (gistIdInput) {
-      // Verify existing gist
-      const r = await fetch(`https://api.github.com/gists/${gistIdInput}`, {
-        headers: { Authorization: `token ${pat}`, 'Accept': 'application/vnd.github+json' }
+    if (binIdInput) {
+      // Verify existing bin
+      const r = await fetch(`${JSONBIN_BASE}/b/${binIdInput}/latest`, {
+        headers: { 'X-Master-Key': apiKey }
       });
-      if (!r.ok) throw new Error(`Gist not found or PAT invalid (${r.status})`);
-      localStorage.setItem(SYNC_GIST_KEY, gistIdInput);
-      syncSetStatus(`Connected to gist ${gistIdInput.slice(0,8)}…`, 'ok');
+      if (!r.ok) throw new Error(`Bin not found or API key invalid (${r.status})`);
+      localStorage.setItem(SYNC_GIST_KEY, binIdInput);
+      syncSetStatus(`Connected to bin ${binIdInput.slice(0,8)}… ✓`, 'ok');
     } else {
-      // Create new gist
-      const r = await fetch('https://api.github.com/gists', {
+      // Create new bin
+      const r = await fetch(`${JSONBIN_BASE}/b`, {
         method: 'POST',
-        headers: { Authorization: `token ${pat}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' },
-        body: JSON.stringify({
-          description: 'LoreOS Universal Editor sync data',
-          public: false,
-          files: { [GIST_FILENAME]: { content: JSON.stringify(syncBundleData(), null, 2) } }
-        })
+        headers: {
+          'X-Master-Key': apiKey,
+          'Content-Type': 'application/json',
+          'X-Bin-Name': 'LoreOS Sync',
+          'X-Bin-Private': 'true'
+        },
+        body: JSON.stringify(syncBundleData())
       });
-      if (!r.ok) throw new Error(`Failed to create gist (${r.status})`);
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(`Failed to create bin (${r.status})${err.message ? ': ' + err.message : ''}`);
+      }
       const data = await r.json();
-      localStorage.setItem(SYNC_GIST_KEY, data.id);
-      g('syncGistId').value = data.id;
-      syncSetStatus(`Created new gist ${data.id.slice(0,8)}… ✓`, 'ok');
+      const binId = data.metadata.id;
+      localStorage.setItem(SYNC_GIST_KEY, binId);
+      g('syncGistId').value = binId;
+      syncSetStatus(`Created new bin ${binId.slice(0,8)}… ✓`, 'ok');
     }
     syncUpdateUI(true);
   } catch(e) {
@@ -5668,15 +5671,18 @@ async function syncConnect() {
 }
 
 async function syncPush() {
-  const pat = syncGetPAT();
-  const gistId = syncGetGistId();
-  if (!pat || !gistId) { syncSetStatus('Not connected.', 'err'); return; }
+  const apiKey = syncGetPAT();
+  const binId = syncGetGistId();
+  if (!apiKey || !binId) { syncSetStatus('Not connected.', 'err'); return; }
   syncSetStatus('Pushing...', 'info');
   try {
-    const r = await fetch(`https://api.github.com/gists/${gistId}`, {
-      method: 'PATCH',
-      headers: { Authorization: `token ${pat}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' },
-      body: JSON.stringify({ files: { [GIST_FILENAME]: { content: JSON.stringify(syncBundleData(), null, 2) } } })
+    const r = await fetch(`${JSONBIN_BASE}/b/${binId}`, {
+      method: 'PUT',
+      headers: {
+        'X-Master-Key': apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(syncBundleData())
     });
     if (!r.ok) throw new Error(`Push failed (${r.status})`);
     const ts = new Date().toLocaleTimeString();
@@ -5687,19 +5693,18 @@ async function syncPush() {
 }
 
 async function syncPull() {
-  const pat = syncGetPAT();
-  const gistId = syncGetGistId();
-  if (!pat || !gistId) { syncSetStatus('Not connected.', 'err'); return; }
+  const apiKey = syncGetPAT();
+  const binId = syncGetGistId();
+  if (!apiKey || !binId) { syncSetStatus('Not connected.', 'err'); return; }
   syncSetStatus('Pulling...', 'info');
   try {
-    const r = await fetch(`https://api.github.com/gists/${gistId}`, {
-      headers: { Authorization: `token ${pat}`, 'Accept': 'application/vnd.github+json' }
+    const r = await fetch(`${JSONBIN_BASE}/b/${binId}/latest`, {
+      headers: { 'X-Master-Key': apiKey }
     });
     if (!r.ok) throw new Error(`Pull failed (${r.status})`);
     const data = await r.json();
-    const file = data.files[GIST_FILENAME];
-    if (!file) throw new Error('No LoreOS data found in gist.');
-    const bundle = JSON.parse(file.content);
+    const bundle = data.record;
+    if (!bundle || !bundle._version) throw new Error('No LoreOS data found in bin.');
     syncRestoreData(bundle);
     const ts = bundle._synced_at ? new Date(bundle._synced_at).toLocaleString() : 'unknown';
     syncSetStatus(`Pulled ✓ — data from ${ts}. Reloading...`, 'ok');
@@ -5724,7 +5729,6 @@ function syncUpdateUI(connected) {
   const pushBtn = g('syncPushBtn');
   const pullBtn = g('syncPullBtn');
   const disconnectBtn = g('syncDisconnectBtn');
-  const connectBtn = g('syncConnectBtn');
   if (!pushBtn) return;
   pushBtn.disabled = !connected;
   pullBtn.disabled = !connected;
@@ -5739,24 +5743,23 @@ function syncAutoPush() {
 }
 
 function wireSync() {
-  // Restore saved state
   const savedPat = syncGetPAT();
-  const savedGistId = syncGetGistId();
-  const isConnected = !!(savedPat && savedGistId);
+  const savedBinId = syncGetGistId();
+  const isConnected = !!(savedPat && savedBinId);
 
   if (savedPat) {
     const patInput = g('syncPatInput');
     if (patInput) patInput.value = savedPat;
   }
-  if (savedGistId) {
-    const gistInput = g('syncGistId');
-    if (gistInput) gistInput.value = savedGistId;
+  if (savedBinId) {
+    const binInput = g('syncGistId');
+    if (binInput) binInput.value = savedBinId;
   }
   const autoToggle = g('syncAutoToggle');
   if (autoToggle) autoToggle.checked = localStorage.getItem(SYNC_AUTO_KEY) === '1';
 
   syncUpdateUI(isConnected);
-  if (isConnected) syncSetStatus(`Connected — gist ${savedGistId.slice(0,8)}…`, 'ok');
+  if (isConnected) syncSetStatus(`Connected — bin ${savedBinId.slice(0,8)}…`, 'ok');
 
   const connectBtn = g('syncConnectBtn');
   if (connectBtn) connectBtn.addEventListener('click', syncConnect);
