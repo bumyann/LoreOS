@@ -263,30 +263,36 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
   body{overflow:auto;height:auto;min-height:100vh;min-height:100dvh}
   #app{height:auto;min-height:100vh;min-height:100dvh}
 
-  /* ── HEADER: compact single row ── */
-  #header{padding:.45rem .7rem;gap:.5rem;flex-wrap:nowrap}
-  #title{font-size:1.15rem;letter-spacing:1px}
-  #title span{display:none}  /* hide subtitle on small screens */
-  /* Keep header-right visible but shrink it to just name */
-  #header-right{gap:.3rem}
-  .lb-label{font-size:.65rem}
-  .hdr-actions{display:none} /* all actions move to bottom nav */
-  #lorebookName{width:110px;font-size:.75rem;padding:.22rem .45rem}
+  /* ── HEADER: compact, just title + lorebook name ── */
+  #header{padding:.4rem .65rem;gap:.4rem;flex-wrap:nowrap}
+  #title{font-size:1.05rem;letter-spacing:1px;white-space:nowrap}
+  #title span{display:none}
+  #header-right{gap:.3rem;flex-wrap:nowrap}
+  .lb-label{font-size:.62rem;white-space:nowrap}
+  .hdr-actions{display:none} /* all actions live in bottom nav */
+  #lorebookName{width:100px;font-size:.73rem;padding:.2rem .4rem}
 
-  /* ── MAIN: full-width stacked, no side-by-side ── */
+  /* ── MODE TABS: full-width, equal thirds ── */
+  #modeTabs{padding:0;gap:0}
+  .mode-tab{
+    flex:1;text-align:center;padding:.45rem .3rem;
+    font-size:.82rem;letter-spacing:.5px;
+    border-bottom:2px solid transparent;
+  }
+
+  /* ── MAIN: full-width stacked ── */
   #main{flex-direction:column;overflow:visible;min-height:0}
 
   /* ── SIDEBAR: off-canvas drawer ── */
   #sidebar{
     position:fixed;top:0;left:0;bottom:0;
-    width:82vw;max-width:320px;
+    width:85vw;max-width:340px;
     transform:translateX(-100%);
     transition:transform .22s ease;
     z-index:1200;
     border-right:1px solid var(--bdb);
-    box-shadow:4px 0 20px rgba(0,0,0,.6);
+    box-shadow:4px 0 24px rgba(0,0,0,.65);
     overflow-y:auto;
-    /* override desktop flex sizing */
     min-width:unset;flex-shrink:unset;
   }
   #sidebar.mob-open{transform:translateX(0)}
@@ -302,33 +308,44 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
   /* Close X inside sidebar header */
   #mob-sb-close{display:flex}
 
+  /* Sidebar entry items: bigger tap targets */
+  .ei{padding:.65rem .75rem}
+  .ei-acts{display:flex}
+  .ei-act{padding:5px 10px;font-size:.75rem}
+
   /* ── EDITOR: full width ── */
   #editor-area{width:100%;min-height:0}
 
-  /* Tabs bar: scrollable, no view toggle clutter */
-  .tab-bar-wrap{padding:0 .35rem}
-  .view-ctrls{display:none} /* hide side-by-side toggle on mobile */
-  #editorContent{padding:.75rem .6rem;padding-bottom:5rem} /* extra bottom for nav */
+  /* Tab bar */
+  .tab-bar-wrap{padding:0 .3rem}
+  .view-ctrls{display:none}
+  #editorContent{
+    padding:.85rem .7rem;
+    padding-bottom:5.5rem; /* clearance above nav */
+  }
 
-  /* Entry items: bigger tap targets, actions always visible */
-  .ei{padding:.6rem .7rem}
-  .ei-acts{display:flex} /* always show, no hover needed */
-  .ei-act{padding:4px 8px;font-size:.72rem}
+  /* Field labels: slightly larger for readability */
+  .flabel{font-size:.72rem}
+  .finput,.ftextarea,textarea.finput{font-size:.83rem}
 
-  /* Keywords row: stack vertically */
+  /* Keywords row: single column */
   .kw-row{grid-template-columns:1fr;gap:.45rem}
   .kw-logic{min-width:unset}
 
-  /* Advanced grid: single column */
-  .adv-grid{grid-template-columns:1fr 1fr}
+  /* Advanced grid: two columns → one */
+  .adv-grid{grid-template-columns:1fr}
 
-  /* Modals: full-screen on mobile */
+  /* Modals: slide up from bottom */
   .modal{padding:.4rem;align-items:flex-end}
   .modal-box,.modal-box.lg{
     width:100%;max-width:100%;
     max-height:92vh;max-height:92dvh;
-    border-radius:12px 12px 0 0;
+    border-radius:14px 14px 0 0;
   }
+  .modal-body{padding:.85rem .9rem}
+
+  /* Settings modal: single-column colour grid */
+  .settings-grid{grid-template-columns:1fr 1fr}
 
   /* ── BOTTOM NAV ── */
   #mob-nav{
@@ -337,26 +354,40 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
     background:var(--bg2);
     border-top:1px solid var(--bdb);
     z-index:1000;
-    box-shadow:0 -2px 12px rgba(0,0,0,.5);
-    padding:.3rem .2rem;
-    padding-bottom:calc(.3rem + env(safe-area-inset-bottom));
-    gap:.1rem;
+    box-shadow:0 -2px 16px rgba(0,0,0,.55);
+    padding:.25rem .15rem;
+    padding-bottom:calc(.25rem + env(safe-area-inset-bottom));
+    gap:0;
+    overflow-x:auto;
+    overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
   }
+  #mob-nav::-webkit-scrollbar{display:none}
   .mob-nav-btn{
-    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:.15rem;padding:.35rem .2rem;
+    flex:0 0 auto;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:.12rem;
+    min-width:3.2rem;
+    padding:.3rem .3rem;
     background:none;border:none;cursor:pointer;
-    color:var(--txm);font-family:var(--fx);font-size:.55rem;letter-spacing:.5px;
-    border-radius:6px;transition:color .15s,background .15s;
+    color:var(--txm);font-family:var(--fx);font-size:.52rem;letter-spacing:.4px;
+    border-radius:6px;transition:color .12s,background .12s;
     -webkit-tap-highlight-color:transparent;
+    white-space:nowrap;
   }
   .mob-nav-btn:active{background:var(--sf2)}
-  .mob-nav-btn .icon{font-size:1.2rem;line-height:1}
+  .mob-nav-btn .icon{font-size:1.25rem;line-height:1.1}
   .mob-nav-btn.active{color:var(--p)}
   .mob-nav-btn.hi{color:var(--ok)}
 
+  /* Separator pill between always-on and mode buttons */
+  #mob-nav-sep{
+    width:1px;background:var(--bd);margin:.3rem .1rem;flex-shrink:0;align-self:stretch;
+  }
+
   /* Notifications: above bottom nav */
-  #notifs{bottom:5rem;right:.75rem}
+  #notifs{bottom:5.2rem;right:.75rem}
 
   /* Lib modal save row stack */
   .lib-save-row{flex-direction:column;align-items:stretch}
@@ -365,6 +396,12 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
   /* sr-actions wrap */
   .sr-actions{flex-direction:column}
   .sr-actions .btn{width:100%}
+
+  /* Pronoun tool: full-width on mobile */
+  #pronounTool{
+    width:calc(100vw - 1rem);
+    bottom:.5rem;
+  }
 }
 
 /* ─── SETTINGS MODAL ─── */
@@ -441,6 +478,20 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
 .pt-legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px}
 .pt-actions-row{display:flex;gap:.4rem;align-items:center}
 .pt-result{font-family:var(--fb);font-size:.78rem;color:var(--txd);background:var(--sf);border:1px solid var(--bd);border-radius:3px;padding:.5rem .7rem;max-height:120px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;display:none}
+/* target pronoun row */
+.pt-target-row{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}
+.pt-tgt-btn{font-family:var(--fx);font-size:.72rem;padding:.22rem .65rem;border:1px solid var(--bd);background:var(--sf);color:var(--txd);border-radius:3px;cursor:pointer;transition:all .12s}
+.pt-tgt-btn.active{border-color:var(--ok);color:var(--ok);background:var(--sf2)}
+/* noun tool */
+.pt-noun-section{border-top:1px solid var(--bd);padding-top:.6rem;margin-top:.1rem}
+.pt-noun-row{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;margin-bottom:.4rem}
+.pt-token.noun{background:rgba(200,160,255,.18);color:#c8a0ff;border-bottom:1px solid #c8a0ff}
+.pt-token.noun-converted{background:rgba(136,201,138,.18);color:#88c98a;border-bottom:1px solid #88c98a}
+/* sync section in settings */
+.sync-status{font-family:var(--fx);font-size:.68rem;color:var(--txm);margin-top:.3rem;min-height:1rem}
+.sync-status.ok{color:var(--ok)}
+.sync-status.err{color:var(--err)}
+.sync-status.info{color:var(--p)}
 /* ═══════════════════════════════════════════
    FULLSCREEN FIELD MODAL
 ═══════════════════════════════════════════ */
@@ -733,26 +784,70 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
 
 <!-- MOBILE BOTTOM NAV -->
 <nav id="mob-nav">
-  <button class="mob-nav-btn" id="mobEntries" title="Entries">
-    <span class="icon">☰</span>Entries
+  <!-- always-visible: sidebar toggle + mode switcher -->
+  <button class="mob-nav-btn" id="mobEntries" title="Sidebar">
+    <span class="icon">☰</span><span class="mob-nav-lbl">Sidebar</span>
   </button>
-  <button class="mob-nav-btn hi" id="mobNewEntry" title="New Entry">
-    <span class="icon">✦</span>New
+  <div id="mob-nav-sep"></div>
+
+  <!-- LORE actions -->
+  <button class="mob-nav-btn mob-mode-btn mob-lore hi" id="mobNewEntry" title="New Entry">
+    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
   </button>
-  <button class="mob-nav-btn" id="mobImport" title="Import">
-    <span class="icon">↓</span>Import
+  <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobImport" title="Import">
+    <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
   </button>
-  <button class="mob-nav-btn" id="mobExport" title="Export JSON">
-    <span class="icon">↑</span>Export
+  <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobExport" title="Export">
+    <span class="icon">↑</span><span class="mob-nav-lbl">Export</span>
   </button>
-  <button class="mob-nav-btn" id="mobSearch" title="Find & Replace">
-    <span class="icon">🔍</span>Search
+  <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobSearch" title="Find & Replace">
+    <span class="icon">🔍</span><span class="mob-nav-lbl">Search</span>
   </button>
-  <button class="mob-nav-btn" id="mobLibrary" title="Library">
-    <span class="icon">📚</span>Library
+  <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobLibrary" title="Library">
+    <span class="icon">📚</span><span class="mob-nav-lbl">Library</span>
   </button>
+
+  <!-- CHAR actions -->
+  <button class="mob-nav-btn mob-mode-btn mob-char hi" id="mobCharNew" title="New Character" style="display:none">
+    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharImport" title="Import Card" style="display:none">
+    <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharLibrary" title="Character Library" style="display:none">
+    <span class="icon">📚</span><span class="mob-nav-lbl">Library</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharAttach" title="Attach Lorebook" style="display:none">
+    <span class="icon">🌐</span><span class="mob-nav-lbl">Attach LB</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharPronouns" title="Pronouns & Nouns" style="display:none">
+    <span class="icon">🔤</span><span class="mob-nav-lbl">Pronouns</span>
+  </button>
+
+  <!-- PRESET actions -->
+  <button class="mob-nav-btn mob-mode-btn mob-preset hi" id="mobPresetNew" title="New Preset" style="display:none">
+    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetImport" title="Import Preset" style="display:none">
+    <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetLibrary" title="Preset Library" style="display:none">
+    <span class="icon">📚</span><span class="mob-nav-lbl">Library</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetPromptLib" title="Prompt Library" style="display:none">
+    <span class="icon">📋</span><span class="mob-nav-lbl">Prompts</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetAddPrompt" title="Add Prompt" style="display:none">
+    <span class="icon">+</span><span class="mob-nav-lbl">+ Prompt</span>
+  </button>
+
+  <!-- always-visible: settings/theme -->
+  <div id="mob-nav-sep2" style="width:1px;background:var(--bd);margin:.3rem .1rem;flex-shrink:0;align-self:stretch;"></div>
   <button class="mob-nav-btn" id="mobTheme" title="Toggle theme">
-    <span class="icon">◑</span>Theme
+    <span class="icon">◑</span><span class="mob-nav-lbl">Theme</span>
+  </button>
+  <button class="mob-nav-btn" id="mobSettings" title="Settings">
+    <span class="icon">⚙</span><span class="mob-nav-lbl">Settings</span>
   </button>
 </nav>
 
@@ -780,18 +875,36 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
   </div>
 </div>
 
-<!-- PRONOUN MACRO TOOL — floating, manual mode only -->
+<!-- Mobile char import picker -->
+<div id="mobCharImportModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2>// Import Card</h2><button class="modal-x" data-close="mobCharImportModal">×</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
+      <button class="btn btn-p" id="mobCharImportJsonBtn" style="width:100%;justify-content:center;padding:.65rem">📂 Import JSON Card</button>
+      <button class="btn btn-s" id="mobCharImportPngBtn" style="width:100%;justify-content:center;padding:.65rem">🖼 Import PNG Card</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRONOUN + NOUN TOOL — floating -->
 <div id="pronounTool">
   <div class="pt-head">
-    <span class="pt-title">// Pronoun → Macro</span>
+    <span class="pt-title">// Pronoun &amp; Noun Converter</span>
     <button class="btn-icon btn" id="ptClose" style="width:1.7rem;height:1.7rem;font-size:.85rem;flex-shrink:0">✕</button>
   </div>
   <div class="pt-body">
     <div class="pt-source-row">
-      <span class="pt-source-lbl">Highlight:</span>
+      <span class="pt-source-lbl">Source:</span>
       <button class="pt-src-btn active" data-src="they">they/them</button>
       <button class="pt-src-btn" data-src="he">he/him</button>
       <button class="pt-src-btn" data-src="she">she/her</button>
+    </div>
+    <div class="pt-target-row">
+      <span class="pt-source-lbl">Convert to:</span>
+      <button class="pt-tgt-btn active" data-tgt="macro">→ macros</button>
+      <button class="pt-tgt-btn" data-tgt="he">→ he/him</button>
+      <button class="pt-tgt-btn" data-tgt="she">→ she/her</button>
+      <button class="pt-tgt-btn" data-tgt="they">→ they/them</button>
     </div>
     <div class="pt-manual-legend">
       <span><span class="pt-legend-dot" style="background:rgba(232,121,160,.6)"></span>they/them</span>
@@ -806,6 +919,22 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
       <button class="btn btn-p btn-sm" id="ptManualApply">Apply to field</button>
       <button class="btn btn-s btn-sm" id="ptManualCopy">Copy result</button>
       <span style="font-family:var(--fx);font-size:.65rem;color:var(--txm);margin-left:auto">click words to convert</span>
+    </div>
+
+    <!-- NOUN CONVERTER -->
+    <div class="pt-noun-section">
+      <div class="pt-noun-row">
+        <span class="pt-source-lbl">Nouns→</span>
+        <button class="pt-tgt-btn active" data-noun-tgt="masc">→ masc</button>
+        <button class="pt-tgt-btn" data-noun-tgt="fem">→ fem</button>
+        <button class="pt-tgt-btn" data-noun-tgt="neutral">→ neutral</button>
+      </div>
+      <div id="ptNounDisplay" class="pt-manual-wrap" style="min-height:3rem">// refresh pronouns above to also scan nouns</div>
+      <div class="pt-actions-row" style="margin-top:.4rem">
+        <button class="btn btn-s btn-sm" id="ptNounApply">Apply nouns to field</button>
+        <button class="btn btn-s btn-sm" id="ptNounCopy">Copy noun result</button>
+        <span style="font-family:var(--fx);font-size:.65rem;color:var(--txm);margin-left:auto">click words to convert</span>
+      </div>
     </div>
   </div>
 </div>
@@ -989,6 +1118,41 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
         </div>
       </div>
 
+      <!-- GIST SYNC -->
+      <div class="settings-section">
+        <div class="settings-section-title">☁ Gist Sync</div>
+        <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);line-height:1.6;margin-bottom:.5rem">
+          Sync all your data across devices via a private GitHub Gist.<br>
+          Generate a PAT at <strong style="color:var(--txd)">github.com → Settings → Developer settings → Personal access tokens</strong> with only the <code>gist</code> scope.
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <div class="settings-row">
+            <span class="settings-lbl">GitHub PAT (gist scope only)</span>
+            <div style="display:flex;gap:.4rem">
+              <input type="password" id="syncPatInput" class="finput" style="flex:1;font-size:.78rem" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+              <button class="btn btn-s btn-sm" id="syncTogglePatVisibility" title="Show/hide">👁</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <span class="settings-lbl">Gist ID <span style="color:var(--txm)">(auto-filled after first connect)</span></span>
+            <input type="text" id="syncGistId" class="finput" style="font-size:.78rem" placeholder="leave blank to create new">
+          </div>
+          <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-top:.2rem">
+            <button class="btn btn-ok btn-sm" id="syncConnectBtn">Connect</button>
+            <button class="btn btn-s btn-sm" id="syncPushBtn" disabled>Push ↑</button>
+            <button class="btn btn-s btn-sm" id="syncPullBtn" disabled>Pull ↓</button>
+            <button class="btn btn-err btn-sm" id="syncDisconnectBtn" style="margin-left:auto;display:none">Disconnect</button>
+          </div>
+          <div style="display:flex;gap:.5rem;align-items:center;margin-top:.1rem">
+            <label style="display:flex;gap:.4rem;align-items:center;font-family:var(--fx);font-size:.68rem;color:var(--txm);cursor:pointer">
+              <input type="checkbox" id="syncAutoToggle" style="accent-color:var(--p)">
+              Auto-push on every save
+            </label>
+          </div>
+          <div class="sync-status" id="syncStatus"></div>
+        </div>
+      </div>
+
       <div class="modal-foot" style="justify-content:space-between">
         <button class="btn btn-s" data-close="settingsModal">Close</button>
         <button class="btn btn-p" id="stgApplyBtn">Apply</button>
@@ -1027,7 +1191,7 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
             <li><strong>Export PNG</strong> — embeds card JSON into your image</li>
             <li><strong>Image upload</strong> — set a base image for PNG export</li>
             <li><strong>Attach Lorebook</strong> — embeds a lorebook as <code>character_book</code> (ST reads this on import)</li>
-            <li><strong>🔤 Pronouns</strong> — converts he/she/they to ST macros ({{sub}}, {{obj}}, etc.) with verb agreement</li>
+            <li><strong>🔤 Pronouns &amp; Nouns</strong> — convert pronouns to ST macros OR swap to he/him · she/her · they/them directly. Noun converter handles gendered nouns (brother↔sister↔sibling, etc.). Verb agreement auto-applied.</li>
             <li><strong>Templates</strong> — field snippets for descriptions, system prompts etc.</li>
             <li>Supports V2 and V3 card spec</li>
           </ul>
@@ -1053,7 +1217,8 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
             <li><strong>⚙</strong> — customise colours, title, save named themes</li>
             <li><strong>Ctrl+D</strong> — toggle theme from anywhere</li>
             <li><strong>Ctrl+T</strong> — open template library</li>
-            <li>All data stored in <strong>localStorage</strong> — nothing leaves your browser</li>
+            <li>All data stored in <strong>localStorage</strong> — nothing leaves your browser unless you enable Gist Sync</li>
+            <li><strong>☁ Gist Sync</strong> (Settings) — sync all data across devices via a private GitHub Gist using a PAT (gist scope only)</li>
             <li>Single HTML file — works fully offline</li>
             <li>Mobile-friendly — swipe right from edge to open sidebar</li>
           </ul>
@@ -1115,6 +1280,66 @@ let activePresetId = null;
 let presetFormState = {};
 let presetUnsaved = false;
 
+// ── Pronoun/noun tool globals — must live here so wireEvents can reference PT ──
+const PT = {
+  open: false,
+  src: 'they',
+  tgt: 'macro',
+  targetField: null,
+  manualTokens: [],
+};
+const MACROS = {
+  sub: '{{sub}}', obj: '{{obj}}', poss: '{{poss}}',
+  poss_p: '{{poss_p}}', ref: '{{ref}}'
+};
+const PRONOUN_FORMS = {
+  he:   { sub: 'he',   obj: 'him',  poss: 'his',   poss_p: 'his',   ref: 'himself'   },
+  she:  { sub: 'she',  obj: 'her',  poss: 'her',   poss_p: 'hers',  ref: 'herself'   },
+  they: { sub: 'they', obj: 'them', poss: 'their', poss_p: 'theirs', ref: 'themselves' },
+};
+const CONTRACTION_FORMS = {
+  he:   { sub_is: "he's",   sub_ll: "he'll",   sub_d: "he'd",   sub_has: "he's"   },
+  she:  { sub_is: "she's",  sub_ll: "she'll",  sub_d: "she'd",  sub_has: "she's"  },
+  they: { sub_is: "they're", sub_ll: "they'll", sub_d: "they'd", sub_has: "they've" },
+};
+const THEY_VERB_FIX = { is:'are', was:'were', has:'have', does:'do', "doesn't":"don't", "hasn't":"haven't", "wasn't":"weren't" };
+const SINGULAR_VERB_FIX = { are:'is', were:'was', have:'has', do:'does', "don't":"doesn't", "haven't":"hasn't", "weren't":"wasn't" };
+const NOUN_TABLE = [
+  ['brother','sister','sibling'],['brothers','sisters','siblings'],
+  ['father','mother','parent'],['dad','mom','parent'],
+  ['son','daughter','child'],['sons','daughters','children'],
+  ['uncle','aunt',null],['uncles','aunts',null],
+  ['nephew','niece',null],['nephews','nieces',null],
+  ['husband','wife','spouse'],['husbands','wives','spouses'],
+  ['boyfriend','girlfriend','partner'],['boyfriends','girlfriends','partners'],
+  ['king','queen','ruler'],['kings','queens','rulers'],
+  ['prince','princess',null],['princes','princesses',null],
+  ['lord','lady',null],['lords','ladies',null],
+  ['sir',"ma'am",null],
+  ['man','woman','person'],['men','women','people'],
+  ['boy','girl',null],['boys','girls',null],
+  ['gentleman','lady','person'],['gentlemen','ladies','people'],
+  ['male','female',null],
+  ['grandfather','grandmother','grandparent'],
+  ['grandson','granddaughter','grandchild'],
+  ['stepfather','stepmother','stepparent'],
+  ['stepson','stepdaughter','stepchild'],
+  ['godfather','godmother',null],['godson','goddaughter',null],
+  ['widower','widow',null],
+  ['actor','actress','actor'],
+  ['waiter','waitress','server'],
+  ['steward','stewardess','flight attendant'],
+  ['landlord','landlady','landlord'],
+];
+const NOUN_MAP = {};
+NOUN_TABLE.forEach(([m, f, n]) => {
+  if (m) NOUN_MAP[m.toLowerCase()] = { masc: m, fem: f, neutral: n, src: 0 };
+  if (f) NOUN_MAP[f.toLowerCase()] = { masc: m, fem: f, neutral: n, src: 1 };
+  if (n) NOUN_MAP[n.toLowerCase()] = { masc: m, fem: f, neutral: n, src: 2 };
+});
+let PT_nounTgt = 'masc';
+let PT_nounTokens = [];
+
 // ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
@@ -1170,16 +1395,17 @@ function saveToStorage() {
     localStorage.setItem('aet_tabs', JSON.stringify(openTabs));
     localStorage.setItem('aet_activeTab', activeTabId);
     localStorage.setItem('aet_nextUid', nextUid);
+    syncAutoPush();
   } catch(e) { console.error(e); }
 }
 
 function saveCharLibrary() {
-  try { localStorage.setItem('aet_charLibrary', JSON.stringify(charLibrary)); }
+  try { localStorage.setItem('aet_charLibrary', JSON.stringify(charLibrary)); syncAutoPush(); }
   catch(e) { console.error(e); }
 }
 
 function savePresetLibrary() {
-  try { localStorage.setItem('aet_presetLibrary', JSON.stringify(presetLibrary)); }
+  try { localStorage.setItem('aet_presetLibrary', JSON.stringify(presetLibrary)); syncAutoPush(); }
   catch(e) { console.error(e); }
 }
 
@@ -1221,7 +1447,12 @@ function wireEvents() {
   g('charTemplatesBtn').onclick = () => openTemplateLibrary('char');
   g('loreTemplatesBtn').onclick = () => openTemplateLibrary('lore');
   g('attachLbBtn').onclick = openAttachLbModal;
-  g('pronounToolBtn').onclick = () => {}; // wired in wirePronounTool after DOM ready
+  g('pronounToolBtn').onclick = () => {
+    const tool = g('pronounTool');
+    tool.classList.toggle('open');
+    PT.open = tool.classList.contains('open');
+    if (PT.open && PT.targetField) ptRefreshManual();
+  };
   g('presetLibraryBtn').onclick = openPresetLibrary;
   g('presetTemplatesBtn').onclick = () => openTemplateLibrary('preset');
   g('psAddPromptHdr').onclick = () => {
@@ -1251,13 +1482,12 @@ function wireEvents() {
   g('viewToggle').onclick = toggleView;
   g('clearSel').onclick = clearSelection;
 
-  // Modal close buttons (data-close attribute)
-  document.querySelectorAll('[data-close]').forEach(btn => {
-    btn.addEventListener('click', () => closeModal(btn.dataset.close));
-  });
-  // Click outside modal to close
-  document.querySelectorAll('.modal').forEach(m => {
-    m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+  // Modal close — event delegation catches all modals including dynamically added ones
+  document.addEventListener('click', e => {
+    const closeTarget = e.target.closest('[data-close]');
+    if (closeTarget) { closeModal(closeTarget.dataset.close); return; }
+    // Click outside modal box to close
+    if (e.target.classList.contains('modal') && e.target.id) closeModal(e.target.id);
   });
 
   // Search & Replace
@@ -2423,7 +2653,9 @@ function extractCharFromPng(buf) {
       while (kwEnd < chunkEnd && buf[kwEnd] !== 0) kwEnd++;
       const keyword = String.fromCharCode(...buf.subarray(pos+8, kwEnd));
       if (keyword === 'chara') {
-        const b64 = String.fromCharCode(...buf.subarray(kwEnd+1, chunkEnd));
+        // Use TextDecoder instead of spread into fromCharCode — spread blows
+        // the call stack on large PNGs (maximum call stack size exceeded)
+        const b64 = new TextDecoder('latin1').decode(buf.subarray(kwEnd+1, chunkEnd));
         const json = decodeURIComponent(escape(atob(b64)));
         return JSON.parse(json);
       }
@@ -4106,32 +4338,69 @@ function wireMobile() {
   backdrop.addEventListener('click', closeSidebar);
   g('mob-sb-close').addEventListener('click', closeSidebar);
 
-  // Bottom nav buttons
-  g('mobEntries').addEventListener('click', () => { openSidebar(); });
+  // ── Mode-aware nav: show/hide button groups on mode switch ──
+  function updateMobNav(m) {
+    ['lore','char','preset'].forEach(modeKey => {
+      document.querySelectorAll(`.mob-mode-btn.mob-${modeKey}`).forEach(btn => {
+        btn.style.display = (m === modeKey) ? '' : 'none';
+      });
+    });
+  }
+
+  // Patch switchMode to also update mobile nav
+  const origSwitchMode = switchMode;
+  window.switchMode = function(newMode) {
+    origSwitchMode(newMode);
+    if (isMob()) updateMobNav(newMode);
+  };
+
+  // Init nav state to current mode
+  updateMobNav(mode || 'lore');
+
+  // ── Always-on buttons ──
+  g('mobEntries').addEventListener('click', openSidebar);
+  g('mobTheme').addEventListener('click', toggleTheme);
+  g('mobSettings').addEventListener('click', () => openModal('settingsModal'));
+
+  // ── LORE buttons ──
   g('mobNewEntry').addEventListener('click', () => { createEntry(); if(isMob()) closeSidebar(); });
   g('mobImport').addEventListener('click', () => openModal('mobImportModal'));
   g('mobExport').addEventListener('click', () => openModal('mobExportModal'));
   g('mobSearch').addEventListener('click', () => openModal('srModal'));
   g('mobLibrary').addEventListener('click', openLibrary);
-  g('mobTheme').addEventListener('click', toggleTheme);
 
-  // Mobile import modal buttons
+  // ── CHAR buttons ──
+  g('mobCharNew').addEventListener('click', () => { createChar(); if(isMob()) closeSidebar(); });
+  g('mobCharImport').addEventListener('click', () => openModal('mobCharImportModal'));
+  g('mobCharLibrary').addEventListener('click', openCharLibrary);
+  g('mobCharAttach').addEventListener('click', () => g('attachLbBtn').click());
+  g('mobCharPronouns').addEventListener('click', () => {
+    const tool = g('pronounTool');
+    tool.classList.toggle('open');
+    PT.open = tool.classList.contains('open');
+    if (PT.open && PT.targetField) ptRefreshManual();
+  });
+
+  // ── PRESET buttons ──
+  g('mobPresetNew').addEventListener('click', () => { createPreset(); if(isMob()) closeSidebar(); });
+  g('mobPresetImport').addEventListener('click', () => g('presetImportBtn').click());
+  g('mobPresetLibrary').addEventListener('click', () => openPresetLibrary());
+  g('mobPresetPromptLib').addEventListener('click', () => g('presetTemplatesBtn').click());
+  g('mobPresetAddPrompt').addEventListener('click', () => g('psAddPromptHdr').click());
+
+  // Mobile import modal buttons (lore)
   g('mobImportBtn').addEventListener('click', () => { closeModal('mobImportModal'); g('fileInput').click(); });
   g('mobImportMergeBtn').addEventListener('click', () => { closeModal('mobImportModal'); g('fileMergeInput').click(); });
 
-  // Mobile export modal buttons
+  // Mobile export modal buttons (lore)
   g('mobExportJsonBtn').addEventListener('click', () => { closeModal('mobExportModal'); exportJson(); });
   g('mobExportTxtBtn').addEventListener('click', () => { closeModal('mobExportModal'); openModal('expTxtModal'); });
   g('mobExportPubBtn').addEventListener('click', () => { closeModal('mobExportModal'); openPublicExport(); });
   g('mobClearBtn').addEventListener('click', () => { closeModal('mobExportModal'); clearEditor(); });
 
-  // Close sidebar when an entry is opened on mobile
-  const origOpenInTab = openInTab;
-  // Patch renderList to close sidebar after tap on mobile
-  const origRender = renderList;
-
-  // After opening a tab on mobile, close the sidebar
-  const realOpenInTab = window.openInTab || openInTab;
+  // Mobile char import modal buttons
+  g('mobCharImportJsonBtn').addEventListener('click', () => { closeModal('mobCharImportModal'); g('charImportJsonBtn').click(); });
+  g('mobCharImportPngBtn').addEventListener('click', () => { closeModal('mobCharImportModal'); g('charImportPngBtn').click(); });
 
   // Swipe-to-open sidebar: swipe right from left edge
   let touchStartX = 0, touchStartY = 0;
@@ -4143,9 +4412,7 @@ function wireMobile() {
     if (!isMob()) return;
     const dx = e.changedTouches[0].clientX - touchStartX;
     const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
-    // Swipe right from left 30px edge → open sidebar
     if (touchStartX < 30 && dx > 60 && dy < 80) openSidebar();
-    // Swipe left while sidebar open → close
     if (sidebar.classList.contains('mob-open') && dx < -60 && dy < 80) closeSidebar();
   }, { passive: true });
 
@@ -4168,30 +4435,16 @@ function wireMobile() {
 // ═══════════════════════════════════════════════════════
 // PRONOUN MACRO TOOL
 // ═══════════════════════════════════════════════════════
-const PT = {
-  open: false,
-  src: 'they',        // 'they' | 'he' | 'she'
-  targetField: null,
-  manualTokens: [],
-};
-
-// ── Macro map ──
-const MACROS = {
-  sub: '{{sub}}', obj: '{{obj}}', poss: '{{poss}}',
-  poss_p: '{{poss_p}}', ref: '{{ref}}'
-};
 
 // ── Pronoun patterns per source ──
 // Each entry: { regex, type, macro, ambiguous? }
 // Order matters — longer/more specific patterns first
 function getPatterns(src) {
   if (src === 'they') return [
-    // contractions first
-    { re: /\bthey're\b/gi,    macro: 'sub',    verb: ' is',  contractVerb: true },
-    { re: /\bthey've\b/gi,    macro: 'sub',    verb: ' has', contractVerb: true },
-    { re: /\bthey'll\b/gi,    macro: 'sub',    verb: "'ll",  contractVerb: true },
-    { re: /\bthey'd\b/gi,     macro: 'sub',    verb: "'d",   contractVerb: true },
-    // full forms
+    { re: /\bthey're\b/gi,    macro: 'sub',    verb: ' is',  contractVerb: true, contractKey: 'sub_is' },
+    { re: /\bthey've\b/gi,    macro: 'sub',    verb: ' has', contractVerb: true, contractKey: 'sub_has' },
+    { re: /\bthey'll\b/gi,    macro: 'sub',    verb: "'ll",  contractVerb: true, contractKey: 'sub_ll' },
+    { re: /\bthey'd\b/gi,     macro: 'sub',    verb: "'d",   contractVerb: true, contractKey: 'sub_d' },
     { re: /\bthemselves\b/gi, macro: 'ref'   },
     { re: /\btheirs\b/gi,     macro: 'poss_p' },
     { re: /\btheir\b/gi,      macro: 'poss'  },
@@ -4199,36 +4452,51 @@ function getPatterns(src) {
     { re: /\bthey\b/gi,       macro: 'sub',   needsVerbFix: true },
   ];
   if (src === 'he') return [
-    { re: /\bhe's\b/gi,       macro: 'sub',   verb: ' is',  contractVerb: true },
-    { re: /\bhe'd\b/gi,       macro: 'sub',   verb: "'d",   contractVerb: true },
-    { re: /\bhe'll\b/gi,      macro: 'sub',   verb: "'ll",  contractVerb: true },
+    { re: /\bhe's\b/gi,       macro: 'sub',   verb: ' is',  contractVerb: true, contractKey: 'sub_is' },
+    { re: /\bhe'd\b/gi,       macro: 'sub',   verb: "'d",   contractVerb: true, contractKey: 'sub_d' },
+    { re: /\bhe'll\b/gi,      macro: 'sub',   verb: "'ll",  contractVerb: true, contractKey: 'sub_ll' },
     { re: /\bhimself\b/gi,    macro: 'ref'   },
     { re: /\bhim\b/gi,        macro: 'obj'   },
-    // 'his' — ambiguous: possessive adj (his book) vs poss pronoun (that's his)
     { re: /\bhis\b/gi,        macro: 'poss',  ambig: 'poss_p' },
     { re: /\bhe\b/gi,         macro: 'sub'   },
   ];
   if (src === 'she') return [
-    { re: /\bshe's\b/gi,      macro: 'sub',   verb: ' is',  contractVerb: true },
-    { re: /\bshe'd\b/gi,      macro: 'sub',   verb: "'d",   contractVerb: true },
-    { re: /\bshe'll\b/gi,     macro: 'sub',   verb: "'ll",  contractVerb: true },
+    { re: /\bshe's\b/gi,      macro: 'sub',   verb: ' is',  contractVerb: true, contractKey: 'sub_is' },
+    { re: /\bshe'd\b/gi,      macro: 'sub',   verb: "'d",   contractVerb: true, contractKey: 'sub_d' },
+    { re: /\bshe'll\b/gi,     macro: 'sub',   verb: "'ll",  contractVerb: true, contractKey: 'sub_ll' },
     { re: /\bherself\b/gi,    macro: 'ref'   },
     { re: /\bhers\b/gi,       macro: 'poss_p' },
-    // 'her' — ambiguous: obj (gave her) vs poss adj (her book)
     { re: /\bher\b/gi,        macro: 'obj',   ambig: 'poss' },
     { re: /\bshe\b/gi,        macro: 'sub'   },
   ];
   return [];
 }
 
+// Get the output text for a token given target mode
+function getTokenOutput(tok, tgt, originalText) {
+  if (tgt === 'macro') {
+    if (tok.contractVerb) return MACROS[tok.macro] + tok.verb;
+    return MACROS[tok.macro];
+  }
+  // direct pronoun swap
+  const forms = PRONOUN_FORMS[tgt];
+  const contractions = CONTRACTION_FORMS[tgt];
+  if (tok.contractVerb && tok.contractKey && contractions[tok.contractKey]) {
+    // preserve original capitalisation
+    const out = contractions[tok.contractKey];
+    return originalText[0] === originalText[0].toUpperCase() ? out[0].toUpperCase() + out.slice(1) : out;
+  }
+  const out = forms[tok.macro] || forms['sub'];
+  // preserve original capitalisation
+  return originalText[0] === originalText[0].toUpperCase() ? out[0].toUpperCase() + out.slice(1) : out;
+}
+
 // ── Manual mode tokenizer ──
 function tokenizeForManual(text, src) {
   const patterns = getPatterns(src);
-  // Build a single regex that matches all pronoun forms
   const combined = new RegExp(
     patterns.map(p => p.re.source).join('|'), 'gi'
   );
-
   const tokens = [];
   let last = 0;
   let m;
@@ -4236,14 +4504,15 @@ function tokenizeForManual(text, src) {
   while ((m = combined.exec(text)) !== null) {
     if (m.index > last) tokens.push({ text: text.slice(last, m.index), type: 'text' });
     const raw = m[0];
-    // Find which pattern matched
     const pat = patterns.find(p => new RegExp('^' + p.re.source + '$', 'i').test(raw));
     tokens.push({
       text: raw,
+      originalText: raw,
       type: pat?.ambig ? 'ambiguous' : (src === 'he' ? 'pronoun-he' : src === 'she' ? 'pronoun-she' : 'pronoun'),
       macro: pat?.macro || 'sub',
       altMacro: pat?.ambig || null,
       contractVerb: pat?.contractVerb || false,
+      contractKey: pat?.contractKey || null,
       verb: pat?.verb || '',
       needsVerbFix: pat?.needsVerbFix || false,
       converted: false,
@@ -4256,6 +4525,7 @@ function tokenizeForManual(text, src) {
 
 function renderManualDisplay(tokens) {
   const wrap = g('ptManualDisplay');
+  const tgt = PT.tgt || 'macro';
   wrap.innerHTML = '';
   tokens.forEach((tok, i) => {
     if (tok.type === 'text') {
@@ -4263,55 +4533,49 @@ function renderManualDisplay(tokens) {
       return;
     }
     const span = document.createElement('span');
+    const outputText = getTokenOutput(tok, tgt, tok.originalText);
     span.className = 'pt-token ' + (tok.converted ? 'converted' : tok.type);
-    span.textContent = tok.converted
-      ? (tok.contractVerb ? MACROS[tok.macro] + tok.verb : MACROS[tok.macro])
-      : tok.text;
+    span.textContent = tok.converted ? outputText : tok.text;
     span.title = tok.converted
-      ? `converted → ${MACROS[tok.macro]}${tok.verb || ''} (click to undo)`
-      : tok.ambig ? `ambiguous — click: ${MACROS[tok.macro]} or ${MACROS[tok.altMacro]}`
-      : `click to convert → ${MACROS[tok.macro]}`;
+      ? `converted → ${outputText} (click to undo)`
+      : tok.type === 'ambiguous'
+        ? `ambiguous — click to convert (cycles poss/poss_p)`
+        : `click to convert → ${outputText}`;
 
     span.addEventListener('click', () => {
       if (tok.converted) {
         tok.converted = false;
       } else if (tok.type === 'ambiguous') {
-        // cycle: unconverted → poss → poss_p → unconverted
-        if (!tok._ambigState) { tok._ambigState = 0; }
-        tok._ambigState = (tok._ambigState + 1) % 3;
-        if (tok._ambigState === 0) { tok.converted = false; }
-        else { tok.converted = true; tok.macro = tok._ambigState === 1 ? (tok.altMacro ? tok.macro : tok.altMacro) : tok.altMacro; }
-        // simpler: just toggle between the two options
         tok.converted = !tok.converted;
         if (tok.converted) {
-          // pick the right one via a quick heuristic:
-          // if followed by a noun-like token, use poss; otherwise poss_p
           const nextTok = tokens[i+1];
           const nextText = nextTok?.text?.trimStart() || '';
           tok.macro = /^[a-z]/i.test(nextText) && !/^(is|was|has|does|did|will|would|could|should|to|the|a|an)\b/i.test(nextText)
-            ? (tok.altMacro || tok.macro)  // followed by content word → poss adj
-            : tok.macro;                    // end of clause → poss pronoun
+            ? (tok.altMacro || tok.macro)
+            : tok.macro;
         }
       } else {
         tok.converted = true;
       }
-      // verb agreement — fix verbs before AND after the pronoun
+      // verb agreement for they/them source (needsVerbFix = "they are/were/have...")
       if (tok.converted && tok.needsVerbFix) {
-        // after: "they are" → "{{sub}} is"
+        const isSingularTgt = tgt === 'he' || tgt === 'she';
+        const isPluralTgt = tgt === 'they';
         const nextTok = tokens[i+1];
-        if (nextTok?.type === 'text') {
-          nextTok.text = nextTok.text.replace(/^\s+(are|were|have|do|don't|haven't|weren't)\b/, (_, v) => {
-            const fixes = {are:'is',were:'was',have:'has',do:'does',"don't":"doesn't","haven't":"hasn't","weren't":"wasn't"};
-            return ' ' + (fixes[v.toLowerCase()] || v);
-          });
-        }
-        // before: "where are they" → "where is {{sub}}"
         const prevTok = tokens[i-1];
-        if (prevTok?.type === 'text') {
-          prevTok.text = prevTok.text.replace(/(are|were|have|do|don't|haven't|weren't)\s*$/i, (_, v) => {
-            const fixes = {are:'is',were:'was',have:'has',do:'does',"don't":"doesn't","haven't":"hasn't","weren't":"wasn't"};
-            return (fixes[v.toLowerCase()] || v) + ' ';
-          });
+        if (isSingularTgt) {
+          if (nextTok?.type === 'text') nextTok.text = nextTok.text.replace(/^\s+(are|were|have|do|don't|haven't|weren't)\b/i, (_, v) => ' ' + (SINGULAR_VERB_FIX[v.toLowerCase()] || v));
+          if (prevTok?.type === 'text') prevTok.text = prevTok.text.replace(/(are|were|have|do|don't|haven't|weren't)\s*$/i, (_, v) => (SINGULAR_VERB_FIX[v.toLowerCase()] || v) + ' ');
+        }
+        // src=he/she → they: fix singular verbs to plural
+        if (isPluralTgt) {
+          if (nextTok?.type === 'text') nextTok.text = nextTok.text.replace(/^\s+(is|was|has|does|doesn't|hasn't|wasn't)\b/i, (_, v) => ' ' + (THEY_VERB_FIX[v.toLowerCase()] || v));
+          if (prevTok?.type === 'text') prevTok.text = prevTok.text.replace(/(is|was|has|does|doesn't|hasn't|wasn't)\s*$/i, (_, v) => (THEY_VERB_FIX[v.toLowerCase()] || v) + ' ');
+        }
+        // macro mode uses existing singular fix
+        if (tgt === 'macro') {
+          if (nextTok?.type === 'text') nextTok.text = nextTok.text.replace(/^\s+(are|were|have|do|don't|haven't|weren't)\b/i, (_, v) => ' ' + (SINGULAR_VERB_FIX[v.toLowerCase()] || v));
+          if (prevTok?.type === 'text') prevTok.text = prevTok.text.replace(/(are|were|have|do|don't|haven't|weren't)\s*$/i, (_, v) => (SINGULAR_VERB_FIX[v.toLowerCase()] || v) + ' ');
         }
       }
       renderManualDisplay(tokens);
@@ -4321,10 +4585,80 @@ function renderManualDisplay(tokens) {
 }
 
 function getManualResult(tokens) {
+  const tgt = PT.tgt || 'macro';
   return tokens.map(tok => {
     if (tok.type === 'text') return tok.text;
     if (!tok.converted) return tok.text;
-    return tok.contractVerb ? MACROS[tok.macro] + tok.verb : MACROS[tok.macro];
+    return getTokenOutput(tok, tgt, tok.originalText);
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+// NOUN CONVERTER
+// ══════════════════════════════════════════
+
+function tokenizeForNouns(text) {
+  // Build regex from all known nouns
+  const words = Object.keys(NOUN_MAP).sort((a,b) => b.length - a.length);
+  const combined = new RegExp('\\b(' + words.map(w => w.replace(/'/g, "\\'")).join('|') + ')\\b', 'gi');
+  const tokens = [];
+  let last = 0;
+  let m;
+  combined.lastIndex = 0;
+  while ((m = combined.exec(text)) !== null) {
+    if (m.index > last) tokens.push({ text: text.slice(last, m.index), type: 'text' });
+    const raw = m[0];
+    const entry = NOUN_MAP[raw.toLowerCase()];
+    tokens.push({ text: raw, originalText: raw, type: 'noun', entry, converted: false });
+    last = m.index + raw.length;
+  }
+  if (last < text.length) tokens.push({ text: text.slice(last), type: 'text' });
+  return tokens;
+}
+
+function getNounOutput(tok) {
+  const e = tok.entry;
+  if (!e) return tok.text;
+  let out;
+  if (PT_nounTgt === 'masc') out = e.masc;
+  else if (PT_nounTgt === 'fem') out = e.fem;
+  else out = e.neutral || e.masc; // fallback if no neutral
+  if (!out) out = tok.text; // no mapping
+  // preserve capitalisation
+  return tok.originalText[0] === tok.originalText[0].toUpperCase()
+    ? out[0].toUpperCase() + out.slice(1)
+    : out;
+}
+
+function renderNounDisplay(tokens) {
+  const wrap = g('ptNounDisplay');
+  wrap.innerHTML = '';
+  tokens.forEach(tok => {
+    if (tok.type === 'text') { wrap.appendChild(document.createTextNode(tok.text)); return; }
+    const span = document.createElement('span');
+    const out = getNounOutput(tok);
+    const isUseless = tok.entry && PT_nounTgt === 'neutral' && !tok.entry.neutral;
+    span.className = 'pt-token ' + (tok.converted ? 'noun-converted' : (isUseless ? 'ambiguous' : 'noun'));
+    span.textContent = tok.converted ? out : tok.text;
+    span.title = isUseless
+      ? `no neutral form — will stay as "${tok.text}"`
+      : tok.converted
+        ? `converted → ${out} (click to undo)`
+        : `click to convert → ${out}`;
+    span.addEventListener('click', () => {
+      if (isUseless) return;
+      tok.converted = !tok.converted;
+      renderNounDisplay(tokens);
+    });
+    wrap.appendChild(span);
+  });
+}
+
+function getNounResult(tokens) {
+  return tokens.map(tok => {
+    if (tok.type === 'text') return tok.text;
+    if (!tok.converted) return tok.text;
+    return getNounOutput(tok);
   }).join('');
 }
 
@@ -4332,12 +4666,7 @@ function getManualResult(tokens) {
 function wirePronounTool() {
   const tool = g('pronounTool');
 
-  // Open/close
-  g('pronounToolBtn').addEventListener('click', () => {
-    tool.classList.toggle('open');
-    PT.open = tool.classList.contains('open');
-    if (PT.open && PT.targetField) ptRefreshManual();
-  });
+  // Open/close handled by wireEvents (pronounToolBtn.onclick)
   g('ptClose').addEventListener('click', () => { tool.classList.remove('open'); PT.open = false; });
 
   // Source selector
@@ -4349,36 +4678,83 @@ function wirePronounTool() {
     });
   });
 
-  // Track focused field — only textareas inside char editor
+  // Target selector (new)
+  tool.querySelectorAll('[data-tgt]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      PT.tgt = btn.dataset.tgt;
+      tool.querySelectorAll('[data-tgt]').forEach(b => b.classList.toggle('active', b.dataset.tgt === PT.tgt));
+      // re-render with new target
+      if (PT.manualTokens.length) renderManualDisplay(PT.manualTokens);
+    });
+  });
+
+  // Noun target selector
+  tool.querySelectorAll('[data-noun-tgt]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      PT_nounTgt = btn.dataset.nounTgt;
+      tool.querySelectorAll('[data-noun-tgt]').forEach(b => b.classList.toggle('active', b.dataset.nounTgt === PT_nounTgt));
+      if (PT_nounTokens.length) renderNounDisplay(PT_nounTokens);
+    });
+  });
+
+  // Track focused textarea in char mode — catches all textareas anywhere on the page
   document.addEventListener('focusin', e => {
-    if (e.target.tagName === 'TEXTAREA' && e.target.closest('#editorContent') && mode === 'char') {
+    if (e.target.tagName === 'TEXTAREA' && mode === 'char') {
+      // Exclude textareas inside the pronounTool itself and modals
+      if (e.target.closest('#pronounTool') || e.target.closest('.modal')) return;
       PT.targetField = e.target;
       if (PT.open) ptRefreshManual();
     }
   });
 
-  // Manual mode buttons
+  // Also track input[type=text] fields in char mode
+  document.addEventListener('focusin', e => {
+    if (e.target.tagName === 'INPUT' && e.target.type === 'text' && mode === 'char') {
+      if (e.target.closest('#pronounTool') || e.target.closest('.modal')) return;
+      PT.targetField = e.target;
+      if (PT.open) ptRefreshManual();
+    }
+  });
+
+  // Pronoun buttons
   g('ptManualRefresh').addEventListener('click', ptRefreshManual);
   g('ptManualApply').addEventListener('click', () => {
     if (!PT.targetField || !PT.manualTokens.length) { toast('Nothing to apply.', 'warn'); return; }
     PT.targetField.value = getManualResult(PT.manualTokens);
     PT.targetField.dispatchEvent(new Event('input', { bubbles: true }));
-    toast('Applied to field.', 'ok');
+    toast('Pronouns applied.', 'ok');
   });
   g('ptManualCopy').addEventListener('click', () => {
     if (!PT.manualTokens.length) { toast('Nothing to copy.', 'warn'); return; }
     copyToClipboard(getManualResult(PT.manualTokens))
       .then(ok => toast(ok ? 'Copied!' : 'Copy failed — select text manually.', ok ? 'ok' : 'warn'));
   });
+
+  // Noun buttons
+  g('ptNounApply').addEventListener('click', () => {
+    if (!PT.targetField || !PT_nounTokens.length) { toast('Nothing to apply.', 'warn'); return; }
+    PT.targetField.value = getNounResult(PT_nounTokens);
+    PT.targetField.dispatchEvent(new Event('input', { bubbles: true }));
+    toast('Nouns applied.', 'ok');
+  });
+  g('ptNounCopy').addEventListener('click', () => {
+    if (!PT_nounTokens.length) { toast('Nothing to copy.', 'warn'); return; }
+    copyToClipboard(getNounResult(PT_nounTokens))
+      .then(ok => toast(ok ? 'Copied!' : 'Copy failed.', ok ? 'ok' : 'warn'));
+  });
 }
 
 function ptRefreshManual() {
   if (!PT.targetField) {
     g('ptManualDisplay').textContent = '// focus a text field first';
+    g('ptNounDisplay').textContent = '// focus a text field first';
     return;
   }
-  PT.manualTokens = tokenizeForManual(PT.targetField.value, PT.src);
+  const text = PT.targetField.value;
+  PT.manualTokens = tokenizeForManual(text, PT.src);
   renderManualDisplay(PT.manualTokens);
+  PT_nounTokens = tokenizeForNouns(text);
+  renderNounDisplay(PT_nounTokens);
 }
 // ═══════════════════════════════════════════════════════
 // FULLSCREEN FIELD EDITOR
@@ -5200,6 +5576,214 @@ function wireFonts() {
   document.querySelectorAll('[data-font-reset]').forEach(btn => {
     btn.addEventListener('click', () => resetFont(btn.dataset.fontReset));
   });
+
+  // Wire sync section
+  wireSync();
+}
+
+// ═══════════════════════════════════════════════════════
+// GIST SYNC
+// ═══════════════════════════════════════════════════════
+const SYNC_KEYS = [
+  'aet_lorebook','aet_tabs','aet_activeTab','aet_nextUid',
+  'aet_charLibrary','aet_presetLibrary',
+  'aet_tpl_lore','aet_tpl_char','aet_tpl_preset',
+  'aet_theme','aet_zoom','aet_css','aet_css_light',
+  'aet_title_main','aet_title_sub',
+  'aet_font_fp','aet_font_fx','aet_font_fb',
+  'aet_theme_slots',
+];
+const GIST_FILENAME = 'loreos-data.json';
+const SYNC_PAT_KEY = 'aet_sync_pat';
+const SYNC_GIST_KEY = 'aet_sync_gist_id';
+const SYNC_AUTO_KEY = 'aet_sync_auto';
+
+function syncSetStatus(msg, type='info') {
+  const el = g('syncStatus');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'sync-status ' + type;
+}
+
+function syncGetPAT() { return localStorage.getItem(SYNC_PAT_KEY) || ''; }
+function syncGetGistId() { return localStorage.getItem(SYNC_GIST_KEY) || ''; }
+
+function syncBundleData() {
+  const bundle = {};
+  SYNC_KEYS.forEach(k => {
+    const v = localStorage.getItem(k);
+    if (v !== null) bundle[k] = v;
+  });
+  bundle._synced_at = new Date().toISOString();
+  bundle._version = '1';
+  return bundle;
+}
+
+function syncRestoreData(bundle) {
+  SYNC_KEYS.forEach(k => {
+    if (bundle[k] !== undefined) localStorage.setItem(k, bundle[k]);
+  });
+}
+
+async function syncConnect() {
+  const pat = g('syncPatInput').value.trim();
+  const gistIdInput = g('syncGistId').value.trim();
+  if (!pat) { syncSetStatus('PAT is required.', 'err'); return; }
+
+  syncSetStatus('Connecting...', 'info');
+
+  // Save PAT
+  localStorage.setItem(SYNC_PAT_KEY, pat);
+
+  try {
+    if (gistIdInput) {
+      // Verify existing gist
+      const r = await fetch(`https://api.github.com/gists/${gistIdInput}`, {
+        headers: { Authorization: `token ${pat}`, 'Accept': 'application/vnd.github+json' }
+      });
+      if (!r.ok) throw new Error(`Gist not found or PAT invalid (${r.status})`);
+      localStorage.setItem(SYNC_GIST_KEY, gistIdInput);
+      syncSetStatus(`Connected to gist ${gistIdInput.slice(0,8)}…`, 'ok');
+    } else {
+      // Create new gist
+      const r = await fetch('https://api.github.com/gists', {
+        method: 'POST',
+        headers: { Authorization: `token ${pat}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' },
+        body: JSON.stringify({
+          description: 'LoreOS Universal Editor sync data',
+          public: false,
+          files: { [GIST_FILENAME]: { content: JSON.stringify(syncBundleData(), null, 2) } }
+        })
+      });
+      if (!r.ok) throw new Error(`Failed to create gist (${r.status})`);
+      const data = await r.json();
+      localStorage.setItem(SYNC_GIST_KEY, data.id);
+      g('syncGistId').value = data.id;
+      syncSetStatus(`Created new gist ${data.id.slice(0,8)}… ✓`, 'ok');
+    }
+    syncUpdateUI(true);
+  } catch(e) {
+    syncSetStatus('Error: ' + e.message, 'err');
+  }
+}
+
+async function syncPush() {
+  const pat = syncGetPAT();
+  const gistId = syncGetGistId();
+  if (!pat || !gistId) { syncSetStatus('Not connected.', 'err'); return; }
+  syncSetStatus('Pushing...', 'info');
+  try {
+    const r = await fetch(`https://api.github.com/gists/${gistId}`, {
+      method: 'PATCH',
+      headers: { Authorization: `token ${pat}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' },
+      body: JSON.stringify({ files: { [GIST_FILENAME]: { content: JSON.stringify(syncBundleData(), null, 2) } } })
+    });
+    if (!r.ok) throw new Error(`Push failed (${r.status})`);
+    const ts = new Date().toLocaleTimeString();
+    syncSetStatus(`Pushed ✓ — ${ts}`, 'ok');
+  } catch(e) {
+    syncSetStatus('Push error: ' + e.message, 'err');
+  }
+}
+
+async function syncPull() {
+  const pat = syncGetPAT();
+  const gistId = syncGetGistId();
+  if (!pat || !gistId) { syncSetStatus('Not connected.', 'err'); return; }
+  syncSetStatus('Pulling...', 'info');
+  try {
+    const r = await fetch(`https://api.github.com/gists/${gistId}`, {
+      headers: { Authorization: `token ${pat}`, 'Accept': 'application/vnd.github+json' }
+    });
+    if (!r.ok) throw new Error(`Pull failed (${r.status})`);
+    const data = await r.json();
+    const file = data.files[GIST_FILENAME];
+    if (!file) throw new Error('No LoreOS data found in gist.');
+    const bundle = JSON.parse(file.content);
+    syncRestoreData(bundle);
+    const ts = bundle._synced_at ? new Date(bundle._synced_at).toLocaleString() : 'unknown';
+    syncSetStatus(`Pulled ✓ — data from ${ts}. Reloading...`, 'ok');
+    setTimeout(() => location.reload(), 1200);
+  } catch(e) {
+    syncSetStatus('Pull error: ' + e.message, 'err');
+  }
+}
+
+function syncDisconnect() {
+  localStorage.removeItem(SYNC_PAT_KEY);
+  localStorage.removeItem(SYNC_GIST_KEY);
+  localStorage.removeItem(SYNC_AUTO_KEY);
+  g('syncPatInput').value = '';
+  g('syncGistId').value = '';
+  g('syncAutoToggle').checked = false;
+  syncUpdateUI(false);
+  syncSetStatus('Disconnected.', 'info');
+}
+
+function syncUpdateUI(connected) {
+  const pushBtn = g('syncPushBtn');
+  const pullBtn = g('syncPullBtn');
+  const disconnectBtn = g('syncDisconnectBtn');
+  const connectBtn = g('syncConnectBtn');
+  if (!pushBtn) return;
+  pushBtn.disabled = !connected;
+  pullBtn.disabled = !connected;
+  disconnectBtn.style.display = connected ? '' : 'none';
+}
+
+// Auto-push hook — called after any save
+function syncAutoPush() {
+  if (localStorage.getItem(SYNC_AUTO_KEY) === '1' && syncGetPAT() && syncGetGistId()) {
+    syncPush();
+  }
+}
+
+function wireSync() {
+  // Restore saved state
+  const savedPat = syncGetPAT();
+  const savedGistId = syncGetGistId();
+  const isConnected = !!(savedPat && savedGistId);
+
+  if (savedPat) {
+    const patInput = g('syncPatInput');
+    if (patInput) patInput.value = savedPat;
+  }
+  if (savedGistId) {
+    const gistInput = g('syncGistId');
+    if (gistInput) gistInput.value = savedGistId;
+  }
+  const autoToggle = g('syncAutoToggle');
+  if (autoToggle) autoToggle.checked = localStorage.getItem(SYNC_AUTO_KEY) === '1';
+
+  syncUpdateUI(isConnected);
+  if (isConnected) syncSetStatus(`Connected — gist ${savedGistId.slice(0,8)}…`, 'ok');
+
+  const connectBtn = g('syncConnectBtn');
+  if (connectBtn) connectBtn.addEventListener('click', syncConnect);
+
+  const pushBtn = g('syncPushBtn');
+  if (pushBtn) pushBtn.addEventListener('click', syncPush);
+
+  const pullBtn = g('syncPullBtn');
+  if (pullBtn) pullBtn.addEventListener('click', syncPull);
+
+  const disconnectBtn = g('syncDisconnectBtn');
+  if (disconnectBtn) disconnectBtn.addEventListener('click', syncDisconnect);
+
+  if (autoToggle) {
+    autoToggle.addEventListener('change', () => {
+      localStorage.setItem(SYNC_AUTO_KEY, autoToggle.checked ? '1' : '0');
+    });
+  }
+
+  // PAT visibility toggle
+  const patVisBtn = g('syncTogglePatVisibility');
+  const patInput = g('syncPatInput');
+  if (patVisBtn && patInput) {
+    patVisBtn.addEventListener('click', () => {
+      patInput.type = patInput.type === 'password' ? 'text' : 'password';
+    });
+  }
 }
 </script>
 </body>
