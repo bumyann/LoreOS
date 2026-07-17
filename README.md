@@ -4,8 +4,7 @@ Wanted an all-in-one so I didn't have to navigate 47 different sites just to get
 
 Disclaimer: Vibe-coded with AI assistance because I don't code shit, I just write lots of lore and have poor impulse control. Tested before publishing because I'm not a rat^2. Built for SillyTavern, JanitorAI, and SaucepanAI workflows but honestly it's just a file, do whatever you want with it. Made everything in one file on purpose because I'm not downloading folders of code when I already have so many as is.
 
-https://bumyann.github.io/LoreOS-Universal-Editor/ or https://loreos.pages.dev/ if you find the first url ugly :P
-
+https://loreos.pages.dev/
 ---
 
 ## What's In It
@@ -71,12 +70,8 @@ https://bumyann.github.io/LoreOS-Universal-Editor/ or https://loreos.pages.dev/ 
 
 ## Usage
 
-### Browser
-1. Download `index.html`
-2. Open it in any modern browser
-3. That's it
-
-Alternatively, you can head on to https://bumyann.github.io/LoreOS-Universal-Editor/ to try it online!
+### Online
+Use https://loreos.pages.dev/ online!
 
 ### Local Server
 #### Desktop
