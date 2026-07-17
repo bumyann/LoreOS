@@ -1,0 +1,173 @@
+   MOBILE LAYOUT  (≤ 700px)
+═══════════════════════════════════════════ */
+@media (max-width:700px){
+
+  /* Body: allow scrolling on mobile, remove overflow:hidden */
+  body{overflow:auto;height:auto;min-height:100vh;min-height:100dvh}
+  #app{height:auto;min-height:100vh;min-height:100dvh}
+
+  /* ── HEADER: compact, just title + lorebook name ── */
+  #header{padding:.4rem .65rem;gap:.4rem;flex-wrap:nowrap}
+  #title{font-size:1.05rem;letter-spacing:1px;white-space:nowrap}
+  #title span{display:none}
+  #header-right{gap:.3rem;flex-wrap:nowrap}
+  .lb-label{font-size:.62rem;white-space:nowrap}
+  .hdr-actions{display:none} /* all actions live in bottom nav */
+  #lorebookName{width:100px;font-size:.73rem;padding:.2rem .4rem}
+
+  /* ── MODE TABS: full-width, equal thirds ── */
+  #modeTabs{padding:0;gap:0}
+  .mode-tab{
+    flex:1;text-align:center;padding:.45rem .3rem;
+    font-size:.82rem;letter-spacing:.5px;
+    border-bottom:2px solid transparent;
+  }
+
+  /* ── MAIN: full-width stacked ── */
+  #main{flex-direction:column;overflow:visible;min-height:0}
+
+  /* ── SIDEBAR: off-canvas drawer ── */
+  #sidebar{
+    position:fixed;top:0;left:0;bottom:0;
+    width:85vw;max-width:340px;
+    transform:translateX(-100%);
+    transition:transform .22s ease;
+    z-index:1200;
+    border-right:1px solid var(--bdb);
+    box-shadow:4px 0 24px rgba(0,0,0,.65);
+    overflow-y:auto;
+    min-width:unset;flex-shrink:unset;
+  }
+  #sidebar.mob-open{transform:translateX(0)}
+
+  /* Sidebar backdrop */
+  #mob-backdrop{
+    display:none;position:fixed;inset:0;
+    background:rgba(0,0,0,.55);z-index:1100;
+    backdrop-filter:blur(2px);
+  }
+  #mob-backdrop.visible{display:block}
+
+  /* Close X inside sidebar header */
+  #mob-sb-close{display:flex}
+
+  /* Sidebar entry items: bigger tap targets */
+  .ei{padding:.65rem .75rem}
+  .ei-acts{display:flex}
+  .ei-act{padding:5px 10px;font-size:.75rem}
+
+  /* ── EDITOR: full width ── */
+  #editor-area{width:100%;min-height:0}
+
+  /* Tab bar */
+  .tab-bar-wrap{padding:0 .3rem}
+  .view-ctrls{display:none}
+  #editorContent{
+    padding:.85rem .7rem;
+    padding-bottom:5.5rem; /* clearance above nav */
+  }
+
+  /* Field labels: slightly larger for readability */
+  .flabel{font-size:.72rem}
+  .finput,.ftextarea,textarea.finput{font-size:.83rem}
+
+  /* Keywords row: single column */
+  .kw-row{grid-template-columns:1fr;gap:.45rem}
+  .kw-logic{min-width:unset}
+
+  /* Advanced grid: two columns → one */
+  .adv-grid{grid-template-columns:1fr}
+
+  /* Modals: slide up from bottom */
+  .modal{padding:.4rem;align-items:flex-end}
+  .modal-box,.modal-box.lg{
+    width:100%;max-width:100%;
+    max-height:92vh;max-height:92dvh;
+    border-radius:14px 14px 0 0;
+  }
+  .modal-body{padding:.85rem .9rem}
+
+  /* Settings modal: single-column colour grid */
+  .settings-grid{grid-template-columns:1fr 1fr}
+
+  /* ── BOTTOM NAV ── */
+  #mob-nav{
+    display:flex;
+    position:fixed;bottom:0;left:0;right:0;
+    background:var(--bg2);
+    border-top:1px solid var(--bdb);
+    z-index:1000;
+    box-shadow:0 -2px 16px rgba(0,0,0,.55);
+    padding:.25rem .15rem;
+    padding-bottom:calc(.25rem + env(safe-area-inset-bottom));
+    gap:0;
+    overflow-x:auto;
+    overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  #mob-nav::-webkit-scrollbar{display:none}
+  .mob-nav-btn{
+    flex:0 0 auto;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:.12rem;
+    min-width:3.2rem;
+    padding:.3rem .3rem;
+    background:none;border:none;cursor:pointer;
+    color:var(--txm);font-family:var(--fx);font-size:.52rem;letter-spacing:.4px;
+    border-radius:6px;transition:color .12s,background .12s;
+    -webkit-tap-highlight-color:transparent;
+    white-space:nowrap;
+  }
+  .mob-nav-btn:active{background:var(--sf2)}
+  .mob-nav-btn .icon{font-size:1.25rem;line-height:1.1}
+  .mob-nav-btn.active{color:var(--p)}
+  .mob-nav-btn.hi{color:var(--ok)}
+
+  /* Separator pill between always-on and mode buttons */
+  #mob-nav-sep{
+    width:1px;background:var(--bd);margin:.3rem .1rem;flex-shrink:0;align-self:stretch;
+  }
+
+  /* Notifications: above bottom nav */
+  #notifs{bottom:5.2rem;right:.75rem}
+
+  /* Lib modal save row stack */
+  .lib-save-row{flex-direction:column;align-items:stretch}
+  .lib-save-row .lib-new-in,.lib-save-row .btn{width:100%}
+
+  /* sr-actions wrap */
+  .sr-actions{flex-direction:column}
+  .sr-actions .btn{width:100%}
+
+  /* Pronoun tool: full-width on mobile */
+  #pronounTool{
+    width:calc(100vw - 1rem);
+    bottom:.5rem;
+  }
+}
+
+/* ─── SETTINGS MODAL ─── */
+.settings-section{margin-bottom:1.1rem}
+.settings-section-title{font-family:var(--fp);font-size:.95rem;color:var(--p);letter-spacing:1.5px;margin-bottom:.55rem;padding-bottom:.3rem;border-bottom:1px solid var(--bd)}
+.settings-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.55rem}
+.settings-row{display:flex;flex-direction:column;gap:.2rem}
+.settings-lbl{font-family:var(--fx);font-size:.68rem;color:var(--txm);letter-spacing:.4px}
+.settings-color{display:flex;gap:.35rem;align-items:center}
+.settings-color input[type=color]{width:32px;height:26px;padding:1px;border:1px solid var(--bd);border-radius:3px;background:var(--sf);cursor:pointer}
+.settings-color input[type=text]{flex:1;font-family:var(--fx);font-size:.72rem;padding:.22rem .45rem;background:var(--sf);border:1px solid var(--bd);border-radius:3px;color:var(--tx)}
+.settings-color input[type=text]:focus{outline:none;border-color:var(--p)}
+.theme-slot{display:flex;align-items:center;gap:.4rem;padding:.4rem .65rem;background:var(--sf);border:1px solid var(--bd);border-radius:3px;cursor:pointer;transition:border-color .12s}
+.theme-slot:hover{border-color:var(--bdb)}
+.theme-slot.active{border-color:var(--p);background:var(--sf2)}
+.theme-slot-name{font-family:var(--fx);font-size:.78rem;color:var(--txd);flex:1}
+.theme-slot-swatch{width:12px;height:12px;border-radius:50%;flex-shrink:0;border:1px solid rgba(255,255,255,.2)}
+
+/* Desktop: hide mobile-only elements */
+@media (min-width:701px){
+  #mob-nav{display:none}
+  #mob-backdrop{display:none!important}
+  #mob-sb-close{display:none!important}
+}
+
+/* ═══════════════════════════════════════════
