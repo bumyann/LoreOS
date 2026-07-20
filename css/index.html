@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LoreOS // Universal Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=VT323&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+<div id="app">
+  <!-- HEADER -->
+  <header id="header">
+    <div id="title">LoreOS<span>// Universal Editor</span></div>
+    <div id="header-right">
+      <span class="lb-label" id="nameLabel">Lorebook:</span>
+      <input type="text" id="lorebookName" placeholder="untitled">
+
+      <!-- LOREBOOK MODE ACTIONS -->
+      <div class="hdr-actions mode-actions" id="hdr-lore">
+        <div class="dd" id="dd-import">
+          <button class="btn btn-p dd-btn">&#8659; Import</button>
+          <div class="dd-menu">
+            <button class="dd-item" id="importBtn">📂 Import Lorebook</button>
+            <button class="dd-item" id="importMergeBtn">⇌ Import for Merge</button>
+          </div>
+        </div>
+        <div class="dd" id="dd-export">
+          <button class="btn btn-s dd-btn">&#8657; Export</button>
+          <div class="dd-menu">
+            <button class="dd-item" id="exportJsonBtn">{ } Export JSON</button>
+            <button class="dd-item" id="exportTxtBtn">📄 Export as Text</button>
+            <button class="dd-item" id="exportPubBtn">📖 Export for Public Pages</button>
+          </div>
+        </div>
+        <button class="btn btn-s" id="searchBtn2">🔍 Find &amp; Replace</button>
+        <button class="btn btn-s" id="libraryBtn">📚 Library</button>
+        <button class="btn btn-s" id="loreTemplatesBtn">📋 Templates</button>
+        <button class="btn btn-s" id="clearBtn">🗑 Clear</button>
+        <button class="btn btn-ok" id="newEntryBtn">+ New Entry</button>
+      </div>
+
+      <!-- CHARACTER MODE ACTIONS -->
+      <div class="hdr-actions mode-actions" id="hdr-char" style="display:none">
+        <div class="dd" id="dd-charimport">
+          <button class="btn btn-p dd-btn">&#8659; Import</button>
+          <div class="dd-menu">
+            <button class="dd-item" id="charImportJsonBtn">📂 Import JSON Card</button>
+            <button class="dd-item" id="charImportPngBtn">🖼 Import PNG Card</button>
+          </div>
+        </div>
+        <button class="btn btn-s" id="charLibraryBtn">📚 Library</button>
+        <button class="btn btn-s" id="charTemplatesBtn">📋 Templates</button>
+        <button class="btn btn-s" id="attachLbBtn">🌐 Attach Lorebook</button>
+        <button class="btn btn-s" id="pronounToolBtn">🔤 Pronouns</button>
+        <button class="btn btn-ok" id="charNewBtn">+ New Character</button>
+      </div>
+
+      <!-- PRESET MODE ACTIONS -->
+      <div class="hdr-actions mode-actions" id="hdr-preset" style="display:none">
+        <div class="dd" id="dd-presetimport">
+          <button class="btn btn-p dd-btn">&#8659; Import</button>
+          <div class="dd-menu">
+            <button class="dd-item" id="presetImportBtn">📂 Import Preset JSON</button>
+          </div>
+        </div>
+        <button class="btn btn-s" id="presetLibraryBtn">📚 Preset Library</button>
+        <button class="btn btn-s" id="presetTemplatesBtn">📋 Prompt Library</button>
+        <button class="btn btn-s" id="psAddPromptHdr">+ New Prompt</button>
+        <button class="btn btn-ok" id="presetNewBtn">+ New Preset</button>
+      </div>
+
+      <button class="btn-icon btn" id="themeBtn" title="Toggle dark/light theme">◑</button>
+      <button class="btn-icon btn" id="settingsBtn" title="Settings">⚙</button>
+      <button class="btn-icon btn" id="helpBtn" title="Help">?</button>
+    </div>
+  </header>
+
+  <!-- MODE TABS -->
+  <div id="modeTabs">
+    <button class="mode-tab active" data-mode="lore">📖 Lorebook</button>
+    <button class="mode-tab" data-mode="char">🎭 Character</button>
+    <button class="mode-tab" data-mode="preset">⚙ Preset</button>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <!-- SIDEBAR -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sb-head">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div class="sb-title" id="sbTitle">// Entries</div>
+          <button id="mob-sb-close" class="btn-icon btn" style="display:none;width:1.7rem;height:1.7rem;font-size:.9rem" title="Close sidebar">✕</button>
+        </div>
+        <input type="text" id="sbSearch" class="sb-search" placeholder="Search entries...">
+        <div class="zoom-row" id="zoomRow">
+          <button class="z-btn" id="zoomOut">-</button>
+          <span id="zoomLabel">Normal</span>
+          <button class="z-btn" id="zoomIn">+</button>
+        </div>
+      </div>
+      <div class="sb-count"><span id="entryCount">0 entries</span></div>
+      <ul id="entryList"></ul>
+    </aside>
+
+    <!-- Mobile sidebar backdrop -->
+    <div id="mob-backdrop"></div>
+
+    <!-- EDITOR -->
+    <main id="editor-area">
+      <div class="tab-bar-wrap">
+        <div id="tabBar"></div>
+        <div class="view-ctrls">
+          <button class="btn-icon btn" id="viewToggle" title="Toggle side-by-side">▥</button>
+          <button class="btn-icon btn" id="clearSel" title="Clear selection" style="display:none;font-size:.65rem;width:auto;padding:0 .4rem">☑ Clear</button>
+        </div>
+      </div>
+      <div id="editorContent">
+        <div class="empty-state">
+          <div>// select an entry to begin</div>
+          <button class="btn btn-ok" id="newEntryBtnAlt">+ New Entry</button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Hidden file inputs -->
+<input type="file" id="fileInput" accept=".json" style="display:none">
+<input type="file" id="fileMergeInput" accept=".json" style="display:none">
+<input type="file" id="fileCharInput" accept=".json,.png" style="display:none">
+<input type="file" id="filePresetInput" accept=".json" style="display:none">
+
+<!-- Notifications -->
+<div id="notifs"></div>
+
+<!-- SEARCH & REPLACE MODAL -->
+<div id="srModal" class="modal">
+  <div class="modal-box lg">
+    <div class="modal-head"><h2>// Find &amp; Replace</h2><button class="modal-x" data-close="srModal">×</button></div>
+    <div class="modal-body">
+      <div class="sr-opts">
+        <div class="fg"><label class="flabel">Find</label><input type="text" id="srFind" class="finput" placeholder="Search text..." autocomplete="off"></div>
+        <div class="fg"><label class="flabel">Replace with</label><input type="text" id="srReplace" class="finput" placeholder="Replacement..." autocomplete="off"></div>
+        <div class="fg"><label class="flabel">Search in</label>
+          <select id="srScope" class="fselect">
+            <option value="content">Content Only</option>
+            <option value="keywords">Keywords Only</option>
+            <option value="names">Entry Names Only</option>
+            <option value="all">All Fields</option>
+          </select>
+        </div>
+        <label class="cb-row"><input type="checkbox" id="srCase"><span class="flabel-sm">Match Case</span></label>
+        <label class="cb-row"><input type="checkbox" id="srWhole"><span class="flabel-sm">Whole Words Only</span></label>
+        <label class="cb-row"><input type="checkbox" id="srRegex"><span class="flabel-sm">Use Regex</span></label>
+      </div>
+      <div class="sr-actions">
+        <button class="btn btn-p" id="srFindAll">Find All</button>
+        <button class="btn btn-s" id="srReplaceOne">Replace Next</button>
+        <button class="btn btn-err" id="srReplaceAll">Replace All</button>
+      </div>
+      <div id="srResults" style="display:none" class="sr-results">
+        <div id="srResultsHead" class="sr-rhead"></div>
+        <div id="srResultsList" class="sr-list"></div>
+      </div>
+      <div class="modal-foot"><button class="btn btn-s" data-close="srModal">Close</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- MERGE MODAL -->
+<div id="mergeModal" class="modal">
+  <div class="modal-box lg">
+    <div class="modal-head"><h2>// Merge Entries</h2><button class="modal-x" data-close="mergeModal">×</button></div>
+    <div class="modal-body">
+      <div class="merge-info">
+        <p><strong>Current:</strong> <span id="mergeCurrent"></span></p>
+        <p><strong>From:</strong> <span id="mergeFrom"></span></p>
+        <p class="merge-note">Select entries to import. UIDs renumber automatically.</p>
+      </div>
+      <div class="merge-top">
+        <button class="btn btn-s btn-sm" id="mergeSelAll">Select All</button>
+        <button class="btn btn-s btn-sm" id="mergeDeselAll">Deselect All</button>
+        <span class="merge-count-lbl" id="mergeCountLbl">0 selected</span>
+      </div>
+      <div id="mergeList" class="merge-list"></div>
+      <div class="merge-bot">
+        <button class="btn btn-s" data-close="mergeModal">Cancel</button>
+        <button class="btn btn-ok" id="mergeConfirm">Merge Selected</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT TEXT MODAL -->
+<div id="expTxtModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2>// Export as Text</h2><button class="modal-x" data-close="expTxtModal">×</button></div>
+    <div class="modal-body">
+      <div class="exp-opts">
+        <h3>Include in export</h3>
+        <label class="cb-row"><input type="checkbox" id="etTitles" checked><span class="flabel-sm">Entry Titles</span></label>
+        <label class="cb-row"><input type="checkbox" id="etContent" checked><span class="flabel-sm">Entry Content</span></label>
+        <label class="cb-row"><input type="checkbox" id="etPrimary" checked><span class="flabel-sm">Primary Keywords</span></label>
+        <label class="cb-row"><input type="checkbox" id="etSecondary" checked><span class="flabel-sm">Secondary Keywords &amp; Logic</span></label>
+        <label class="cb-row"><input type="checkbox" id="etConstants" checked><span class="flabel-sm">Constant/Extension Indicators</span></label>
+        <label class="cb-row"><input type="checkbox" id="etComments"><span class="flabel-sm">Comments/Notes</span></label>
+        <label class="cb-row"><input type="checkbox" id="etOrder"><span class="flabel-sm">Order Numbers</span></label>
+        <div class="fg" style="margin-top:.5rem"><label class="flabel-sm">Filename</label><input type="text" id="etFilename" class="finput" placeholder="lorebook-backup"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-p" id="etExport">Export .txt</button>
+        <button class="btn btn-s" data-close="expTxtModal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT PUBLIC MODAL -->
+<div id="expPubModal" class="modal">
+  <div class="modal-box lg">
+    <div class="modal-head"><h2>// Export for Public Pages</h2><button class="modal-x" data-close="expPubModal">×</button></div>
+    <div class="modal-body">
+      <div class="exp-opts">
+        <h3>Markdown options</h3>
+        <label class="cb-row"><input type="checkbox" id="epDisabled"><span class="flabel-sm">Include disabled entries</span></label>
+        <label class="cb-row"><input type="checkbox" id="epKeywords"><span class="flabel-sm">Include keyword tags</span></label>
+        <label class="cb-row"><input type="checkbox" id="epStatus" checked><span class="flabel-sm">Show status badges</span></label>
+        <div class="fg" style="margin-top:.5rem"><label class="flabel-sm">Filename (.md)</label><input type="text" id="epFilename" class="finput" placeholder="lorebook-public"></div>
+      </div>
+      <div id="epPreview" class="pub-prev" style="display:none"></div>
+      <div class="modal-foot">
+        <button class="btn btn-s" id="epPreviewBtn">Preview</button>
+        <button class="btn btn-p" id="epExport">Download .md</button>
+        <button class="btn btn-s" data-close="expPubModal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LIBRARY MODAL -->
+<div id="libModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2 id="libModalTitle">// Lorebook Library</h2><button class="modal-x" data-close="libModal">×</button></div>
+    <div class="modal-body">
+      <div id="libList" class="lib-list"></div>
+      <div class="lib-save-row">
+        <input type="text" id="libNewName" class="lib-new-in" placeholder="Save current as...">
+        <button class="btn btn-ok" id="libSaveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav id="mob-nav">
+  <!-- always-visible: sidebar toggle + mode switcher -->
+  <button class="mob-nav-btn" id="mobEntries" title="Sidebar">
+    <span class="icon">☰</span><span class="mob-nav-lbl">Sidebar</span>
+  </button>
+  <div id="mob-nav-sep"></div>
+
+  <!-- LORE actions -->
+  <button class="mob-nav-btn mob-mode-btn mob-lore hi" id="mobNewEntry" title="New Entry">
+    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobImport" title="Import">
+    <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobExport" title="Export">
+    <span class="icon">↑</span><span class="mob-nav-lbl">Export</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobSearch" title="Find & Replace">
+    <span class="icon">🔍</span><span class="mob-nav-lbl">Search</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobLibrary" title="Library">
+    <span class="icon">📚</span><span class="mob-nav-lbl">Library</span>
+  </button>
+
+  <!-- CHAR actions -->
+  <button class="mob-nav-btn mob-mode-btn mob-char hi" id="mobCharNew" title="New Character" style="display:none">
+    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharImport" title="Import Card" style="display:none">
+    <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharLibrary" title="Character Library" style="display:none">
+    <span class="icon">📚</span><span class="mob-nav-lbl">Library</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharAttach" title="Attach Lorebook" style="display:none">
+    <span class="icon">🌐</span><span class="mob-nav-lbl">Attach LB</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharPronouns" title="Pronouns & Nouns" style="display:none">
+    <span class="icon">🔤</span><span class="mob-nav-lbl">Pronouns</span>
+  </button>
+
+  <!-- PRESET actions -->
+  <button class="mob-nav-btn mob-mode-btn mob-preset hi" id="mobPresetNew" title="New Preset" style="display:none">
+    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetImport" title="Import Preset" style="display:none">
+    <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetLibrary" title="Preset Library" style="display:none">
+    <span class="icon">📚</span><span class="mob-nav-lbl">Library</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetPromptLib" title="Prompt Library" style="display:none">
+    <span class="icon">📋</span><span class="mob-nav-lbl">Prompts</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetAddPrompt" title="Add Prompt" style="display:none">
+    <span class="icon">+</span><span class="mob-nav-lbl">+ Prompt</span>
+  </button>
+
+  <!-- always-visible: settings/theme -->
+  <div id="mob-nav-sep2" style="width:1px;background:var(--bd);margin:.3rem .1rem;flex-shrink:0;align-self:stretch;"></div>
+  <button class="mob-nav-btn" id="mobTheme" title="Toggle theme">
+    <span class="icon">◑</span><span class="mob-nav-lbl">Theme</span>
+  </button>
+  <button class="mob-nav-btn" id="mobSettings" title="Settings">
+    <span class="icon">⚙</span><span class="mob-nav-lbl">Settings</span>
+  </button>
+</nav>
+
+<!-- Mobile import picker (reuse for import/merge) -->
+<div id="mobImportModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2>// Import</h2><button class="modal-x" data-close="mobImportModal">×</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
+      <button class="btn btn-p" id="mobImportBtn" style="width:100%;justify-content:center;padding:.65rem">📂 Import Lorebook (replace)</button>
+      <button class="btn btn-s" id="mobImportMergeBtn" style="width:100%;justify-content:center;padding:.65rem">⇌ Import for Merge</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile export picker -->
+<div id="mobExportModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2>// Export</h2><button class="modal-x" data-close="mobExportModal">×</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
+      <button class="btn btn-p" id="mobExportJsonBtn" style="width:100%;justify-content:center;padding:.65rem">{ } Export JSON</button>
+      <button class="btn btn-s" id="mobExportTxtBtn" style="width:100%;justify-content:center;padding:.65rem">📄 Export as Text</button>
+      <button class="btn btn-s" id="mobExportPubBtn" style="width:100%;justify-content:center;padding:.65rem">📖 Export for Public Pages</button>
+      <button class="btn btn-err" id="mobClearBtn" style="width:100%;justify-content:center;padding:.65rem">🗑 Clear Editor</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile char import picker -->
+<div id="mobCharImportModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2>// Import Card</h2><button class="modal-x" data-close="mobCharImportModal">×</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
+      <button class="btn btn-p" id="mobCharImportJsonBtn" style="width:100%;justify-content:center;padding:.65rem">📂 Import JSON Card</button>
+      <button class="btn btn-s" id="mobCharImportPngBtn" style="width:100%;justify-content:center;padding:.65rem">🖼 Import PNG Card</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRONOUN + NOUN TOOL — floating -->
+<div id="pronounTool">
+  <div class="pt-head">
+    <span class="pt-title">// Pronoun &amp; Noun Converter</span>
+    <button class="btn-icon btn" id="ptClose" style="width:1.7rem;height:1.7rem;font-size:.85rem;flex-shrink:0">✕</button>
+  </div>
+  <div class="pt-body">
+    <div class="pt-source-row">
+      <span class="pt-source-lbl">Source:</span>
+      <button class="pt-src-btn active" data-src="they">they/them</button>
+      <button class="pt-src-btn" data-src="he">he/him</button>
+      <button class="pt-src-btn" data-src="she">she/her</button>
+    </div>
+    <div class="pt-target-row">
+      <span class="pt-source-lbl">Convert to:</span>
+      <button class="pt-tgt-btn active" data-tgt="macro">→ macros</button>
+      <button class="pt-tgt-btn" data-tgt="he">→ he/him</button>
+      <button class="pt-tgt-btn" data-tgt="she">→ she/her</button>
+      <button class="pt-tgt-btn" data-tgt="they">→ they/them</button>
+    </div>
+    <div class="pt-manual-legend">
+      <span><span class="pt-legend-dot" style="background:rgba(232,121,160,.6)"></span>they/them</span>
+      <span><span class="pt-legend-dot" style="background:rgba(121,180,232,.6)"></span>he/him</span>
+      <span><span class="pt-legend-dot" style="background:rgba(136,201,138,.6)"></span>she/her</span>
+      <span><span class="pt-legend-dot" style="background:rgba(240,192,96,.6)"></span>ambiguous</span>
+      <span><span class="pt-legend-dot" style="background:rgba(136,201,138,.35)"></span>converted</span>
+    </div>
+    <div id="ptManualDisplay" class="pt-manual-wrap">// focus a text field in the character editor to begin</div>
+    <div class="pt-actions-row" style="margin-top:.4rem">
+      <button class="btn btn-s btn-sm" id="ptManualRefresh">Refresh</button>
+      <button class="btn btn-p btn-sm" id="ptManualApply">Apply to field</button>
+      <button class="btn btn-s btn-sm" id="ptManualCopy">Copy result</button>
+      <span style="font-family:var(--fx);font-size:.65rem;color:var(--txm);margin-left:auto">click words to convert</span>
+    </div>
+
+    <!-- NOUN CONVERTER -->
+    <div class="pt-noun-section">
+      <div class="pt-noun-row">
+        <span class="pt-source-lbl">Nouns→</span>
+        <button class="pt-tgt-btn active" data-noun-tgt="masc">→ masc</button>
+        <button class="pt-tgt-btn" data-noun-tgt="fem">→ fem</button>
+        <button class="pt-tgt-btn" data-noun-tgt="neutral">→ neutral</button>
+      </div>
+      <div id="ptNounDisplay" class="pt-manual-wrap" style="min-height:3rem">// refresh pronouns above to also scan nouns</div>
+      <div class="pt-actions-row" style="margin-top:.4rem">
+        <button class="btn btn-s btn-sm" id="ptNounApply">Apply nouns to field</button>
+        <button class="btn btn-s btn-sm" id="ptNounCopy">Copy noun result</button>
+        <span style="font-family:var(--fx);font-size:.65rem;color:var(--txm);margin-left:auto">click words to convert</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FULLSCREEN FIELD MODAL -->
+<div id="fullscreenModal" class="modal">
+  <div class="modal-box" style="max-width:860px">
+    <div class="modal-head">
+      <h2 id="fullscreenTitle">// Edit Field</h2>
+      <button class="modal-x" id="fullscreenClose">×</button>
+    </div>
+    <div class="modal-body">
+      <span id="fullscreenMeta"></span>
+      <textarea id="fullscreenTA"></textarea>
+      <div class="modal-foot">
+        <button class="btn btn-s" id="fullscreenCancel">Cancel</button>
+        <button class="btn btn-p" id="fullscreenApply">Apply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TEMPLATE LIBRARY MODAL -->
+<div id="tplModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2 id="tplModalTitle">// Templates</h2><button class="modal-x" data-close="tplModal">×</button></div>
+    <div class="modal-body">
+      <div id="tplList" class="tpl-list"></div>
+      <div class="tpl-save-row">
+        <input type="text" id="tplNewName" placeholder="Template name...">
+        <textarea id="tplNewContent" style="width:100%;min-height:80px;background:var(--sf);border:1px solid var(--bd);border-radius:3px;color:var(--tx);font-family:var(--fb);font-size:.82rem;padding:.45rem .6rem;resize:vertical;line-height:1.6" placeholder="Paste or write template content here... (leave blank to save from focused field)"></textarea>
+        <div style="display:flex;gap:.4rem">
+          <button class="btn btn-ok" id="tplSaveBtn" style="flex:1">Save Template</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ATTACH LOREBOOK MODAL -->
+<div id="attachLbModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2>// Attach Lorebook</h2><button class="modal-x" data-close="attachLbModal">×</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
+      <p style="font-family:var(--fx);font-size:.75rem;color:var(--txm);letter-spacing:.3px">Attach a lorebook to this character. It gets embedded in the card JSON and ST will offer to import it alongside the card.</p>
+      <div id="attachLbLibList" class="lib-list" style="max-height:240px"></div>
+      <div style="display:flex;gap:.4rem;padding-top:.65rem;border-top:1px solid var(--bd)">
+        <button class="btn btn-s" id="attachLbUploadBtn" style="flex:1">📂 Upload Lorebook JSON</button>
+        <button class="btn btn-err btn-sm" id="attachLbDetachBtn">Detach</button>
+      </div>
+      <input type="file" id="attachLbFileInput" accept=".json" style="display:none">
+    </div>
+  </div>
+</div>
+
+<!-- LOREBOOK TEMPLATE MODAL (separate from char templates) -->
+
+<!-- CUSTOM INPUT MODAL — replaces native prompt() which is blocked in sandboxed contexts -->
+<div id="inputModal" class="modal">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-head"><h2 id="inputModalTitle">// Input</h2></div>
+    <div class="modal-body">
+      <input type="text" id="inputModalField" class="finput" style="width:100%;margin-bottom:1rem">
+      <div class="modal-foot">
+        <button class="btn btn-s" id="inputModalCancel">Cancel</button>
+        <button class="btn btn-p" id="inputModalOk">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RENAME INPUT MODAL -->
+<div id="renameModal" class="modal">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-head"><h2 id="renameModalTitle">// Rename</h2></div>
+    <div class="modal-body">
+      <p id="renameModalMsg" style="font-family:var(--fx);font-size:.75rem;color:var(--txd);margin-bottom:.75rem"></p>
+      <input type="text" id="renameModalInput" class="finput" style="margin-bottom:.75rem">
+      <div class="modal-foot">
+        <button class="btn btn-s" id="renameCancelBtn">Cancel</button>
+        <button class="btn btn-p" id="renameOkBtn">Rename</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settingsModal" class="modal">
+  <div class="modal-box lg" style="max-width:680px">
+    <div class="modal-head"><h2>// Settings</h2><button class="modal-x" data-close="settingsModal">×</button></div>
+    <div class="modal-body">
+
+      <!-- TITLE -->
+      <div class="settings-section">
+        <div class="settings-section-title">Site Title</div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <div class="settings-row">
+            <span class="settings-lbl">Main title</span>
+            <input type="text" id="stgTitleMain" class="finput" placeholder="LoreOS">
+          </div>
+          <div class="settings-row">
+            <span class="settings-lbl">Subtitle (after //)</span>
+            <input type="text" id="stgTitleSub" class="finput" placeholder="v1.0">
+          </div>
+        </div>
+      </div>
+
+      <!-- THEME PRESETS -->
+      <div class="settings-section">
+        <div class="settings-section-title">Saved Themes</div>
+        <div id="stgThemeSlots" style="display:flex;flex-direction:column;gap:.3rem;margin-bottom:.6rem"></div>
+        <div style="display:flex;gap:.4rem">
+          <input type="text" id="stgThemeSaveName" class="finput" style="flex:1" placeholder="Theme name...">
+          <button class="btn btn-ok btn-sm" id="stgThemeSaveBtn">Save Current</button>
+        </div>
+      </div>
+
+      <!-- COLOUR PICKERS -->
+      <div class="settings-section">
+        <div class="settings-section-title">Colours — <span id="stgModeLabel" style="color:var(--txm);font-size:.8em">editing: dark mode</span>
+          <button class="btn btn-s btn-sm" id="stgModeToggle" style="margin-left:.5rem">Switch to Light</button>
+          <button class="btn btn-s btn-sm" id="stgResetTheme" style="margin-left:.25rem">Reset to Default</button>
+        </div>
+        <div class="settings-grid">
+          <div class="settings-row"><span class="settings-lbl">Accent (--p)</span><div class="settings-color"><input type="color" data-var="--p"><input type="text" data-var="--p" class="stg-hex"></div></div>
+          <div class="settings-row"><span class="settings-lbl">Accent hover (--ph)</span><div class="settings-color"><input type="color" data-var="--ph"><input type="text" data-var="--ph" class="stg-hex"></div></div>
+          <div class="settings-row"><span class="settings-lbl">Accent soft (--a)</span><div class="settings-color"><input type="color" data-var="--a"><input type="text" data-var="--a" class="stg-hex"></div></div>
+          <div class="settings-row"><span class="settings-lbl">Accent lightest (--a2)</span><div class="settings-color"><input type="color" data-var="--a2"><input type="text" data-var="--a2" class="stg-hex"></div></div>
+          <div class="settings-row"><span class="settings-lbl">Background (--bg)</span><div class="settings-color"><input type="color" data-var="--bg"><input type="text" data-var="--bg" class="stg-hex"></div></div>
+          <div class="settings-row"><span class="settings-lbl">Background 2 (--bg2)</span><div class="settings-color"><input type="color" data-var="--bg2"><input type="text" data-var="--bg2" class="stg-hex"></div></div>
+          <div class="settings-row"><span class="settings-lbl">Background 3 (--bg3)</span><div class="settings-color"><input type="color" data-var="--bg3"><input type="text" data-var="--bg3" class="stg-hex"></div></div>
+          <div class="settings-row"><span class="settings-lbl">Surface (--sf)</span><div class="settings-color"><input type="color" data-var="--sf"><input type="text" data-var="--sf" class="stg-hex"></div></div>
+          <div class="settings-row"><span class="settings-lbl">Surface 2 (--sf2)</span><div class="settings-color"><input type="color" data-var="--sf2"><input type="text" data-var="--sf2" class="stg-hex"></div></div>
+          <div class="settings-row"><span class="settings-lbl">Text (--tx)</span><div class="settings-color"><input type="color" data-var="--tx"><input type="text" data-var="--tx" class="stg-hex"></div></div>
+          <div class="settings-row"><span class="settings-lbl">Text dim (--txd)</span><div class="settings-color"><input type="color" data-var="--txd"><input type="text" data-var="--txd" class="stg-hex"></div></div>
+          <div class="settings-row"><span class="settings-lbl">Text muted (--txm)</span><div class="settings-color"><input type="color" data-var="--txm"><input type="text" data-var="--txm" class="stg-hex"></div></div>
+        </div>
+      </div>
+
+      <!-- FONTS -->
+      <div class="settings-section">
+        <div class="settings-section-title">Fonts</div>
+        <div style="display:flex;flex-direction:column;gap:.65rem">
+          <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);letter-spacing:.4px;line-height:1.6">
+            Three font roles: <strong style="color:var(--txd)">Display</strong> (titles, headings) · <strong style="color:var(--txd)">UI</strong> (labels, badges) · <strong style="color:var(--txd)">Body</strong> (content, textareas)<br>
+            Enter a Google Fonts name and click Load GF, or upload a file (.ttf / .woff2).
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:.3rem">
+            <span class="settings-lbl">Display (--fp) — default: VT323</span>
+            <div style="display:flex;gap:.4rem;align-items:center">
+              <input type="text" id="stgFontFP" class="finput" style="flex:1;font-size:.78rem" placeholder="VT323">
+              <button class="btn btn-s btn-sm" data-font-role="fp">Load GF</button>
+              <label class="btn btn-s btn-sm" style="cursor:pointer;margin:0">Upload<input type="file" accept=".ttf,.woff,.woff2,.otf" data-font-upload="fp" style="display:none"></label>
+              <button class="btn btn-err btn-sm" data-font-reset="fp" title="Reset to default">↺</button>
+            </div>
+            <span id="stgFontStatusFP" style="font-family:var(--fx);font-size:.65rem;color:var(--txm)"></span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:.3rem">
+            <span class="settings-lbl">UI (--fx) — default: Pixelify Sans</span>
+            <div style="display:flex;gap:.4rem;align-items:center">
+              <input type="text" id="stgFontFX" class="finput" style="flex:1;font-size:.78rem" placeholder="Pixelify Sans">
+              <button class="btn btn-s btn-sm" data-font-role="fx">Load GF</button>
+              <label class="btn btn-s btn-sm" style="cursor:pointer;margin:0">Upload<input type="file" accept=".ttf,.woff,.woff2,.otf" data-font-upload="fx" style="display:none"></label>
+              <button class="btn btn-err btn-sm" data-font-reset="fx" title="Reset to default">↺</button>
+            </div>
+            <span id="stgFontStatusFX" style="font-family:var(--fx);font-size:.65rem;color:var(--txm)"></span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:.3rem">
+            <span class="settings-lbl">Body (--fb) — default: Noto Sans</span>
+            <div style="display:flex;gap:.4rem;align-items:center">
+              <input type="text" id="stgFontFB" class="finput" style="flex:1;font-size:.78rem" placeholder="Noto Sans">
+              <button class="btn btn-s btn-sm" data-font-role="fb">Load GF</button>
+              <label class="btn btn-s btn-sm" style="cursor:pointer;margin:0">Upload<input type="file" accept=".ttf,.woff,.woff2,.otf" data-font-upload="fb" style="display:none"></label>
+              <button class="btn btn-err btn-sm" data-font-reset="fb" title="Reset to default">↺</button>
+            </div>
+            <span id="stgFontStatusFB" style="font-family:var(--fx);font-size:.65rem;color:var(--txm)"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- JSONBIN SYNC -->
+      <div class="settings-section">
+        <div class="settings-section-title">☁ Cloud Sync</div>
+        <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);line-height:1.6;margin-bottom:.5rem">
+          Sync all your data across devices via JSONBin.io (free).<br>
+          Get a free API key at <strong style="color:var(--txd)">jsonbin.io → Account → API Keys</strong>. Leave Bin ID blank to create a new bin automatically.
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <div class="settings-row">
+            <span class="settings-lbl">JSONBin API Key</span>
+            <div style="display:flex;gap:.4rem">
+              <input type="password" id="syncPatInput" class="finput" style="flex:1;font-size:.78rem" placeholder="$2a$10$xxxxxxxxxxxxxxxxxxxx">
+              <button class="btn btn-s btn-sm" id="syncTogglePatVisibility" title="Show/hide">👁</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <span class="settings-lbl">Bin ID <span style="color:var(--txm)">(auto-filled after first connect)</span></span>
+            <input type="text" id="syncGistId" class="finput" style="font-size:.78rem" placeholder="leave blank to create new">
+          </div>
+          <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-top:.2rem">
+            <button class="btn btn-ok btn-sm" id="syncConnectBtn">Connect</button>
+            <button class="btn btn-s btn-sm" id="syncPushBtn" disabled>Push ↑</button>
+            <button class="btn btn-s btn-sm" id="syncPullBtn" disabled>Pull ↓</button>
+            <button class="btn btn-err btn-sm" id="syncDisconnectBtn" style="margin-left:auto;display:none">Disconnect</button>
+          </div>
+          <div style="display:flex;gap:.5rem;align-items:center;margin-top:.1rem">
+            <label style="display:flex;gap:.4rem;align-items:center;font-family:var(--fx);font-size:.68rem;color:var(--txm);cursor:pointer">
+              <input type="checkbox" id="syncAutoToggle" style="accent-color:var(--p)">
+              Auto-push on every save
+            </label>
+          </div>
+          <div class="sync-status" id="syncStatus"></div>
+        </div>
+      </div>
+
+      <div class="modal-foot" style="justify-content:space-between">
+        <button class="btn btn-s" data-close="settingsModal">Close</button>
+        <button class="btn btn-p" id="stgApplyBtn">Apply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HELP MODAL -->
+<div id="helpModal" class="modal">
+  <div class="modal-box lg" style="max-width:700px">
+    <div class="modal-head"><h2>// LoreOS — Quick Reference</h2><button class="modal-x" data-close="helpModal">×</button></div>
+    <div class="modal-body" style="font-family:var(--fb);font-size:.83rem;line-height:1.75;color:var(--txd)">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.1rem">
+
+        <div>
+          <div style="font-family:var(--fp);font-size:.95rem;color:var(--p);letter-spacing:1.5px;margin-bottom:.5rem;padding-bottom:.3rem;border-bottom:1px solid var(--bd)">📖 Lorebook</div>
+          <ul style="list-style:none;display:flex;flex-direction:column;gap:.35rem">
+            <li><strong>Import</strong> — loads any ST-format lorebook JSON</li>
+            <li><strong>Merge</strong> — cherry-pick entries from a second lorebook</li>
+            <li><strong>Library</strong> — save/load named lorebook snapshots</li>
+            <li><strong>Templates</strong> — reusable entry content snippets</li>
+            <li><strong>Find &amp; Replace</strong> — regex-capable, scoped by field</li>
+            <li><strong>Export JSON</strong> — ST-compatible output</li>
+            <li><strong>Export Text / Public</strong> — strips XML tags &amp; code blocks</li>
+            <li><strong>⛶ expand</strong> — opens any textarea fullscreen</li>
+            <li><strong>Ctrl+T</strong> — open template library from any field</li>
+          </ul>
+        </div>
+
+        <div>
+          <div style="font-family:var(--fp);font-size:.95rem;color:var(--p);letter-spacing:1.5px;margin-bottom:.5rem;padding-bottom:.3rem;border-bottom:1px solid var(--bd)">🎭 Character</div>
+          <ul style="list-style:none;display:flex;flex-direction:column;gap:.35rem">
+            <li><strong>Import JSON or PNG</strong> — reads card data from tEXt chunk</li>
+            <li><strong>Export PNG</strong> — embeds card JSON into your image</li>
+            <li><strong>Image upload</strong> — set a base image for PNG export</li>
+            <li><strong>Attach Lorebook</strong> — embeds a lorebook as <code>character_book</code> (ST reads this on import)</li>
+            <li><strong>🔤 Pronouns &amp; Nouns</strong> — convert pronouns to ST macros OR swap to he/him · she/her · they/them directly. Noun converter handles gendered nouns (brother↔sister↔sibling, etc.). Verb agreement auto-applied.</li>
+            <li><strong>Templates</strong> — field snippets for descriptions, system prompts etc.</li>
+            <li>Supports V2 and V3 card spec</li>
+          </ul>
+        </div>
+
+        <div>
+          <div style="font-family:var(--fp);font-size:.95rem;color:var(--p);letter-spacing:1.5px;margin-bottom:.5rem;padding-bottom:.3rem;border-bottom:1px solid var(--bd)">⚙ Preset</div>
+          <ul style="list-style:none;display:flex;flex-direction:column;gap:.35rem">
+            <li><strong>Import</strong> — loads any ST chat completion preset JSON</li>
+            <li><strong>Prompt Library</strong> — contains ST system anchors (main, chatHistory, worldInfoBefore etc.) + your saved prompts</li>
+            <li><strong>+ New Prompt</strong> — adds blank to top of list</li>
+            <li><strong>Search</strong> — sticky bar, searches name + content, ↑↓ to cycle</li>
+            <li><strong>🔡 Variables</strong> — scan for <code>{{setvar::name::value}}</code>, rename across all prompts</li>
+            <li><strong>Drag</strong> rows to reorder; ▶/▼ to collapse nodes</li>
+            <li>Export preserves full ST format incl. prompt_order</li>
+          </ul>
+        </div>
+
+        <div>
+          <div style="font-family:var(--fp);font-size:.95rem;color:var(--p);letter-spacing:1.5px;margin-bottom:.5rem;padding-bottom:.3rem;border-bottom:1px solid var(--bd)">✦ General</div>
+          <ul style="list-style:none;display:flex;flex-direction:column;gap:.35rem">
+            <li><strong>◑</strong> — toggle dark/light mode</li>
+            <li><strong>⚙</strong> — customise colours, title, save named themes</li>
+            <li><strong>Ctrl+D</strong> — toggle theme from anywhere</li>
+            <li><strong>Ctrl+T</strong> — open template library</li>
+            <li>All data stored in <strong>localStorage</strong> — nothing leaves your browser unless you enable Gist Sync</li>
+            <li><strong>☁ Cloud Sync</strong> (Settings) — sync all data across devices via JSONBin.io (free). Get an API key at jsonbin.io, leave Bin ID blank on first connect to auto-create.</li>
+            <li>Single HTML file — works fully offline</li>
+            <li>Mobile-friendly — swipe right from edge to open sidebar</li>
+          </ul>
+        </div>
+
+      </div>
+
+      <div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--bd);font-family:var(--fx);font-size:.7rem;color:var(--txm);letter-spacing:.5px">
+        LoreOS // Universal Editor — built for SillyTavern, JanitorAI &amp; SaucepanAI workflows
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOM CONFIRM MODAL — replaces native confirm() which can be blocked in sandboxed/iframe contexts -->
+<div id="confirmModal" class="modal">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-head"><h2>// Confirm</h2></div>
+    <div class="modal-body">
+      <p id="confirmMsg" style="font-size:.85rem;color:var(--txd);line-height:1.6;margin-bottom:1rem"></p>
+      <div class="modal-foot">
+        <button class="btn btn-s" id="confirmCancelBtn">Cancel</button>
+        <button class="btn btn-err" id="confirmOkBtn">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Core: state, storage, utils, events -->
+<script src="js/core.js"></script>
+
+<!-- Feature modules -->
+<script src="js/lorebook.js"></script>
+<script src="js/character.js"></script>
+<script src="js/preset.js"></script>
+<script src="js/pronoun.js"></script>
+<script src="js/templates.js"></script>
+<script src="js/attach_lb.js"></script>
+<script src="js/fullscreen.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/mobile.js"></script>
+
+</body>
+</html>
