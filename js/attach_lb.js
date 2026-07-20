@@ -198,3 +198,4 @@ async function renameVar(oldName) {
 
 function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
