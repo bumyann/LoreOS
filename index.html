@@ -294,6 +294,9 @@
   <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobLibrary" title="Library">
     <span class="icon">📚</span><span class="mob-nav-lbl">Library</span>
   </button>
+  <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobLoreTemplates" title="Templates">
+    <span class="icon">📋</span><span class="mob-nav-lbl">Templates</span>
+  </button>
 
   <!-- CHAR actions -->
   <button class="mob-nav-btn mob-mode-btn mob-char hi" id="mobCharNew" title="New Character" style="display:none">
@@ -457,6 +460,11 @@
         <div style="display:flex;gap:.4rem">
           <button class="btn btn-ok" id="tplSaveBtn" style="flex:1">Save Template</button>
         </div>
+      </div>
+      <div style="display:flex;gap:.4rem;margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--bd);flex-wrap:wrap">
+        <button class="btn btn-s btn-sm" id="tplExportSelBtn">⬇ Export Templates</button>
+        <button class="btn btn-s btn-sm" id="tplImportSelBtn">⬆ Import Templates</button>
+        <input type="file" id="tplImportSelFile" accept=".json" style="display:none">
       </div>
     </div>
   </div>

@@ -50,6 +50,7 @@ function wireMobile() {
   g('mobExport').addEventListener('click', () => openModal('mobExportModal'));
   g('mobSearch').addEventListener('click', () => openModal('srModal'));
   g('mobLibrary').addEventListener('click', openLibrary);
+  g('mobLoreTemplates').addEventListener('click', () => openTemplateLibrary('lore'));
 
   // ── CHAR buttons ──
   g('mobCharNew').addEventListener('click', () => { createChar(); if(isMob()) closeSidebar(); });
@@ -62,6 +63,7 @@ function wireMobile() {
     PT.open = tool.classList.contains('open');
     if (PT.open && PT.targetField) ptRefreshManual();
   });
+  g('mobCharTemplates').addEventListener('click', () => openTemplateLibrary('char'));
 
   // ── PRESET buttons ──
   g('mobPresetNew').addEventListener('click', () => { createPreset(); if(isMob()) closeSidebar(); });

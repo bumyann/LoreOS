@@ -295,23 +295,31 @@ function wireSync() {
     g('syncImportChecks').querySelectorAll('input:not(:disabled)').forEach(cb => cb.checked = false);
   });
 
-  // Selective lib export/import — wired from each library's open function
-  // (libExportSelective / libImportSelective called directly from lib modals)
+  // Selective lib export/import
   g('libExportSelBtn')?.addEventListener('click', () => {
-    const type = currentLibMode();
-    libExportSelective(type);
+    libExportSelective(currentLibMode());
   });
-  g('libImportSelBtn')?.addEventListener('click', () => {
-    g('libImportSelFile').click();
-  });
+  g('libImportSelBtn')?.addEventListener('click', () => g('libImportSelFile').click());
   g('libImportSelFile')?.addEventListener('change', e => {
     const type = currentLibMode();
     libImportSelective(e.target.files[0], type, () => {
-      // reload the current library view
       if (type === 'char') openCharLibrary();
       else if (type === 'preset') openPresetLibrary();
-      else if (type === 'lore') openLibrary();
-      else if (type.startsWith('tpl')) openTemplateLibrary(type.replace('tpl_',''));
+      else openLibrary();
+    });
+    e.target.value = '';
+  });
+
+  // Template selective export/import
+  g('tplExportSelBtn')?.addEventListener('click', () => {
+    const type = currentTplMode();
+    libExportSelective(type);
+  });
+  g('tplImportSelBtn')?.addEventListener('click', () => g('tplImportSelFile').click());
+  g('tplImportSelFile')?.addEventListener('change', e => {
+    const type = currentTplMode();
+    libImportSelective(e.target.files[0], type, () => {
+      renderTemplateList(type.replace('tpl_', ''));
     });
     e.target.value = '';
   });
@@ -324,4 +332,12 @@ function currentLibMode() {
   if (title.includes('Preset')) return 'preset';
   if (title.includes('Lorebook')) return 'lore';
   return 'lore';
+}
+
+// Helper: figure out which template type is currently open in the tpl modal
+function currentTplMode() {
+  const title = g('tplModalTitle')?.textContent || '';
+  if (title.includes('Character')) return 'tpl_char';
+  if (title.includes('Prompt')) return 'tpl_preset';
+  return 'tpl_lore';
 }
