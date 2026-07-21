@@ -4,6 +4,7 @@
 const SYNC_KEYS = [
   'aet_lorebook','aet_tabs','aet_activeTab','aet_nextUid',
   'aet_charLibrary','aet_presetLibrary',
+  'aet_library',
   'aet_tpl_lore','aet_tpl_char','aet_tpl_preset',
   'aet_theme','aet_zoom','aet_css','aet_css_light',
   'aet_title_main','aet_title_sub',
