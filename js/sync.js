@@ -94,17 +94,23 @@ async function syncPush() {
   if (!apiKey || !binId) { syncSetStatus('Not connected.', 'err'); return; }
   syncSetStatus('Pushing...', 'info');
   try {
+    const payload = JSON.stringify(syncBundleData());
+    const kb = (new Blob([payload]).size / 1024).toFixed(1);
     const r = await fetch(`${JSONBIN_BASE}/b/${binId}`, {
       method: 'PUT',
       headers: {
         'X-Master-Key': apiKey,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(syncBundleData())
+      body: payload
     });
-    if (!r.ok) throw new Error(`Push failed (${r.status})`);
+    if (!r.ok) {
+      const errBody = await r.json().catch(() => ({}));
+      const msg = errBody.message || errBody.error || `status ${r.status}`;
+      throw new Error(`Push failed (${r.status}): ${msg} — payload: ${kb}KB`);
+    }
     const ts = new Date().toLocaleTimeString();
-    syncSetStatus(`Pushed ✓ — ${ts}`, 'ok');
+    syncSetStatus(`Pushed ✓ — ${ts} (${kb}KB)`, 'ok');
   } catch(e) {
     syncSetStatus('Push error: ' + e.message, 'err');
   }
