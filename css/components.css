@@ -221,6 +221,7 @@
 .sync-status.ok{color:var(--ok)}
 .sync-status.err{color:var(--err)}
 .sync-status.info{color:var(--p)}
+.sync-backend-btn.active{background:var(--p);color:var(--bg);border-color:var(--p)}
 /* ═══════════════════════════════════════════
    FULLSCREEN FIELD MODAL
 ═══════════════════════════════════════════ */

@@ -591,16 +591,25 @@
         </div>
       </div>
 
-      <!-- JSONBIN SYNC -->
+      <!-- CLOUD SYNC -->
       <div class="settings-section">
-        <div class="settings-section-title">☁ Cloud Sync</div>
-        <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);line-height:1.6;margin-bottom:.5rem">
-          Sync all your data across devices via JSONBin.io (free).<br>
-          Get a free API key at <strong style="color:var(--txd)">jsonbin.io → Account → API Keys</strong>. Leave Bin ID blank to create a new bin automatically.
+        <div class="settings-section-title">⇅ Sync</div>
+
+        <!-- Backend selector -->
+        <div style="display:flex;gap:.35rem;margin-bottom:.6rem;flex-wrap:wrap">
+          <button class="btn btn-s btn-sm sync-backend-btn active" data-backend="jsonbin">JSONBin</button>
+          <button class="btn btn-s btn-sm sync-backend-btn" data-backend="npoint">npoint.io</button>
+          <button class="btn btn-s btn-sm sync-backend-btn" data-backend="manual">Manual</button>
         </div>
-        <div style="display:flex;flex-direction:column;gap:.4rem">
+
+        <!-- JSONBin panel -->
+        <div id="syncPanel-jsonbin" class="sync-panel" style="display:flex;flex-direction:column;gap:.4rem">
+          <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);line-height:1.6">
+            Free tier: 100KB limit per bin — payload is gzip-compressed to stay under.<br>
+            Get a free API key at <strong style="color:var(--txd)">jsonbin.io → Account → API Keys</strong>. Leave Bin ID blank to auto-create.
+          </div>
           <div class="settings-row">
-            <span class="settings-lbl">JSONBin API Key</span>
+            <span class="settings-lbl">API Key (Master Key)</span>
             <div style="display:flex;gap:.4rem">
               <input type="password" id="syncPatInput" class="finput" style="flex:1;font-size:.78rem" placeholder="$2a$10$xxxxxxxxxxxxxxxxxxxx">
               <button class="btn btn-s btn-sm" id="syncTogglePatVisibility" title="Show/hide">👁</button>
@@ -622,8 +631,48 @@
               Auto-push on every save
             </label>
           </div>
-          <div class="sync-status" id="syncStatus"></div>
         </div>
+
+        <!-- npoint panel -->
+        <div id="syncPanel-npoint" class="sync-panel" style="display:none;flex-direction:column;gap:.4rem">
+          <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);line-height:1.6">
+            Free, no account needed. 500KB limit — no compression required.<br>
+            Leave JSON ID blank to auto-create a new bin at <strong style="color:var(--txd)">npoint.io</strong>.
+          </div>
+          <div class="settings-row">
+            <span class="settings-lbl">JSON ID <span style="color:var(--txm)">(auto-filled after first connect)</span></span>
+            <input type="text" id="syncNpointId" class="finput" style="font-size:.78rem" placeholder="leave blank to create new">
+          </div>
+          <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-top:.2rem">
+            <button class="btn btn-ok btn-sm" id="syncNpointConnectBtn">Connect</button>
+            <button class="btn btn-s btn-sm" id="syncNpointPushBtn" disabled>Push ↑</button>
+            <button class="btn btn-s btn-sm" id="syncNpointPullBtn" disabled>Pull ↓</button>
+            <button class="btn btn-err btn-sm" id="syncNpointDisconnectBtn" style="margin-left:auto;display:none">Disconnect</button>
+          </div>
+          <div style="display:flex;gap:.5rem;align-items:center;margin-top:.1rem">
+            <label style="display:flex;gap:.4rem;align-items:center;font-family:var(--fx);font-size:.68rem;color:var(--txm);cursor:pointer">
+              <input type="checkbox" id="syncNpointAutoToggle" style="accent-color:var(--p)">
+              Auto-push on every save
+            </label>
+          </div>
+        </div>
+
+        <!-- Manual panel -->
+        <div id="syncPanel-manual" class="sync-panel" style="display:none;flex-direction:column;gap:.4rem">
+          <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);line-height:1.6">
+            Export all your data as a <code>.json</code> file, import it on another device. No account needed.
+          </div>
+          <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-top:.2rem">
+            <button class="btn btn-p btn-sm" id="syncManualExportBtn">⬇ Export Backup</button>
+            <button class="btn btn-s btn-sm" id="syncManualImportBtn">⬆ Import Backup</button>
+            <input type="file" id="syncManualFileInput" accept=".json" style="display:none">
+          </div>
+          <div style="font-family:var(--fx);font-size:.65rem;color:var(--txm);margin-top:.2rem">
+            Import will overwrite all local data and reload the page.
+          </div>
+        </div>
+
+        <div class="sync-status" id="syncStatus" style="margin-top:.4rem"></div>
       </div>
 
       <div class="modal-foot" style="justify-content:space-between">
@@ -691,7 +740,7 @@
             <li><strong>Ctrl+D</strong> — toggle theme from anywhere</li>
             <li><strong>Ctrl+T</strong> — open template library</li>
             <li>All data stored in <strong>localStorage</strong> — nothing leaves your browser unless you enable Gist Sync</li>
-            <li><strong>☁ Cloud Sync</strong> (Settings) — sync all data across devices via JSONBin.io (free). Get an API key at jsonbin.io, leave Bin ID blank on first connect to auto-create.</li>
+            <li><strong>⇅ Sync</strong> (Settings) — three options: <strong>JSONBin</strong> (free API key, gzip-compressed to fit 100KB limit), <strong>npoint.io</strong> (no account, 500KB limit), or <strong>Manual</strong> (export/import a .json backup file).</li>
             <li>Single HTML file — works fully offline</li>
             <li>Mobile-friendly — swipe right from edge to open sidebar</li>
           </ul>
