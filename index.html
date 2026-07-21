@@ -3,7 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LoreOS // Universal Editor v1.0.1</title>
+<title>LoreOS // Universal Editor</title>
+<meta name="description" content="Lorebook, character card, and preset editor for SillyTavern, JanitorAI &amp; SaucepanAI">
+<meta name="theme-color" content="#9d8fcc">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LoreOS">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" type="image/x-icon" href="icons/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=VT323&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -250,6 +260,11 @@
       <div class="lib-save-row">
         <input type="text" id="libNewName" class="lib-new-in" placeholder="Save current as...">
         <button class="btn btn-ok" id="libSaveBtn">Save</button>
+      </div>
+      <div id="libSelective" style="display:flex;gap:.4rem;margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--bd);flex-wrap:wrap">
+        <button class="btn btn-s btn-sm" id="libExportSelBtn">⬇ Export Library</button>
+        <button class="btn btn-s btn-sm" id="libImportSelBtn">⬆ Import Library</button>
+        <input type="file" id="libImportSelFile" accept=".json" style="display:none">
       </div>
     </div>
   </div>
@@ -591,87 +606,18 @@
         </div>
       </div>
 
-      <!-- CLOUD SYNC -->
+      <!-- SYNC -->
       <div class="settings-section">
         <div class="settings-section-title">⇅ Sync</div>
-
-        <!-- Backend selector -->
-        <div style="display:flex;gap:.35rem;margin-bottom:.6rem;flex-wrap:wrap">
-          <button class="btn btn-s btn-sm sync-backend-btn active" data-backend="jsonbin">JSONBin</button>
-          <button class="btn btn-s btn-sm sync-backend-btn" data-backend="npoint">npoint.io</button>
-          <button class="btn btn-s btn-sm sync-backend-btn" data-backend="manual">Manual</button>
+        <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);line-height:1.6;margin-bottom:.5rem">
+          Export your data as a <code>.json</code> backup file. Import on any device. No account needed.
         </div>
-
-        <!-- JSONBin panel -->
-        <div id="syncPanel-jsonbin" class="sync-panel" style="display:flex;flex-direction:column;gap:.4rem">
-          <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);line-height:1.6">
-            Free tier: 100KB limit per bin — payload is gzip-compressed to stay under.<br>
-            Get a free API key at <strong style="color:var(--txd)">jsonbin.io → Account → API Keys</strong>. Leave Bin ID blank to auto-create.
-          </div>
-          <div class="settings-row">
-            <span class="settings-lbl">API Key (Master Key)</span>
-            <div style="display:flex;gap:.4rem">
-              <input type="password" id="syncPatInput" class="finput" style="flex:1;font-size:.78rem" placeholder="$2a$10$xxxxxxxxxxxxxxxxxxxx">
-              <button class="btn btn-s btn-sm" id="syncTogglePatVisibility" title="Show/hide">👁</button>
-            </div>
-          </div>
-          <div class="settings-row">
-            <span class="settings-lbl">Bin ID <span style="color:var(--txm)">(auto-filled after first connect)</span></span>
-            <input type="text" id="syncGistId" class="finput" style="font-size:.78rem" placeholder="leave blank to create new">
-          </div>
-          <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-top:.2rem">
-            <button class="btn btn-ok btn-sm" id="syncConnectBtn">Connect</button>
-            <button class="btn btn-s btn-sm" id="syncPushBtn" disabled>Push ↑</button>
-            <button class="btn btn-s btn-sm" id="syncPullBtn" disabled>Pull ↓</button>
-            <button class="btn btn-err btn-sm" id="syncDisconnectBtn" style="margin-left:auto;display:none">Disconnect</button>
-          </div>
-          <div style="display:flex;gap:.5rem;align-items:center;margin-top:.1rem">
-            <label style="display:flex;gap:.4rem;align-items:center;font-family:var(--fx);font-size:.68rem;color:var(--txm);cursor:pointer">
-              <input type="checkbox" id="syncAutoToggle" style="accent-color:var(--p)">
-              Auto-push on every save
-            </label>
-          </div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-p btn-sm" id="syncExportBtn">⬇ Export Backup</button>
+          <button class="btn btn-s btn-sm" id="syncImportBtn">⬆ Import Backup</button>
+          <button class="btn btn-s btn-sm" id="syncHistoryBtn">🕓 History</button>
+          <input type="file" id="syncImportFile" accept=".json" style="display:none">
         </div>
-
-        <!-- npoint panel -->
-        <div id="syncPanel-npoint" class="sync-panel" style="display:none;flex-direction:column;gap:.4rem">
-          <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);line-height:1.6">
-            Free, no account needed. 500KB limit — no compression required.<br>
-            Leave JSON ID blank to auto-create a new bin at <strong style="color:var(--txd)">npoint.io</strong>.
-          </div>
-          <div class="settings-row">
-            <span class="settings-lbl">JSON ID <span style="color:var(--txm)">(auto-filled after first connect)</span></span>
-            <input type="text" id="syncNpointId" class="finput" style="font-size:.78rem" placeholder="leave blank to create new">
-          </div>
-          <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-top:.2rem">
-            <button class="btn btn-ok btn-sm" id="syncNpointConnectBtn">Connect</button>
-            <button class="btn btn-s btn-sm" id="syncNpointPushBtn" disabled>Push ↑</button>
-            <button class="btn btn-s btn-sm" id="syncNpointPullBtn" disabled>Pull ↓</button>
-            <button class="btn btn-err btn-sm" id="syncNpointDisconnectBtn" style="margin-left:auto;display:none">Disconnect</button>
-          </div>
-          <div style="display:flex;gap:.5rem;align-items:center;margin-top:.1rem">
-            <label style="display:flex;gap:.4rem;align-items:center;font-family:var(--fx);font-size:.68rem;color:var(--txm);cursor:pointer">
-              <input type="checkbox" id="syncNpointAutoToggle" style="accent-color:var(--p)">
-              Auto-push on every save
-            </label>
-          </div>
-        </div>
-
-        <!-- Manual panel -->
-        <div id="syncPanel-manual" class="sync-panel" style="display:none;flex-direction:column;gap:.4rem">
-          <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);line-height:1.6">
-            Export all your data as a <code>.json</code> file, import it on another device. No account needed.
-          </div>
-          <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-top:.2rem">
-            <button class="btn btn-p btn-sm" id="syncManualExportBtn">⬇ Export Backup</button>
-            <button class="btn btn-s btn-sm" id="syncManualImportBtn">⬆ Import Backup</button>
-            <input type="file" id="syncManualFileInput" accept=".json" style="display:none">
-          </div>
-          <div style="font-family:var(--fx);font-size:.65rem;color:var(--txm);margin-top:.2rem">
-            Import will overwrite all local data and reload the page.
-          </div>
-        </div>
-
         <div class="sync-status" id="syncStatus" style="margin-top:.4rem"></div>
       </div>
 
@@ -739,8 +685,8 @@
             <li><strong>⚙</strong> — customise colours, title, save named themes</li>
             <li><strong>Ctrl+D</strong> — toggle theme from anywhere</li>
             <li><strong>Ctrl+T</strong> — open template library</li>
-            <li>All data stored in <strong>localStorage</strong> — nothing leaves your browser unless you enable Gist Sync</li>
-            <li><strong>⇅ Sync</strong> (Settings) — three options: <strong>JSONBin</strong> (free API key, gzip-compressed to fit 100KB limit), <strong>npoint.io</strong> (no account, 500KB limit), or <strong>Manual</strong> (export/import a .json backup file).</li>
+            <li>All data stored in <strong>localStorage</strong> — nothing leaves your browser unless you export it</li>
+            <li><strong>⇅ Sync</strong> (Settings) — export/import a <code>.json</code> backup. Keeps a rolling history of 10 snapshots. Each library also has its own export/import in the library modal.</li>
             <li>Single HTML file — works fully offline</li>
             <li>Mobile-friendly — swipe right from edge to open sidebar</li>
           </ul>
@@ -749,7 +695,7 @@
       </div>
 
       <div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--bd);font-family:var(--fx);font-size:.7rem;color:var(--txm);letter-spacing:.5px">
-        LoreOS // Universal Editor v1.0.1 — built for SillyTavern, JanitorAI &amp; SaucepanAI workflows
+        LoreOS // Universal Editor — built for SillyTavern, JanitorAI &amp; SaucepanAI workflows
       </div>
 
     </div>
@@ -769,6 +715,43 @@
     </div>
   </div>
 </div>
+
+<!-- BACKUP HISTORY MODAL -->
+<div id="syncHistoryModal" class="modal">
+  <div class="modal-box lg">
+    <div class="modal-head"><h2>// Backup History</h2><button class="modal-x" data-close="syncHistoryModal">×</button></div>
+    <div class="modal-body">
+      <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);margin-bottom:.6rem">
+        Last 10 snapshots — saved on each export or import. Restore to roll back to any point.
+      </div>
+      <div id="syncHistoryList" class="lib-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT CHECKLIST MODAL -->
+<div id="syncImportModal" class="modal">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-head"><h2 id="syncImportTitle">// Import Backup</h2><button class="modal-x" data-close="syncImportModal">×</button></div>
+    <div class="modal-body">
+      <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);margin-bottom:.65rem" id="syncImportMeta"></div>
+      <div style="font-family:var(--fx);font-size:.72rem;color:var(--txd);margin-bottom:.4rem">Select what to restore:</div>
+      <div id="syncImportChecks" style="display:flex;flex-direction:column;gap:.35rem;margin-bottom:.75rem"></div>
+      <div style="display:flex;gap:.4rem;margin-bottom:.5rem">
+        <button class="btn btn-s btn-sm" id="syncImportCheckAll">All</button>
+        <button class="btn btn-s btn-sm" id="syncImportCheckNone">None</button>
+      </div>
+      <div style="font-family:var(--fx);font-size:.65rem;color:var(--warn);margin-bottom:.75rem">
+        ⚠ Selected data will overwrite what's currently in your browser. This cannot be undone.
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-s" data-close="syncImportModal">Cancel</button>
+        <button class="btn btn-ok" id="syncImportConfirmBtn">Restore</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Core: state, storage, utils, events -->
 <script src="js/core.js"></script>
 
@@ -784,5 +767,12 @@
 <script src="js/sync.js"></script>
 <script src="js/mobile.js"></script>
 
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+</script>
 </body>
 </html>

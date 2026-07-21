@@ -68,7 +68,7 @@ function handleMergeImport(e) {
 
 function exportJson() {
   lorebook.name = g('lorebookName').value.trim() || 'lorebook';
-  const fn = lorebook.name.replace(/[^a-z0-9_-]/gi, '_') + '.json';
+  const fn = (lorebook.name || 'lorebook') + '.json';
   dlFile(JSON.stringify(lorebook, null, 2), fn, 'application/json');
   toast('Exported: ' + fn, 'ok');
 }
@@ -974,7 +974,7 @@ function doExportTxt() {
     constants: g('etConstants').checked, comments: g('etComments').checked,
     order: g('etOrder').checked
   };
-  const fn = (g('etFilename').value || 'lorebook-backup').replace(/[^a-z0-9_-]/gi,'_');
+  const fn = g('etFilename').value || lorebook.name || 'lorebook';
   const name = g('lorebookName').value || 'Lorebook';
   const logicMap = {0:'AND ANY',1:'NOT ALL',2:'NOT ANY',3:'AND ALL'};
   let md = `# ${name}\n\n`;
@@ -992,7 +992,7 @@ function doExportTxt() {
     if (opts.comments && en.comment && en.comment !== 'Untitled Entry') md += `**Notes:** ${en.comment}\n\n`;
     md += '---\n\n';
   });
-  md += `*LoreOS v1.0.1 — ${new Date().toLocaleDateString()}*\n`;
+  md += `*LoreOS v0.1 — ${new Date().toLocaleDateString()}*\n`;
   dlFile(md, fn + '.txt', 'text/plain');
   closeModal('expTxtModal');
   toast('Exported text.', 'ok');
@@ -1036,7 +1036,7 @@ function previewPublic() {
 
 function doExportPublic() {
   const md = genPublicMd();
-  const fn = (g('epFilename').value || 'lorebook-public').replace(/[^a-z0-9_-]/gi,'_');
+  const fn = g('epFilename').value || lorebook.name || 'lorebook';
   dlFile(md, fn + '.md', 'text/plain');
   closeModal('expPubModal');
   toast('Exported for public pages.', 'ok');
