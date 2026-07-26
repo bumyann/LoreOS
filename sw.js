@@ -1,8 +1,8 @@
 // ═══════════════════════════════════════════════════════
 // LoreOS Service Worker — offline support
-// Cache name includes build timestamp — auto-busts on every deploy
+// Cache name includes version — busts on every release
 // ═══════════════════════════════════════════════════════
-const CACHE = 'loreos-1784638392';
+const CACHE = 'loreos-v0.1.3';
 const ASSETS = [
   '/',
   '/index.html',
