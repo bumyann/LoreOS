@@ -127,14 +127,15 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
   #app{height:auto;min-height:100vh;min-height:100dvh}
 
   /* Header: compact */
-  #header{padding:.4rem .65rem;gap:.4rem;flex-wrap:nowrap}
-  #title{font-size:1.05rem;letter-spacing:1px;white-space:nowrap;flex-direction:row;align-items:baseline;gap:.3rem}
+  #header{padding:.4rem .65rem;gap:.4rem;flex-wrap:nowrap;overflow:hidden}
+  #title{font-size:1.05rem;letter-spacing:1px;white-space:nowrap;flex-direction:row;align-items:baseline;gap:.3rem;flex-shrink:0}
   #versionTag{font-size:.55em;margin-top:0;margin-left:.2rem}
   #title span{display:none}
-  #header-right{gap:.3rem;flex-wrap:nowrap}
-  .lb-label{font-size:.62rem;white-space:nowrap}
+  #header-right{gap:.3rem;flex-wrap:nowrap;flex:1;justify-content:flex-end;overflow:hidden}
+  .lb-label{display:none}
   .hdr-actions{display:none}
-  #lorebookName{width:100px;font-size:.73rem;padding:.2rem .4rem}
+  #lorebookName{display:none}
+  .btn-icon{width:1.9rem;height:1.9rem;font-size:.95rem;flex-shrink:0}
 
   /* Mode tabs: full-width equal thirds */
   #modeTabs{padding:0;gap:0}
