@@ -54,6 +54,9 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
 .mode-tab.active{color:var(--p);border-bottom-color:var(--p);text-shadow:0 0 8px var(--pg)}
 #title{font-family:var(--fp);font-size:1.6rem;color:var(--p);letter-spacing:2px;text-shadow:0 0 12px var(--pg);white-space:nowrap;line-height:1}
 #title span{font-family:var(--fx);font-size:.45em;color:var(--txm);letter-spacing:1px;margin-left:.4rem}
+#title{flex-direction:column;align-items:flex-start;gap:0;display:flex}
+#title>span:first-of-type{display:block}
+#versionTag{font-family:var(--fx);font-size:.32em;color:var(--txm);letter-spacing:1px;opacity:.6;margin-left:0;margin-top:-.1em}
 #header-right{display:flex;align-items:center;gap:.5rem;flex:1;justify-content:flex-end;flex-wrap:wrap}
 .lb-label{font-family:var(--fx);font-size:.72rem;color:var(--txm);letter-spacing:1px;white-space:nowrap}
 #lorebookName{font-family:var(--fx);font-size:.82rem;padding:.28rem .6rem;background:var(--bg3);border:1px solid var(--bd);border-radius:3px;color:var(--tx);width:170px}
@@ -125,7 +128,8 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
 
   /* Header: compact */
   #header{padding:.4rem .65rem;gap:.4rem;flex-wrap:nowrap}
-  #title{font-size:1.05rem;letter-spacing:1px;white-space:nowrap}
+  #title{font-size:1.05rem;letter-spacing:1px;white-space:nowrap;flex-direction:row;align-items:baseline;gap:.3rem}
+  #versionTag{font-size:.55em;margin-top:0;margin-left:.2rem}
   #title span{display:none}
   #header-right{gap:.3rem;flex-wrap:nowrap}
   .lb-label{font-size:.62rem;white-space:nowrap}

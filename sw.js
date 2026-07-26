@@ -1,7 +1,8 @@
 // ═══════════════════════════════════════════════════════
 // LoreOS Service Worker — offline support
+// Cache name includes build timestamp — auto-busts on every deploy
 // ═══════════════════════════════════════════════════════
-const CACHE = 'loreos-v0.1';
+const CACHE = 'loreos-1784638392';
 const ASSETS = [
   '/',
   '/index.html',
@@ -27,14 +28,12 @@ const ASSETS = [
   '/icons/favicon-32.png',
 ];
 
-// Install — cache all assets
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())
   );
 });
 
-// Activate — clear old caches
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
@@ -43,14 +42,11 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Fetch — cache first, fall back to network
 self.addEventListener('fetch', e => {
-  // Skip non-GET and cross-origin (fonts etc)
   if (e.request.method !== 'GET') return;
   if (!e.request.url.startsWith(self.location.origin)) return;
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
-      // Cache new assets on the fly
       if (res.ok) {
         const clone = res.clone();
         caches.open(CACHE).then(c => c.put(e.request, clone));

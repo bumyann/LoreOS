@@ -992,7 +992,7 @@ function doExportTxt() {
     if (opts.comments && en.comment && en.comment !== 'Untitled Entry') md += `**Notes:** ${en.comment}\n\n`;
     md += '---\n\n';
   });
-  md += `*LoreOS v0.1 — ${new Date().toLocaleDateString()}*\n`;
+  md += `*LoreOS v0.1.1 — ${new Date().toLocaleDateString()}*\n`;
   dlFile(md, fn + '.txt', 'text/plain');
   closeModal('expTxtModal');
   toast('Exported text.', 'ok');
