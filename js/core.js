@@ -94,9 +94,9 @@ let PT_nounTokens = [];
 // ═══════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   loadPrefs();
-  loadFromStorage();
   wireEvents();
   wireMobile();
+  loadFromStorage();
   switchMode('lore');
   wirePronounTool();
   wireFullscreen();

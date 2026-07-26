@@ -2,7 +2,7 @@
 // LoreOS Service Worker — offline support
 // Cache name includes version — busts on every release
 // ═══════════════════════════════════════════════════════
-const CACHE = 'loreos-v0.1.3';
+const CACHE = 'loreos-v0.1.4';
 const ASSETS = [
   '/',
   '/index.html',
