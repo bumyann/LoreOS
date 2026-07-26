@@ -58,8 +58,8 @@ function applyCustomTitle() {
   if (!titleEl) return;
   const main = cfg.titleMain || 'LoreOS';
   const sub = cfg.titleSub !== undefined ? cfg.titleSub : 'Universal Editor';
-  titleEl.innerHTML = main + (sub ? `<span>// ${sub}</span>` : '');
-  document.title = main + (sub ? ' // ' + sub : '');
+  titleEl.innerHTML = main + (sub ? `<span>${sub}</span>` : '') + `<span id="versionTag">v0.1.2</span>`;
+  document.title = main + (sub ? ' ' + sub : '');
 }
 
 function hexToRgba(hex, alpha) {

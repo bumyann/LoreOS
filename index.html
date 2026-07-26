@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LoreOS // Universal Editor</title>
+<title>LoreOS Universal Editor</title>
 <meta name="description" content="Lorebook, character card, and preset editor for SillyTavern, JanitorAI &amp; SaucepanAI">
 <meta name="theme-color" content="#9d8fcc">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -24,7 +24,7 @@
 <div id="app">
   <!-- HEADER -->
   <header id="header">
-    <div id="title">LoreOS<span>// Universal Editor</span><span id="versionTag">v0.1.1</span></div>
+    <div id="title">LoreOS<span>Universal Editor</span><span id="versionTag">v0.1.2</span></div>
     <div id="header-right">
       <span class="lb-label" id="nameLabel">Lorebook:</span>
       <input type="text" id="lorebookName" placeholder="untitled">
@@ -314,6 +314,9 @@
   <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharPronouns" title="Pronouns & Nouns" style="display:none">
     <span class="icon">🔤</span><span class="mob-nav-lbl">Pronouns</span>
   </button>
+  <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharTemplates" title="Templates" style="display:none">
+    <span class="icon">📋</span><span class="mob-nav-lbl">Templates</span>
+  </button>
 
   <!-- PRESET actions -->
   <button class="mob-nav-btn mob-mode-btn mob-preset hi" id="mobPresetNew" title="New Preset" style="display:none">
@@ -532,7 +535,7 @@
             <input type="text" id="stgTitleMain" class="finput" placeholder="LoreOS">
           </div>
           <div class="settings-row">
-            <span class="settings-lbl">Subtitle (after //)</span>
+            <span class="settings-lbl">Subtitle</span>
             <input type="text" id="stgTitleSub" class="finput" placeholder="v1.0">
           </div>
         </div>
