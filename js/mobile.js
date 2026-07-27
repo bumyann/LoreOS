@@ -45,7 +45,7 @@ function wireMobile() {
   g('mobSettings').addEventListener('click', () => openModal('settingsModal'));
 
   // ── LORE buttons ──
-  g('mobNewEntry').addEventListener('click', () => { createEntry(); if(isMob()) closeSidebar(); });
+  g('mobNewEntry').addEventListener('click', () => { openEntryPicker(); if(isMob()) closeSidebar(); });
   g('mobImport').addEventListener('click', () => openModal('mobImportModal'));
   g('mobExport').addEventListener('click', () => openModal('mobExportModal'));
   g('mobSearch').addEventListener('click', () => openModal('srModal'));

@@ -476,7 +476,7 @@ function renderEditor() {
   if (openTabs.length === 0) {
     ec.className = ''; ec.style.display = '';
     ec.innerHTML = `<div class="empty-state"><div>// select an entry to begin</div><button class="btn btn-ok" id="newEntryBtnAlt">+ New Entry</button></div>`;
-    g('newEntryBtnAlt').onclick = createEntry;
+    g('newEntryBtnAlt').onclick = openEntryPicker;
     return;
   }
   if (sideBySide && openTabs.length > 1) {
@@ -500,7 +500,7 @@ function renderEditor() {
     ec.className = '';
     if (activeTabId === null || !lorebook.entries[activeTabId]) {
       ec.innerHTML = `<div class="empty-state"><div>// select an entry to begin</div><button class="btn btn-ok" id="newEntryBtnAlt">+ New Entry</button></div>`;
-      g('newEntryBtnAlt').onclick = createEntry;
+      g('newEntryBtnAlt').onclick = openEntryPicker;
       return;
     }
     const en = lorebook.entries[activeTabId];

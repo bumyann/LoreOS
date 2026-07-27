@@ -189,7 +189,7 @@ function wireEvents() {
   g('searchBtn2').onclick = () => openModal('srModal');
   g('libraryBtn').onclick = openLibrary;
   g('clearBtn').onclick = clearEditor;
-  g('newEntryBtn').onclick = createEntry;
+  g('newEntryBtn').onclick = openEntryPicker;
   g('charNewBtn').onclick = createChar;
   g('presetNewBtn').onclick = createPreset;
   g('charLibraryBtn').onclick = openCharLibrary;
@@ -218,7 +218,7 @@ function wireEvents() {
   g('charImportPngBtn').onclick = () => { g('fileCharInput').accept = '.png'; g('fileCharInput').click(); };
   g('fileCharInput').onchange = handleCharImport;
   g('presetImportBtn').onclick = () => { g('filePresetInput').click(); };
-  g('newEntryBtnAlt').onclick = createEntry;
+  g('newEntryBtnAlt').onclick = openEntryPicker;
   g('themeBtn').onclick = toggleTheme;
   g('settingsBtn').onclick = openSettings;
   g('helpBtn').onclick = () => openModal('helpModal');

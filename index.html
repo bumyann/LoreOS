@@ -24,7 +24,7 @@
 <div id="app">
   <!-- HEADER -->
   <header id="header">
-    <div id="title">LoreOS<span>Universal Editor</span><span id="versionTag">v0.1.4</span></div>
+    <div id="title">LoreOS<span>Universal Editor</span><span id="versionTag">v0.2.0</span></div>
     <div id="header-right">
       <span class="lb-label" id="nameLabel">Lorebook:</span>
       <input type="text" id="lorebookName" placeholder="untitled">
@@ -785,5 +785,17 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+
+<!-- ENTRY TYPE PICKER MODAL -->
+<div id="entryPickerModal" class="modal">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-head"><h2>// New Entry</h2><button class="modal-x" data-close="entryPickerModal">×</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:.5rem">
+      <button class="btn btn-ok" id="pickerBlank" style="justify-content:center;padding:.65rem">✦ Blank Entry</button>
+      <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);letter-spacing:1px;padding:.3rem 0 .1rem">// or start from a template</div>
+      <div id="pickerCategories" style="display:flex;flex-direction:column;gap:.3rem"></div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
