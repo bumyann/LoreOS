@@ -240,7 +240,7 @@
 /* ═══════════════════════════════════════════
    TEMPLATE LIBRARY
 ═══════════════════════════════════════════ */
-.tpl-list{display:flex;flex-direction:column;gap:.35rem;max-height:280px;overflow-y:auto;margin-bottom:.75rem}
+.tpl-list{display:flex;flex-direction:column;gap:.35rem;margin-bottom:.75rem}
 .tpl-item{display:flex;align-items:center;gap:.45rem;padding:.45rem .7rem;
   background:var(--sf);border:1px solid var(--bd);border-radius:3px;transition:border-color .12s}
 .tpl-item:hover{border-color:var(--bdb)}
