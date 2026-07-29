@@ -5,7 +5,10 @@
 
 let currentView = null;
 
-const VIEWS = ['home', 'library', 'editor', 'settings'];
+// HTML escape helper used throughout router/notebook
+function routerEsc(s) { const d = document.createElement('div'); d.textContent = String(s||''); return d.innerHTML; }
+
+const VIEWS = ['home', 'library', 'notebook', 'editor', 'settings'];
 
 function navigateTo(viewId) {
   if (!VIEWS.includes(viewId)) return;
@@ -29,6 +32,7 @@ function navigateTo(viewId) {
   // Render view content if needed
   if (viewId === 'home') renderHomeView();
   if (viewId === 'library') renderLibraryView();
+  if (viewId === 'notebook') renderNotebookView();
   if (viewId === 'settings') renderSettingsView();
 
   // Persist last view
@@ -36,7 +40,11 @@ function navigateTo(viewId) {
 }
 
 function getLastView() {
-  try { return localStorage.getItem('loreos_lastView') || 'home'; } catch(e) { return 'home'; }
+  try {
+    const v = localStorage.getItem('loreos_lastView') || 'home';
+    // never restore directly into editor on cold load — always start at home
+    return v === 'editor' ? 'home' : v;
+  } catch(e) { return 'home'; }
 }
 
 // ─── HOME VIEW ───────────────────────────────────────
@@ -122,7 +130,7 @@ function renderDashboard(el) {
   const recentHTML = recent.length ? recent.map((item, i) => `
     <div class="dash-recent-item" data-recent-idx="${i}">
       <span class="dash-recent-icon">${item.icon}</span>
-      <span class="dash-recent-name">${esc(item.name)}</span>
+      <span class="dash-recent-name">${routerEsc(item.name)}</span>
       <span class="dash-recent-type">${item.type}</span>
       <span class="dash-recent-date">${item.savedAt ? new Date(item.savedAt).toLocaleDateString() : ''}</span>
     </div>
@@ -197,7 +205,7 @@ function renderLibraryView() {
           <div class="lib-card" data-lib-idx="${i}">
             <div class="lib-card-icon">${item.icon}</div>
             <div class="lib-card-info">
-              <div class="lib-card-name">${esc(item.name)}</div>
+              <div class="lib-card-name">${routerEsc(item.name)}</div>
               <div class="lib-card-meta"><span class="lib-card-type">${item.typeLabel}</span>${item.savedAt ? ' · ' + new Date(item.savedAt).toLocaleDateString() : ''}</div>
             </div>
             <button class="btn btn-p btn-sm lib-card-open" data-lib-idx="${i}">Open →</button>
@@ -271,3 +279,239 @@ function initRouter() {
   const last = getLastView();
   navigateTo(last);
 }
+
+// ═══════════════════════════════════════════════════════
+// NOTEBOOK — basic markdown pages, saves to localStorage
+// Storage key: loreos_notebook (object: { pages: {id: page}, activePageId })
+// Page: { id, title, content, createdAt, updatedAt }
+// ═══════════════════════════════════════════════════════
+
+function nbGet() {
+  try { return JSON.parse(localStorage.getItem('loreos_notebook') || '{"pages":{},"activePageId":null}'); }
+  catch(e) { return { pages: {}, activePageId: null }; }
+}
+function nbSet(data) {
+  try { localStorage.setItem('loreos_notebook', JSON.stringify(data)); } catch(e) {}
+}
+function nbId() { return 'nb_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+
+let _nbActiveId = null;
+let _nbAutoSaveTimer = null;
+
+function renderNotebookView() {
+  const el = document.getElementById('notebook-content');
+  if (!el) return;
+
+  const data = nbGet();
+  const pages = Object.values(data.pages).sort((a,b) => (b.updatedAt||'').localeCompare(a.updatedAt||''));
+  _nbActiveId = data.activePageId || (pages[0]?.id ?? null);
+
+  el.innerHTML = `
+    <div class="nb-layout">
+      <div class="nb-sidebar" id="nb-sidebar">
+        <div class="nb-sidebar-head">
+          <div class="nb-title">// Notebook</div>
+          <button class="btn btn-ok btn-sm" id="nbNewBtn">+ New</button>
+        </div>
+        <div class="nb-page-list" id="nb-page-list"></div>
+      </div>
+      <div class="nb-editor" id="nb-editor">
+        <div class="nb-editor-inner" id="nb-editor-inner">
+          <div class="empty-state" style="min-height:200px">
+            <div>// no page selected</div>
+            <button class="btn btn-ok" id="nbNewBtnAlt">+ New Page</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('nbNewBtn').addEventListener('click', nbNewPage);
+  const alt = document.getElementById('nbNewBtnAlt');
+  if (alt) alt.addEventListener('click', nbNewPage);
+
+  nbRenderPageList();
+  if (_nbActiveId && data.pages[_nbActiveId]) nbOpenPage(_nbActiveId);
+}
+
+function nbRenderPageList() {
+  const list = document.getElementById('nb-page-list');
+  if (!list) return;
+  const data = nbGet();
+  const pages = Object.values(data.pages).sort((a,b) => (b.updatedAt||'').localeCompare(a.updatedAt||''));
+
+  list.innerHTML = pages.length ? pages.map(p => `
+    <div class="nb-page-item ${p.id === _nbActiveId ? 'active' : ''}" data-nb-id="${p.id}">
+      <span class="nb-page-title">${routerEsc(p.title || 'Untitled')}</span>
+      <span class="nb-page-date">${p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : ''}</span>
+    </div>
+  `).join('') : `<div class="nb-empty">// no pages yet</div>`;
+
+  list.querySelectorAll('.nb-page-item').forEach(item => {
+    item.addEventListener('click', () => {
+      nbSaveActive();
+      nbOpenPage(item.dataset.nbId);
+    });
+  });
+}
+
+function nbOpenPage(id) {
+  const data = nbGet();
+  const page = data.pages[id];
+  if (!page) return;
+  _nbActiveId = id;
+  data.activePageId = id;
+  nbSet(data);
+
+  // Update sidebar active state
+  document.querySelectorAll('.nb-page-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.nbId === id);
+  });
+
+  const inner = document.getElementById('nb-editor-inner');
+  if (!inner) return;
+
+  inner.innerHTML = `
+    <div class="nb-page-header">
+      <input class="nb-page-title-input" id="nbTitleInput" value="${routerEsc(page.title || '')}" placeholder="Page title...">
+      <div class="nb-page-acts">
+        <button class="btn btn-s btn-sm" id="nbPreviewToggle">👁 Preview</button>
+        <button class="btn btn-err btn-sm" id="nbDeleteBtn">✕ Delete</button>
+      </div>
+    </div>
+    <div class="nb-content-wrap">
+      <textarea class="nb-textarea" id="nbContent" placeholder="Write in markdown...">${routerEsc(page.content || '')}</textarea>
+      <div class="nb-preview" id="nbPreview" style="display:none"></div>
+    </div>
+    <div class="nb-footer">
+      <span class="nb-save-status" id="nbSaveStatus">saved</span>
+      <button class="btn btn-p btn-sm" id="nbSaveBtn">Save</button>
+    </div>
+  `;
+
+  const titleIn = document.getElementById('nbTitleInput');
+  const contentTA = document.getElementById('nbContent');
+  const saveStatus = document.getElementById('nbSaveStatus');
+
+  function markUnsaved() {
+    saveStatus.textContent = 'unsaved';
+    saveStatus.style.color = 'var(--warn)';
+    clearTimeout(_nbAutoSaveTimer);
+    _nbAutoSaveTimer = setTimeout(nbSaveActive, 2000);
+  }
+
+  titleIn.addEventListener('input', () => {
+    markUnsaved();
+    // update sidebar title live
+    const item = document.querySelector(`.nb-page-item[data-nb-id="${id}"] .nb-page-title`);
+    if (item) item.textContent = titleIn.value || 'Untitled';
+  });
+  contentTA.addEventListener('input', markUnsaved);
+
+  document.getElementById('nbSaveBtn').addEventListener('click', () => {
+    nbSaveActive();
+    saveStatus.textContent = 'saved';
+    saveStatus.style.color = 'var(--ok)';
+  });
+
+  document.getElementById('nbDeleteBtn').addEventListener('click', async () => {
+    if (!await askConfirm('Delete this page?')) return;
+    const d = nbGet();
+    delete d.pages[id];
+    d.activePageId = null;
+    nbSet(d);
+    _nbActiveId = null;
+    renderNotebookView();
+  });
+
+  let previewing = false;
+  document.getElementById('nbPreviewToggle').addEventListener('click', () => {
+    previewing = !previewing;
+    const ta = document.getElementById('nbContent');
+    const pv = document.getElementById('nbPreview');
+    const btn = document.getElementById('nbPreviewToggle');
+    if (previewing) {
+      pv.innerHTML = nbRenderMarkdown(ta.value);
+      ta.style.display = 'none';
+      pv.style.display = '';
+      btn.textContent = '✏ Edit';
+    } else {
+      ta.style.display = '';
+      pv.style.display = 'none';
+      btn.textContent = '👁 Preview';
+    }
+  });
+}
+
+function nbSaveActive() {
+  if (!_nbActiveId) return;
+  const titleIn = document.getElementById('nbTitleInput');
+  const contentTA = document.getElementById('nbContent');
+  if (!titleIn || !contentTA) return;
+  const data = nbGet();
+  if (!data.pages[_nbActiveId]) return;
+  data.pages[_nbActiveId].title = titleIn.value.trim() || 'Untitled';
+  data.pages[_nbActiveId].content = contentTA.value;
+  data.pages[_nbActiveId].updatedAt = new Date().toISOString();
+  nbSet(data);
+  // refresh sidebar dates
+  const item = document.querySelector(`.nb-page-item[data-nb-id="${_nbActiveId}"] .nb-page-date`);
+  if (item) item.textContent = new Date().toLocaleDateString();
+  const st = document.getElementById('nbSaveStatus');
+  if (st) { st.textContent = 'saved'; st.style.color = 'var(--ok)'; }
+}
+
+function nbNewPage() {
+  nbSaveActive();
+  const data = nbGet();
+  const id = nbId();
+  data.pages[id] = {
+    id, title: '', content: '',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  data.activePageId = id;
+  nbSet(data);
+  _nbActiveId = id;
+  nbRenderPageList();
+  nbOpenPage(id);
+  setTimeout(() => document.getElementById('nbTitleInput')?.focus(), 50);
+}
+
+// ── Very lightweight markdown renderer (no lib needed) ──
+function nbRenderMarkdown(md) {
+  if (!md) return '';
+  let h = md
+    // Escape HTML first
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    // Headings
+    .replace(/^### (.+)$/gm,'<h3>$1</h3>')
+    .replace(/^## (.+)$/gm,'<h2>$1</h2>')
+    .replace(/^# (.+)$/gm,'<h1>$1</h1>')
+    // Bold / italic
+    .replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/__(.+?)__/g,'<strong>$1</strong>')
+    .replace(/_(.+?)_/g,'<em>$1</em>')
+    // Strikethrough
+    .replace(/~~(.+?)~~/g,'<del>$1</del>')
+    // Inline code
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    // Blockquote
+    .replace(/^&gt; (.+)$/gm,'<blockquote>$1</blockquote>')
+    // Horizontal rule
+    .replace(/^---+$/gm,'<hr>')
+    // Unordered lists
+    .replace(/^\* (.+)$/gm,'<li>$1</li>')
+    .replace(/^- (.+)$/gm,'<li>$1</li>')
+    // Ordered lists
+    .replace(/^\d+\. (.+)$/gm,'<li>$1</li>')
+    // Links
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>')
+    // Line breaks → paragraphs (double newline)
+    .replace(/\n\n/g,'</p><p>')
+    .replace(/\n/g,'<br>');
+  return `<div class="nb-rendered"><p>${h}</p></div>`;
+}
+

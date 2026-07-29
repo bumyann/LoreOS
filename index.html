@@ -28,7 +28,7 @@
     <div class="nav-top">
       <div class="nav-logo">
         <span class="nav-logo-text">LoreOS</span>
-        <span id="versionTag" class="nav-version">v1.0.0</span>
+        <span id="versionTag" class="nav-version">v0.3.0</span>
       </div>
       <button id="nav-toggle" class="nav-toggle" title="Collapse sidebar">◀</button>
     </div>
@@ -41,6 +41,10 @@
       <button class="nav-item" data-view="library" title="Library">
         <span class="nav-item-icon">📚</span>
         <span class="nav-item-label">Library</span>
+      </button>
+      <button class="nav-item" data-view="notebook" title="Notebook">
+        <span class="nav-item-icon">📓</span>
+        <span class="nav-item-label">Notebook</span>
       </button>
       <button class="nav-item" data-view="editor" title="Editor">
         <span class="nav-item-icon">✦</span>
@@ -71,6 +75,11 @@
     <!-- ── LIBRARY VIEW ── -->
     <div id="view-library" class="view-panel">
       <div id="library-content" class="view-scroll"></div>
+    </div>
+
+    <!-- ── NOTEBOOK VIEW ── -->
+    <div id="view-notebook" class="view-panel">
+      <div id="notebook-content" style="flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0"></div>
     </div>
 
     <!-- ── EDITOR VIEW ── -->
@@ -376,11 +385,26 @@
 
 <!-- MOBILE BOTTOM NAV -->
 <nav id="mob-nav">
-  <!-- always-visible: sidebar toggle + mode switcher -->
-  <button class="mob-nav-btn" id="mobEntries" title="Sidebar">
+  <!-- view nav buttons (always visible on mobile, hidden when in editor) -->
+  <button class="mob-nav-btn mob-view-btn" id="mobGoHome" title="Home">
+    <span class="icon">⌂</span><span class="mob-nav-lbl">Home</span>
+  </button>
+  <button class="mob-nav-btn mob-view-btn" id="mobGoLibrary" title="Library">
+    <span class="icon">📚</span><span class="mob-nav-lbl">Library</span>
+  </button>
+  <button class="mob-nav-btn mob-view-btn" id="mobGoNotebook" title="Notebook">
+    <span class="icon">📓</span><span class="mob-nav-lbl">Notebook</span>
+  </button>
+  <button class="mob-nav-btn mob-view-btn" id="mobGoEditor" title="Editor">
+    <span class="icon">✦</span><span class="mob-nav-lbl">Editor</span>
+  </button>
+  <div id="mob-nav-sep-views" style="width:1px;background:var(--bd);margin:.3rem .1rem;flex-shrink:0;align-self:stretch;"></div>
+
+  <!-- always-visible: sidebar toggle (editor only) -->
+  <button class="mob-nav-btn mob-editor-only" id="mobEntries" title="Sidebar" style="display:none">
     <span class="icon">☰</span><span class="mob-nav-lbl">Sidebar</span>
   </button>
-  <div id="mob-nav-sep"></div>
+  <div id="mob-nav-sep" style="display:none"></div>
 
   <!-- LORE actions -->
   <button class="mob-nav-btn mob-mode-btn mob-lore hi" id="mobNewEntry" title="New Entry">
@@ -400,6 +424,9 @@
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobLoreTemplates" title="Templates">
     <span class="icon">📋</span><span class="mob-nav-lbl">Templates</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobLoreSettings" title="LB Settings">
+    <span class="icon">🌐</span><span class="mob-nav-lbl">LB Set.</span>
   </button>
 
   <!-- CHAR actions -->

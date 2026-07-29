@@ -388,6 +388,10 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
   .modal-body{padding:.85rem .9rem}
   .settings-grid{grid-template-columns:1fr 1fr}
 
+  /* Mobile view nav active state */
+  .mob-view-btn.active{color:var(--p)}
+  .mob-editor-only{display:none}
+
   /* Bottom nav */
   #mob-nav{
     display:flex;

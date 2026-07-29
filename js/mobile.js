@@ -33,13 +33,42 @@ function wireMobile() {
   const origSwitchMode = switchMode;
   window.switchMode = function(newMode) {
     origSwitchMode(newMode);
-    if (isMob()) updateMobNav(newMode);
+    if (isMob()) {
+      updateMobNav(newMode);
+      updateMobViewBtns('editor');
+    }
   };
 
   // Init nav state to current mode
   updateMobNav(mode || 'lore');
 
   // ── Always-on buttons ──
+  // ── Mobile view navigation ──
+  if (g('mobGoHome'))     g('mobGoHome').addEventListener('click', () => { navigateTo('home'); updateMobViewBtns('home'); });
+  if (g('mobGoLibrary'))  g('mobGoLibrary').addEventListener('click', () => { navigateTo('library'); updateMobViewBtns('library'); });
+  if (g('mobGoNotebook')) g('mobGoNotebook').addEventListener('click', () => { navigateTo('notebook'); updateMobViewBtns('notebook'); });
+  if (g('mobGoEditor'))   g('mobGoEditor').addEventListener('click', () => { navigateTo('editor'); updateMobViewBtns('editor'); });
+
+  // Show/hide sidebar toggle + mode buttons only when in editor
+  function updateMobViewBtns(view) {
+    const isEditor = view === 'editor';
+    const entriesBtn = g('mobEntries');
+    const sep = g('mob-nav-sep');
+    if (entriesBtn) entriesBtn.style.display = isEditor ? '' : 'none';
+    if (sep) sep.style.display = isEditor ? '' : 'none';
+    // also hide/show mode buttons
+    document.querySelectorAll('.mob-mode-btn').forEach(b => {
+      b.style.display = isEditor ? (b.classList.contains('mob-' + (mode||'lore')) ? '' : 'none') : 'none';
+    });
+    // active state on view buttons
+    ['mobGoHome','mobGoLibrary','mobGoNotebook','mobGoEditor'].forEach(id => {
+      const btn = g(id);
+      if (btn) btn.classList.toggle('active', id === 'mobGo' + view.charAt(0).toUpperCase() + view.slice(1));
+    });
+  }
+  // init on load
+  updateMobViewBtns(typeof currentView !== 'undefined' ? currentView : 'home');
+
   g('mobEntries').addEventListener('click', openSidebar);
   g('mobTheme').addEventListener('click', toggleTheme);
   g('mobSettings').addEventListener('click', () => openModal('settingsModal'));
@@ -51,6 +80,7 @@ function wireMobile() {
   g('mobSearch').addEventListener('click', () => openModal('srModal'));
   g('mobLibrary').addEventListener('click', openLibrary);
   g('mobLoreTemplates').addEventListener('click', () => openTemplateLibrary('lore'));
+  if (g('mobLoreSettings')) g('mobLoreSettings').addEventListener('click', () => openLoreSettings());
 
   // ── CHAR buttons ──
   g('mobCharNew').addEventListener('click', () => { createChar(); if(isMob()) closeSidebar(); });
