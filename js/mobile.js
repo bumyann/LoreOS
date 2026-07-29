@@ -138,6 +138,8 @@ function wireMobile() {
   // Mobile import/export pickers
   if (g('mobImportBtn'))       g('mobImportBtn').addEventListener('click', () => { closeModal('mobImportModal'); g('fileInput').click(); });
   if (g('mobImportJanitorPasteBtn')) g('mobImportJanitorPasteBtn').addEventListener('click', () => { closeModal('mobImportModal'); openJanitorPasteModal(); });
+  if (g('mobImportSaucepanBtn')) g('mobImportSaucepanBtn').addEventListener('click', () => { closeModal('mobImportModal'); g('fileSaucepanInput').click(); });
+  if (g('mobExportSaucepanBtn')) g('mobExportSaucepanBtn').addEventListener('click', () => { closeModal('mobExportModal'); exportSaucepanJson(); });
   if (g('mobImportMergeBtn'))  g('mobImportMergeBtn').addEventListener('click', () => { closeModal('mobImportModal'); g('fileMergeInput').click(); });
   if (g('mobExportJsonBtn'))   g('mobExportJsonBtn').addEventListener('click', () => { closeModal('mobExportModal'); exportJson(); });
   if (g('mobExportJanitorBtn')) g('mobExportJanitorBtn').addEventListener('click', () => { closeModal('mobExportModal'); exportJanitorJson(); });

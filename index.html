@@ -28,7 +28,7 @@
     <div class="nav-top">
       <div class="nav-logo">
         <span class="nav-logo-text">LoreOS</span>
-        <span id="versionTag" class="nav-version">v0.3.5</span>
+        <span id="versionTag" class="nav-version">v0.3.6</span>
       </div>
       <button id="nav-toggle" class="nav-toggle" title="Collapse sidebar">◀</button>
     </div>
@@ -97,16 +97,18 @@
             <div class="dd" id="dd-import">
               <button class="btn btn-p dd-btn">&#8659; Import</button>
               <div class="dd-menu">
-                <button class="dd-item" id="importBtn">📂 ST Lorebook JSON</button>
-                <button class="dd-item" id="importJanitorPasteBtn">🍳 JanitorAI (paste JSON)</button>
+                <button class="dd-item" id="importBtn">📂 SillyTavern</button>
+                <button class="dd-item" id="importJanitorPasteBtn">🍳 JanitorAI</button>
+                <button class="dd-item" id="importSaucepanBtn">🍲 SaucepanAI</button>
                 <button class="dd-item" id="importMergeBtn">⇌ Import for Merge</button>
               </div>
             </div>
             <div class="dd" id="dd-export">
               <button class="btn btn-s dd-btn">&#8657; Export</button>
               <div class="dd-menu">
-                <button class="dd-item" id="exportJsonBtn">{ } ST Lorebook JSON</button>
-                <button class="dd-item" id="exportJanitorBtn">🍳 JanitorAI JSON</button>
+                <button class="dd-item" id="exportJsonBtn">{ } SillyTavern</button>
+                <button class="dd-item" id="exportJanitorBtn">🍳 JanitorAI</button>
+                <button class="dd-item" id="exportSaucepanBtn">🍲 SaucepanAI</button>
                 <button class="dd-item" id="exportTxtBtn">📄 Export as Text</button>
                 <button class="dd-item" id="exportPubBtn">📖 Export for Public Pages</button>
               </div>
@@ -216,6 +218,7 @@
 <!-- Hidden file inputs -->
 <input type="file" id="fileInput" accept=".json" style="display:none">
 <input type="file" id="fileMergeInput" accept=".json" style="display:none">
+<input type="file" id="fileSaucepanInput" accept=".json" style="display:none">
 <input type="file" id="fileCharInput" accept=".json,.png" style="display:none">
 <input type="file" id="filePresetInput" accept=".json" style="display:none">
 
@@ -475,8 +478,9 @@
   <div class="modal-box">
     <div class="modal-head"><h2>// Import</h2><button class="modal-x" data-close="mobImportModal">×</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
-      <button class="btn btn-p" id="mobImportBtn" style="width:100%;justify-content:center;padding:.65rem">📂 ST Lorebook JSON</button>
-      <button class="btn btn-s" id="mobImportJanitorPasteBtn" style="width:100%;justify-content:center;padding:.65rem">🍳 JanitorAI (paste JSON)</button>
+      <button class="btn btn-p" id="mobImportBtn" style="width:100%;justify-content:center;padding:.65rem">📂 SillyTavern</button>
+      <button class="btn btn-s" id="mobImportJanitorPasteBtn" style="width:100%;justify-content:center;padding:.65rem">🍳 JanitorAI</button>
+      <button class="btn btn-s" id="mobImportSaucepanBtn" style="width:100%;justify-content:center;padding:.65rem">🍲 SaucepanAI</button>
       <button class="btn btn-s" id="mobImportMergeBtn" style="width:100%;justify-content:center;padding:.65rem">⇌ Import for Merge</button>
     </div>
   </div>
@@ -486,8 +490,9 @@
   <div class="modal-box">
     <div class="modal-head"><h2>// Export</h2><button class="modal-x" data-close="mobExportModal">×</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
-      <button class="btn btn-p" id="mobExportJsonBtn" style="width:100%;justify-content:center;padding:.65rem">{ } ST Lorebook JSON</button>
-      <button class="btn btn-s" id="mobExportJanitorBtn" style="width:100%;justify-content:center;padding:.65rem">🍳 JanitorAI JSON</button>
+      <button class="btn btn-p" id="mobExportJsonBtn" style="width:100%;justify-content:center;padding:.65rem">{ } SillyTavern</button>
+      <button class="btn btn-s" id="mobExportJanitorBtn" style="width:100%;justify-content:center;padding:.65rem">🍳 JanitorAI</button>
+      <button class="btn btn-s" id="mobExportSaucepanBtn" style="width:100%;justify-content:center;padding:.65rem">🍲 SaucepanAI</button>
       <button class="btn btn-s" id="mobExportTxtBtn" style="width:100%;justify-content:center;padding:.65rem">📄 Export as Text</button>
       <button class="btn btn-s" id="mobExportPubBtn" style="width:100%;justify-content:center;padding:.65rem">📖 Export for Public Pages</button>
       <button class="btn btn-err" id="mobClearBtn" style="width:100%;justify-content:center;padding:.65rem">🗑 Clear Editor</button>
