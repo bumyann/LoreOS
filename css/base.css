@@ -129,7 +129,7 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
 
 .view-panel{
   display:none;flex:1;flex-direction:column;overflow:hidden;
-  position:absolute;inset:0;
+  width:100%;
 }
 .view-panel.view-active{display:flex}
 
@@ -324,7 +324,7 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
   #content-area{flex:1}
 
   /* Views */
-  .view-panel{position:static;display:none;flex-direction:column}
+  .view-panel{display:none;flex-direction:column;width:100%}
   .view-panel.view-active{display:flex}
   .view-scroll{padding:.9rem .75rem;padding-bottom:5rem}
 
