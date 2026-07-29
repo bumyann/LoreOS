@@ -8,7 +8,7 @@ let currentView = null;
 // HTML escape helper used throughout router/notebook
 function routerEsc(s) { const d = document.createElement('div'); d.textContent = String(s||''); return d.innerHTML; }
 
-const VIEWS = ['home', 'library', 'notebook', 'editor', 'settings'];
+const VIEWS = ['home', 'library', 'notebook', 'editor'];
 
 function navigateTo(viewId) {
   if (!VIEWS.includes(viewId)) return;
@@ -33,7 +33,6 @@ function navigateTo(viewId) {
   if (viewId === 'home') renderHomeView();
   if (viewId === 'library') renderLibraryView();
   if (viewId === 'notebook') renderNotebookView();
-  if (viewId === 'settings') renderSettingsView();
 
   // Persist last view
   try { localStorage.setItem('loreos_lastView', viewId); } catch(e) {}
@@ -238,25 +237,7 @@ function renderLibraryView() {
 }
 
 // ─── SETTINGS VIEW ───────────────────────────────────
-function renderSettingsView() {
-  // Settings view just shows the existing settings modal content inline
-  // The modal itself is still available via the ⚙ icon in the nav
-  const el = document.getElementById('settings-content');
-  if (!el) return;
-  el.innerHTML = `
-    <div class="settings-view-wrap">
-      <div class="dash-section-title" style="margin-bottom:1rem">// Settings</div>
-      <div style="font-family:var(--fx);font-size:.75rem;color:var(--txm);letter-spacing:.4px;line-height:1.8">
-        Open the full settings panel below to customise themes, colours, fonts, and manage backups.
-      </div>
-      <div style="margin-top:1rem;display:flex;flex-wrap:wrap;gap:.5rem">
-        <button class="btn btn-p" onclick="openModal('settingsModal')">⚙ Open Settings Panel</button>
-        <button class="btn btn-s" onclick="document.getElementById('syncExportBtn').click()">⬇ Export Backup</button>
-        <button class="btn btn-s" onclick="document.getElementById('syncImportBtn').click()">⬆ Import Backup</button>
-      </div>
-    </div>
-  `;
-}
+
 
 // ─── SIDEBAR NAV TOGGLE ──────────────────────────────
 function initNavSidebar() {
@@ -272,7 +253,15 @@ function initNavSidebar() {
 
   // Wire nav items
   document.querySelectorAll('.nav-item[data-view]').forEach(item => {
-    item.addEventListener('click', () => navigateTo(item.dataset.view));
+    item.addEventListener('click', () => {
+      const view = item.dataset.view;
+      if (view === 'settings') {
+        // open modal directly, no navigation
+        openModal('settingsModal');
+      } else {
+        navigateTo(view);
+      }
+    });
   });
 }
 

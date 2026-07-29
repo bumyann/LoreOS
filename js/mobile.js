@@ -32,26 +32,66 @@ function wireMobile() {
   }
 
   // ── updateMobViewBtns: show/hide view-specific controls ──
-  // When in editor: show sidebar toggle + active-mode action buttons
-  // When in other views: hide sidebar toggle + all action buttons
+  // When in editor: collapse view nav, show back button + sidebar + mode action buttons
+  // When in other views: show view nav, hide editor-specific buttons
   function updateMobViewBtns(view) {
     const isEditor = view === 'editor';
+
+    // View nav buttons (Home/Library/Notebook/Editor)
+    const viewNavBtns = ['mobGoHome','mobGoLibrary','mobGoNotebook','mobGoEditor'];
+    viewNavBtns.forEach(id => {
+      const btn = g(id);
+      if (btn) btn.style.display = isEditor ? 'none' : '';
+    });
+
+    // View nav separator
+    const viewSep = g('mob-nav-sep-views');
+    if (viewSep) viewSep.style.display = isEditor ? 'none' : '';
+
+    // Back button (only shown in editor)
+    let backBtn = g('mobBackBtn');
+    if (isEditor && !backBtn) {
+      // create it once
+      backBtn = document.createElement('button');
+      backBtn.className = 'mob-nav-btn';
+      backBtn.id = 'mobBackBtn';
+      backBtn.title = 'Back';
+      backBtn.innerHTML = '<span class="icon">◀</span><span class="mob-nav-lbl">Back</span>';
+      backBtn.addEventListener('click', () => { navigateTo('home'); });
+      const nav = document.getElementById('mob-nav');
+      if (nav) nav.insertBefore(backBtn, nav.firstChild);
+    }
+    if (backBtn) backBtn.style.display = isEditor ? '' : 'none';
+
+    // Back separator
+    let backSep = g('mobBackSep');
+    if (isEditor && !backSep) {
+      backSep = document.createElement('div');
+      backSep.id = 'mobBackSep';
+      backSep.style.cssText = 'width:1px;background:var(--bd);margin:.3rem .1rem;flex-shrink:0;align-self:stretch';
+      const backBtnEl = g('mobBackBtn');
+      if (backBtnEl && backBtnEl.nextSibling) {
+        backBtnEl.parentNode.insertBefore(backSep, backBtnEl.nextSibling);
+      }
+    }
+    if (backSep) backSep.style.display = isEditor ? '' : 'none';
+
+    // Sidebar toggle + sep
     const entriesBtn = g('mobEntries');
     const sep = g('mob-nav-sep');
     if (entriesBtn) entriesBtn.style.display = isEditor ? '' : 'none';
     if (sep) sep.style.display = isEditor ? '' : 'none';
 
+    // Mode action buttons
     if (!isEditor) {
-      // hide all mode action buttons
       document.querySelectorAll('.mob-mode-btn').forEach(b => { b.style.display = 'none'; });
     } else {
-      // show buttons for current mode only
       updateMobNav(mode || 'lore');
     }
 
-    // active state on view nav buttons
+    // Active state on view nav buttons
     const viewKey = view ? view.charAt(0).toUpperCase() + view.slice(1) : 'Home';
-    ['mobGoHome','mobGoLibrary','mobGoNotebook','mobGoEditor'].forEach(id => {
+    viewNavBtns.forEach(id => {
       const btn = g(id);
       if (btn) btn.classList.toggle('active', id === 'mobGo' + viewKey);
     });
