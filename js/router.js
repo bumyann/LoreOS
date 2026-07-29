@@ -29,6 +29,10 @@ function navigateTo(viewId) {
   const modeTabs = document.getElementById('modeTabs');
   if (modeTabs) modeTabs.style.display = (viewId === 'editor') ? 'flex' : 'none';
 
+  // Mobile top bar: only show on library/notebook (home has hero title, editor has its own header)
+  const mobTopbar = document.getElementById('mob-topbar');
+  if (mobTopbar) mobTopbar.classList.toggle('visible', viewId === 'library' || viewId === 'notebook');
+
   // Render view content if needed
   if (viewId === 'home') renderHomeView();
   if (viewId === 'library') renderLibraryView();
