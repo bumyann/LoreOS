@@ -224,8 +224,8 @@ function wireEvents() {
 
   // ── v1.0.0 new buttons ──
   // JanitorAI import/export (lorebook)
-  if (g('importJanitorBtn')) g('importJanitorBtn').onclick = () => { g('fileJanitorInput').click(); };
-  if (g('fileJanitorInput')) g('fileJanitorInput').onchange = handleJanitorImport;
+  if (g('importJanitorPasteBtn')) g('importJanitorPasteBtn').onclick = openJanitorPasteModal;
+  if (g('janitorPasteConfirmBtn')) g('janitorPasteConfirmBtn').onclick = handleJanitorPaste;
   if (g('exportJanitorBtn')) g('exportJanitorBtn').onclick = exportJanitorJson;
   // Mobile janitor
   if (g('mobImportJanitorBtn')) g('mobImportJanitorBtn').onclick = () => { closeModal('mobImportModal'); g('fileJanitorInput').click(); };
