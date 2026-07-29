@@ -227,6 +227,10 @@ function wireEvents() {
   if (g('importJanitorPasteBtn')) g('importJanitorPasteBtn').onclick = openJanitorPasteModal;
   if (g('janitorPasteConfirmBtn')) g('janitorPasteConfirmBtn').onclick = handleJanitorPaste;
   if (g('exportJanitorBtn')) g('exportJanitorBtn').onclick = exportJanitorJson;
+  // SaucepanAI import/export
+  if (g('importSaucepanBtn')) g('importSaucepanBtn').onclick = () => g('fileSaucepanInput').click();
+  if (g('fileSaucepanInput')) g('fileSaucepanInput').onchange = handleSaucepanImport;
+  if (g('exportSaucepanBtn')) g('exportSaucepanBtn').onclick = exportSaucepanJson;
   // Mobile janitor
   if (g('mobImportJanitorBtn')) g('mobImportJanitorBtn').onclick = () => { closeModal('mobImportModal'); g('fileJanitorInput').click(); };
   if (g('mobExportJanitorBtn')) g('mobExportJanitorBtn').onclick = () => { closeModal('mobExportModal'); exportJanitorJson(); };

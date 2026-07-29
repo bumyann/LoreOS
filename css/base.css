@@ -306,6 +306,7 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
 /* ── Desktop: hide mobile-only elements ── */
 @media (min-width:701px){
   #mob-nav{display:none}
+  #mob-topbar{display:none}
   #mob-backdrop{display:none!important}
   #mob-sb-close{display:none!important}
 }
@@ -316,6 +317,29 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
 @media (max-width:700px){
   body{overflow:auto;height:auto;min-height:100vh;min-height:100dvh}
   #app{height:auto;min-height:100vh;min-height:100dvh;flex-direction:column}
+
+  /* Mobile top bar */
+  #mob-topbar{
+    display:none;align-items:center;justify-content:space-between;
+    background:var(--bg2);border-bottom:1px solid var(--bdb);
+    padding:.45rem .85rem;flex-shrink:0;position:sticky;top:0;z-index:500;
+  }
+  #mob-topbar.visible{display:flex}
+  #mob-topbar::after{
+    content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;
+    background:linear-gradient(90deg,transparent,var(--p),var(--a),var(--p),transparent);opacity:.5;
+  }
+  .mob-topbar-left{display:flex;align-items:baseline;gap:.45rem}
+  .mob-topbar-title{
+    font-family:var(--fp);font-size:1.35rem;color:var(--p);
+    letter-spacing:2px;text-shadow:0 0 10px var(--pg);line-height:1;
+  }
+  .mob-topbar-ver{
+    font-family:var(--fx);font-size:.55rem;color:var(--txm);
+    letter-spacing:1px;opacity:.6;
+  }
+  /* Hide editor header ? on mobile — topbar handles it */
+  .mob-hide{display:none!important}
 
   /* Hide desktop nav sidebar on mobile */
   #nav-sidebar{display:none}

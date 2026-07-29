@@ -260,7 +260,7 @@ function switchMode(newMode) {
 
   if (isStub) {
     const labels = { persona: 'Persona', prompt: 'Prompt', regex: 'Regex' };
-    sbTitle.textContent = '// ' + (labels[newMode] || newMode);
+    sbTitle.textContent = '' + (labels[newMode] || newMode);
     g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search...';
     g('editorContent').innerHTML = `
@@ -272,17 +272,17 @@ function switchMode(newMode) {
   }
 
   if (newMode === 'lore') {
-    sbTitle.textContent = '// Entries';
+    sbTitle.textContent = 'Entries';
     g('zoomRow').style.display = '';
     g('sbSearch').placeholder = 'Search entries...';
     renderList(); renderTabs(); renderEditor();
   } else if (newMode === 'char') {
-    sbTitle.textContent = '// Characters';
+    sbTitle.textContent = 'Characters';
     g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search characters...';
     renderCharSidebar(); renderCharEditor();
   } else if (newMode === 'preset') {
-    sbTitle.textContent = '// Presets';
+    sbTitle.textContent = 'Presets';
     g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search presets...';
     renderPresetSidebar(); renderPresetEditor();
@@ -1060,7 +1060,7 @@ function libGet() { try { return JSON.parse(localStorage.getItem('aet_library') 
 function libSet(d) { localStorage.setItem('aet_library', JSON.stringify(d)); }
 
 function openLibrary() {
-  g('libModalTitle').textContent = '// Lorebook Library';
+  g('libModalTitle').textContent = 'Lorebook Library';
   g('libSaveBtn').parentElement.style.display = '';
   g('libNewName').value = g('lorebookName').value.trim();
   renderLibraryList();
@@ -1129,7 +1129,7 @@ async function libLoad(name) {
 }
 
 async function libRename(oldName) {
-  g('renameModalTitle').textContent = '// Rename Lorebook';
+  g('renameModalTitle').textContent = 'Rename Lorebook';
   const newName = await askInput(`Rename "${oldName}" to:`, oldName);
   if (!newName || newName.trim() === oldName) return;
   const trimmed = newName.trim().substring(0, 60);
@@ -1401,6 +1401,133 @@ function exportJanitorJson() {
   // Export as flat array — the native JanitorAI format
   dlFile(JSON.stringify(entries, null, 2), fn, 'application/json');
   toast('Exported as JanitorAI lorebook (flat array format).', 'ok');
+}
+
+
+// ═══════════════════════════════════════════════════════
+// SAUCEPANAI LOREBOOK IMPORT / EXPORT
+//
+// SaucepanAI format:
+// {
+//   id, author_id, name, short_description, image_id,
+//   tags, access_level, nsfw, very_nsfw, ...metadata,
+//   content: [{ title, text, id }, ...]
+// }
+// No keyword fields — purely chapter/narrative based.
+// Import maps: title→comment, text→content (blank keywords)
+// Export maps: comment→title, content→text, generates UUIDs
+// ═══════════════════════════════════════════════════════
+
+function handleSaucepanImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const raw = JSON.parse(ev.target.result);
+      const count = parseSaucepanData(raw, file.name.replace(/\.json$/i, ''));
+      if (count === null) { toast('Unrecognised SaucepanAI lorebook format.', 'err'); return; }
+      toast(`Imported ${count} entries from SaucepanAI lorebook.`, 'ok');
+    } catch(err) {
+      toast('Failed to parse JSON: ' + err.message, 'err');
+    }
+  };
+  r.readAsText(file);
+  e.target.value = '';
+}
+
+function parseSaucepanData(raw, sourceName) {
+  if (!raw || !Array.isArray(raw.content)) return null;
+
+  const lbName = raw.name || sourceName || 'saucepan-import';
+  lorebook = { name: lbName, entries: {}, saucepanMeta: {
+    id:                raw.id               || '',
+    author_id:         raw.author_id        || '',
+    short_description: raw.short_description|| '',
+    image_id:          raw.image_id         || '',
+    tags:              raw.tags             || [],
+    access_level:      raw.access_level     || 'private',
+    nsfw:              raw.nsfw             || false,
+    very_nsfw:         raw.very_nsfw        || false,
+    fandom_tags:       raw.fandom_tags      || [],
+  }};
+  nextUid = 0;
+
+  raw.content.forEach((ch, i) => {
+    lorebook.entries[i] = {
+      uid:           i,
+      key:           [],          // no keywords in saucepan
+      keysecondary:  [],
+      comment:       ch.title || `Entry ${i + 1}`,
+      content:       ch.text  || '',
+      constant:      false,
+      selective:     false,
+      selectiveLogic: 0,
+      enabled:       true,
+      order:         i * 100,
+      position:      0,
+      depth:         4,
+      probability:   100,
+      useProbability: false,
+      role:          null,
+      extensions:    { saucepan: { originalId: ch.id || '' } },
+    };
+    nextUid = i + 1;
+  });
+
+  const nameEl = g('lorebookName');
+  if (nameEl) nameEl.value = lbName;
+  lorebook.name = lbName;
+
+  openTabs = []; activeTabId = null; selectedEntries = [];
+  renderList(); renderTabs(); renderEditor();
+  return raw.content.length;
+}
+
+function exportSaucepanJson() {
+  const name = g('lorebookName')?.value?.trim() || lorebook.name || 'lorebook';
+  const meta = lorebook.saucepanMeta || {};
+
+  // Helper: generate a simple UUID-like string
+  function uuid() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+
+  const content = Object.values(lorebook.entries)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map((e, i) => ({
+      title: e.comment || `Entry ${i + 1}`,
+      text:  e.content || '',
+      id:    e.extensions?.saucepan?.originalId || uuid(),
+    }));
+
+  const out = {
+    id:                  meta.id            || uuid(),
+    author_id:           meta.author_id     || '',
+    name,
+    short_description:   meta.short_description || '',
+    content,
+    access_level:        meta.access_level  || 'private',
+    image_id:            meta.image_id      || '',
+    nsfw:                meta.nsfw          || false,
+    very_nsfw:           meta.very_nsfw     || false,
+    tags:                meta.tags          || [],
+    selected_chapter_index: 0,
+    collaboration_type:  'private',
+    has_been_public:     false,
+    posted_at:           meta.posted_at     || new Date().toISOString().replace('T',' ').replace('Z',' +00:00:00'),
+    updated_at:          new Date().toISOString().replace('T',' ').replace('Z',' +00:00:00'),
+    hide_on_owner_profile: false,
+    definition_protection: 'open',
+    fandom_tags:         meta.fandom_tags   || [],
+  };
+
+  const fn = name.replace(/[^a-z0-9_\- ]/gi,'_') + '_saucepan.json';
+  dlFile(JSON.stringify(out, null, 2), fn, 'application/json');
+  toast('Exported as SaucepanAI lorebook.', 'ok');
 }
 
 // ═══════════════════════════════════════════════════════

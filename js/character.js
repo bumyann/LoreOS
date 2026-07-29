@@ -97,7 +97,7 @@ function renderCharSidebar() {
   if (chars.length === 0) {
     const li = document.createElement('li');
     li.style.cssText = 'padding:1.2rem .75rem;text-align:center;font-family:var(--fx);font-size:.75rem;color:var(--txm);letter-spacing:1px';
-    li.textContent = '// no characters yet';
+    li.textContent = 'no characters yet';
     list.append(li);
     return;
   }
@@ -708,7 +708,7 @@ function extractCharFromPng(buf) {
 // Character library modal reuses the same #libModal as lorebooks, but
 // scoped to charLibrary instead of the lorebook-saves library
 function openCharLibrary() {
-  g('libModalTitle').textContent = '// Character Library';
+  g('libModalTitle').textContent = 'Character Library';
   const list = g('libList');
   list.innerHTML = '';
   const chars = Object.values(charLibrary).sort((a,b) => b.savedAt.localeCompare(a.savedAt));

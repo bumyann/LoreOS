@@ -29,6 +29,17 @@ function navigateTo(viewId) {
   const modeTabs = document.getElementById('modeTabs');
   if (modeTabs) modeTabs.style.display = (viewId === 'editor') ? 'flex' : 'none';
 
+  // Mobile top bar: show on library, notebook, editor
+  // Home has its own hero title; editor shows LoreOS left + ? right
+  const mobTopbar = document.getElementById('mob-topbar');
+  if (mobTopbar) {
+    const showTopbar = viewId === 'library' || viewId === 'notebook' || viewId === 'editor';
+    mobTopbar.classList.toggle('visible', showTopbar);
+    // In editor: show the ? mirror button; hide it in other views
+    const topbarHelp = document.getElementById('mob-topbar-help');
+    if (topbarHelp) topbarHelp.style.display = (viewId === 'editor') ? '' : 'none';
+  }
+
   // Render view content if needed
   if (viewId === 'home') renderHomeView();
   if (viewId === 'library') renderLibraryView();
@@ -136,12 +147,12 @@ function renderDashboard(el) {
       <span class="dash-recent-type">${item.type}</span>
       <span class="dash-recent-date">${item.savedAt ? new Date(item.savedAt).toLocaleDateString() : ''}</span>
     </div>
-  `).join('') : `<div class="dash-empty">// nothing yet</div>`;
+  `).join('') : `<div class="dash-empty">nothing yet</div>`;
 
   el.innerHTML = `
     <div class="dashboard">
       <div class="dash-section">
-        <div class="dash-section-title">// Quick Actions</div>
+        <div class="dash-section-title">Quick Actions</div>
         <div class="dash-actions">
           <button class="btn btn-ok dash-act" onclick="navigateTo('editor'); setTimeout(()=>{ switchMode('lore'); createEntry(); },80)">✦ New Entry</button>
           <button class="btn btn-p dash-act" onclick="navigateTo('editor'); setTimeout(()=>{ switchMode('char'); createChar(); },80)">+ New Character</button>
@@ -150,7 +161,7 @@ function renderDashboard(el) {
         </div>
       </div>
       <div class="dash-section">
-        <div class="dash-section-title">// Recent</div>
+        <div class="dash-section-title">Recent</div>
         <div class="dash-recent" id="dash-recent-list">${recentHTML}</div>
       </div>
       <div class="dash-overview">
@@ -197,7 +208,7 @@ function renderLibraryView() {
   el.innerHTML = `
     <div class="library-wrap">
       <div class="lib-view-header">
-        <div class="lib-view-title">// Library</div>
+        <div class="lib-view-title">Library</div>
         <div class="lib-filter-tabs">
           ${tabs.map(t => `<button class="lib-filter-tab ${filterState === t.key ? 'active' : ''}" data-filter="${t.key}">${t.label}</button>`).join('')}
         </div>
@@ -212,7 +223,7 @@ function renderLibraryView() {
             </div>
             <button class="btn btn-p btn-sm lib-card-open" data-lib-idx="${i}">Open →</button>
           </div>
-        `).join('') : `<div class="lib-view-empty">// nothing in your library yet<br><span style="font-size:.7rem;opacity:.6">create something in the editor to see it here</span></div>`}
+        `).join('') : `<div class="lib-view-empty">nothing in your library yet<br><span style="font-size:.7rem;opacity:.6">create something in the editor to see it here</span></div>`}
       </div>
     </div>
   `;
@@ -302,7 +313,7 @@ function renderNotebookView() {
     <div class="nb-layout">
       <div class="nb-sidebar" id="nb-sidebar">
         <div class="nb-sidebar-head">
-          <div class="nb-title">// Notebook</div>
+          <div class="nb-title">Notebook</div>
           <button class="btn btn-ok btn-sm" id="nbNewBtn">+ New</button>
         </div>
         <div class="nb-page-list" id="nb-page-list"></div>
@@ -310,7 +321,7 @@ function renderNotebookView() {
       <div class="nb-editor" id="nb-editor">
         <div class="nb-editor-inner" id="nb-editor-inner">
           <div class="empty-state" style="min-height:200px">
-            <div>// no page selected</div>
+            <div>no page selected</div>
             <button class="btn btn-ok" id="nbNewBtnAlt">+ New Page</button>
           </div>
         </div>
@@ -337,7 +348,7 @@ function nbRenderPageList() {
       <span class="nb-page-title">${routerEsc(p.title || 'Untitled')}</span>
       <span class="nb-page-date">${p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : ''}</span>
     </div>
-  `).join('') : `<div class="nb-empty">// no pages yet</div>`;
+  `).join('') : `<div class="nb-empty">no pages yet</div>`;
 
   list.querySelectorAll('.nb-page-item').forEach(item => {
     item.addEventListener('click', () => {

@@ -136,7 +136,7 @@ function syncImportFile(file) {
 
 function openImportModal(bundle, title = 'Import Backup') {
   _pendingImport = bundle;
-  g('syncImportTitle').textContent = '// ' + title;
+  g('syncImportTitle').textContent = '' + title;
   const ts = bundle._synced_at ? new Date(bundle._synced_at).toLocaleString() : 'unknown';
   g('syncImportMeta').textContent = `From: ${ts}`;
 

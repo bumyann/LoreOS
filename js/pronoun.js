@@ -312,8 +312,8 @@ function wirePronounTool() {
 
 function ptRefreshManual() {
   if (!PT.targetField) {
-    g('ptManualDisplay').textContent = '// focus a text field first';
-    g('ptNounDisplay').textContent = '// focus a text field first';
+    g('ptManualDisplay').textContent = 'focus a text field first';
+    g('ptNounDisplay').textContent = 'focus a text field first';
     return;
   }
   const text = PT.targetField.value;

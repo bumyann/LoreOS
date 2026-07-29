@@ -168,7 +168,7 @@ function extractVars(preset) {
 
 // Rename a variable across all prompt content (setvar + getvar)
 async function renameVar(oldName) {
-  g('renameModalTitle').textContent = '// Rename Variable';
+  g('renameModalTitle').textContent = 'Rename Variable';
   const newName = await askInput(`Rename variable "${oldName}" to:`, oldName);
   if (!newName || newName.trim() === oldName) return;
   const trimmed = newName.trim();
