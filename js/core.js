@@ -99,6 +99,9 @@ document.addEventListener('DOMContentLoaded', () => {
   loadFromStorage();
   switchMode('lore');
   if (typeof initRouter === 'function') initRouter();
+  if (typeof loadPersonas === 'function') loadPersonas();
+  if (typeof loadPrompts === 'function') loadPrompts();
+  if (typeof loadRegex === 'function') loadRegex();
   wirePronounTool();
   wireFullscreen();
   wireTplLibrary();
@@ -222,6 +225,17 @@ function wireEvents() {
   g('newEntryBtnAlt').onclick = openEntryPicker;
   g('helpBtn').onclick = () => openModal('helpModal');
 
+  // ── new tab modules ──
+  if (g('personaNewBtn')) g('personaNewBtn').onclick = createPersona;
+  if (g('personaImportBtn')) g('personaImportBtn').onclick = () => g('filePersonaInput').click();
+  if (g('filePersonaInput')) g('filePersonaInput').onchange = importPersonaJson;
+  if (g('promptNewBtn')) g('promptNewBtn').onclick = createPromptConfig;
+  if (g('promptExportBtn')) g('promptExportBtn').onclick = exportPromptConfig;
+  if (g('regexNewBtn')) g('regexNewBtn').onclick = createRegexRule;
+  if (g('regexExportBtn')) g('regexExportBtn').onclick = exportRegexJson;
+  if (g('regexImportBtn')) g('regexImportBtn').onclick = () => g('fileRegexInput').click();
+  if (g('fileRegexInput')) g('fileRegexInput').onchange = importRegexJson;
+
   // ── v1.0.0 new buttons ──
   // JanitorAI import/export (lorebook)
   if (g('importJanitorPasteBtn')) g('importJanitorPasteBtn').onclick = openJanitorPasteModal;
@@ -239,10 +253,7 @@ function wireEvents() {
   if (g('loreSettingsBtn')) g('loreSettingsBtn').onclick = openLoreSettings;
   if (g('lsApplyBtn')) g('lsApplyBtn').onclick = applyLoreSettings;
 
-  // Stub mode tabs — mark as stub
-  ['persona','prompt','regex'].forEach(m => {
-    document.querySelectorAll(`.mode-tab[data-mode="${m}"]`).forEach(t => t.classList.add('stub'));
-  });
+
   g('fileInput').onchange = handleImport;
   g('fileMergeInput').onchange = handleMergeImport;
   g('lorebookName').oninput = e => { lorebook.name = e.target.value.trim(); };

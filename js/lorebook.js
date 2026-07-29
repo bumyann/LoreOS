@@ -230,10 +230,6 @@ function reorderEntry(oldUid, newUid) {
 // MODE SWITCHING
 // ═══════════════════════════════════════════════════════
 function switchMode(newMode) {
-  // Stub modes — navigate to editor and show coming soon
-  const STUB_MODES = ['persona', 'prompt', 'regex'];
-  const isStub = STUB_MODES.includes(newMode);
-
   // Navigate to editor view when switching modes
   if (typeof navigateTo === 'function') navigateTo('editor');
 
@@ -257,19 +253,6 @@ function switchMode(newMode) {
   const sbTitle = g('sbTitle');
   g('entryList').innerHTML = '';
   g('tabBar').innerHTML = '';
-
-  if (isStub) {
-    const labels = { persona: 'Persona', prompt: 'Prompt', regex: 'Regex' };
-    sbTitle.textContent = '' + (labels[newMode] || newMode);
-    g('zoomRow').style.display = 'none';
-    g('sbSearch').placeholder = 'Search...';
-    g('editorContent').innerHTML = `
-      <div class="empty-state" style="flex-direction:column;gap:.75rem">
-        <div style="font-family:var(--fp);font-size:1.8rem;color:var(--p);opacity:.5;letter-spacing:2px">// coming soon</div>
-        <div style="font-family:var(--fx);font-size:.75rem;color:var(--txm);letter-spacing:1px">${labels[newMode] || newMode} editor is under construction.</div>
-      </div>`;
-    return;
-  }
 
   if (newMode === 'lore') {
     sbTitle.textContent = 'Entries';

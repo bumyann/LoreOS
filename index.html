@@ -27,7 +27,7 @@
   <div id="mob-topbar">
     <div class="mob-topbar-left">
       <span class="mob-topbar-title">LoreOS</span>
-      <span id="mob-topbar-ver" class="mob-topbar-ver">v0.3.10</span>
+      <span id="mob-topbar-ver" class="mob-topbar-ver">v0.4.0</span>
     </div>
     <button id="mob-topbar-help" class="btn btn-icon" onclick="openModal('helpModal')" title="Help" style="display:none">?</button>
   </div>
@@ -37,7 +37,7 @@
     <div class="nav-top">
       <div class="nav-logo">
         <span class="nav-logo-text">LoreOS</span>
-        <span id="versionTag" class="nav-version">v0.3.10</span>
+        <span id="versionTag" class="nav-version">v0.4.0</span>
       </div>
       <button id="nav-toggle" class="nav-toggle" title="Collapse sidebar">◀</button>
     </div>
@@ -160,10 +160,31 @@
             <button class="btn btn-ok" id="presetNewBtn">+ New Preset</button>
           </div>
 
-          <!-- STUB MODE ACTIONS (persona / prompt / regex) -->
-          <div class="hdr-actions mode-actions" id="hdr-persona" style="display:none"></div>
-          <div class="hdr-actions mode-actions" id="hdr-prompt" style="display:none"></div>
-          <div class="hdr-actions mode-actions" id="hdr-regex" style="display:none"></div>
+          <!-- PERSONA MODE ACTIONS -->
+          <div class="hdr-actions mode-actions" id="hdr-persona" style="display:none">
+            <button class="btn btn-s btn-sm" id="personaImportBtn">⬆ Import</button>
+            <button class="btn btn-ok" id="personaNewBtn">+ New Persona</button>
+            <input type="file" id="filePersonaInput" accept=".json" style="display:none">
+          </div>
+
+          <!-- PROMPT MODE ACTIONS -->
+          <div class="hdr-actions mode-actions" id="hdr-prompt" style="display:none">
+            <button class="btn btn-s btn-sm" id="promptExportBtn">⬇ Export</button>
+            <button class="btn btn-ok" id="promptNewBtn">+ New Config</button>
+          </div>
+
+          <!-- REGEX MODE ACTIONS -->
+          <div class="hdr-actions mode-actions" id="hdr-regex" style="display:none">
+            <div class="dd" id="dd-regeximport">
+              <button class="btn btn-p dd-btn">⬆ Import</button>
+              <div class="dd-menu">
+                <button class="dd-item" id="regexImportBtn">📂 Import Rules JSON</button>
+              </div>
+            </div>
+            <button class="btn btn-s btn-sm" id="regexExportBtn">⬇ Export</button>
+            <button class="btn btn-ok" id="regexNewBtn">+ New Rule</button>
+            <input type="file" id="fileRegexInput" accept=".json" style="display:none">
+          </div>
 
           <button class="btn-icon btn mob-hide" id="helpBtn" title="Help">?</button>
         </div>
@@ -925,6 +946,9 @@
 <script src="js/settings.js"></script>
 <script src="js/sync.js"></script>
 <script src="js/mobile.js"></script>
+<script src="js/persona.js"></script>
+<script src="js/prompt_workbench.js"></script>
+<script src="js/regex_editor.js"></script>
 <script src="js/router.js"></script>
 
 <script>
