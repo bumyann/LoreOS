@@ -29,9 +29,16 @@ function navigateTo(viewId) {
   const modeTabs = document.getElementById('modeTabs');
   if (modeTabs) modeTabs.style.display = (viewId === 'editor') ? 'flex' : 'none';
 
-  // Mobile top bar: only show on library/notebook (home has hero title, editor has its own header)
+  // Mobile top bar: show on library, notebook, editor
+  // Home has its own hero title; editor shows LoreOS left + ? right
   const mobTopbar = document.getElementById('mob-topbar');
-  if (mobTopbar) mobTopbar.classList.toggle('visible', viewId === 'library' || viewId === 'notebook');
+  if (mobTopbar) {
+    const showTopbar = viewId === 'library' || viewId === 'notebook' || viewId === 'editor';
+    mobTopbar.classList.toggle('visible', showTopbar);
+    // In editor: show the ? mirror button; hide it in other views
+    const topbarHelp = document.getElementById('mob-topbar-help');
+    if (topbarHelp) topbarHelp.style.display = (viewId === 'editor') ? '' : 'none';
+  }
 
   // Render view content if needed
   if (viewId === 'home') renderHomeView();
