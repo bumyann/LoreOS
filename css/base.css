@@ -317,6 +317,25 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
   body{overflow:auto;height:auto;min-height:100vh;min-height:100dvh}
   #app{height:auto;min-height:100vh;min-height:100dvh;flex-direction:column}
 
+  /* Mobile top bar */
+  #mob-topbar{
+    display:flex;align-items:center;gap:.5rem;
+    background:var(--bg2);border-bottom:1px solid var(--bdb);
+    padding:.45rem .85rem;flex-shrink:0;position:sticky;top:0;z-index:500;
+  }
+  #mob-topbar::after{
+    content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;
+    background:linear-gradient(90deg,transparent,var(--p),var(--a),var(--p),transparent);opacity:.5;
+  }
+  .mob-topbar-title{
+    font-family:var(--fp);font-size:1.35rem;color:var(--p);
+    letter-spacing:2px;text-shadow:0 0 10px var(--pg);line-height:1;
+  }
+  .mob-topbar-ver{
+    font-family:var(--fx);font-size:.55rem;color:var(--txm);
+    letter-spacing:1px;opacity:.6;margin-top:.1rem;
+  }
+
   /* Hide desktop nav sidebar on mobile */
   #nav-sidebar{display:none}
 

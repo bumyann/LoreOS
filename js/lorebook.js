@@ -260,7 +260,7 @@ function switchMode(newMode) {
 
   if (isStub) {
     const labels = { persona: 'Persona', prompt: 'Prompt', regex: 'Regex' };
-    sbTitle.textContent = '// ' + (labels[newMode] || newMode);
+    sbTitle.textContent = '' + (labels[newMode] || newMode);
     g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search...';
     g('editorContent').innerHTML = `
@@ -272,17 +272,17 @@ function switchMode(newMode) {
   }
 
   if (newMode === 'lore') {
-    sbTitle.textContent = '// Entries';
+    sbTitle.textContent = 'Entries';
     g('zoomRow').style.display = '';
     g('sbSearch').placeholder = 'Search entries...';
     renderList(); renderTabs(); renderEditor();
   } else if (newMode === 'char') {
-    sbTitle.textContent = '// Characters';
+    sbTitle.textContent = 'Characters';
     g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search characters...';
     renderCharSidebar(); renderCharEditor();
   } else if (newMode === 'preset') {
-    sbTitle.textContent = '// Presets';
+    sbTitle.textContent = 'Presets';
     g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search presets...';
     renderPresetSidebar(); renderPresetEditor();
@@ -1060,7 +1060,7 @@ function libGet() { try { return JSON.parse(localStorage.getItem('aet_library') 
 function libSet(d) { localStorage.setItem('aet_library', JSON.stringify(d)); }
 
 function openLibrary() {
-  g('libModalTitle').textContent = '// Lorebook Library';
+  g('libModalTitle').textContent = 'Lorebook Library';
   g('libSaveBtn').parentElement.style.display = '';
   g('libNewName').value = g('lorebookName').value.trim();
   renderLibraryList();
@@ -1129,7 +1129,7 @@ async function libLoad(name) {
 }
 
 async function libRename(oldName) {
-  g('renameModalTitle').textContent = '// Rename Lorebook';
+  g('renameModalTitle').textContent = 'Rename Lorebook';
   const newName = await askInput(`Rename "${oldName}" to:`, oldName);
   if (!newName || newName.trim() === oldName) return;
   const trimmed = newName.trim().substring(0, 60);

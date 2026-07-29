@@ -23,12 +23,18 @@
 <body>
 <div id="app">
 
+  <!-- ══ MOBILE TOP BAR ══ -->
+  <div id="mob-topbar">
+    <span class="mob-topbar-title">LoreOS</span>
+    <span id="mob-topbar-ver" class="mob-topbar-ver">v0.3.8</span>
+  </div>
+
   <!-- ══ NAV SIDEBAR ══ -->
   <nav id="nav-sidebar">
     <div class="nav-top">
       <div class="nav-logo">
         <span class="nav-logo-text">LoreOS</span>
-        <span id="versionTag" class="nav-version">v0.3.6</span>
+        <span id="versionTag" class="nav-version">v0.3.8</span>
       </div>
       <button id="nav-toggle" class="nav-toggle" title="Collapse sidebar">◀</button>
     </div>
@@ -116,7 +122,7 @@
             <button class="btn btn-s" id="searchBtn2">🔍 Find &amp; Replace</button>
             <button class="btn btn-s" id="libraryBtn">📚 Lorebook Library</button>
             <button class="btn btn-s" id="loreTemplatesBtn">📋 Templates</button>
-            <button class="btn btn-s lore-settings-btn" id="loreSettingsBtn">🌐 LB Settings</button>
+            <button class="btn btn-s lore-settings-btn" id="loreSettingsBtn">🌐 Global</button>
             <button class="btn btn-s" id="clearBtn">🗑 Clear</button>
             <button class="btn btn-ok" id="newEntryBtn">+ New Entry</button>
           </div>
@@ -130,7 +136,7 @@
                 <button class="dd-item" id="charImportPngBtn">🖼 Import PNG Card</button>
               </div>
             </div>
-            <button class="btn btn-s" id="charLibraryBtn">📚 Library</button>
+            <button class="btn btn-s" id="charLibraryBtn">📚 Character Library</button>
             <button class="btn btn-s" id="charTemplatesBtn">📋 Templates</button>
             <button class="btn btn-s" id="attachLbBtn">🌐 Attach Lorebook</button>
             <button class="btn btn-s" id="pronounToolBtn">🔤 Pronouns</button>
@@ -228,7 +234,7 @@
 <!-- SEARCH & REPLACE MODAL -->
 <div id="srModal" class="modal">
   <div class="modal-box lg">
-    <div class="modal-head"><h2>// Find &amp; Replace</h2><button class="modal-x" data-close="srModal">×</button></div>
+    <div class="modal-head"><h2>Find &amp; Replace</h2><button class="modal-x" data-close="srModal">×</button></div>
     <div class="modal-body">
       <div class="sr-opts">
         <div class="fg"><label class="flabel">Find</label><input type="text" id="srFind" class="finput" placeholder="Search text..." autocomplete="off"></div>
@@ -262,7 +268,7 @@
 <!-- MERGE MODAL -->
 <div id="mergeModal" class="modal">
   <div class="modal-box lg">
-    <div class="modal-head"><h2>// Merge Entries</h2><button class="modal-x" data-close="mergeModal">×</button></div>
+    <div class="modal-head"><h2>Merge Entries</h2><button class="modal-x" data-close="mergeModal">×</button></div>
     <div class="modal-body">
       <div class="merge-info">
         <p><strong>Current:</strong> <span id="mergeCurrent"></span></p>
@@ -286,7 +292,7 @@
 <!-- EXPORT TEXT MODAL -->
 <div id="expTxtModal" class="modal">
   <div class="modal-box">
-    <div class="modal-head"><h2>// Export as Text</h2><button class="modal-x" data-close="expTxtModal">×</button></div>
+    <div class="modal-head"><h2>Export as Text</h2><button class="modal-x" data-close="expTxtModal">×</button></div>
     <div class="modal-body">
       <div class="exp-opts">
         <h3>Include in export</h3>
@@ -310,7 +316,7 @@
 <!-- EXPORT PUBLIC MODAL -->
 <div id="expPubModal" class="modal">
   <div class="modal-box lg">
-    <div class="modal-head"><h2>// Export for Public Pages</h2><button class="modal-x" data-close="expPubModal">×</button></div>
+    <div class="modal-head"><h2>Export for Public Pages</h2><button class="modal-x" data-close="expPubModal">×</button></div>
     <div class="modal-body">
       <div class="exp-opts">
         <h3>Markdown options</h3>
@@ -332,7 +338,7 @@
 <!-- LIBRARY MODAL -->
 <div id="libModal" class="modal">
   <div class="modal-box">
-    <div class="modal-head"><h2 id="libModalTitle">// Lorebook Library</h2><button class="modal-x" data-close="libModal">×</button></div>
+    <div class="modal-head"><h2 id="libModalTitle">Lorebook Library</h2><button class="modal-x" data-close="libModal">×</button></div>
     <div class="modal-body">
       <div id="libList" class="lib-list"></div>
       <div class="lib-save-row">
@@ -351,7 +357,7 @@
 <!-- LOREBOOK SETTINGS MODAL -->
 <div id="loreSettingsModal" class="modal">
   <div class="modal-box" style="max-width:480px">
-    <div class="modal-head"><h2>// Global Lorebook Settings</h2><button class="modal-x" data-close="loreSettingsModal">×</button></div>
+    <div class="modal-head"><h2>Global Lorebook Settings</h2><button class="modal-x" data-close="loreSettingsModal">×</button></div>
     <div class="modal-body">
       <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);margin-bottom:.75rem;line-height:1.6;letter-spacing:.3px">
         These settings are embedded in the exported lorebook JSON and read by SillyTavern.
@@ -476,7 +482,7 @@
 <!-- Mobile import/export pickers (unchanged) -->
 <div id="mobImportModal" class="modal">
   <div class="modal-box">
-    <div class="modal-head"><h2>// Import</h2><button class="modal-x" data-close="mobImportModal">×</button></div>
+    <div class="modal-head"><h2>Import</h2><button class="modal-x" data-close="mobImportModal">×</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
       <button class="btn btn-p" id="mobImportBtn" style="width:100%;justify-content:center;padding:.65rem">📂 SillyTavern</button>
       <button class="btn btn-s" id="mobImportJanitorPasteBtn" style="width:100%;justify-content:center;padding:.65rem">🍳 JanitorAI</button>
@@ -488,7 +494,7 @@
 
 <div id="mobExportModal" class="modal">
   <div class="modal-box">
-    <div class="modal-head"><h2>// Export</h2><button class="modal-x" data-close="mobExportModal">×</button></div>
+    <div class="modal-head"><h2>Export</h2><button class="modal-x" data-close="mobExportModal">×</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
       <button class="btn btn-p" id="mobExportJsonBtn" style="width:100%;justify-content:center;padding:.65rem">{ } SillyTavern</button>
       <button class="btn btn-s" id="mobExportJanitorBtn" style="width:100%;justify-content:center;padding:.65rem">🍳 JanitorAI</button>
@@ -502,7 +508,7 @@
 
 <div id="mobCharImportModal" class="modal">
   <div class="modal-box">
-    <div class="modal-head"><h2>// Import Card</h2><button class="modal-x" data-close="mobCharImportModal">×</button></div>
+    <div class="modal-head"><h2>Import Card</h2><button class="modal-x" data-close="mobCharImportModal">×</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
       <button class="btn btn-p" id="mobCharImportJsonBtn" style="width:100%;justify-content:center;padding:.65rem">📂 Import JSON Card</button>
       <button class="btn btn-s" id="mobCharImportPngBtn" style="width:100%;justify-content:center;padding:.65rem">🖼 Import PNG Card</button>
@@ -513,7 +519,7 @@
 <!-- PRONOUN + NOUN TOOL -->
 <div id="pronounTool">
   <div class="pt-head">
-    <span class="pt-title">// Pronoun &amp; Noun Converter</span>
+    <span class="pt-title">Pronoun &amp; Noun Converter</span>
     <button class="btn-icon btn" id="ptClose" style="width:1.7rem;height:1.7rem;font-size:.85rem;flex-shrink:0">✕</button>
   </div>
   <div class="pt-body">
@@ -565,7 +571,7 @@
 <div id="fullscreenModal" class="modal">
   <div class="modal-box" style="max-width:860px">
     <div class="modal-head">
-      <h2 id="fullscreenTitle">// Edit Field</h2>
+      <h2 id="fullscreenTitle">Edit Field</h2>
       <button class="modal-x" id="fullscreenClose">×</button>
     </div>
     <div class="modal-body">
@@ -582,7 +588,7 @@
 <!-- TEMPLATE LIBRARY MODAL -->
 <div id="tplModal" class="modal">
   <div class="modal-box">
-    <div class="modal-head"><h2 id="tplModalTitle">// Templates</h2><button class="modal-x" data-close="tplModal">×</button></div>
+    <div class="modal-head"><h2 id="tplModalTitle">Templates</h2><button class="modal-x" data-close="tplModal">×</button></div>
     <div class="modal-body">
       <div id="tplList" class="tpl-list"></div>
       <div class="tpl-save-row">
@@ -604,7 +610,7 @@
 <!-- ATTACH LOREBOOK MODAL -->
 <div id="attachLbModal" class="modal">
   <div class="modal-box">
-    <div class="modal-head"><h2>// Attach Lorebook</h2><button class="modal-x" data-close="attachLbModal">×</button></div>
+    <div class="modal-head"><h2>Attach Lorebook</h2><button class="modal-x" data-close="attachLbModal">×</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
       <p style="font-family:var(--fx);font-size:.75rem;color:var(--txm);letter-spacing:.3px">Attach a lorebook to this character. It gets embedded in the card JSON and ST will offer to import it alongside the card.</p>
       <div id="attachLbLibList" class="lib-list" style="max-height:240px"></div>
@@ -620,7 +626,7 @@
 <!-- CUSTOM INPUT MODAL -->
 <div id="inputModal" class="modal">
   <div class="modal-box" style="max-width:400px">
-    <div class="modal-head"><h2 id="inputModalTitle">// Input</h2></div>
+    <div class="modal-head"><h2 id="inputModalTitle">Input</h2></div>
     <div class="modal-body">
       <input type="text" id="inputModalField" class="finput" style="width:100%;margin-bottom:1rem">
       <div class="modal-foot">
@@ -634,7 +640,7 @@
 <!-- RENAME MODAL -->
 <div id="renameModal" class="modal">
   <div class="modal-box" style="max-width:400px">
-    <div class="modal-head"><h2 id="renameModalTitle">// Rename</h2></div>
+    <div class="modal-head"><h2 id="renameModalTitle">Rename</h2></div>
     <div class="modal-body">
       <p id="renameModalMsg" style="font-family:var(--fx);font-size:.75rem;color:var(--txd);margin-bottom:.75rem"></p>
       <input type="text" id="renameModalInput" class="finput" style="margin-bottom:.75rem">
@@ -649,7 +655,7 @@
 <!-- SETTINGS MODAL (still accessible via ⚙ and settings view) -->
 <div id="settingsModal" class="modal">
   <div class="modal-box lg" style="max-width:680px">
-    <div class="modal-head"><h2>// Settings</h2><button class="modal-x" data-close="settingsModal">×</button></div>
+    <div class="modal-head"><h2>Settings</h2><button class="modal-x" data-close="settingsModal">×</button></div>
     <div class="modal-body">
 
       <div class="settings-section">
@@ -761,7 +767,7 @@
 <!-- HELP MODAL -->
 <div id="helpModal" class="modal">
   <div class="modal-box lg" style="max-width:700px">
-    <div class="modal-head"><h2>// LoreOS — Quick Reference</h2><button class="modal-x" data-close="helpModal">×</button></div>
+    <div class="modal-head"><h2>LoreOS — Quick Reference</h2><button class="modal-x" data-close="helpModal">×</button></div>
     <div class="modal-body" style="font-family:var(--fb);font-size:.83rem;line-height:1.75;color:var(--txd)">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.1rem">
         <div>
@@ -818,7 +824,7 @@
 <!-- CONFIRM MODAL -->
 <div id="confirmModal" class="modal">
   <div class="modal-box" style="max-width:420px">
-    <div class="modal-head"><h2>// Confirm</h2></div>
+    <div class="modal-head"><h2>Confirm</h2></div>
     <div class="modal-body">
       <p id="confirmMsg" style="font-size:.85rem;color:var(--txd);line-height:1.6;margin-bottom:1rem"></p>
       <div class="modal-foot">
@@ -832,7 +838,7 @@
 <!-- BACKUP HISTORY MODAL -->
 <div id="syncHistoryModal" class="modal">
   <div class="modal-box lg">
-    <div class="modal-head"><h2>// Backup History</h2><button class="modal-x" data-close="syncHistoryModal">×</button></div>
+    <div class="modal-head"><h2>Backup History</h2><button class="modal-x" data-close="syncHistoryModal">×</button></div>
     <div class="modal-body">
       <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);margin-bottom:.6rem">
         Last 10 snapshots — saved on each export or import. Restore to roll back to any point.
@@ -845,7 +851,7 @@
 <!-- IMPORT CHECKLIST MODAL -->
 <div id="syncImportModal" class="modal">
   <div class="modal-box" style="max-width:420px">
-    <div class="modal-head"><h2 id="syncImportTitle">// Import Backup</h2><button class="modal-x" data-close="syncImportModal">×</button></div>
+    <div class="modal-head"><h2 id="syncImportTitle">Import Backup</h2><button class="modal-x" data-close="syncImportModal">×</button></div>
     <div class="modal-body">
       <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);margin-bottom:.65rem" id="syncImportMeta"></div>
       <div style="font-family:var(--fx);font-size:.72rem;color:var(--txd);margin-bottom:.4rem">Select what to restore:</div>
@@ -868,7 +874,7 @@
 <!-- JANITORAI PASTE MODAL -->
 <div id="janitorPasteModal" class="modal">
   <div class="modal-box" style="max-width:600px">
-    <div class="modal-head"><h2>// Import JanitorAI Lorebook</h2><button class="modal-x" data-close="janitorPasteModal">×</button></div>
+    <div class="modal-head"><h2>Import JanitorAI Lorebook</h2><button class="modal-x" data-close="janitorPasteModal">×</button></div>
     <div class="modal-body">
       <div style="font-family:var(--fx);font-size:.72rem;color:var(--txm);letter-spacing:.4px;line-height:1.7;margin-bottom:.75rem">
         JanitorAI doesn't have an export button. To get your lorebook data:<br>
@@ -891,7 +897,7 @@
 <!-- ENTRY TYPE PICKER MODAL -->
 <div id="entryPickerModal" class="modal">
   <div class="modal-box" style="max-width:420px">
-    <div class="modal-head"><h2>// New Entry</h2><button class="modal-x" data-close="entryPickerModal">×</button></div>
+    <div class="modal-head"><h2>New Entry</h2><button class="modal-x" data-close="entryPickerModal">×</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:.5rem">
       <button class="btn btn-ok" id="pickerBlank" style="justify-content:center;padding:.65rem">✦ Blank Entry</button>
       <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);letter-spacing:1px;padding:.3rem 0 .1rem">// or start from a template</div>

@@ -57,7 +57,7 @@ function renderPresetSidebar() {
   if (!presets.length) {
     const li = document.createElement('li');
     li.style.cssText = 'padding:1.2rem .75rem;text-align:center;font-family:var(--fx);font-size:.75rem;color:var(--txm);letter-spacing:1px';
-    li.textContent = '// no presets yet';
+    li.textContent = 'no presets yet';
     list.append(li); return;
   }
 
@@ -742,7 +742,7 @@ function handlePresetImport(e) {
 }
 
 function openPresetLibrary() {
-  g('libModalTitle').textContent = '// Preset Library';
+  g('libModalTitle').textContent = 'Preset Library';
   const list = g('libList');
   list.innerHTML = '';
   const presets = Object.values(presetLibrary).sort((a,b) => b.savedAt.localeCompare(a.savedAt));

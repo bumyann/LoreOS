@@ -928,7 +928,7 @@ In pursuit/romantic contexts:
 function openTemplateLibrary(m, fieldId) {
   tplMode = m;
   tplTargetFieldId = fieldId || null;
-  g('tplModalTitle').textContent = m === 'lore' ? '// Lorebook Templates' : m === 'preset' ? '// Prompt Library' : '// Character Templates';
+  g('tplModalTitle').textContent = m === 'lore' ? 'Lorebook Templates' : m === 'preset' ? 'Prompt Library' : 'Character Templates';
   g('tplSaveBtn').onclick = () => tplSaveCurrent(m, fieldId || null);
   renderTemplateList(m);
   openModal('tplModal');
@@ -943,7 +943,7 @@ function renderTemplateList(m) {
     const tpls = tplGet(m);
     const items = Object.values(tpls).sort((a,b) => b.savedAt.localeCompare(a.savedAt));
     if (items.length) {
-      list.append(makeSectionHeader('// Saved Prompts'));
+      list.append(makeSectionHeader('Saved Prompts'));
       renderSavedTemplates(items, m, list);
     }
     return;
@@ -960,7 +960,7 @@ function renderTemplateList(m) {
   const tpls = tplGet(m);
   const items = Object.values(tpls).sort((a,b) => b.savedAt.localeCompare(a.savedAt));
   if (items.length) {
-    list.append(makeSectionHeader('// Saved'));
+    list.append(makeSectionHeader('Saved'));
     renderSavedTemplates(items, m, list);
   } else if (!builtins.length) {
     list.innerHTML = '<div class="lib-empty">// no templates yet — save a field to get started</div>';
@@ -1023,7 +1023,7 @@ function makeBuiltinItem(tpl, m) {
 }
 
 function renderPresetAnchors(list) {
-  list.append(makeSectionHeader('// ST System Anchors'));
+  list.append(makeSectionHeader('ST System Anchors'));
   Object.entries(ST_SPECIAL).forEach(([id, info]) => {
     const item = document.createElement('div');
     item.className = 'tpl-item';
@@ -1165,7 +1165,7 @@ function openTemplateLibraryFiltered(m, categoryFilter, fieldId) {
   const tpls = tplGet(m);
   const items = Object.values(tpls).sort((a,b) => b.savedAt.localeCompare(a.savedAt));
   if (items.length) {
-    list.append(makeSectionHeader('// Saved'));
+    list.append(makeSectionHeader('Saved'));
     renderSavedTemplates(items, m, list);
   }
 
