@@ -95,9 +95,10 @@ let PT_nounTokens = [];
 document.addEventListener('DOMContentLoaded', () => {
   loadPrefs();
   wireEvents();
-  wireMobile();
+  try { wireMobile(); } catch(e) { console.error('[LoreOS] wireMobile crashed:', e); }
   loadFromStorage();
   switchMode('lore');
+  if (typeof initRouter === 'function') initRouter();
   wirePronounTool();
   wireFullscreen();
   wireTplLibrary();
@@ -219,9 +220,25 @@ function wireEvents() {
   g('fileCharInput').onchange = handleCharImport;
   g('presetImportBtn').onclick = () => { g('filePresetInput').click(); };
   g('newEntryBtnAlt').onclick = openEntryPicker;
-  g('themeBtn').onclick = toggleTheme;
-  g('settingsBtn').onclick = openSettings;
   g('helpBtn').onclick = () => openModal('helpModal');
+
+  // ── v1.0.0 new buttons ──
+  // JanitorAI import/export (lorebook)
+  if (g('importJanitorBtn')) g('importJanitorBtn').onclick = () => { g('fileJanitorInput').click(); };
+  if (g('fileJanitorInput')) g('fileJanitorInput').onchange = handleJanitorImport;
+  if (g('exportJanitorBtn')) g('exportJanitorBtn').onclick = exportJanitorJson;
+  // Mobile janitor
+  if (g('mobImportJanitorBtn')) g('mobImportJanitorBtn').onclick = () => { closeModal('mobImportModal'); g('fileJanitorInput').click(); };
+  if (g('mobExportJanitorBtn')) g('mobExportJanitorBtn').onclick = () => { closeModal('mobExportModal'); exportJanitorJson(); };
+
+  // Lorebook global settings modal
+  if (g('loreSettingsBtn')) g('loreSettingsBtn').onclick = openLoreSettings;
+  if (g('lsApplyBtn')) g('lsApplyBtn').onclick = applyLoreSettings;
+
+  // Stub mode tabs — mark as stub
+  ['persona','prompt','regex'].forEach(m => {
+    document.querySelectorAll(`.mode-tab[data-mode="${m}"]`).forEach(t => t.classList.add('stub'));
+  });
   g('fileInput').onchange = handleImport;
   g('fileMergeInput').onchange = handleMergeImport;
   g('lorebookName').oninput = e => { lorebook.name = e.target.value.trim(); };

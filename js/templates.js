@@ -555,7 +555,7 @@ What they want from {{user}} that they haven't named:
 
 Where the unresolved feeling lives:
 </user_dynamic>` },
-        { name: '🔥 Intimacy Layer', content: `<intimacy>
+        { name: '🔥 Intimacy', content: `<intimacy>
 \`INTIMACY\`
 
 What intimacy means to them emotionally:

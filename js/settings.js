@@ -54,11 +54,13 @@ function applyCustomTheme() {
 
 function applyCustomTitle() {
   const cfg = settingsGet();
-  const titleEl = document.querySelector('#title');
-  if (!titleEl) return;
+  // v1.0.0: title lives in .nav-logo-text, version in #versionTag
+  const logoEl = document.querySelector('.nav-logo-text');
+  const verEl = document.getElementById('versionTag');
   const main = cfg.titleMain || 'LoreOS';
-  const sub = cfg.titleSub !== undefined ? cfg.titleSub : 'Universal Editor';
-  titleEl.innerHTML = main + (sub ? `<span>${sub}</span>` : '') + `<span id="versionTag">v0.2.1</span>`;
+  if (logoEl) logoEl.textContent = main;
+  // version tag stays as-is — don't overwrite it with subtitle
+  // subtitle stored in cfg but not displayed in collapsed nav (no room)
   document.title = main + (sub ? ' ' + sub : '');
 }
 
@@ -119,7 +121,7 @@ function populateColourPickers() {
 }
 
 function wireSettings() {
-  g('settingsBtn').addEventListener('click', openSettings);
+  if (g('settingsBtn')) g('settingsBtn').addEventListener('click', openSettings);
 
   g('stgModeToggle').addEventListener('click', () => {
     stgEditingMode = stgEditingMode === 'dark' ? 'pink' : 'dark';
