@@ -45,7 +45,7 @@ function normalizeCharCard(card) {
   if (typeof d.character_version !== 'string') d.character_version = '';
   if (!d.extensions) d.extensions = {};
   if (!card.spec) card.spec = 'chara_card_v2';
-  if (!card.spec_version) card.spec_version = card.spec === 'chara_card_v3' ? '3.0' : '2.0';
+  if (!card.spec_version) card.spec = 'chara_card_v3'; card.spec_version = '3.0'; // always export V3
   return card;
 }
 
@@ -111,7 +111,7 @@ function renderCharSidebar() {
     head.className = 'ei-head';
     const emoji = document.createElement('span');
     emoji.className = 'ei-emoji';
-    emoji.textContent = entry.card.spec === 'chara_card_v3' ? '🎭' : '👤';
+    emoji.textContent = '🎭';
     const name = document.createElement('div');
     name.className = 'ei-name';
     name.textContent = entry.name || entry.card.data.name || 'Unnamed';
@@ -182,16 +182,12 @@ function renderCharEditor() {
   ec.innerHTML = `<div class="entry-editor">
     <div class="fg">
       <div style="display:flex;gap:10px;align-items:flex-end">
-        <div style="flex:0 0 auto">
-          <label class="flabel">Spec</label>
-          <select id="chSpec" class="fselect" style="min-width:130px">
-            <option value="chara_card_v2" ${spec==='chara_card_v2'?'selected':''}>Card V2</option>
-            <option value="chara_card_v3" ${spec==='chara_card_v3'?'selected':''}>Card V3</option>
-          </select>
-        </div>
         <div style="flex:1">
           <label class="flabel">Name</label>
           <input id="chName" class="finput" value="${esc(name)}" placeholder="Character name...">
+        </div>
+        <div style="flex:0 0 auto;align-self:flex-end">
+          <span style="font-family:var(--fx);font-size:.62rem;color:var(--txm);letter-spacing:.5px;padding:.4rem .6rem;background:var(--sf);border:1px solid var(--bd);border-radius:3px;display:inline-block">V3 · SillyTavern</span>
         </div>
       </div>
     </div>
@@ -435,7 +431,7 @@ function saveChar() {
   const s = charFormState;
 
   card.spec = s.spec || card.spec;
-  card.spec_version = card.spec === 'chara_card_v3' ? '3.0' : '2.0';
+  card.spec = 'chara_card_v3'; card.spec_version = '3.0'; // always export V3
   card.data.name = s.name || 'Unnamed';
   card.data.description = s.description || '';
   card.data.personality = s.personality || '';

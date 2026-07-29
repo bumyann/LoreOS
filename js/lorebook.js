@@ -230,25 +230,46 @@ function reorderEntry(oldUid, newUid) {
 // MODE SWITCHING
 // ═══════════════════════════════════════════════════════
 function switchMode(newMode) {
+  // Stub modes — navigate to editor and show coming soon
+  const STUB_MODES = ['persona', 'prompt', 'regex'];
+  const isStub = STUB_MODES.includes(newMode);
+
+  // Navigate to editor view when switching modes
+  if (typeof navigateTo === 'function') navigateTo('editor');
+
   mode = newMode;
   document.querySelectorAll('.mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === newMode));
 
   // View toggle only makes sense in lorebook mode
   g('viewToggle').style.display = newMode === 'lore' ? '' : 'none';
   if (newMode !== 'lore') { sideBySide = false; }
-  g('hdr-lore').style.display = newMode === 'lore' ? '' : 'none';
-  g('hdr-char').style.display = newMode === 'char' ? '' : 'none';
-  g('hdr-preset').style.display = newMode === 'preset' ? '' : 'none';
 
-  // Lorebook name input only makes sense in lorebook mode
+  // Show/hide mode headers (lore/char/preset have headers; stubs get empty placeholder)
+  ['lore','char','preset','persona','prompt','regex'].forEach(m => {
+    const el = g('hdr-' + m);
+    if (el) el.style.display = newMode === m ? '' : 'none';
+  });
+
+  // Lorebook name input only in lorebook mode
   g('lorebookName').style.display = newMode === 'lore' ? '' : 'none';
   g('nameLabel').style.display = newMode === 'lore' ? '' : 'none';
 
   const sbTitle = g('sbTitle');
-  // Always clear the sidebar list before re-rendering, so nothing from the
-  // previous mode can linger on screen even for a frame
   g('entryList').innerHTML = '';
   g('tabBar').innerHTML = '';
+
+  if (isStub) {
+    const labels = { persona: 'Persona', prompt: 'Prompt', regex: 'Regex' };
+    sbTitle.textContent = '// ' + (labels[newMode] || newMode);
+    g('zoomRow').style.display = 'none';
+    g('sbSearch').placeholder = 'Search...';
+    g('editorContent').innerHTML = `
+      <div class="empty-state" style="flex-direction:column;gap:.75rem">
+        <div style="font-family:var(--fp);font-size:1.8rem;color:var(--p);opacity:.5;letter-spacing:2px">// coming soon</div>
+        <div style="font-family:var(--fx);font-size:.75rem;color:var(--txm);letter-spacing:1px">${labels[newMode] || newMode} editor is under construction.</div>
+      </div>`;
+    return;
+  }
 
   if (newMode === 'lore') {
     sbTitle.textContent = '// Entries';
@@ -639,17 +660,7 @@ function buildEditorHTML(en, uid) {
           <div class="fg"><label class="flabel-sm">Group</label><input id="eGroup-${uid}" class="finput" value="${esc(group)}" placeholder="Group name..."></div>
           <div class="fg"><label class="flabel-sm">Group Weight</label><input type="number" id="eGW-${uid}" class="fnum" value="${gw}" min="0"></div>
           <div class="fg"><label class="flabel-sm">Automation ID</label><input id="eAID-${uid}" class="finput" value="${esc(aid)}" placeholder="Automation ID..."></div>
-          <div class="fg" style="grid-column:1/-1">
-            <label class="flabel-sm">Character Filter</label>
-            <div style="display:flex;gap:.75rem;margin:.25rem 0">
-              <label class="cb-row"><input type="radio" name="cfMode-${uid}" value="include" ${!cfExclude?'checked':''}><span class="flabel-sm">Include</span></label>
-              <label class="cb-row"><input type="radio" name="cfMode-${uid}" value="exclude" ${cfExclude?'checked':''}><span class="flabel-sm">Exclude</span></label>
-            </div>
-            <div style="display:flex;gap:.5rem;margin-top:.25rem">
-              <div style="flex:1"><label class="flabel-sm">Character Names</label><input id="eCFN-${uid}" class="finput" value="${esc(cfNames)}" placeholder="Alice, Bob"></div>
-              <div style="flex:1"><label class="flabel-sm">Character Tags</label><input id="eCFT-${uid}" class="finput" value="${esc(cfTags)}" placeholder="tag1, tag2"></div>
-            </div>
-          </div>
+
           <div class="fg" style="grid-column:1/-1">
             <label class="flabel-sm">Generation Triggers <span class="form-note" style="display:inline">(empty = all)</span></label>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.35rem;margin-top:.35rem">
@@ -1231,3 +1242,124 @@ function copyToClipboard(text) {
 }
 // ═══════════════════════════════════════════════════════
 // MOBILE
+
+// ═══════════════════════════════════════════════════════
+// JANITORAI LOREBOOK IMPORT / EXPORT
+// JanitorAI format differs from ST: top-level "data" wrapper,
+// entries use "keywords" (array) not "key" (comma string),
+// and some field names differ slightly.
+// ═══════════════════════════════════════════════════════
+
+function handleJanitorImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      let raw = JSON.parse(ev.target.result);
+      // JanitorAI can wrap in { data: { entries: [...] } } or just { entries: [...] }
+      if (raw.data) raw = raw.data;
+      if (!raw.entries && !Array.isArray(raw)) {
+        toast('Unrecognised JanitorAI lorebook format.', 'err'); return;
+      }
+      const entries = Array.isArray(raw) ? raw : raw.entries;
+      // Convert JanitorAI entries to ST format
+      lorebook = { name: raw.name || file.name.replace('.json',''), entries: {} };
+      nextUid = 0;
+      entries.forEach((je, i) => {
+        const uid = i;
+        // JanitorAI uses "keywords" array; ST uses "key" comma-string
+        const key = Array.isArray(je.keywords) ? je.keywords.join(', ') : (je.key || '');
+        lorebook.entries[uid] = {
+          uid,
+          key,
+          keysecondary: Array.isArray(je.keysecondary) ? je.keysecondary.join(', ') : (je.keysecondary || ''),
+          comment: je.comment || je.name || '',
+          content: je.content || '',
+          constant: je.constant || false,
+          selective: je.selective !== false,
+          enabled: je.enabled !== false,
+          order: je.order ?? i,
+          position: je.position ?? 0,
+          depth: je.depth ?? 4,
+          probability: je.probability ?? 100,
+          useProbability: je.useProbability || false,
+          role: je.role ?? null,
+          extensions: je.extensions || {},
+        };
+        nextUid = Math.max(nextUid, uid + 1);
+      });
+      if (raw.name) g('lorebookName').value = raw.name;
+      openTabs = []; activeTabId = null;
+      selectedEntries = [];
+      renderList(); renderTabs(); renderEditor();
+      toast(`Imported ${entries.length} entries from JanitorAI lorebook.`, 'ok');
+    } catch(err) {
+      toast('Failed to parse JanitorAI JSON: ' + err.message, 'err');
+    }
+  };
+  r.readAsText(file);
+  e.target.value = '';
+}
+
+function exportJanitorJson() {
+  const name = g('lorebookName')?.value?.trim() || lorebook.name || 'lorebook';
+  const entries = Object.values(lorebook.entries).map(e => ({
+    uid: e.uid,
+    key: e.key,
+    // JanitorAI expects keywords as array
+    keywords: e.key ? e.key.split(',').map(k => k.trim()).filter(Boolean) : [],
+    keysecondary: e.keysecondary,
+    comment: e.comment,
+    content: e.content,
+    constant: e.constant,
+    selective: e.selective,
+    enabled: e.enabled,
+    order: e.order,
+    position: e.position,
+    depth: e.depth,
+    probability: e.probability,
+    useProbability: e.useProbability,
+    role: e.role,
+    extensions: e.extensions || {},
+  }));
+  const out = {
+    name,
+    entries,
+    // JanitorAI wraps in data object
+    // Export as both flat + wrapped for max compatibility
+  };
+  const wrapped = { name, data: out };
+  const fn = name.replace(/[^a-z0-9_\- ]/gi,'_') + '_janitor.json';
+  dlFile(JSON.stringify(wrapped, null, 2), fn, 'application/json');
+  toast('Exported as JanitorAI lorebook.', 'ok');
+}
+
+// ═══════════════════════════════════════════════════════
+// GLOBAL LOREBOOK SETTINGS MODAL
+// ═══════════════════════════════════════════════════════
+
+function openLoreSettings() {
+  const s = lorebook.settings || {};
+  const el = id => document.getElementById(id);
+  if (el('lsScanDepth')) el('lsScanDepth').value = s.scan_depth ?? 2;
+  if (el('lsTokenBudget')) el('lsTokenBudget').value = s.token_budget ?? 2048;
+  if (el('lsCaseSensitive')) el('lsCaseSensitive').checked = s.case_sensitive || false;
+  if (el('lsMatchWholeWords')) el('lsMatchWholeWords').checked = s.match_whole_words || false;
+  if (el('lsUseGroupScoring')) el('lsUseGroupScoring').checked = s.use_group_scoring || false;
+  if (el('lsRecursiveScanning')) el('lsRecursiveScanning').checked = s.recursive_scanning || false;
+  openModal('loreSettingsModal');
+}
+
+function applyLoreSettings() {
+  const el = id => document.getElementById(id);
+  if (!lorebook.settings) lorebook.settings = {};
+  lorebook.settings.scan_depth = parseInt(el('lsScanDepth')?.value) || 2;
+  lorebook.settings.token_budget = parseInt(el('lsTokenBudget')?.value) || 2048;
+  lorebook.settings.case_sensitive = el('lsCaseSensitive')?.checked || false;
+  lorebook.settings.match_whole_words = el('lsMatchWholeWords')?.checked || false;
+  lorebook.settings.use_group_scoring = el('lsUseGroupScoring')?.checked || false;
+  lorebook.settings.recursive_scanning = el('lsRecursiveScanning')?.checked || false;
+  closeModal('loreSettingsModal');
+  toast('Lorebook settings updated.', 'ok');
+}
