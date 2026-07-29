@@ -95,7 +95,7 @@ let PT_nounTokens = [];
 document.addEventListener('DOMContentLoaded', () => {
   loadPrefs();
   wireEvents();
-  wireMobile();
+  try { wireMobile(); } catch(e) { console.error('[LoreOS] wireMobile crashed:', e); }
   loadFromStorage();
   switchMode('lore');
   if (typeof initRouter === 'function') initRouter();

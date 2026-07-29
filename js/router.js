@@ -37,6 +37,9 @@ function navigateTo(viewId) {
 
   // Persist last view
   try { localStorage.setItem('loreos_lastView', viewId); } catch(e) {}
+
+  // Sync mobile nav state
+  if (typeof updateMobViewBtns === 'function') updateMobViewBtns(viewId);
 }
 
 function getLastView() {
