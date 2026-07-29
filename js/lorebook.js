@@ -1245,10 +1245,81 @@ function copyToClipboard(text) {
 
 // ═══════════════════════════════════════════════════════
 // JANITORAI LOREBOOK IMPORT / EXPORT
-// JanitorAI format differs from ST: top-level "data" wrapper,
-// entries use "keywords" (array) not "key" (comma string),
-// and some field names differ slightly.
+//
+// Real JanitorAI format (from raw character card source):
+//   - flat array of entry objects (no wrapper)
+//   - `key` is already an array (primary keywords)
+//   - `keysecondary` is an array
+//   - `insertion_order` (not `order`) for ordering
+//   - `comment` is the display name
+//   - JanitorAI-specific fields: activationMode, activationScript,
+//     minMessages, keyMatchPriority, priority, inclusionGroupRaw,
+//     keywordsRaw, keysRaw, keywordRaw — preserved in extensions
+//
+// Since JanitorAI has no export button, import supports both
+// file upload and paste-from-clipboard via a modal.
 // ═══════════════════════════════════════════════════════
+
+function parseJanitorEntries(raw, sourceName) {
+  // Accept: flat array, { entries: [...] }, or { data: { entries: [...] } }
+  if (raw && raw.data) raw = raw.data;
+  const entries = Array.isArray(raw) ? raw
+    : (raw && Array.isArray(raw.entries)) ? raw.entries
+    : null;
+  if (!entries) return null;
+
+  lorebook = { name: (raw && raw.name) || sourceName || 'janitor-import', entries: {} };
+  nextUid = 0;
+
+  entries.forEach((je, i) => {
+    const uid = i;
+    // key is already an array in JanitorAI — join to comma string for ST compat
+    const keyArr = Array.isArray(je.key) ? je.key : (je.key ? [je.key] : []);
+    const key = keyArr.join(', ');
+    const keysecArr = Array.isArray(je.keysecondary) ? je.keysecondary : [];
+    const keysecondary = keysecArr.join(', ');
+
+    // Preserve JanitorAI-specific fields in extensions so round-trip works
+    const janitorExt = {};
+    ['activationMode','activationScript','minMessages','keyMatchPriority',
+     'priority','inclusionGroupRaw','keywordsRaw','keysRaw','keywordRaw',
+     'category','prioritizeInclusion','name'].forEach(f => {
+      if (je[f] !== undefined) janitorExt[f] = je[f];
+    });
+
+    lorebook.entries[uid] = {
+      uid,
+      key,
+      keysecondary,
+      comment:       je.comment || je.name || '',
+      content:       je.content || '',
+      constant:      je.constant || false,
+      selective:     keysecArr.length > 0,
+      selectiveLogic: je.selectiveLogic ?? 0,
+      enabled:       je.enabled !== false,
+      order:         je.insertion_order ?? (i * 100),
+      position:      je.position ?? 0,
+      depth:         je.depth ?? 4,
+      probability:   je.probability ?? 100,
+      useProbability: (je.probability !== undefined && je.probability !== 100),
+      matchWholeWords: je.matchWholeWords ?? false,
+      caseSensitive:  je.case_sensitive ?? false,
+      groupWeight:   je.groupWeight ?? 100,
+      role:          je.role ?? null,
+      extensions:    Object.assign({}, je.extensions || {}, { janitor: janitorExt }),
+    };
+    nextUid = Math.max(nextUid, uid + 1);
+  });
+
+  const lbName = (raw && raw.name) || sourceName || '';
+  const nameEl = g('lorebookName');
+  if (nameEl && lbName) nameEl.value = lbName;
+  lorebook.name = lbName;
+
+  openTabs = []; activeTabId = null; selectedEntries = [];
+  renderList(); renderTabs(); renderEditor();
+  return entries.length;
+}
 
 function handleJanitorImport(e) {
   const file = e.target.files[0];
@@ -1256,83 +1327,82 @@ function handleJanitorImport(e) {
   const r = new FileReader();
   r.onload = ev => {
     try {
-      let raw = JSON.parse(ev.target.result);
-      // JanitorAI can wrap in { data: { entries: [...] } } or just { entries: [...] }
-      if (raw.data) raw = raw.data;
-      if (!raw.entries && !Array.isArray(raw)) {
-        toast('Unrecognised JanitorAI lorebook format.', 'err'); return;
-      }
-      const entries = Array.isArray(raw) ? raw : raw.entries;
-      // Convert JanitorAI entries to ST format
-      lorebook = { name: raw.name || file.name.replace('.json',''), entries: {} };
-      nextUid = 0;
-      entries.forEach((je, i) => {
-        const uid = i;
-        // JanitorAI uses "keywords" array; ST uses "key" comma-string
-        const key = Array.isArray(je.keywords) ? je.keywords.join(', ') : (je.key || '');
-        lorebook.entries[uid] = {
-          uid,
-          key,
-          keysecondary: Array.isArray(je.keysecondary) ? je.keysecondary.join(', ') : (je.keysecondary || ''),
-          comment: je.comment || je.name || '',
-          content: je.content || '',
-          constant: je.constant || false,
-          selective: je.selective !== false,
-          enabled: je.enabled !== false,
-          order: je.order ?? i,
-          position: je.position ?? 0,
-          depth: je.depth ?? 4,
-          probability: je.probability ?? 100,
-          useProbability: je.useProbability || false,
-          role: je.role ?? null,
-          extensions: je.extensions || {},
-        };
-        nextUid = Math.max(nextUid, uid + 1);
-      });
-      if (raw.name) g('lorebookName').value = raw.name;
-      openTabs = []; activeTabId = null;
-      selectedEntries = [];
-      renderList(); renderTabs(); renderEditor();
-      toast(`Imported ${entries.length} entries from JanitorAI lorebook.`, 'ok');
+      const raw = JSON.parse(ev.target.result);
+      const count = parseJanitorEntries(raw, file.name.replace(/\.json$/i, ''));
+      if (count === null) { toast('Unrecognised JanitorAI format.', 'err'); return; }
+      toast(`Imported ${count} entries from JanitorAI lorebook.`, 'ok');
     } catch(err) {
-      toast('Failed to parse JanitorAI JSON: ' + err.message, 'err');
+      toast('Failed to parse JSON: ' + err.message, 'err');
     }
   };
   r.readAsText(file);
   e.target.value = '';
 }
 
+function openJanitorPasteModal() {
+  openModal('janitorPasteModal');
+  const ta = g('janitorPasteTA');
+  if (ta) { ta.value = ''; ta.focus(); }
+}
+
+function handleJanitorPaste() {
+  const ta = g('janitorPasteTA');
+  if (!ta || !ta.value.trim()) { toast('Nothing pasted.', 'warn'); return; }
+  try {
+    const raw = JSON.parse(ta.value.trim());
+    const count = parseJanitorEntries(raw, 'pasted-lorebook');
+    if (count === null) { toast('Unrecognised JanitorAI format — expected a JSON array or object with entries.', 'err'); return; }
+    closeModal('janitorPasteModal');
+    toast(`Imported ${count} entries from pasted JanitorAI lorebook.`, 'ok');
+  } catch(err) {
+    toast('Invalid JSON: ' + err.message, 'err');
+  }
+}
+
 function exportJanitorJson() {
   const name = g('lorebookName')?.value?.trim() || lorebook.name || 'lorebook';
-  const entries = Object.values(lorebook.entries).map(e => ({
-    uid: e.uid,
-    key: e.key,
-    // JanitorAI expects keywords as array
-    keywords: e.key ? e.key.split(',').map(k => k.trim()).filter(Boolean) : [],
-    keysecondary: e.keysecondary,
-    comment: e.comment,
-    content: e.content,
-    constant: e.constant,
-    selective: e.selective,
-    enabled: e.enabled,
-    order: e.order,
-    position: e.position,
-    depth: e.depth,
-    probability: e.probability,
-    useProbability: e.useProbability,
-    role: e.role,
-    extensions: e.extensions || {},
-  }));
-  const out = {
-    name,
-    entries,
-    // JanitorAI wraps in data object
-    // Export as both flat + wrapped for max compatibility
-  };
-  const wrapped = { name, data: out };
+  // Export as flat array matching real JanitorAI format
+  const entries = Object.values(lorebook.entries)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map((e, i) => {
+      // Restore any saved JanitorAI-specific fields
+      const janitorExt = e.extensions?.janitor || {};
+      return {
+        activationMode:     janitorExt.activationMode     ?? 'standard',
+        activationScript:   janitorExt.activationScript   ?? '',
+        case_sensitive:     e.caseSensitive               ?? false,
+        category:           janitorExt.category           ?? 'other',
+        comment:            e.comment || '',
+        constant:           e.constant || false,
+        content:            e.content || '',
+        enabled:            e.enabled !== false,
+        extensions:         Object.fromEntries(
+                              Object.entries(e.extensions || {}).filter(([k]) => k !== 'janitor')
+                            ),
+        groupWeight:        e.groupWeight ?? 100,
+        id:                 e.uid,
+        inclusionGroupRaw:  janitorExt.inclusionGroupRaw  ?? '',
+        insertion_order:    e.order ?? (i * 100),
+        // key as array
+        key:                e.key ? e.key.split(',').map(k => k.trim()).filter(Boolean) : [],
+        keyMatchPriority:   janitorExt.keyMatchPriority   ?? false,
+        keysecondary:       e.keysecondary ? e.keysecondary.split(',').map(k => k.trim()).filter(Boolean) : [],
+        keysecondaryRaw:    e.keysecondary || '',
+        keysRaw:            e.key || '',
+        matchWholeWords:    e.matchWholeWords ?? false,
+        minMessages:        janitorExt.minMessages        ?? 0,
+        name:               janitorExt.name               ?? '',
+        prioritizeInclusion: janitorExt.prioritizeInclusion ?? false,
+        priority:           janitorExt.priority           ?? (i + 1),
+        probability:        e.probability ?? 100,
+        selectiveLogic:     e.selectiveLogic              ?? 0,
+        keywordsRaw:        e.key || '',
+      };
+    });
   const fn = name.replace(/[^a-z0-9_\- ]/gi,'_') + '_janitor.json';
-  dlFile(JSON.stringify(wrapped, null, 2), fn, 'application/json');
-  toast('Exported as JanitorAI lorebook.', 'ok');
+  // Export as flat array — the native JanitorAI format
+  dlFile(JSON.stringify(entries, null, 2), fn, 'application/json');
+  toast('Exported as JanitorAI lorebook (flat array format).', 'ok');
 }
 
 // ═══════════════════════════════════════════════════════

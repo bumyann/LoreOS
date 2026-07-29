@@ -28,7 +28,7 @@
     <div class="nav-top">
       <div class="nav-logo">
         <span class="nav-logo-text">LoreOS</span>
-        <span id="versionTag" class="nav-version">v0.3.3</span>
+        <span id="versionTag" class="nav-version">v0.3.4</span>
       </div>
       <button id="nav-toggle" class="nav-toggle" title="Collapse sidebar">◀</button>
     </div>
@@ -98,7 +98,8 @@
               <button class="btn btn-p dd-btn">&#8659; Import</button>
               <div class="dd-menu">
                 <button class="dd-item" id="importBtn">📂 ST Lorebook JSON</button>
-                <button class="dd-item" id="importJanitorBtn">🍳 JanitorAI Lorebook</button>
+                <button class="dd-item" id="importJanitorBtn">🍳 JanitorAI (file)</button>
+                <button class="dd-item" id="importJanitorPasteBtn">📋 JanitorAI (paste JSON)</button>
                 <button class="dd-item" id="importMergeBtn">⇌ Import for Merge</button>
               </div>
             </div>
@@ -477,7 +478,8 @@
     <div class="modal-head"><h2>// Import</h2><button class="modal-x" data-close="mobImportModal">×</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
       <button class="btn btn-p" id="mobImportBtn" style="width:100%;justify-content:center;padding:.65rem">📂 ST Lorebook JSON</button>
-      <button class="btn btn-s" id="mobImportJanitorBtn" style="width:100%;justify-content:center;padding:.65rem">🍳 JanitorAI Lorebook</button>
+      <button class="btn btn-s" id="mobImportJanitorBtn" style="width:100%;justify-content:center;padding:.65rem">🍳 JanitorAI (file)</button>
+      <button class="btn btn-s" id="mobImportJanitorPasteBtn" style="width:100%;justify-content:center;padding:.65rem">📋 JanitorAI (paste JSON)</button>
       <button class="btn btn-s" id="mobImportMergeBtn" style="width:100%;justify-content:center;padding:.65rem">⇌ Import for Merge</button>
     </div>
   </div>
@@ -856,6 +858,29 @@
       <div class="modal-foot">
         <button class="btn btn-s" data-close="syncImportModal">Cancel</button>
         <button class="btn btn-ok" id="syncImportConfirmBtn">Restore</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- JANITORAI PASTE MODAL -->
+<div id="janitorPasteModal" class="modal">
+  <div class="modal-box" style="max-width:600px">
+    <div class="modal-head"><h2>// Import JanitorAI Lorebook</h2><button class="modal-x" data-close="janitorPasteModal">×</button></div>
+    <div class="modal-body">
+      <div style="font-family:var(--fx);font-size:.72rem;color:var(--txm);letter-spacing:.4px;line-height:1.7;margin-bottom:.75rem">
+        JanitorAI doesn't have an export button. To get your lorebook data:<br>
+        1. Open the character card on JanitorAI<br>
+        2. View the raw card source / inspect the lorebook JSON<br>
+        3. Copy the full JSON array and paste it below.
+      </div>
+      <div class="fg">
+        <label class="flabel">Paste JSON here</label>
+        <textarea id="janitorPasteTA" class="ftextarea" style="min-height:220px;font-family:var(--fp);font-size:.82rem" placeholder="[ { &quot;comment&quot;: &quot;Entry name&quot;, &quot;key&quot;: [...], &quot;content&quot;: &quot;...&quot; }, ... ]"></textarea>
+      </div>
+      <div class="modal-foot" style="margin-top:.75rem">
+        <button class="btn btn-s" data-close="janitorPasteModal">Cancel</button>
+        <button class="btn btn-p" id="janitorPasteConfirmBtn">Import</button>
       </div>
     </div>
   </div>
