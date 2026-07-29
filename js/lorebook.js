@@ -269,6 +269,27 @@ function switchMode(newMode) {
     g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search presets...';
     renderPresetSidebar(); renderPresetEditor();
+  } else if (newMode === 'persona') {
+    sbTitle.textContent = 'Personas';
+    g('zoomRow').style.display = 'none';
+    g('sbSearch').placeholder = 'Search personas...';
+    if (typeof loadPersonas === 'function') loadPersonas();
+    if (typeof renderPersonaSidebar === 'function') renderPersonaSidebar();
+    if (typeof renderPersonaEditor === 'function') renderPersonaEditor();
+  } else if (newMode === 'prompt') {
+    sbTitle.textContent = 'Prompt Configs';
+    g('zoomRow').style.display = 'none';
+    g('sbSearch').placeholder = 'Search configs...';
+    if (typeof loadPrompts === 'function') loadPrompts();
+    if (typeof renderPromptSidebar === 'function') renderPromptSidebar();
+    if (typeof renderPromptEditor === 'function') renderPromptEditor();
+  } else if (newMode === 'regex') {
+    sbTitle.textContent = 'Regex Rules';
+    g('zoomRow').style.display = 'none';
+    g('sbSearch').placeholder = 'Search rules...';
+    if (typeof loadRegex === 'function') loadRegex();
+    if (typeof renderRegexSidebar === 'function') renderRegexSidebar();
+    if (typeof renderRegexEditor === 'function') renderRegexEditor();
   }
 }
 

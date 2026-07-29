@@ -27,7 +27,7 @@
   <div id="mob-topbar">
     <div class="mob-topbar-left">
       <span class="mob-topbar-title">LoreOS</span>
-      <span id="mob-topbar-ver" class="mob-topbar-ver">v0.4.0</span>
+      <span id="mob-topbar-ver" class="mob-topbar-ver">v0.4.1</span>
     </div>
     <button id="mob-topbar-help" class="btn btn-icon" onclick="openModal('helpModal')" title="Help" style="display:none">?</button>
   </div>
@@ -37,7 +37,7 @@
     <div class="nav-top">
       <div class="nav-logo">
         <span class="nav-logo-text">LoreOS</span>
-        <span id="versionTag" class="nav-version">v0.4.0</span>
+        <span id="versionTag" class="nav-version">v0.4.1</span>
       </div>
       <button id="nav-toggle" class="nav-toggle" title="Collapse sidebar">◀</button>
     </div>
@@ -491,6 +491,33 @@
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetAddPrompt" title="Add Prompt" style="display:none">
     <span class="icon">+</span><span class="mob-nav-lbl">+ Prompt</span>
+  </button>
+
+  <!-- PERSONA actions -->
+  <button class="mob-nav-btn mob-mode-btn mob-persona hi" id="mobPersonaNew" title="New Persona" style="display:none">
+    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-persona" id="mobPersonaImport" title="Import Persona" style="display:none">
+    <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
+  </button>
+
+  <!-- PROMPT actions -->
+  <button class="mob-nav-btn mob-mode-btn mob-prompt hi" id="mobPromptNew" title="New Config" style="display:none">
+    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-prompt" id="mobPromptExport" title="Export Config" style="display:none">
+    <span class="icon">↑</span><span class="mob-nav-lbl">Export</span>
+  </button>
+
+  <!-- REGEX actions -->
+  <button class="mob-nav-btn mob-mode-btn mob-regex hi" id="mobRegexNew" title="New Rule" style="display:none">
+    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-regex" id="mobRegexImport" title="Import Rules" style="display:none">
+    <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-regex" id="mobRegexExport" title="Export Rules" style="display:none">
+    <span class="icon">↑</span><span class="mob-nav-lbl">Export</span>
   </button>
 
   <!-- always-visible: settings/theme -->
