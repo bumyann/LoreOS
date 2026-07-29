@@ -137,7 +137,6 @@ function wireMobile() {
 
   // Mobile import/export pickers
   if (g('mobImportBtn'))       g('mobImportBtn').addEventListener('click', () => { closeModal('mobImportModal'); g('fileInput').click(); });
-  if (g('mobImportJanitorBtn')) g('mobImportJanitorBtn').addEventListener('click', () => { closeModal('mobImportModal'); g('fileJanitorInput').click(); });
   if (g('mobImportJanitorPasteBtn')) g('mobImportJanitorPasteBtn').addEventListener('click', () => { closeModal('mobImportModal'); openJanitorPasteModal(); });
   if (g('mobImportMergeBtn'))  g('mobImportMergeBtn').addEventListener('click', () => { closeModal('mobImportModal'); g('fileMergeInput').click(); });
   if (g('mobExportJsonBtn'))   g('mobExportJsonBtn').addEventListener('click', () => { closeModal('mobExportModal'); exportJson(); });

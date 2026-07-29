@@ -1273,11 +1273,9 @@ function parseJanitorEntries(raw, sourceName) {
 
   entries.forEach((je, i) => {
     const uid = i;
-    // key is already an array in JanitorAI — join to comma string for ST compat
-    const keyArr = Array.isArray(je.key) ? je.key : (je.key ? [je.key] : []);
-    const key = keyArr.join(', ');
-    const keysecArr = Array.isArray(je.keysecondary) ? je.keysecondary : [];
-    const keysecondary = keysecArr.join(', ');
+    // JanitorAI key is already an array — keep as array to match ST internal format
+    const keyArr = Array.isArray(je.key) ? je.key : (je.key ? String(je.key).split(',').map(k=>k.trim()).filter(Boolean) : []);
+    const keysecArr = Array.isArray(je.keysecondary) ? je.keysecondary : (je.keysecondary ? String(je.keysecondary).split(',').map(k=>k.trim()).filter(Boolean) : []);
 
     // Preserve JanitorAI-specific fields in extensions so round-trip works
     const janitorExt = {};
@@ -1289,8 +1287,8 @@ function parseJanitorEntries(raw, sourceName) {
 
     lorebook.entries[uid] = {
       uid,
-      key,
-      keysecondary,
+      key:           keyArr,       // array — matches ST internal format
+      keysecondary:  keysecArr,    // array — matches ST internal format
       comment:       je.comment || je.name || '',
       content:       je.content || '',
       constant:      je.constant || false,
@@ -1384,11 +1382,11 @@ function exportJanitorJson() {
         inclusionGroupRaw:  janitorExt.inclusionGroupRaw  ?? '',
         insertion_order:    e.order ?? (i * 100),
         // key as array
-        key:                e.key ? e.key.split(',').map(k => k.trim()).filter(Boolean) : [],
+        key:                Array.isArray(e.key) ? e.key : (e.key ? e.key.split(',').map(k=>k.trim()).filter(Boolean) : []),
         keyMatchPriority:   janitorExt.keyMatchPriority   ?? false,
-        keysecondary:       e.keysecondary ? e.keysecondary.split(',').map(k => k.trim()).filter(Boolean) : [],
+        keysecondary:       Array.isArray(e.keysecondary) ? e.keysecondary : (e.keysecondary ? e.keysecondary.split(',').map(k=>k.trim()).filter(Boolean) : []),
         keysecondaryRaw:    e.keysecondary || '',
-        keysRaw:            e.key || '',
+        keysRaw:            Array.isArray(e.key) ? e.key.join(', ') : (e.key || ''),
         matchWholeWords:    e.matchWholeWords ?? false,
         minMessages:        janitorExt.minMessages        ?? 0,
         name:               janitorExt.name               ?? '',
@@ -1396,7 +1394,7 @@ function exportJanitorJson() {
         priority:           janitorExt.priority           ?? (i + 1),
         probability:        e.probability ?? 100,
         selectiveLogic:     e.selectiveLogic              ?? 0,
-        keywordsRaw:        e.key || '',
+        keywordsRaw:        Array.isArray(e.key) ? e.key.join(', ') : (e.key || ''),
       };
     });
   const fn = name.replace(/[^a-z0-9_\- ]/gi,'_') + '_janitor.json';

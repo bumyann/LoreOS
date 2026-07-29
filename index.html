@@ -28,7 +28,7 @@
     <div class="nav-top">
       <div class="nav-logo">
         <span class="nav-logo-text">LoreOS</span>
-        <span id="versionTag" class="nav-version">v0.3.4</span>
+        <span id="versionTag" class="nav-version">v0.3.5</span>
       </div>
       <button id="nav-toggle" class="nav-toggle" title="Collapse sidebar">◀</button>
     </div>
@@ -98,8 +98,7 @@
               <button class="btn btn-p dd-btn">&#8659; Import</button>
               <div class="dd-menu">
                 <button class="dd-item" id="importBtn">📂 ST Lorebook JSON</button>
-                <button class="dd-item" id="importJanitorBtn">🍳 JanitorAI (file)</button>
-                <button class="dd-item" id="importJanitorPasteBtn">📋 JanitorAI (paste JSON)</button>
+                <button class="dd-item" id="importJanitorPasteBtn">🍳 JanitorAI (paste JSON)</button>
                 <button class="dd-item" id="importMergeBtn">⇌ Import for Merge</button>
               </div>
             </div>
@@ -219,7 +218,6 @@
 <input type="file" id="fileMergeInput" accept=".json" style="display:none">
 <input type="file" id="fileCharInput" accept=".json,.png" style="display:none">
 <input type="file" id="filePresetInput" accept=".json" style="display:none">
-<input type="file" id="fileJanitorInput" accept=".json" style="display:none">
 
 <!-- Notifications -->
 <div id="notifs"></div>
@@ -478,8 +476,7 @@
     <div class="modal-head"><h2>// Import</h2><button class="modal-x" data-close="mobImportModal">×</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
       <button class="btn btn-p" id="mobImportBtn" style="width:100%;justify-content:center;padding:.65rem">📂 ST Lorebook JSON</button>
-      <button class="btn btn-s" id="mobImportJanitorBtn" style="width:100%;justify-content:center;padding:.65rem">🍳 JanitorAI (file)</button>
-      <button class="btn btn-s" id="mobImportJanitorPasteBtn" style="width:100%;justify-content:center;padding:.65rem">📋 JanitorAI (paste JSON)</button>
+      <button class="btn btn-s" id="mobImportJanitorPasteBtn" style="width:100%;justify-content:center;padding:.65rem">🍳 JanitorAI (paste JSON)</button>
       <button class="btn btn-s" id="mobImportMergeBtn" style="width:100%;justify-content:center;padding:.65rem">⇌ Import for Merge</button>
     </div>
   </div>
