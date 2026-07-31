@@ -230,6 +230,10 @@ function reorderEntry(oldUid, newUid) {
 // MODE SWITCHING
 // ═══════════════════════════════════════════════════════
 function switchMode(newMode) {
+  // Stub modes — navigate to editor and show coming soon
+  const STUB_MODES = ['persona', 'prompt', 'regex'];
+  const isStub = STUB_MODES.includes(newMode);
+
   // Navigate to editor view when switching modes
   if (typeof navigateTo === 'function') navigateTo('editor');
 
@@ -254,6 +258,19 @@ function switchMode(newMode) {
   g('entryList').innerHTML = '';
   g('tabBar').innerHTML = '';
 
+  if (isStub) {
+    const labels = { persona: 'Persona', prompt: 'Prompt', regex: 'Regex' };
+    sbTitle.textContent = '' + (labels[newMode] || newMode);
+    g('zoomRow').style.display = 'none';
+    g('sbSearch').placeholder = 'Search...';
+    g('editorContent').innerHTML = `
+      <div class="empty-state" style="flex-direction:column;gap:.75rem">
+        <div style="font-family:var(--fp);font-size:1.8rem;color:var(--p);opacity:.5;letter-spacing:2px">// coming soon</div>
+        <div style="font-family:var(--fx);font-size:.75rem;color:var(--txm);letter-spacing:1px">${labels[newMode] || newMode} editor is under construction.</div>
+      </div>`;
+    return;
+  }
+
   if (newMode === 'lore') {
     sbTitle.textContent = 'Entries';
     g('zoomRow').style.display = '';
@@ -269,27 +286,6 @@ function switchMode(newMode) {
     g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search presets...';
     renderPresetSidebar(); renderPresetEditor();
-  } else if (newMode === 'persona') {
-    sbTitle.textContent = 'Personas';
-    g('zoomRow').style.display = 'none';
-    g('sbSearch').placeholder = 'Search personas...';
-    if (typeof loadPersonas === 'function') loadPersonas();
-    if (typeof renderPersonaSidebar === 'function') renderPersonaSidebar();
-    if (typeof renderPersonaEditor === 'function') renderPersonaEditor();
-  } else if (newMode === 'prompt') {
-    sbTitle.textContent = 'Prompt Configs';
-    g('zoomRow').style.display = 'none';
-    g('sbSearch').placeholder = 'Search configs...';
-    if (typeof loadPrompts === 'function') loadPrompts();
-    if (typeof renderPromptSidebar === 'function') renderPromptSidebar();
-    if (typeof renderPromptEditor === 'function') renderPromptEditor();
-  } else if (newMode === 'regex') {
-    sbTitle.textContent = 'Regex Rules';
-    g('zoomRow').style.display = 'none';
-    g('sbSearch').placeholder = 'Search rules...';
-    if (typeof loadRegex === 'function') loadRegex();
-    if (typeof renderRegexSidebar === 'function') renderRegexSidebar();
-    if (typeof renderRegexEditor === 'function') renderRegexEditor();
   }
 }
 

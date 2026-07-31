@@ -24,7 +24,7 @@ function wireMobile() {
 
   // ── updateMobNav: show/hide mode-specific action buttons ──
   function updateMobNav(m) {
-    ['lore','char','preset','persona','prompt','regex'].forEach(modeKey => {
+    ['lore','char','preset'].forEach(modeKey => {
       document.querySelectorAll(`.mob-mode-btn.mob-${modeKey}`).forEach(btn => {
         btn.style.display = (m === modeKey) ? '' : 'none';
       });
@@ -178,19 +178,6 @@ function wireMobile() {
     renderPromptList(entry2.preset.prompts);
     g('editorContent').scrollTop = 0;
   });
-
-  // ── PERSONA buttons ──
-  if (g('mobPersonaNew'))    g('mobPersonaNew').addEventListener('click', () => { createPersona(); });
-  if (g('mobPersonaImport')) g('mobPersonaImport').addEventListener('click', () => { g('filePersonaInput').click(); });
-
-  // ── PROMPT buttons ──
-  if (g('mobPromptNew'))    g('mobPromptNew').addEventListener('click', () => { createPromptConfig(); });
-  if (g('mobPromptExport')) g('mobPromptExport').addEventListener('click', () => { exportPromptConfig(); });
-
-  // ── REGEX buttons ──
-  if (g('mobRegexNew'))    g('mobRegexNew').addEventListener('click', () => { createRegexRule(); });
-  if (g('mobRegexImport')) g('mobRegexImport').addEventListener('click', () => { g('fileRegexInput').click(); });
-  if (g('mobRegexExport')) g('mobRegexExport').addEventListener('click', () => { exportRegexJson(); });
 
   // expose for router to call after navigateTo
   window.updateMobViewBtns = updateMobViewBtns;

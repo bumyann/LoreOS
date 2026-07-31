@@ -378,13 +378,15 @@ function nbOpenPage(id) {
     <div class="nb-page-header">
       <input class="nb-page-title-input" id="nbTitleInput" value="${routerEsc(page.title || '')}" placeholder="Page title...">
       <div class="nb-page-acts">
-        <button class="btn btn-s btn-sm" id="nbPreviewToggle">👁 Preview</button>
+        <button class="btn btn-s btn-sm" id="nbRawToggle">✎ Raw</button>
         <button class="btn btn-err btn-sm" id="nbDeleteBtn">✕ Delete</button>
       </div>
     </div>
     <div class="nb-content-wrap">
-      <textarea class="nb-textarea" id="nbContent" placeholder="Write in markdown...">${routerEsc(page.content || '')}</textarea>
-      <div class="nb-preview" id="nbPreview" style="display:none"></div>
+      <!-- Hidden textarea: source of truth for raw markdown -->
+      <textarea class="nb-textarea" id="nbContent" placeholder="Write in markdown..." style="display:none">${routerEsc(page.content || '')}</textarea>
+      <!-- Live render div: default view, user types here -->
+      <div class="nb-live-render nb-rendered" id="nbLiveRender" contenteditable="true" spellcheck="true" data-placeholder="Write in markdown..."></div>
     </div>
     <div class="nb-footer">
       <span class="nb-save-status" id="nbSaveStatus">saved</span>
@@ -394,7 +396,18 @@ function nbOpenPage(id) {
 
   const titleIn = document.getElementById('nbTitleInput');
   const contentTA = document.getElementById('nbContent');
+  const liveRender = document.getElementById('nbLiveRender');
   const saveStatus = document.getElementById('nbSaveStatus');
+
+  // Render raw md into the live div
+  function nbUpdateRender() {
+    liveRender.innerHTML = nbRenderMarkdown(contentTA.value);
+  }
+
+  // Initial render
+  nbUpdateRender();
+
+  let rawMode = false;
 
   function markUnsaved() {
     saveStatus.textContent = 'unsaved';
@@ -405,11 +418,44 @@ function nbOpenPage(id) {
 
   titleIn.addEventListener('input', () => {
     markUnsaved();
-    // update sidebar title live
     const item = document.querySelector(`.nb-page-item[data-nb-id="${id}"] .nb-page-title`);
     if (item) item.textContent = titleIn.value || 'Untitled';
   });
-  contentTA.addEventListener('input', markUnsaved);
+
+  // Typing in raw textarea → sync to render
+  contentTA.addEventListener('input', () => {
+    nbUpdateRender();
+    markUnsaved();
+  });
+
+  // Clicking the rendered view → switch to raw for editing
+  liveRender.addEventListener('click', () => {
+    if (rawMode) return;
+    rawMode = true;
+    const btn = document.getElementById('nbRawToggle');
+    liveRender.style.display = 'none';
+    contentTA.style.display = '';
+    contentTA.focus();
+    if (btn) btn.textContent = '👁 Render';
+  });
+
+  document.getElementById('nbRawToggle').addEventListener('click', () => {
+    rawMode = !rawMode;
+    const btn = document.getElementById('nbRawToggle');
+    if (rawMode) {
+      // Show raw textarea
+      liveRender.style.display = 'none';
+      contentTA.style.display = '';
+      contentTA.focus();
+      btn.textContent = '👁 Render';
+    } else {
+      // Show live render
+      nbUpdateRender();
+      contentTA.style.display = 'none';
+      liveRender.style.display = '';
+      btn.textContent = '✎ Raw';
+    }
+  });
 
   document.getElementById('nbSaveBtn').addEventListener('click', () => {
     nbSaveActive();
@@ -425,24 +471,6 @@ function nbOpenPage(id) {
     nbSet(d);
     _nbActiveId = null;
     renderNotebookView();
-  });
-
-  let previewing = false;
-  document.getElementById('nbPreviewToggle').addEventListener('click', () => {
-    previewing = !previewing;
-    const ta = document.getElementById('nbContent');
-    const pv = document.getElementById('nbPreview');
-    const btn = document.getElementById('nbPreviewToggle');
-    if (previewing) {
-      pv.innerHTML = nbRenderMarkdown(ta.value);
-      ta.style.display = 'none';
-      pv.style.display = '';
-      btn.textContent = '✏ Edit';
-    } else {
-      ta.style.display = '';
-      pv.style.display = 'none';
-      btn.textContent = '👁 Preview';
-    }
   });
 }
 
@@ -478,12 +506,24 @@ function nbNewPage() {
   _nbActiveId = id;
   nbRenderPageList();
   nbOpenPage(id);
-  setTimeout(() => document.getElementById('nbTitleInput')?.focus(), 50);
+  // New page opens in raw mode immediately so user can start typing
+  setTimeout(() => {
+    const ta = document.getElementById('nbContent');
+    const lr = document.getElementById('nbLiveRender');
+    const btn = document.getElementById('nbRawToggle');
+    const titleIn = document.getElementById('nbTitleInput');
+    if (ta && lr && btn) {
+      lr.style.display = 'none';
+      ta.style.display = '';
+      btn.textContent = '👁 Render';
+    }
+    titleIn?.focus();
+  }, 50);
 }
 
 // ── Very lightweight markdown renderer (no lib needed) ──
 function nbRenderMarkdown(md) {
-  if (!md) return '';
+  if (!md) return '<span class="nb-render-placeholder">Write in markdown...</span>';
   let h = md
     // Escape HTML first
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
@@ -515,6 +555,6 @@ function nbRenderMarkdown(md) {
     // Line breaks → paragraphs (double newline)
     .replace(/\n\n/g,'</p><p>')
     .replace(/\n/g,'<br>');
-  return `<div class="nb-rendered"><p>${h}</p></div>`;
+  return `<p>${h}</p>`;
 }
 
