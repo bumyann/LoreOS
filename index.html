@@ -52,13 +52,17 @@
         <span class="nav-item-icon">📚</span>
         <span class="nav-item-label">Library</span>
       </button>
-      <button class="nav-item" data-view="notebook" title="Notebook">
+      <button class="nav-item" data-view="notebook" title="Journal">
         <span class="nav-item-icon">📓</span>
-        <span class="nav-item-label">Notebook</span>
+        <span class="nav-item-label">Journal</span>
       </button>
-      <button class="nav-item" data-view="editor" title="Editor">
+      <button class="nav-item" data-view="editor" title="Workshop">
         <span class="nav-item-icon">✦</span>
-        <span class="nav-item-label">Editor</span>
+        <span class="nav-item-label">Workshop</span>
+      </button>
+      <button class="nav-item" data-view="laboratory" title="Laboratory">
+        <span class="nav-item-icon">🔬</span>
+        <span class="nav-item-label">Laboratory</span>
       </button>
     </div>
 
@@ -87,12 +91,17 @@
       <div id="library-content" class="view-scroll"></div>
     </div>
 
-    <!-- ── NOTEBOOK VIEW ── -->
+    <!-- ── JOURNAL VIEW ── -->
     <div id="view-notebook" class="view-panel">
       <div id="notebook-content" style="flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0"></div>
     </div>
 
-    <!-- ── EDITOR VIEW ── -->
+    <!-- ── LABORATORY VIEW ── -->
+    <div id="view-laboratory" class="view-panel">
+      <div id="laboratory-content" class="view-scroll"></div>
+    </div>
+
+    <!-- ── WORKSHOP VIEW ── -->
     <div id="view-editor" class="view-panel view-editor-layout">
 
       <!-- Editor header: lorebook name + mode-specific actions -->
@@ -399,11 +408,11 @@
   <button class="mob-nav-btn mob-view-btn" id="mobGoLibrary" title="Library">
     <span class="icon">📚</span><span class="mob-nav-lbl">Library</span>
   </button>
-  <button class="mob-nav-btn mob-view-btn" id="mobGoNotebook" title="Notebook">
-    <span class="icon">📓</span><span class="mob-nav-lbl">Notebook</span>
+  <button class="mob-nav-btn mob-view-btn" id="mobGoNotebook" title="Journal">
+    <span class="icon">📓</span><span class="mob-nav-lbl">Journal</span>
   </button>
-  <button class="mob-nav-btn mob-view-btn" id="mobGoEditor" title="Editor">
-    <span class="icon">✦</span><span class="mob-nav-lbl">Editor</span>
+  <button class="mob-nav-btn mob-view-btn" id="mobGoEditor" title="Workshop">
+    <span class="icon">✦</span><span class="mob-nav-lbl">Workshop</span>
   </button>
   <div id="mob-nav-sep-views" style="width:1px;background:var(--bd);margin:.3rem .1rem;flex-shrink:0;align-self:stretch;"></div>
 

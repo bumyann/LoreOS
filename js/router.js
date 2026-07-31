@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════
 // ROUTER.JS — SPA view router for LoreOS v1.0.0
-// Views: home | library | editor | settings
+// Views: home | library | notebook | editor | laboratory
 // ═══════════════════════════════════════════════════════
 
 let currentView = null;
@@ -8,7 +8,7 @@ let currentView = null;
 // HTML escape helper used throughout router/notebook
 function routerEsc(s) { const d = document.createElement('div'); d.textContent = String(s||''); return d.innerHTML; }
 
-const VIEWS = ['home', 'library', 'notebook', 'editor'];
+const VIEWS = ['home', 'library', 'notebook', 'editor', 'laboratory'];
 
 function navigateTo(viewId) {
   if (!VIEWS.includes(viewId)) return;
@@ -33,7 +33,7 @@ function navigateTo(viewId) {
   // Home has its own hero title; editor shows LoreOS left + ? right
   const mobTopbar = document.getElementById('mob-topbar');
   if (mobTopbar) {
-    const showTopbar = viewId === 'library' || viewId === 'notebook' || viewId === 'editor';
+    const showTopbar = viewId === 'library' || viewId === 'notebook' || viewId === 'editor' || viewId === 'laboratory';
     mobTopbar.classList.toggle('visible', showTopbar);
     // In editor: show the ? mirror button; hide it in other views
     const topbarHelp = document.getElementById('mob-topbar-help');
@@ -44,6 +44,7 @@ function navigateTo(viewId) {
   if (viewId === 'home') renderHomeView();
   if (viewId === 'library') renderLibraryView();
   if (viewId === 'notebook') renderNotebookView();
+  if (viewId === 'laboratory') renderLaboratoryView();
 
   // Persist last view
   try { localStorage.setItem('loreos_lastView', viewId); } catch(e) {}
@@ -56,7 +57,7 @@ function getLastView() {
   try {
     const v = localStorage.getItem('loreos_lastView') || 'home';
     // never restore directly into editor on cold load — always start at home
-    return v === 'editor' ? 'home' : v;
+    return (v === 'editor') ? 'home' : v;
   } catch(e) { return 'home'; }
 }
 
@@ -245,6 +246,19 @@ function renderLibraryView() {
       });
     });
   });
+}
+
+// ─── LABORATORY VIEW ─────────────────────────────────
+function renderLaboratoryView() {
+  const el = document.getElementById('laboratory-content');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="lab-stub">
+      <div class="lab-stub-icon">🔬</div>
+      <div class="lab-stub-title">Laboratory</div>
+      <div class="lab-stub-desc">Tools for understanding and debugging your AI creations.<br>Token inspector, lorebook trigger viewer, prompt conflict detector — coming soon.</div>
+    </div>
+  `;
 }
 
 // ─── SETTINGS VIEW ───────────────────────────────────

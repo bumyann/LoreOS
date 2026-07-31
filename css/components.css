@@ -375,3 +375,9 @@
   .nb-editor-inner{padding:.75rem}
   .nb-page-title-input{font-size:1.1rem}
 }
+
+/* Laboratory stub */
+.lab-stub{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:1rem;padding:2rem;text-align:center}
+.lab-stub-icon{font-size:2.5rem;opacity:.5}
+.lab-stub-title{font-family:var(--fp);font-size:1.1rem;color:var(--p);letter-spacing:2px}
+.lab-stub-desc{font-family:var(--fx);font-size:.78rem;color:var(--txm);letter-spacing:.4px;line-height:1.8;max-width:340px}
