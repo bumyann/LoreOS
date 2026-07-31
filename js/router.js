@@ -283,11 +283,17 @@ function initRouter() {
   navigateTo(last);
 }
 
+
 // ═══════════════════════════════════════════════════════
-// NOTEBOOK — basic markdown pages, saves to localStorage
+// NOTEBOOK — tiptap-powered WYSIWYG markdown editor
 // Storage key: loreos_notebook (object: { pages: {id: page}, activePageId })
 // Page: { id, title, content, createdAt, updatedAt }
+// content stored as markdown string via tiptap-markdown
 // ═══════════════════════════════════════════════════════
+
+let _nbEditor = null;  // active tiptap instance
+let _nbActiveId = null;
+let _nbAutoSaveTimer = null;
 
 function nbGet() {
   try { return JSON.parse(localStorage.getItem('loreos_notebook') || '{"pages":{},"activePageId":null}'); }
@@ -298,15 +304,15 @@ function nbSet(data) {
 }
 function nbId() { return 'nb_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
 
-let _nbActiveId = null;
-let _nbAutoSaveTimer = null;
-
 function renderNotebookView() {
   const el = document.getElementById('notebook-content');
   if (!el) return;
 
+  // Destroy any existing tiptap instance
+  if (_nbEditor) { try { _nbEditor.destroy(); } catch(e) {} _nbEditor = null; }
+
   const data = nbGet();
-  const pages = Object.values(data.pages).sort((a,b) => (b.updatedAt||'').localeCompare(a.updatedAt||''));
+  const pages = Object.values(data.pages).sort((a,b) => (b.updatedAt||"").localeCompare(a.updatedAt||""));
   _nbActiveId = data.activePageId || (pages[0]?.id ?? null);
 
   el.innerHTML = `
@@ -341,7 +347,7 @@ function nbRenderPageList() {
   const list = document.getElementById('nb-page-list');
   if (!list) return;
   const data = nbGet();
-  const pages = Object.values(data.pages).sort((a,b) => (b.updatedAt||'').localeCompare(a.updatedAt||''));
+  const pages = Object.values(data.pages).sort((a,b) => (b.updatedAt||"").localeCompare(a.updatedAt||""));
 
   list.innerHTML = pages.length ? pages.map(p => `
     <div class="nb-page-item ${p.id === _nbActiveId ? 'active' : ''}" data-nb-id="${p.id}">
@@ -362,11 +368,14 @@ function nbOpenPage(id) {
   const data = nbGet();
   const page = data.pages[id];
   if (!page) return;
+
+  // Destroy existing tiptap instance before re-rendering
+  if (_nbEditor) { try { _nbEditor.destroy(); } catch(e) {} _nbEditor = null; }
+
   _nbActiveId = id;
   data.activePageId = id;
   nbSet(data);
 
-  // Update sidebar active state
   document.querySelectorAll('.nb-page-item').forEach(el => {
     el.classList.toggle('active', el.dataset.nbId === id);
   });
@@ -378,15 +387,11 @@ function nbOpenPage(id) {
     <div class="nb-page-header">
       <input class="nb-page-title-input" id="nbTitleInput" value="${routerEsc(page.title || '')}" placeholder="Page title...">
       <div class="nb-page-acts">
-        <button class="btn btn-s btn-sm" id="nbRawToggle">✎ Raw</button>
         <button class="btn btn-err btn-sm" id="nbDeleteBtn">✕ Delete</button>
       </div>
     </div>
     <div class="nb-content-wrap">
-      <!-- Hidden textarea: source of truth for raw markdown -->
-      <textarea class="nb-textarea" id="nbContent" placeholder="Write in markdown..." style="display:none">${routerEsc(page.content || '')}</textarea>
-      <!-- Live render div: default view, user types here -->
-      <div class="nb-live-render nb-rendered" id="nbLiveRender" contenteditable="true" spellcheck="true" data-placeholder="Write in markdown..."></div>
+      <div id="nb-tiptap-mount" class="nb-tiptap-mount"></div>
     </div>
     <div class="nb-footer">
       <span class="nb-save-status" id="nbSaveStatus">saved</span>
@@ -395,19 +400,7 @@ function nbOpenPage(id) {
   `;
 
   const titleIn = document.getElementById('nbTitleInput');
-  const contentTA = document.getElementById('nbContent');
-  const liveRender = document.getElementById('nbLiveRender');
   const saveStatus = document.getElementById('nbSaveStatus');
-
-  // Render raw md into the live div
-  function nbUpdateRender() {
-    liveRender.innerHTML = nbRenderMarkdown(contentTA.value);
-  }
-
-  // Initial render
-  nbUpdateRender();
-
-  let rawMode = false;
 
   function markUnsaved() {
     saveStatus.textContent = 'unsaved';
@@ -422,39 +415,22 @@ function nbOpenPage(id) {
     if (item) item.textContent = titleIn.value || 'Untitled';
   });
 
-  // Typing in raw textarea → sync to render
-  contentTA.addEventListener('input', () => {
-    nbUpdateRender();
-    markUnsaved();
-  });
-
-  // Clicking the rendered view → switch to raw for editing
-  liveRender.addEventListener('click', () => {
-    if (rawMode) return;
-    rawMode = true;
-    const btn = document.getElementById('nbRawToggle');
-    liveRender.style.display = 'none';
-    contentTA.style.display = '';
-    contentTA.focus();
-    if (btn) btn.textContent = '👁 Render';
-  });
-
-  document.getElementById('nbRawToggle').addEventListener('click', () => {
-    rawMode = !rawMode;
-    const btn = document.getElementById('nbRawToggle');
-    if (rawMode) {
-      // Show raw textarea
-      liveRender.style.display = 'none';
-      contentTA.style.display = '';
-      contentTA.focus();
-      btn.textContent = '👁 Render';
-    } else {
-      // Show live render
-      nbUpdateRender();
-      contentTA.style.display = 'none';
-      liveRender.style.display = '';
-      btn.textContent = '✎ Raw';
-    }
+  // Init tiptap
+  _nbEditor = new TiptapEditor({
+    element: document.getElementById('nb-tiptap-mount'),
+    extensions: [
+      TiptapStarterKit,
+      TiptapMarkdown.configure({
+        html: false,
+        transformPastedText: true,
+        transformCopiedText: false,
+      }),
+    ],
+    content: page.content || '',
+    autofocus: 'end',
+    onUpdate() {
+      markUnsaved();
+    },
   });
 
   document.getElementById('nbSaveBtn').addEventListener('click', () => {
@@ -465,6 +441,7 @@ function nbOpenPage(id) {
 
   document.getElementById('nbDeleteBtn').addEventListener('click', async () => {
     if (!await askConfirm('Delete this page?')) return;
+    if (_nbEditor) { try { _nbEditor.destroy(); } catch(e) {} _nbEditor = null; }
     const d = nbGet();
     delete d.pages[id];
     d.activePageId = null;
@@ -477,15 +454,16 @@ function nbOpenPage(id) {
 function nbSaveActive() {
   if (!_nbActiveId) return;
   const titleIn = document.getElementById('nbTitleInput');
-  const contentTA = document.getElementById('nbContent');
-  if (!titleIn || !contentTA) return;
+  if (!titleIn) return;
   const data = nbGet();
   if (!data.pages[_nbActiveId]) return;
   data.pages[_nbActiveId].title = titleIn.value.trim() || 'Untitled';
-  data.pages[_nbActiveId].content = contentTA.value;
+  // Get markdown from tiptap if editor is active
+  if (_nbEditor) {
+    data.pages[_nbActiveId].content = _nbEditor.storage.markdown.getMarkdown();
+  }
   data.pages[_nbActiveId].updatedAt = new Date().toISOString();
   nbSet(data);
-  // refresh sidebar dates
   const item = document.querySelector(`.nb-page-item[data-nb-id="${_nbActiveId}"] .nb-page-date`);
   if (item) item.textContent = new Date().toLocaleDateString();
   const st = document.getElementById('nbSaveStatus');
@@ -506,55 +484,7 @@ function nbNewPage() {
   _nbActiveId = id;
   nbRenderPageList();
   nbOpenPage(id);
-  // New page opens in raw mode immediately so user can start typing
-  setTimeout(() => {
-    const ta = document.getElementById('nbContent');
-    const lr = document.getElementById('nbLiveRender');
-    const btn = document.getElementById('nbRawToggle');
-    const titleIn = document.getElementById('nbTitleInput');
-    if (ta && lr && btn) {
-      lr.style.display = 'none';
-      ta.style.display = '';
-      btn.textContent = '👁 Render';
-    }
-    titleIn?.focus();
-  }, 50);
+  setTimeout(() => document.getElementById('nbTitleInput')?.focus(), 80);
 }
 
-// ── Very lightweight markdown renderer (no lib needed) ──
-function nbRenderMarkdown(md) {
-  if (!md) return '<span class="nb-render-placeholder">Write in markdown...</span>';
-  let h = md
-    // Escape HTML first
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    // Headings
-    .replace(/^### (.+)$/gm,'<h3>$1</h3>')
-    .replace(/^## (.+)$/gm,'<h2>$1</h2>')
-    .replace(/^# (.+)$/gm,'<h1>$1</h1>')
-    // Bold / italic
-    .replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>')
-    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g,'<em>$1</em>')
-    .replace(/__(.+?)__/g,'<strong>$1</strong>')
-    .replace(/_(.+?)_/g,'<em>$1</em>')
-    // Strikethrough
-    .replace(/~~(.+?)~~/g,'<del>$1</del>')
-    // Inline code
-    .replace(/`([^`]+)`/g,'<code>$1</code>')
-    // Blockquote
-    .replace(/^&gt; (.+)$/gm,'<blockquote>$1</blockquote>')
-    // Horizontal rule
-    .replace(/^---+$/gm,'<hr>')
-    // Unordered lists
-    .replace(/^\* (.+)$/gm,'<li>$1</li>')
-    .replace(/^- (.+)$/gm,'<li>$1</li>')
-    // Ordered lists
-    .replace(/^\d+\. (.+)$/gm,'<li>$1</li>')
-    // Links
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>')
-    // Line breaks → paragraphs (double newline)
-    .replace(/\n\n/g,'</p><p>')
-    .replace(/\n/g,'<br>');
-  return `<p>${h}</p>`;
-}
 
