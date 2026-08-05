@@ -280,8 +280,14 @@ function renderCharEditor() {
 
     <div class="editor-actions">
       <button class="btn btn-p" id="chSaveBtn">Save Changes</button>
-      <button class="btn btn-s" id="chExportJsonBtn">Export JSON</button>
-      <button class="btn btn-s" id="chExportPngBtn">Export PNG Card</button>
+      <div class="dd" id="dd-char-export">
+        <button class="btn btn-s dd-btn">&#8657; Export</button>
+        <div class="dd-menu">
+          <button class="dd-item" id="chExportJsonBtn">{ } ST / JanitorAI (V3 JSON)</button>
+          <button class="dd-item" id="chExportPngBtn">🖼 ST / JanitorAI (PNG Card)</button>
+          <button class="dd-item" id="chExportSaucepanBtn">🍲 SaucepanAI (companion.json)</button>
+        </div>
+      </div>
       <button class="btn btn-err" id="chDeleteBtn">Delete Character</button>
     </div>
   </div>`;
@@ -324,6 +330,19 @@ function renderCharEditor() {
   g('chSaveBtn').addEventListener('click', saveChar);
   g('chExportJsonBtn').addEventListener('click', () => exportCharJson(activeCharId));
   g('chExportPngBtn').addEventListener('click', () => openCharPngExport(activeCharId));
+  g('chExportSaucepanBtn').addEventListener('click', () => exportCharSaucepan(activeCharId));
+  // Wire the char export dropdown
+  const ddCharExport = document.getElementById('dd-char-export');
+  if (ddCharExport) {
+    const ddBtn = ddCharExport.querySelector('.dd-btn');
+    const ddMenu = ddCharExport.querySelector('.dd-menu');
+    ddBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const isOpen = ddMenu.classList.contains('open');
+      closeAllDropdowns();
+      if (!isOpen) ddMenu.classList.add('open');
+    });
+  }
   g('chDeleteBtn').addEventListener('click', () => deleteChar(activeCharId));
 
   // Image upload wiring
@@ -681,6 +700,81 @@ function exportCharJson(id) {
   const fn = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi, '_') + '.json';
   dlFile(JSON.stringify(entry.card, null, 2), fn, 'application/json');
   toast('Exported: ' + fn, 'ok');
+}
+
+function exportCharSaucepan(id) {
+  const entry = charLibrary[id]; if (!entry) return;
+  captureCharState();
+  const s = charFormState;
+  const d = entry.card.data;
+
+  // Build starting_scenarios from first_mes + alternate_greetings
+  // Uses greeting titles if present, falls back to generated labels
+  const altGreets = (s.alternate_greetings || d.alternate_greetings || [])
+    .filter(g => (typeof g === 'object' ? g.message : g || '').trim() !== '');
+
+  const scenarios = [];
+
+  // First message
+  const firstMsg = s.first_mes || d.first_mes || '';
+  if (firstMsg.trim()) {
+    const firstTitle = s.first_mes_title || (
+      d.extensions && d.extensions.greeting_tools && d.extensions.greeting_tools.mainGreeting
+        ? d.extensions.greeting_tools.mainGreeting.title
+        : ''
+    ) || 'Opening';
+    scenarios.push({ title: firstTitle, message: firstMsg, portrait_id: null });
+  }
+
+  // Alternate greetings
+  altGreets.forEach((g, i) => {
+    const msg   = typeof g === 'object' ? (g.message || '') : (g || '');
+    const title = typeof g === 'object' && g.title ? g.title : ('Scenario ' + (i + 2));
+    scenarios.push({ title, message: msg, portrait_id: null });
+  });
+
+  // Preserve existing SaucepanAI metadata if card was originally imported from Saucepan
+  const existingMeta = d.extensions && d.extensions._saucepan ? d.extensions._saucepan : {};
+
+  const companion = {
+    id:           existingMeta.id   || crypto.randomUUID(),
+    name:         s.name            || d.name || 'Unknown',
+    display_name: existingMeta.display_name || s.name || d.name || 'Unknown',
+    full_description:  s.creator_notes || d.creator_notes || '',
+    short_description: s.creator_notes ? s.creator_notes.slice(0, 200) : (d.creator_notes || '').slice(0, 200),
+    tags:         (s.tags ? s.tags.split(',').map(t => t.trim()).filter(Boolean) : d.tags) || [],
+    fandom_tags:  existingMeta.fandom_tags || [],
+    image:        existingMeta.image || { id: null },
+    image_crop_zoom: null, image_crop_x: null, image_crop_y: null,
+    sus:          existingMeta.sus  ?? false,
+    very_sus:     existingMeta.very_sus ?? false,
+    card:         s.description     || d.description || '',
+    temperature_offset_percentage: existingMeta.temperature_offset_percentage ?? 0,
+    portraits:    existingMeta.portraits || [],
+    example_dialogue: s.mes_example || d.mes_example || null,
+    locked_starting_message: existingMeta.locked_starting_message ?? false,
+    starting_scenarios: scenarios,
+    access_level: existingMeta.access_level || 'private',
+    formatting_instructions: s.system_prompt || d.system_prompt || null,
+    advanced_prompt: s.post_history_instructions || d.post_history_instructions || null,
+    open_definition: existingMeta.open_definition ?? true,
+    hidden_fields: existingMeta.hidden_fields ?? 0,
+    external_model_policy: existingMeta.external_model_policy || 'vetted_only',
+    unlocked_portraits: existingMeta.unlocked_portraits ?? false,
+    hide_on_owner_profile: existingMeta.hide_on_owner_profile ?? false,
+    companion_profile_banner_crop_zoom: null,
+    companion_profile_banner_crop_x: null,
+    companion_profile_banner_crop_y: null,
+    default_profile_banner_collection_image_crop_zoom: null,
+    default_profile_banner_collection_image_crop_x: null,
+    default_profile_banner_collection_image_crop_y: null,
+    suppress_companion_profile_banner: existingMeta.suppress_companion_profile_banner ?? false,
+    companion_profile_banner_very_sus: existingMeta.companion_profile_banner_very_sus ?? false,
+  };
+
+  const fn = (d.name || 'companion').replace(/[^a-z0-9_-]/gi, '_') + '_saucepan.json';
+  dlFile(JSON.stringify(companion, null, 2), fn, 'application/json');
+  toast('Exported for SaucepanAI: ' + fn, 'ok');
 }
 
 // ── PNG character card embed / extract ──
