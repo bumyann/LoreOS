@@ -168,6 +168,8 @@ function renderCharEditor() {
   const pers = get('personality', d.personality);
   const scen = get('scenario', d.scenario);
   const first = get('first_mes', d.first_mes);
+  const firstMesTitle = get('first_mes_title', d._gtMainTitle || (d.extensions && d.extensions.greeting_tools && d.extensions.greeting_tools.mainGreeting ? d.extensions.greeting_tools.mainGreeting.title : '') || '');
+  const firstMesDesc  = get('first_mes_desc',  d._gtMainDesc  || (d.extensions && d.extensions.greeting_tools && d.extensions.greeting_tools.mainGreeting ? d.extensions.greeting_tools.mainGreeting.description : '') || '');
   const mesEx = get('mes_example', d.mes_example);
   const sysPrompt = get('system_prompt', d.system_prompt);
   const phi = get('post_history_instructions', d.post_history_instructions);
@@ -175,7 +177,7 @@ function renderCharEditor() {
   const creator = get('creator', d.creator);
   const version = get('character_version', d.character_version);
   const tags = get('tags', (d.tags||[]).join(', '));
-  const altGreetings = get('alternate_greetings', d.alternate_greetings || []);
+  const altGreetings = get('alternate_greetings', d.alternate_greetings || []).map(g => typeof g === 'object' ? g : { title: '', message: g });
   const spec = get('spec', card.spec);
 
   ec.className = '';
@@ -227,6 +229,7 @@ function renderCharEditor() {
 
     <div class="fg">
       <label class="flabel">First Message (Greeting)</label>
+      <input id="chFirstTitle" class="finput" style="margin-bottom:.35rem" placeholder="Greeting title (optional)..." value="${esc(firstMesTitle)}">
       <textarea id="chFirst" class="ftextarea" style="min-height:110px" placeholder="The opening message...">${esc(first)}</textarea>
     </div>
 
@@ -313,7 +316,7 @@ function renderCharEditor() {
   });
   g('chAddGreet').addEventListener('click', () => {
     const cur = captureCharGreetings();
-    cur.push('');
+    cur.push({ title: '', message: '' });
     charFormState.alternate_greetings = cur;
     charUnsaved = true;
     renderAltGreetings(cur);
@@ -374,18 +377,19 @@ function renderAltGreetings(list) {
   if (!wrap) return;
   wrap.innerHTML = '';
   list.forEach((greet, i) => {
-    const content = typeof greet === 'object' ? (greet.content || '') : (greet || '');
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:.4rem;align-items:flex-start';
-    const ta = document.createElement('textarea');
-    ta.className = 'ftextarea'; ta.style.minHeight = '70px'; ta.value = content;
-    ta.placeholder = `Alternate greeting #${i+1}...`;
-    ta.addEventListener('input', () => {
-      const cur = captureCharGreetings();
-      cur[i] = ta.value;
-      charFormState.alternate_greetings = cur;
-      charUnsaved = true;
-    });
+    // Support both plain strings (ST) and {title, message} objects (SaucepanAI)
+    const titleVal   = typeof greet === 'object' ? (greet.title   || '') : '';
+    const messageVal = typeof greet === 'object' ? (greet.message || greet.content || '') : (greet || '');
+
+    const block = document.createElement('div');
+    block.style.cssText = 'display:flex;flex-direction:column;gap:.3rem;padding:.5rem;border:1px solid var(--bdr);border-radius:6px;background:var(--bg2)';
+
+    // Header row: label + remove button
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:.4rem';
+    const lbl = document.createElement('span');
+    lbl.className = 'flabel-sm'; lbl.style.margin = '0';
+    lbl.textContent = 'Greeting #' + (i + 1);
     const rm = document.createElement('button');
     rm.className = 'btn btn-err btn-sm'; rm.textContent = '✕'; rm.style.flexShrink = '0';
     rm.addEventListener('click', () => {
@@ -395,23 +399,145 @@ function renderAltGreetings(list) {
       charUnsaved = true;
       renderAltGreetings(cur);
     });
-    row.append(ta, rm);
-    wrap.append(row);
+    hdr.append(lbl, rm);
+
+    // Title input
+    const titleInput = document.createElement('input');
+    titleInput.className = 'finput'; titleInput.type = 'text';
+    titleInput.placeholder = 'Greeting title (optional)...';
+    titleInput.value = titleVal;
+    titleInput.addEventListener('input', () => { charUnsaved = true; });
+
+    // Description input
+    const descInput = document.createElement('input');
+    descInput.className = 'finput'; descInput.type = 'text';
+    descInput.placeholder = 'Greeting description (optional)...';
+    descInput.value = typeof greet === 'object' ? (greet.description || '') : '';
+    descInput.addEventListener('input', () => { charUnsaved = true; });
+
+    // Message textarea
+    const ta = document.createElement('textarea');
+    ta.className = 'ftextarea'; ta.style.minHeight = '70px';
+    ta.placeholder = 'Greeting message #' + (i + 1) + '...';
+    ta.value = messageVal;
+    ta.addEventListener('input', () => { charUnsaved = true; });
+
+    block.append(hdr, titleInput, descInput, ta);
+    wrap.append(block);
   });
 }
 
 function captureCharGreetings() {
   const wrap = g('chAltGreetList');
   if (!wrap) return charFormState.alternate_greetings || [];
-  return [...wrap.querySelectorAll('textarea')].map(t => t.value);
+  // Each greeting block has: [0]=header(ignored), [1]=title input, [2]=message textarea
+  return [...wrap.children].map(block => {
+    const inputs = block.querySelectorAll('input.finput');
+    const ta = block.querySelector('textarea.ftextarea');
+    // inputs[0] = title, inputs[1] = description
+    return {
+      title:       inputs[0] ? inputs[0].value : '',
+      description: inputs[1] ? inputs[1].value : '',
+      message:     ta ? ta.value : '',
+    };
+  });
 }
+
+// ═══════════════════════════════════════════════════════
+// GREETING TOOLS (SillyTavern extension) — round-trip support
+// Format: data.extensions.greeting_tools = {
+//   mainGreeting: { id, title, description, contentHash },
+//   greetings: { [uuid]: { id, title, description, contentHash } },
+//   indexMap: { "0": uuid, "1": uuid, ... }
+// }
+// ═══════════════════════════════════════════════════════
+
+function gtGenId() {
+  // Generate a GreetingTools-style ID: g_<8hex>_<6hex>
+  const rnd = n => Math.floor(Math.random() * 16**n).toString(16).padStart(n, '0');
+  return 'g_' + rnd(8) + '_' + rnd(6);
+}
+
+function gtReadFromCard(card) {
+  // Returns { mainTitle, mainDesc, alts: [{title, desc}, ...] } from extensions.greeting_tools
+  const gt = card?.data?.extensions?.greeting_tools;
+  if (!gt) return null;
+  const main = gt.mainGreeting || {};
+  const indexMap = gt.indexMap || {};
+  const greetings = gt.greetings || {};
+  const alts = Object.keys(indexMap)
+    .sort((a, b) => Number(a) - Number(b))
+    .map(i => {
+      const uuid = indexMap[i];
+      const entry = greetings[uuid] || {};
+      return { title: entry.title || '', description: entry.description || '', id: uuid };
+    });
+  return {
+    mainTitle: main.title || '',
+    mainDesc: main.description || '',
+    mainId: main.id || null,
+    alts,
+  };
+}
+
+function gtWriteToCard(card, firstMesTitle, firstMesDesc, altGreetings) {
+  // Writes greeting_tools back to card.data.extensions
+  if (!card.data.extensions) card.data.extensions = {};
+
+  // Only write if any greeting has a title or desc
+  const hasAnyTitle = firstMesTitle || altGreetings.some(g => g.title);
+  if (!hasAnyTitle) {
+    // Clean up if previously existed but now all blank
+    // Keep existing greeting_tools if present, just update
+  }
+
+  const existing = card.data.extensions.greeting_tools || {};
+  const existingMain = existing.mainGreeting || {};
+  const existingGreetings = existing.greetings || {};
+  const existingIndexMap = existing.indexMap || {};
+
+  // Main greeting
+  const mainId = existingMain.id || gtGenId();
+  const mainGreeting = {
+    id: mainId,
+    title: firstMesTitle || '',
+    description: firstMesDesc || '',
+    contentHash: existingMain.contentHash || 0,
+  };
+
+  // Alt greetings — preserve existing IDs where possible
+  const newGreetings = {};
+  const newIndexMap = {};
+
+  altGreetings.forEach((g, i) => {
+    const existingUuid = existingIndexMap[String(i)];
+    const uuid = (existingUuid && existingGreetings[existingUuid]) ? existingUuid : gtGenId();
+    const existingEntry = existingGreetings[uuid] || {};
+    newGreetings[uuid] = {
+      id: uuid,
+      title: g.title || '',
+      description: g.description || '',
+      contentHash: existingEntry.contentHash || 0,
+    };
+    newIndexMap[String(i)] = uuid;
+  });
+
+  card.data.extensions.greeting_tools = {
+    greetings: newGreetings,
+    indexMap: newIndexMap,
+    mainGreeting,
+  };
+}
+
 
 function captureCharState() {
   charFormState.name = g('chName')?.value;
   charFormState.description = g('chDesc')?.value;
   charFormState.personality = g('chPers')?.value;
   charFormState.scenario = g('chScen')?.value;
-  charFormState.first_mes = g('chFirst')?.value;
+  charFormState.first_mes       = g('chFirst')?.value;
+  charFormState.first_mes_title = g('chFirstTitle')?.value || '';
+  charFormState.first_mes_desc  = '';  // description not exposed in UI yet
   charFormState.mes_example = g('chMesEx')?.value;
   charFormState.system_prompt = g('chSysPrompt')?.value;
   charFormState.post_history_instructions = g('chPHI')?.value;
@@ -444,7 +570,14 @@ function saveChar() {
   card.data.creator = s.creator || '';
   card.data.character_version = s.character_version || '';
   card.data.tags = (s.tags || '').split(',').map(t => t.trim()).filter(Boolean);
-  card.data.alternate_greetings = (s.alternate_greetings || []).filter(g => g.trim() !== '');
+  // ST format: alternate_greetings is plain strings; strip titles for ST export
+  card.data.alternate_greetings = (s.alternate_greetings || [])
+    .map(g => typeof g === 'object' ? (g.message || '') : (g || ''))
+    .filter(m => m.trim() !== '');
+
+  // Write greeting_tools extension data for ST GreetingTools round-trip
+  const filteredAlts = (s.alternate_greetings || []).filter(g => (g.message || '').trim() !== '');
+  gtWriteToCard(card, s.first_mes_title || '', s.first_mes_desc || '', filteredAlts);
 
   entry.name = card.data.name;
   entry.savedAt = new Date().toISOString();
@@ -506,7 +639,7 @@ function importCharCard(data, filename, imageData = null) {
         first_mes: data.first_mes || '', mes_example: data.mes_example || '',
         creator_notes: data.creator_notes || '', system_prompt: data.system_prompt || '',
         post_history_instructions: data.post_history_instructions || '',
-        alternate_greetings: data.alternate_greetings || [], tags: data.tags || [],
+        alternate_greetings: (data.alternate_greetings || []).map(g => typeof g === 'object' ? g : { title: '', message: g }), tags: data.tags || [],
         creator: data.creator || '', character_version: data.character_version || '',
         extensions: data.extensions || {}, character_book: data.character_book || null
       }
@@ -516,6 +649,25 @@ function importCharCard(data, filename, imageData = null) {
     return;
   }
   normalizeCharCard(card);
+
+  // Enrich greetings with GreetingTools titles/descriptions if present
+  const gtData = gtReadFromCard(card);
+  if (gtData) {
+    // Store mainGreeting title in extensions for later use in editor
+    card._gtMainTitle = gtData.mainTitle;
+    card._gtMainDesc  = gtData.mainDesc;
+    // Normalize alternate_greetings, applying titles from indexMap
+    card.data.alternate_greetings = (card.data.alternate_greetings || []).map((g, i) => {
+      const plain = typeof g === 'object' ? (g.message || g.content || '') : (g || '');
+      const meta = gtData.alts[i] || {};
+      return { title: meta.title || '', description: meta.description || '', id: meta.id || '', message: plain };
+    });
+  } else {
+    card.data.alternate_greetings = (card.data.alternate_greetings || []).map(g =>
+      typeof g === 'object' ? g : { title: '', description: '', id: '', message: g }
+    );
+  }
+
   card.id = charId();
   charLibrary[card.id] = { id: card.id, name: card.data.name, card, imageData, savedAt: new Date().toISOString() };
   saveCharLibrary();
