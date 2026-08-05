@@ -38,7 +38,7 @@ function wireMobile() {
     const isEditor = view === 'editor';
 
     // View nav buttons (Home/Library/Notebook/Editor)
-    const viewNavBtns = ['mobGoHome','mobGoLibrary','mobGoNotebook','mobGoEditor'];
+    const viewNavBtns = ['mobGoHome','mobGoLibrary','mobGoNotebook','mobGoEditor','mobGoLaboratory'];
     viewNavBtns.forEach(id => {
       const btn = g(id);
       if (btn) btn.style.display = isEditor ? 'none' : '';
@@ -119,7 +119,8 @@ function wireMobile() {
   if (g('mobGoHome'))     g('mobGoHome').addEventListener('click', () => { navigateTo('home'); updateMobViewBtns('home'); });
   if (g('mobGoLibrary'))  g('mobGoLibrary').addEventListener('click', () => { navigateTo('library'); updateMobViewBtns('library'); });
   if (g('mobGoNotebook')) g('mobGoNotebook').addEventListener('click', () => { navigateTo('notebook'); updateMobViewBtns('notebook'); });
-  if (g('mobGoEditor'))   g('mobGoEditor').addEventListener('click', () => { navigateTo('editor'); updateMobViewBtns('editor'); });
+  if (g('mobGoEditor'))      g('mobGoEditor').addEventListener('click', () => { navigateTo('editor'); updateMobViewBtns('editor'); });
+  if (g('mobGoLaboratory')) g('mobGoLaboratory').addEventListener('click', () => { navigateTo('laboratory'); updateMobViewBtns('laboratory'); });
 
   // ── Always-on ──
   g('mobEntries').addEventListener('click', openSidebar);

@@ -19,6 +19,7 @@ const ASSETS = [
   '/js/settings.js',
   '/js/sync.js',
   '/js/mobile.js',
+  '/js/tiptap-bundle.js',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',

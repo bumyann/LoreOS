@@ -333,7 +333,7 @@ function renderNotebookView() {
     <div class="nb-layout">
       <div class="nb-sidebar" id="nb-sidebar">
         <div class="nb-sidebar-head">
-          <div class="nb-title">Notebook</div>
+          <div class="nb-title">Journal</div>
           <button class="btn btn-ok btn-sm" id="nbNewBtn">+ New</button>
         </div>
         <div class="nb-page-list" id="nb-page-list"></div>

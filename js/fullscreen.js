@@ -35,7 +35,8 @@ function wireFullscreen() {
   // Ctrl+Enter to apply
   g('fullscreenTA').addEventListener('keydown', e => {
     if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); g('fullscreenApply').click(); }
-    if (e.key === 'Escape') closeModal('fullscreenModal');
+    // Escape intentionally disabled — use Apply / Cancel / ✕ to exit
+    // Prevents accidental loss of edits
   });
 }
 
