@@ -2,6 +2,26 @@
 // CHARACTER CARD EDITOR
 // ═══════════════════════════════════════════════════════
 
+// Active format picker state: 'st' | 'saucepan' | 'lumiverse'
+let charActiveFormat = 'st';
+
+// ── Lumiverse alternate_fields helpers ──
+function getLumiVariants(card, field) {
+  return card?.data?.extensions?._lumiverse?.alternate_fields?.[field] || [];
+}
+function setLumiVariants(card, field, variants) {
+  if (!card.data.extensions) card.data.extensions = {};
+  if (!card.data.extensions._lumiverse) card.data.extensions._lumiverse = {};
+  if (!card.data.extensions._lumiverse.alternate_fields) card.data.extensions._lumiverse.alternate_fields = {};
+  card.data.extensions._lumiverse.alternate_fields[field] = variants;
+}
+function lumiGenId() {
+  return 'xxxxxxxx-xxxx-7xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
 function blankCharCard() {
   return {
     id: 'c' + Date.now() + Math.floor(Math.random()*1000),
@@ -62,6 +82,7 @@ function createChar() {
 function openChar(id) {
   activeCharId = id;
   charFormState = {}; // clear stale state from previous character
+  charActiveFormat = 'st'; // reset format picker
   renderCharSidebar();
   renderCharEditor();
 }
@@ -178,6 +199,16 @@ function renderCharEditor() {
   const tags = get('tags', (d.tags||[]).join(', '));
   const altGreetings = get('alternate_greetings', d.alternate_greetings || []).map(g => typeof g === 'object' ? g : { title: '', message: g });
   const spec = get('spec', card.spec);
+  const fmt = charActiveFormat;
+  const isLumi = fmt === 'lumiverse';
+  const isSauce = fmt === 'saucepan';
+
+  // Lumiverse alternate_fields — read from extensions or charFormState
+  const lumiVariants = charFormState._lumiVariants || {
+    description: getLumiVariants(card, 'description'),
+    personality: getLumiVariants(card, 'personality'),
+    scenario:    getLumiVariants(card, 'scenario'),
+  };
 
   ec.className = '';
   ec.innerHTML = `<div class="entry-editor">
@@ -188,7 +219,11 @@ function renderCharEditor() {
           <input id="chName" class="finput" value="${esc(name)}" placeholder="Character name...">
         </div>
         <div style="flex:0 0 auto;align-self:flex-end">
-          <span style="font-family:var(--fx);font-size:.62rem;color:var(--txm);letter-spacing:.5px;padding:.4rem .6rem;background:var(--sf);border:1px solid var(--bd);border-radius:3px;display:inline-block">V3 · SillyTavern</span>
+          <select id="chFormatPicker" class="finput" style="font-family:var(--fx);font-size:.62rem;letter-spacing:.5px;padding:.35rem .5rem;cursor:pointer">
+            <option value="st"${fmt === 'st' ? ' selected' : ''}>V3 · SillyTavern</option>
+            <option value="saucepan"${fmt === 'saucepan' ? ' selected' : ''}>SaucepanAI</option>
+            <option value="lumiverse"${fmt === 'lumiverse' ? ' selected' : ''}>Lumiverse</option>
+          </select>
         </div>
       </div>
     </div>
@@ -212,18 +247,18 @@ function renderCharEditor() {
 
     <div class="fg">
       <label class="flabel">Description</label>
-      <textarea id="chDesc" class="ftextarea" style="min-height:140px" placeholder="Physical appearance, background, traits...">${esc(desc)}</textarea>
+      ${isLumi ? renderLumiVariantField('chDesc', 'description', desc, lumiVariants.description, 'Physical appearance, background, traits...', '140px') : `<textarea id="chDesc" class="ftextarea" style="min-height:140px" placeholder="Physical appearance, background, traits...">${esc(desc)}</textarea>`}
       <span class="form-note">Core character info — always included in context.</span>
     </div>
 
-    <div class="fg">
+    <div class="fg"${isSauce ? ' style="display:none"' : ''}>
       <label class="flabel">Personality</label>
-      <textarea id="chPers" class="ftextarea" style="min-height:90px" placeholder="Personality summary...">${esc(pers)}</textarea>
+      ${isLumi ? renderLumiVariantField('chPers', 'personality', pers, lumiVariants.personality, 'Personality summary...', '90px') : `<textarea id="chPers" class="ftextarea" style="min-height:90px" placeholder="Personality summary...">${esc(pers)}</textarea>`}
     </div>
 
-    <div class="fg">
+    <div class="fg"${isSauce ? ' style="display:none"' : ''}>
       <label class="flabel">Scenario</label>
-      <textarea id="chScen" class="ftextarea" style="min-height:90px" placeholder="The setting / circumstances...">${esc(scen)}</textarea>
+      ${isLumi ? renderLumiVariantField('chScen', 'scenario', scen, lumiVariants.scenario, 'The setting / circumstances...', '90px') : `<textarea id="chScen" class="ftextarea" style="min-height:90px" placeholder="The setting / circumstances...">${esc(scen)}</textarea>`}
     </div>
 
     <div class="fg">
@@ -262,8 +297,8 @@ function renderCharEditor() {
           <textarea id="chNotes" class="ftextarea" style="min-height:70px" placeholder="Notes for other users...">${esc(notes)}</textarea>
         </div>
         <div class="adv-grid" style="margin-top:.65rem">
-          <div class="fg"><label class="flabel-sm">Creator</label><input id="chCreator" class="finput" value="${esc(creator)}" placeholder="Your name..."></div>
-          <div class="fg"><label class="flabel-sm">Version</label><input id="chVersion" class="finput" value="${esc(version)}" placeholder="1.0"></div>
+          <div class="fg"${isSauce ? ' style="display:none"' : ''}><label class="flabel-sm">Creator</label><input id="chCreator" class="finput" value="${esc(creator)}" placeholder="Your name..."></div>
+          <div class="fg"${isSauce ? ' style="display:none"' : ''}><label class="flabel-sm">Version</label><input id="chVersion" class="finput" value="${esc(version)}" placeholder="1.0"></div>
           <div class="fg" style="grid-column:1/-1"><label class="flabel-sm">Tags (comma-separated)</label><input id="chTags" class="finput" value="${esc(tags)}" placeholder="oc, fantasy, slow-burn"></div>
         </div>
       </div>
@@ -313,6 +348,9 @@ function renderCharEditor() {
   // Update attached lorebook status
   updateLbStatus(entry);
 
+  // Wire lumiverse variant field tabs
+  if (charActiveFormat === 'lumiverse') wireLumiVariantFields();
+
   // Wire events
   g('chAdvHead').addEventListener('click', () => {
     g('chAdvBody').classList.toggle('open');
@@ -325,6 +363,11 @@ function renderCharEditor() {
     charFormState.alternate_greetings = cur;
     charUnsaved = true;
     renderAltGreetings(cur);
+  });
+  g('chFormatPicker').addEventListener('change', e => {
+    captureCharState();
+    charActiveFormat = e.target.value;
+    renderCharEditor();
   });
   g('chSaveBtn').addEventListener('click', saveChar);
   g('chExportJsonBtn').addEventListener('click', () => exportCharJson(activeCharId));
@@ -439,6 +482,133 @@ function renderAltGreetings(list) {
   });
 }
 
+// ── Lumiverse variant field UI ──
+
+function renderLumiVariantField(baseId, field, defaultVal, variants, placeholder, minHeight) {
+  const esc2 = t => { const d = document.createElement('div'); d.textContent = t||''; return d.innerHTML; };
+  const tabs = [
+    `<button class="lumi-vtab active" data-field="${field}" data-idx="-1">Default</button>`,
+    ...variants.map((v, i) =>
+      `<button class="lumi-vtab" data-field="${field}" data-idx="${i}">${esc2(v.label||'Variant '+(i+1))}</button>`
+    ),
+    `<button class="lumi-vtab lumi-vtab-add" data-field="${field}" data-idx="add" title="Add variant">＋</button>`,
+  ].join('');
+  return `<div class="lumi-vwrap" id="lumi-vwrap-${field}">
+    <div class="lumi-vtabs" id="lumi-vtabs-${field}">${tabs}</div>
+    <textarea id="${baseId}" class="ftextarea" style="min-height:${minHeight}" placeholder="${placeholder}">${esc2(defaultVal)}</textarea>
+  </div>`;
+}
+
+function wireLumiVariantFields() {
+  document.querySelectorAll('.lumi-vtab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const field = btn.dataset.field;
+      const idx   = btn.dataset.idx;
+      const wrap  = document.getElementById('lumi-vwrap-' + field);
+      if (!wrap) return;
+
+      // Capture current textarea value before switching
+      const ta = wrap.querySelector('textarea');
+      const curActive = wrap.querySelector('.lumi-vtab.active');
+      const curIdx = curActive ? curActive.dataset.idx : '-1';
+
+      // Save current value back into state
+      const lv = charFormState._lumiVariants || captureLumiVariants();
+      if (curIdx === '-1') {
+        // Default tab — map to the correct charFormState field
+        const fieldMap = { description: 'chDesc', personality: 'chPers', scenario: 'chScen' };
+        const el = g(fieldMap[field]);
+        if (el) el.value = ta.value;
+      } else {
+        if (lv[field] && lv[field][parseInt(curIdx)]) {
+          lv[field][parseInt(curIdx)].content = ta.value;
+        }
+      }
+      charFormState._lumiVariants = lv;
+
+      if (idx === 'add') {
+        // Add new variant
+        if (!lv[field]) lv[field] = [];
+        lv[field].push({ id: lumiGenId(), label: 'Variant ' + (lv[field].length + 1), content: '' });
+        charFormState._lumiVariants = lv;
+        charUnsaved = true;
+        renderCharEditor();
+        return;
+      }
+
+      // Switch tabs
+      wrap.querySelectorAll('.lumi-vtab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      if (idx === '-1') {
+        // Default: read from the main textarea's stored value
+        const fieldMap = { description: 'chDesc', personality: 'chPers', scenario: 'chScen' };
+        const el = g(fieldMap[field]);
+        ta.value = el ? el.value : (charFormState[field] || '');
+      } else {
+        const v = lv[field] && lv[field][parseInt(idx)];
+        ta.value = v ? (v.content || '') : '';
+      }
+
+      // Long-press / right-click to rename or delete variant
+    });
+
+    // Double-click to rename
+    if (btn.dataset.idx !== '-1' && btn.dataset.idx !== 'add') {
+      btn.addEventListener('dblclick', async () => {
+        const field = btn.dataset.field;
+        const idx   = parseInt(btn.dataset.idx);
+        const lv    = charFormState._lumiVariants || captureLumiVariants();
+        if (!lv[field] || !lv[field][idx]) return;
+        const newLabel = await askPrompt('Rename variant:', lv[field][idx].label || ('Variant ' + (idx+1)));
+        if (newLabel === null) return;
+        lv[field][idx].label = newLabel.trim() || ('Variant ' + (idx+1));
+        charFormState._lumiVariants = lv;
+        charUnsaved = true;
+        btn.textContent = lv[field][idx].label;
+        // Add delete X button
+      });
+
+      // Right-click to delete
+      btn.addEventListener('contextmenu', async e => {
+        e.preventDefault();
+        const field = btn.dataset.field;
+        const idx   = parseInt(btn.dataset.idx);
+        const lv    = charFormState._lumiVariants || captureLumiVariants();
+        if (!lv[field]) return;
+        if (!await askConfirm('Delete this variant?')) return;
+        lv[field].splice(idx, 1);
+        charFormState._lumiVariants = lv;
+        charUnsaved = true;
+        renderCharEditor();
+      });
+    }
+  });
+}
+
+function captureLumiVariants() {
+  // Read current textarea values for whichever tab is active
+  const fields = ['description', 'personality', 'scenario'];
+  const existing = charFormState._lumiVariants || {};
+  const result = {};
+  fields.forEach(field => {
+    result[field] = (existing[field] || []).map(v => ({ ...v }));
+    // If Default tab is active, the main textarea has the default value — variants unchanged
+    // If a variant tab is active, read the textarea into that variant's content
+    const wrap = document.getElementById('lumi-vwrap-' + field);
+    if (!wrap) return;
+    const activeTab = wrap.querySelector('.lumi-vtab.active');
+    if (!activeTab) return;
+    const idx = activeTab.dataset.idx;
+    if (idx === '-1' || idx === 'add') return;
+    const ta = wrap.querySelector('textarea');
+    if (ta && result[field][parseInt(idx)] !== undefined) {
+      result[field][parseInt(idx)].content = ta.value;
+    }
+  });
+  return result;
+}
+
 function captureCharGreetings() {
   const wrap = g('chAltGreetList');
   if (!wrap) return charFormState.alternate_greetings || [];
@@ -542,6 +712,7 @@ function gtWriteToCard(card, firstMesTitle, firstMesDesc, altGreetings) {
 
 function captureCharState() {
   charFormState.name = g('chName')?.value;
+  // For lumiverse: default field is the first tab (id="chDesc" etc still present)
   charFormState.description = g('chDesc')?.value;
   charFormState.personality = g('chPers')?.value;
   charFormState.scenario = g('chScen')?.value;
@@ -555,6 +726,10 @@ function captureCharState() {
   charFormState.tags = g('chTags')?.value;
   charFormState.spec = g('chSpec')?.value;
   charFormState.alternate_greetings = captureCharGreetings();
+  // Lumiverse variant fields
+  if (charActiveFormat === 'lumiverse') {
+    charFormState._lumiVariants = captureLumiVariants();
+  }
 }
 
 function saveChar() {
@@ -582,6 +757,13 @@ function saveChar() {
   card.data.alternate_greetings = (s.alternate_greetings || [])
     .map(g => typeof g === 'object' ? (g.message || '') : (g || ''))
     .filter(m => m.trim() !== '');
+
+  // Lumiverse alternate_fields
+  if (s._lumiVariants) {
+    setLumiVariants(card, 'description', s._lumiVariants.description || []);
+    setLumiVariants(card, 'personality', s._lumiVariants.personality || []);
+    setLumiVariants(card, 'scenario',    s._lumiVariants.scenario    || []);
+  }
 
   entry.name = card.data.name;
   entry.savedAt = new Date().toISOString();
@@ -767,13 +949,23 @@ function handleCharxImport(e) {
       const cardFile = zip.file('card.json');
       if (!cardFile) { toast('.charx missing card.json', 'err'); return; }
 
-      const imgFile = zip.file('assets/icon/image/main.png');
+      const imgFile  = zip.file('assets/icon/image/main.png');
+      const lumiFile = zip.file('lumiverse_modules.json');
       const cardPromise = cardFile.async('string').then(JSON.parse);
       const imgPromise  = imgFile
         ? imgFile.async('base64').then(b64 => 'data:image/png;base64,' + b64)
         : Promise.resolve(null);
+      const lumiPromise = lumiFile
+        ? lumiFile.async('string').then(JSON.parse).catch(() => null)
+        : Promise.resolve(null);
 
-      Promise.all([cardPromise, imgPromise]).then(([cardData, imageData]) => {
+      Promise.all([cardPromise, imgPromise, lumiPromise]).then(([cardData, imageData, lumiModules]) => {
+        // Merge lumiverse_modules alternate_fields into extensions._lumiverse
+        if (lumiModules && lumiModules.alternate_fields) {
+          if (!cardData.data) cardData.data = {};
+          if (!cardData.data.extensions) cardData.data.extensions = {};
+          cardData.data.extensions._lumiverse = { alternate_fields: lumiModules.alternate_fields };
+        }
         importCharCard(cardData, file.name, imageData);
         toast('Imported .charx: ' + (cardData.data && cardData.data.name || file.name), 'ok');
       }).catch(err => toast('.charx parse error: ' + err.message, 'err'));
@@ -797,6 +989,14 @@ function exportCharCharx(id) {
   zip.file('card.json', JSON.stringify(entry.card, null, 2));
 
   const name = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi, '_');
+
+  // Write lumiverse_modules.json if any alternate_fields exist
+  const lumiAltFields = entry.card.data?.extensions?._lumiverse?.alternate_fields;
+  const hasLumiVariants = lumiAltFields && Object.values(lumiAltFields).some(arr => arr && arr.length > 0);
+  if (hasLumiVariants) {
+    const lumiModules = { version: 1, alternate_fields: lumiAltFields };
+    zip.file('lumiverse_modules.json', JSON.stringify(lumiModules, null, 2));
+  }
 
   const finish = () => {
     zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }).then(blob => {

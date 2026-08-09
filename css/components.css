@@ -381,3 +381,12 @@
 .lab-stub-icon{font-size:2.5rem;opacity:.5}
 .lab-stub-title{font-family:var(--fp);font-size:1.1rem;color:var(--p);letter-spacing:2px}
 .lab-stub-desc{font-family:var(--fx);font-size:.78rem;color:var(--txm);letter-spacing:.4px;line-height:1.8;max-width:340px}
+
+/* ─── LUMIVERSE VARIANT FIELDS ─── */
+.lumi-vwrap{display:flex;flex-direction:column;gap:.4rem}
+.lumi-vtabs{display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.2rem}
+.lumi-vtab{font-family:var(--fx);font-size:.65rem;letter-spacing:.4px;padding:.25rem .6rem;background:var(--sf);border:1px solid var(--bd);border-radius:3px;color:var(--txm);cursor:pointer;transition:all .12s}
+.lumi-vtab:hover{border-color:var(--p);color:var(--p)}
+.lumi-vtab.active{background:var(--p);border-color:var(--p);color:#fff}
+.lumi-vtab-add{opacity:.6}
+.lumi-vtab-add:hover{opacity:1;border-color:var(--p);color:var(--p);background:var(--sf)}
