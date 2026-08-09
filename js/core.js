@@ -221,6 +221,13 @@ function wireEvents() {
   if (g('charImportCharxBtn')) g('charImportCharxBtn').onclick = () => { if(g('fileCharxInput')) g('fileCharxInput').click(); };
   if (g('fileCharxInput')) g('fileCharxInput').onchange = handleCharxImport;
   g('presetImportBtn').onclick = () => { g('filePresetInput').click(); };
+  // Header export buttons (char)
+  if (g('charHdrExportJsonBtn')) g('charHdrExportJsonBtn').onclick = () => exportCharJson(activeCharId);
+  if (g('charHdrExportPngBtn')) g('charHdrExportPngBtn').onclick = () => openCharPngExport(activeCharId);
+  if (g('charHdrExportSaucepanBtn')) g('charHdrExportSaucepanBtn').onclick = () => exportCharSaucepan(activeCharId);
+  if (g('charHdrExportCharxBtn')) g('charHdrExportCharxBtn').onclick = () => exportCharCharx(activeCharId);
+  // Header export button (preset)
+  if (g('presetHdrExportBtn')) g('presetHdrExportBtn').onclick = () => exportPreset();
   g('newEntryBtnAlt').onclick = openEntryPicker;
   g('helpBtn').onclick = () => openModal('helpModal');
 

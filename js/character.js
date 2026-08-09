@@ -329,20 +329,36 @@ function renderCharEditor() {
   // Render alt greetings list
   renderAltGreetings(altGreetings);
 
-  // Inject expand buttons into all char editor textareas
+  // Inject expand buttons + tok-count into all char editor textareas
   ec.querySelectorAll('.ftextarea').forEach(ta => {
     if (!ta.id) return;
     const label = ta.closest('.fg')?.querySelector('.flabel,.flabel-sm')?.textContent || ta.id;
+    // Wrap in content-wrap if not already
     if (!ta.parentElement.classList.contains('content-wrap')) {
-      ta.parentElement.style.position = 'relative';
+      const wrap = document.createElement('div');
+      wrap.className = 'content-wrap';
+      ta.parentNode.insertBefore(wrap, ta);
+      wrap.appendChild(ta);
     }
+    const wrap = ta.parentElement;
+    // Tok-count span
+    const tok = document.createElement('span');
+    tok.className = 'tok-count';
+    const updateTok = () => {
+      const t = Math.round((ta.value || '').length / 3.5);
+      tok.textContent = (ta.value || '').length + ' chars · ~' + t + ' tokens';
+      tok.className = 'tok-count' + (t > 1500 ? ' tok-over' : t > 800 ? ' tok-warn' : '');
+    };
+    ta.addEventListener('input', updateTok);
+    updateTok();
+    // Expand button
     const btn = document.createElement('button');
     btn.className = 'expand-btn';
     btn.textContent = '⛶ expand';
     btn.dataset.fieldId = ta.id;
     btn.dataset.label = label;
     btn.addEventListener('click', e => { e.preventDefault(); openFullscreen(ta.id, label); });
-    ta.parentElement.appendChild(btn);
+    wrap.append(tok, btn);
   });
 
   // Update attached lorebook status

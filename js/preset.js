@@ -255,16 +255,31 @@ function renderPresetEditor() {
     g('psStringsHead').classList.toggle('open');
   });
 
-  // Inject expand buttons into string textareas
+  // Inject expand buttons + tok-count into string textareas
   ec.querySelectorAll('.ftextarea').forEach(ta => {
     if (!ta.id) return;
     const label = ta.closest('.fg')?.querySelector('.flabel-sm')?.textContent || ta.id;
+    if (!ta.parentElement.classList.contains('content-wrap')) {
+      const wrap = document.createElement('div');
+      wrap.className = 'content-wrap';
+      ta.parentNode.insertBefore(wrap, ta);
+      wrap.appendChild(ta);
+    }
+    const wrap = ta.parentElement;
+    const tok = document.createElement('span');
+    tok.className = 'tok-count';
+    const updateTok = () => {
+      const t = Math.round((ta.value || '').length / 3.5);
+      tok.textContent = (ta.value || '').length + ' chars · ~' + t + ' tokens';
+      tok.className = 'tok-count' + (t > 1500 ? ' tok-over' : t > 800 ? ' tok-warn' : '');
+    };
+    ta.addEventListener('input', updateTok);
+    updateTok();
     const btn = document.createElement('button');
     btn.className = 'expand-btn'; btn.textContent = '⛶ expand';
     btn.dataset.fieldId = ta.id; btn.dataset.label = label;
     btn.addEventListener('click', e => { e.preventDefault(); openFullscreen(ta.id, label); });
-    ta.parentElement.style.position = 'relative';
-    ta.parentElement.appendChild(btn);
+    wrap.append(tok, btn);
   });
 
   // Sampler collapse toggle
@@ -622,8 +637,16 @@ function renderPromptList(prompts) {
       const expBtn = document.createElement('button'); expBtn.className='expand-btn'; expBtn.textContent='⛶ expand';
       expBtn.addEventListener('click', e => { e.preventDefault(); openFullscreen(ta.id, prompt.name || specialInfo?.label || 'Prompt Content'); });
 
-      const taWrap = document.createElement('div'); taWrap.style.position='relative';
-      taWrap.append(ta, expBtn);
+      const tok = document.createElement('span'); tok.className = 'tok-count';
+      const updateTok = () => {
+        const t = Math.round((ta.value || '').length / 3.5);
+        tok.textContent = (ta.value || '').length + ' chars · ~' + t + ' tokens';
+        tok.className = 'tok-count' + (t > 1500 ? ' tok-over' : t > 800 ? ' tok-warn' : '');
+      };
+      ta.addEventListener('input', updateTok); updateTok();
+
+      const taWrap = document.createElement('div'); taWrap.className = 'content-wrap';
+      taWrap.append(ta, tok, expBtn);
 
       // Flags row — marker + system_prompt auto-managed, only expose forbid_overrides
       const flags = document.createElement('div'); flags.style.cssText='display:flex;gap:.65rem;flex-wrap:wrap;align-items:center';
