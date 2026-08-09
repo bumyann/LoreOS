@@ -11,6 +11,7 @@ const SYNC_KEYS = [
   'aet_title_main','aet_title_sub',
   'aet_font_fp','aet_font_fx','aet_font_fb',
   'aet_theme_slots',
+  'loreos_notebook',
 ];
 
 // Human-readable module labels for the import checklist
@@ -23,6 +24,7 @@ const SYNC_MODULES = [
   { key: 'tpl_char',  label: 'Character Templates', keys: ['aet_tpl_char'] },
   { key: 'tpl_preset',label: 'Prompt Library',      keys: ['aet_tpl_preset'] },
   { key: 'settings',  label: 'Settings & Theme',    keys: ['aet_theme','aet_zoom','aet_css','aet_css_light','aet_title_main','aet_title_sub','aet_font_fp','aet_font_fx','aet_font_fb','aet_theme_slots'] },
+  { key: 'journal',   label: 'Journal',             keys: ['loreos_notebook'] },
 ];
 
 // Selective library module map (used by per-library export/import)

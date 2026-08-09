@@ -218,6 +218,8 @@ function wireEvents() {
   g('filePresetInput').onchange = handlePresetImport;
   g('charImportPngBtn').onclick = () => { g('fileCharInput').accept = '.png'; g('fileCharInput').click(); };
   g('fileCharInput').onchange = handleCharImport;
+  if (g('charImportCharxBtn')) g('charImportCharxBtn').onclick = () => { if(g('fileCharxInput')) g('fileCharxInput').click(); };
+  if (g('fileCharxInput')) g('fileCharxInput').onchange = handleCharxImport;
   g('presetImportBtn').onclick = () => { g('filePresetInput').click(); };
   g('newEntryBtnAlt').onclick = openEntryPicker;
   g('helpBtn').onclick = () => openModal('helpModal');
@@ -256,8 +258,8 @@ function wireEvents() {
   document.addEventListener('click', e => {
     const closeTarget = e.target.closest('[data-close]');
     if (closeTarget) { closeModal(closeTarget.dataset.close); return; }
-    // Click outside modal box to close (fullscreenModal is exempt — must use Apply/Cancel/Close)
-    if (e.target.classList.contains('modal') && e.target.id && e.target.id !== 'fullscreenModal') closeModal(e.target.id);
+    // Click outside modal box to close
+    if (e.target.classList.contains('modal') && e.target.id) closeModal(e.target.id);
   });
 
   // Search & Replace

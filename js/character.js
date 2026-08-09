@@ -168,8 +168,7 @@ function renderCharEditor() {
   const pers = get('personality', d.personality);
   const scen = get('scenario', d.scenario);
   const first = get('first_mes', d.first_mes);
-  const firstMesTitle = get('first_mes_title', d._gtMainTitle || (d.extensions && d.extensions.greeting_tools && d.extensions.greeting_tools.mainGreeting ? d.extensions.greeting_tools.mainGreeting.title : '') || '');
-  const firstMesDesc  = get('first_mes_desc',  d._gtMainDesc  || (d.extensions && d.extensions.greeting_tools && d.extensions.greeting_tools.mainGreeting ? d.extensions.greeting_tools.mainGreeting.description : '') || '');
+
   const mesEx = get('mes_example', d.mes_example);
   const sysPrompt = get('system_prompt', d.system_prompt);
   const phi = get('post_history_instructions', d.post_history_instructions);
@@ -229,7 +228,6 @@ function renderCharEditor() {
 
     <div class="fg">
       <label class="flabel">First Message (Greeting)</label>
-      <input id="chFirstTitle" class="finput" style="margin-bottom:.35rem" placeholder="Greeting title (optional)..." value="${esc(firstMesTitle)}">
       <textarea id="chFirst" class="ftextarea" style="min-height:110px" placeholder="The opening message...">${esc(first)}</textarea>
     </div>
 
@@ -286,6 +284,7 @@ function renderCharEditor() {
           <button class="dd-item" id="chExportJsonBtn">{ } ST / JanitorAI (V3 JSON)</button>
           <button class="dd-item" id="chExportPngBtn">🖼 ST / JanitorAI (PNG Card)</button>
           <button class="dd-item" id="chExportSaucepanBtn">🍲 SaucepanAI (companion.json)</button>
+          <button class="dd-item" id="chExportCharxBtn">📦 .charx (Lumiverse)</button>
         </div>
       </div>
       <button class="btn btn-err" id="chDeleteBtn">Delete Character</button>
@@ -331,6 +330,7 @@ function renderCharEditor() {
   g('chExportJsonBtn').addEventListener('click', () => exportCharJson(activeCharId));
   g('chExportPngBtn').addEventListener('click', () => openCharPngExport(activeCharId));
   g('chExportSaucepanBtn').addEventListener('click', () => exportCharSaucepan(activeCharId));
+  if (g('chExportCharxBtn')) g('chExportCharxBtn').addEventListener('click', () => exportCharCharx(activeCharId));
   // Wire the char export dropdown
   const ddCharExport = document.getElementById('dd-char-export');
   if (ddCharExport) {
@@ -427,13 +427,6 @@ function renderAltGreetings(list) {
     titleInput.value = titleVal;
     titleInput.addEventListener('input', () => { charUnsaved = true; });
 
-    // Description input
-    const descInput = document.createElement('input');
-    descInput.className = 'finput'; descInput.type = 'text';
-    descInput.placeholder = 'Greeting description (optional)...';
-    descInput.value = typeof greet === 'object' ? (greet.description || '') : '';
-    descInput.addEventListener('input', () => { charUnsaved = true; });
-
     // Message textarea
     const ta = document.createElement('textarea');
     ta.className = 'ftextarea'; ta.style.minHeight = '70px';
@@ -441,7 +434,7 @@ function renderAltGreetings(list) {
     ta.value = messageVal;
     ta.addEventListener('input', () => { charUnsaved = true; });
 
-    block.append(hdr, titleInput, descInput, ta);
+    block.append(hdr, titleInput, ta);
     wrap.append(block);
   });
 }
@@ -451,13 +444,11 @@ function captureCharGreetings() {
   if (!wrap) return charFormState.alternate_greetings || [];
   // Each greeting block has: [0]=header(ignored), [1]=title input, [2]=message textarea
   return [...wrap.children].map(block => {
-    const inputs = block.querySelectorAll('input.finput');
+    const titleInput = block.querySelector('input.finput');
     const ta = block.querySelector('textarea.ftextarea');
-    // inputs[0] = title, inputs[1] = description
     return {
-      title:       inputs[0] ? inputs[0].value : '',
-      description: inputs[1] ? inputs[1].value : '',
-      message:     ta ? ta.value : '',
+      title:   titleInput ? titleInput.value : '',
+      message: ta ? ta.value : '',
     };
   });
 }
@@ -554,9 +545,7 @@ function captureCharState() {
   charFormState.description = g('chDesc')?.value;
   charFormState.personality = g('chPers')?.value;
   charFormState.scenario = g('chScen')?.value;
-  charFormState.first_mes       = g('chFirst')?.value;
-  charFormState.first_mes_title = g('chFirstTitle')?.value || '';
-  charFormState.first_mes_desc  = '';  // description not exposed in UI yet
+  charFormState.first_mes = g('chFirst')?.value;
   charFormState.mes_example = g('chMesEx')?.value;
   charFormState.system_prompt = g('chSysPrompt')?.value;
   charFormState.post_history_instructions = g('chPHI')?.value;
@@ -593,10 +582,6 @@ function saveChar() {
   card.data.alternate_greetings = (s.alternate_greetings || [])
     .map(g => typeof g === 'object' ? (g.message || '') : (g || ''))
     .filter(m => m.trim() !== '');
-
-  // Write greeting_tools extension data for ST GreetingTools round-trip
-  const filteredAlts = (s.alternate_greetings || []).filter(g => (g.message || '').trim() !== '');
-  gtWriteToCard(card, s.first_mes_title || '', s.first_mes_desc || '', filteredAlts);
 
   entry.name = card.data.name;
   entry.savedAt = new Date().toISOString();
@@ -669,23 +654,11 @@ function importCharCard(data, filename, imageData = null) {
   }
   normalizeCharCard(card);
 
-  // Enrich greetings with GreetingTools titles/descriptions if present
-  const gtData = gtReadFromCard(card);
-  if (gtData) {
-    // Store mainGreeting title in extensions for later use in editor
-    card._gtMainTitle = gtData.mainTitle;
-    card._gtMainDesc  = gtData.mainDesc;
-    // Normalize alternate_greetings, applying titles from indexMap
-    card.data.alternate_greetings = (card.data.alternate_greetings || []).map((g, i) => {
-      const plain = typeof g === 'object' ? (g.message || g.content || '') : (g || '');
-      const meta = gtData.alts[i] || {};
-      return { title: meta.title || '', description: meta.description || '', id: meta.id || '', message: plain };
-    });
-  } else {
-    card.data.alternate_greetings = (card.data.alternate_greetings || []).map(g =>
-      typeof g === 'object' ? g : { title: '', description: '', id: '', message: g }
-    );
-  }
+  // Normalize alternate_greetings to {title, message} objects for internal use
+  // (titles used by SaucepanAI export; ST keeps alternate_greetings as plain strings on export)
+  card.data.alternate_greetings = (card.data.alternate_greetings || []).map(g =>
+    typeof g === 'object' ? { title: g.title || '', message: g.message || g.content || '' } : { title: '', message: g || '' }
+  );
 
   card.id = charId();
   charLibrary[card.id] = { id: card.id, name: card.data.name, card, imageData, savedAt: new Date().toISOString() };
@@ -776,6 +749,77 @@ function exportCharSaucepan(id) {
   dlFile(JSON.stringify(companion, null, 2), fn, 'application/json');
   toast('Exported for SaucepanAI: ' + fn, 'ok');
 }
+
+// ═══════════════════════════════════════════════════════
+// CHARX IMPORT / EXPORT (Lumiverse format)
+// .charx is a zip containing card.json + assets/icon/image/main.png
+// Requires JSZip (loaded via CDN)
+// ═══════════════════════════════════════════════════════
+
+function handleCharxImport(e) {
+  const file = e.target.files[0]; if (!file) return;
+  if (typeof JSZip === 'undefined') {
+    toast('JSZip not loaded — check your connection.', 'err'); return;
+  }
+  const r = new FileReader();
+  r.onload = ev => {
+    JSZip.loadAsync(ev.target.result).then(zip => {
+      const cardFile = zip.file('card.json');
+      if (!cardFile) { toast('.charx missing card.json', 'err'); return; }
+
+      const imgFile = zip.file('assets/icon/image/main.png');
+      const cardPromise = cardFile.async('string').then(JSON.parse);
+      const imgPromise  = imgFile
+        ? imgFile.async('base64').then(b64 => 'data:image/png;base64,' + b64)
+        : Promise.resolve(null);
+
+      Promise.all([cardPromise, imgPromise]).then(([cardData, imageData]) => {
+        importCharCard(cardData, file.name, imageData);
+        toast('Imported .charx: ' + (cardData.data && cardData.data.name || file.name), 'ok');
+      }).catch(err => toast('.charx parse error: ' + err.message, 'err'));
+    }).catch(err => toast('.charx zip error: ' + err.message, 'err'));
+  };
+  r.readAsArrayBuffer(file);
+  e.target.value = '';
+}
+
+function exportCharCharx(id) {
+  const entry = charLibrary[id]; if (!entry) return;
+  if (typeof JSZip === 'undefined') {
+    toast('JSZip not loaded — check your connection.', 'err'); return;
+  }
+
+  // Make sure card is saved first
+  captureCharState();
+  saveChar();
+
+  const zip = new JSZip();
+  zip.file('card.json', JSON.stringify(entry.card, null, 2));
+
+  const name = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi, '_');
+
+  const finish = () => {
+    zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }).then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name + '.charx';
+      document.body.append(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      toast('Exported .charx: ' + name, 'ok');
+    }).catch(err => toast('.charx export error: ' + err.message, 'err'));
+  };
+
+  if (entry.imageData) {
+    // imageData is a base64 data URL — extract raw base64
+    const b64 = entry.imageData.split(',')[1];
+    zip.folder('assets/icon/image').file('main.png', b64, { base64: true });
+    finish();
+  } else {
+    // No image stored — export without image
+    finish();
+  }
+}
+
 
 // ── PNG character card embed / extract ──
 // Character data is stored in a tEXt chunk keyword "chara" as base64 JSON.

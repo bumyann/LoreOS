@@ -14,6 +14,7 @@
 <link rel="icon" type="image/x-icon" href="icons/favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=VT323&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -147,6 +148,7 @@
               <div class="dd-menu">
                 <button class="dd-item" id="charImportJsonBtn">📂 Import JSON Card</button>
                 <button class="dd-item" id="charImportPngBtn">🖼 Import PNG Card</button>
+                <button class="dd-item" id="charImportCharxBtn">📦 Import .charx (Lumiverse)</button>
               </div>
             </div>
             <button class="btn btn-s" id="charLibraryBtn">📚 Character Library</button>
@@ -239,6 +241,7 @@
 <input type="file" id="fileMergeInput" accept=".json" style="display:none">
 <input type="file" id="fileSaucepanInput" accept=".json" style="display:none">
 <input type="file" id="fileCharInput" accept=".json,.png" style="display:none">
+<input type="file" id="fileCharxInput" accept=".charx" style="display:none">
 <input type="file" id="filePresetInput" accept=".json" style="display:none">
 
 <!-- Notifications -->
@@ -413,9 +416,6 @@
   </button>
   <button class="mob-nav-btn mob-view-btn" id="mobGoEditor" title="Workshop">
     <span class="icon">✦</span><span class="mob-nav-lbl">Workshop</span>
-  </button>
-  <button class="mob-nav-btn mob-view-btn" id="mobGoLaboratory" title="Laboratory">
-    <span class="icon">🔬</span><span class="mob-nav-lbl">Lab</span>
   </button>
   <div id="mob-nav-sep-views" style="width:1px;background:var(--bd);margin:.3rem .1rem;flex-shrink:0;align-self:stretch;"></div>
 

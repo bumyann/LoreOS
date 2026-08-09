@@ -20,6 +20,7 @@ const ASSETS = [
   '/js/sync.js',
   '/js/mobile.js',
   '/js/tiptap-bundle.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
