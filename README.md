@@ -1,4 +1,4 @@
-# LoreOS
+# LoreOS — From Yuu, For You
 
 **A creator's sanctuary. built for the ones who write too much lore and have too many tabs open.**
 
@@ -10,31 +10,15 @@ Currently compatible with: **SillyTavern**, **JanitorAI** — SaucepanAI support
 
 ---
 
-## 🌐 Use it now
+## Online Website!
 
-**[loreos.pages.dev](https://loreos.pages.dev/)** — hosted, no install needed
+**[loreos.pages.dev](https://loreos.pages.dev/)** — Hosted, no install needed!
 
 ---
 
-## What's in it
+## What's In It?
 
-### 📖 Lorebook
-Import, edit, and export lorebooks. multi-tab editing, search & replace (regex supported), entry merge, fullscreen field editor on every textarea. exports to ST JSON, plain text, or public markdown.
-
-### 🎭 Character Card
-V3 cards as JSON or PNG (real tEXt chunk embed). attach a lorebook to a card, convert pronouns to macros with automatic verb agreement, template library for field snippets.
-
-### ⚙️ Preset
-Full ST chat completion preset editor. sampler sliders, prompt tree with drag-to-reorder, ST system anchors labelled, variable scanner for `{{setvar}}` patterns.
-
-### 📓 Journal
-Private writing space. Notion-style WYSIWYG — type markdown, it renders inline. stays in your browser.
-
-### 🔬 Laboratory *(coming soon)*
-Static analysis tools — token inspector, trigger inspector, conflict detector, consistency checker, and more. Wave 1 needs no API key.
-
-### ✦ General
-Fully customizable themes (both modes, saved slots), template libraries everywhere, rolling 10-snapshot backup history, PWA, mobile-friendly.
+(WIP)
 
 ---
 
@@ -44,39 +28,17 @@ LoreOS is organized around **rooms**, not features — each one has a distinct p
 
 | Room | Status | Purpose |
 |------|--------|---------|
-| 🏠 Home | ✅ | Dashboard — recent items, quick actions |
-| 📚 Library | ✅ | Everything you've made, browsable and searchable |
-| 🛠 Workshop | ✅ | All editors — Lorebook, Character, Preset (Persona, Prompt, Regex stubs coming) |
-| 📓 Journal | ✅ | Private WYSIWYG writing space |
-| 🔬 Laboratory | 🔨 | Analysis tools for cards, lorebooks, and prompts |
-| 🔭 Observatory | 📋 | Timelines, relationship graphs, world maps |
-| 🛒 Market | 📋 | Community sharing of cards, lorebooks, presets, themes |
-
-### Workshop 
-
-| Tab | Status |
-|-----|--------|
-| Lorebook | ✅ shipped |
-| Character | ✅ shipped |
-| Preset | ✅ shipped |
-| Persona | 🔨 coming |
-| Prompt | 🔨 coming — modular prompt workbench |
-| Regex | 🔨 coming — ST regex rule editor |
-
-### Laboratory — tool waves
-
-**Wave 1** *(no API key needed)*
-Token Inspector · Lorebook Trigger Inspector · Prompt Conflict Detector · Character Consistency Checker · Context Viewer · Lorebook Dependency Viewer
-
-**Wave 2** *(BYOK)*
-AI Assistant (creative collaborator modes) · LLM Interpreter · Prompt Health Check
-
-**Wave 3** *(ambitious/later)*
-Prompt Stack Viewer · Prompt Comparator · Instruction Trace · Behaviour Simulator · Testing Grounds · Memory Inspector
+| 🏠 Home | Implemented | Dashboard — recent items, quick actions |
+| 📚 Library | Implemented, WIP | Everything you've made, browsable and searchable |
+| 🛠 Workshop | Implemented, WIP | All editors — Lorebook, Character, Preset (Persona, Prompt, Regex tabs in progress) |
+| 📓 Journal | Implemented, WIP | Private WYSIWYG writing space |
+| 🔬 Laboratory | Not Started | Analysis tools for cards, lorebooks, and prompts |
+| 🔭 Observatory | Unconfirmed | Timelines, relationship graphs, world maps |
+| 🛒 Market | Unconfirmed | Community sharing of cards, lorebooks, presets, themes |
 
 ---
 
-## Running locally
+## Installation
 The hosted version works fine for most people. if you want it fully local:
 
 ### Windows
@@ -100,13 +62,13 @@ bash start-termux.sh
 
 ## Status
 
-LoreOS is in **Early Access** — actively developed, features ship regularly. no version numbers until beta. if something breaks, open an issue or find me.
+LoreOS is in **Early Access** — actively developed, features ship regularly. If something breaks, open an issue or find me on Discord!
 
 ---
 
 ## Credits
 
-Inspired by [SLEd](https://github.com/ActualBroeckchen/SLEd) by ActualBroeckchen — that's where the lorebook editor idea started. go check it out!
+Inspired by [SLEd](https://github.com/ActualBroeckchen/SLEd) by ActualBroeckchen — that's where the lorebook editor idea started. Go check it out!
 
 ---
 
