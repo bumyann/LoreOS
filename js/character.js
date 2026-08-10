@@ -347,7 +347,7 @@ function renderCharEditor() {
     const updateTok = () => {
       const t = Math.round((ta.value || '').length / 3.5);
       tok.textContent = (ta.value || '').length + ' chars · ~' + t + ' tokens';
-      tok.className = 'tok-count' + (t > 1500 ? ' tok-over' : t > 800 ? ' tok-warn' : '');
+      tok.className = 'tok-count';
     };
     ta.addEventListener('input', updateTok);
     updateTok();

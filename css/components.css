@@ -62,8 +62,7 @@
 .kw-logic{display:flex;flex-direction:column;gap:.22rem;min-width:105px}
 .content-wrap{position:relative}
 .tok-count{position:absolute;bottom:.35rem;right:.45rem;font-family:var(--fx);font-size:.6rem;color:var(--txm);background:var(--bg);padding:1px 5px;border:1px solid var(--bd);border-radius:2px;pointer-events:none;letter-spacing:.4px}
-.tok-warn{color:var(--warn)}
-.tok-over{color:var(--err)}
+
 .cb-row{display:flex;align-items:center;gap:.35rem;cursor:pointer}
 .cb-row input{accent-color:var(--p);width:12px;height:12px;flex-shrink:0;cursor:pointer}
 .adv{border:1px solid var(--bd);border-radius:4px;overflow:hidden;background:var(--bg2)}
