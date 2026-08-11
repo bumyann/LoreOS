@@ -265,8 +265,8 @@ function wireEvents() {
   document.addEventListener('click', e => {
     const closeTarget = e.target.closest('[data-close]');
     if (closeTarget) { closeModal(closeTarget.dataset.close); return; }
-    // Click outside modal box to close
-    if (e.target.classList.contains('modal') && e.target.id) closeModal(e.target.id);
+    // Click outside modal box to close (fullscreenModal is exempt — explicit X/Cancel/Apply only)
+    if (e.target.classList.contains('modal') && e.target.id && e.target.id !== 'fullscreenModal') closeModal(e.target.id);
   });
 
   // Search & Replace
