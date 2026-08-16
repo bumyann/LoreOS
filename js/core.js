@@ -219,6 +219,8 @@ function wireEvents() {
   g('charImportPngBtn').onclick = () => { g('fileCharInput').accept = '.png'; g('fileCharInput').click(); };
   g('fileCharInput').onchange = handleCharImport;
   if (g('charImportCharxBtn')) g('charImportCharxBtn').onclick = () => { if(g('fileCharxInput')) g('fileCharxInput').click(); };
+  if (g('charImportSaucepanBtn')) g('charImportSaucepanBtn').onclick = () => { if(g('fileCharCompanionInput')) g('fileCharCompanionInput').click(); };
+  if (g('fileCharCompanionInput')) g('fileCharCompanionInput').onchange = handleCharCompanionImport;
   if (g('fileCharxInput')) g('fileCharxInput').onchange = handleCharxImport;
   g('presetImportBtn').onclick = () => { g('filePresetInput').click(); };
   // Header export buttons (char)

@@ -130,13 +130,10 @@ function renderCharSidebar() {
 
     const head = document.createElement('div');
     head.className = 'ei-head';
-    const emoji = document.createElement('span');
-    emoji.className = 'ei-emoji';
-    emoji.textContent = '🎭';
     const name = document.createElement('div');
     name.className = 'ei-name';
     name.textContent = entry.name || entry.card.data.name || 'Unnamed';
-    head.append(emoji, name);
+    head.append(name);
     li.append(head);
 
     const acts = document.createElement('div');
@@ -316,10 +313,10 @@ function renderCharEditor() {
       <div class="dd" id="dd-char-export">
         <button class="btn btn-s dd-btn">&#8657; Export</button>
         <div class="dd-menu">
-          <button class="dd-item" id="chExportJsonBtn">{ } ST / JanitorAI (V3 JSON)</button>
-          <button class="dd-item" id="chExportPngBtn">🖼 ST / JanitorAI (PNG Card)</button>
-          <button class="dd-item" id="chExportSaucepanBtn">🍲 SaucepanAI (companion.json)</button>
-          <button class="dd-item" id="chExportCharxBtn">📦 .charx (Lumiverse)</button>
+          <button class="dd-item" id="chExportJsonBtn">ST / JanitorAI (V3 JSON)</button>
+          <button class="dd-item" id="chExportPngBtn">ST / JanitorAI (PNG Card)</button>
+          <button class="dd-item" id="chExportSaucepanBtn">SaucepanAI (companion.json)</button>
+          <button class="dd-item" id="chExportCharxBtn">.charx (Lumiverse)</button>
         </div>
       </div>
       <button class="btn btn-err" id="chDeleteBtn">Delete Character</button>
@@ -844,6 +841,47 @@ function handleCharImport(e) {
     };
     r.readAsText(file);
   }
+  e.target.value = '';
+}
+
+
+function handleCharCompanionImport(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      // companion.json structure: { name, persona, ... starting_scenarios: [{title, text}] }
+      if (!data.name && !data.persona) { toast('Unrecognized companion.json format.', 'err'); return; }
+      const altGreets = (data.starting_scenarios || []).slice(1).map(s => ({
+        title: s.title || '',
+        message: s.text || s.message || ''
+      }));
+      const firstMes = data.starting_scenarios?.[0]?.text || data.starting_scenarios?.[0]?.message || '';
+      const card = {
+        spec: 'chara_card_v2', spec_version: '2.0',
+        data: {
+          name: data.name || 'Unnamed',
+          description: data.persona || data.description || '',
+          personality: data.personality || '',
+          scenario: data.scenario || '',
+          first_mes: firstMes,
+          mes_example: data.mes_example || data.example_dialogue || '',
+          system_prompt: data.system_prompt || '',
+          post_history_instructions: data.post_history_instructions || '',
+          creator_notes: data.creator_notes || '',
+          creator: data.creator || '',
+          character_version: data.character_version || '',
+          tags: data.tags || [],
+          alternate_greetings: altGreets,
+          extensions: data.extensions || {},
+          character_book: data.character_book || null
+        }
+      };
+      importCharCard(card, file.name);
+    } catch(err) { toast('Companion import error: ' + err.message, 'err'); console.error(err); }
+  };
+  r.readAsText(file);
   e.target.value = '';
 }
 
