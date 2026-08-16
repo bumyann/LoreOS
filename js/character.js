@@ -489,11 +489,32 @@ function renderAltGreetings(list) {
     // Message textarea
     const ta = document.createElement('textarea');
     ta.className = 'ftextarea'; ta.style.minHeight = '70px';
+    ta.id = 'chGreet_' + i;
     ta.placeholder = 'Greeting message #' + (i + 1) + '...';
     ta.value = messageVal;
     ta.addEventListener('input', () => { charUnsaved = true; });
 
-    block.append(hdr, titleInput, ta);
+    // content-wrap with tok-count + expand button
+    const cwrap = document.createElement('div');
+    cwrap.className = 'content-wrap';
+    cwrap.appendChild(ta);
+    const tok = document.createElement('span');
+    tok.className = 'tok-count';
+    const updateTok = () => {
+      const t = Math.round((ta.value || '').length / 3.5);
+      tok.textContent = (ta.value || '').length + ' chars · ~' + t + ' tokens';
+    };
+    ta.addEventListener('input', updateTok);
+    updateTok();
+    const expBtn = document.createElement('button');
+    expBtn.className = 'expand-btn';
+    expBtn.textContent = '⛶ expand';
+    expBtn.dataset.fieldId = ta.id;
+    expBtn.dataset.label = 'Greeting #' + (i + 1);
+    expBtn.addEventListener('click', e => { e.preventDefault(); openFullscreen(ta.id, 'Greeting #' + (i + 1)); });
+    cwrap.append(tok, expBtn);
+
+    block.append(hdr, titleInput, cwrap);
     wrap.append(block);
   });
 }
@@ -1046,7 +1067,8 @@ function openCharPngExport(id) {
   const doExport = (arrayBuf) => {
     try {
       const buf = new Uint8Array(arrayBuf);
-      const outBuf = embedCharInPng(buf, entry.card);
+      const v2card = Object.assign({}, entry.card, { spec: 'chara_card_v2', spec_version: '2.0' });
+      const outBuf = embedCharInPng(buf, v2card);
       const blob = new Blob([outBuf], { type: 'image/png' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
