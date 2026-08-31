@@ -12,7 +12,7 @@ Currently compatible with: **SillyTavern**, **JanitorAI** — SaucepanAI support
 
 ## Online Website!
 
-**[loreos.pages.dev](https://loreos.pages.dev/)** — Hosted, no install needed!
+**[loreos.net](https://loreos.net)** — Hosted, no install needed!
 
 ---
 
