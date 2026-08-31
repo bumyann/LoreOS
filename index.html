@@ -21,6 +21,7 @@
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/components.css">
 <script src="js/tiptap-bundle.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <div id="app">
@@ -112,11 +113,6 @@
           <input type="text" id="lorebookName" placeholder="untitled">
         </div>
         <div id="editor-header-right">
-          <!-- Item-level undo/redo (session history) -->
-          <div id="itemUndoRedoBtns" style="display:none;gap:.25rem;align-items:center">
-            <button id="itemUndoBtn" class="btn btn-s btn-sm item-ur-btn" title="Undo last change" disabled>↩ Undo</button>
-            <button id="itemRedoBtn" class="btn btn-s btn-sm item-ur-btn" title="Redo" disabled>Redo ↪</button>
-          </div>
           <!-- LOREBOOK MODE ACTIONS -->
           <div class="hdr-actions mode-actions" id="hdr-lore">
             <div class="dd" id="dd-import">
@@ -781,6 +777,26 @@
         </div>
       </div>
 
+      <div class="settings-section" id="gdriveSyncSection">
+        <div class="settings-section-title">☁ Google Drive Sync</div>
+        <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);line-height:1.6;margin-bottom:.5rem">
+          Auto-syncs your data to a single <code>LoreOS-sync.json</code> file in your Drive.<br>
+          LoreOS only sees files it creates — nothing else in your Drive.
+        </div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-bottom:.4rem">
+          <button class="btn btn-ok btn-sm" id="gdriveConnectBtn">Connect Google Drive</button>
+          <button class="btn btn-err btn-sm" id="gdriveDisconnectBtn" style="display:none">Disconnect</button>
+        </div>
+        <div id="gdriveStatus" style="font-family:var(--fx);font-size:.68rem;margin-bottom:.4rem"></div>
+        <div id="gdriveActions" style="display:none;gap:.4rem;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-p btn-sm" id="gdrivePushBtn">⬆ Push Now</button>
+          <button class="btn btn-s btn-sm" id="gdrivePullBtn">⬇ Pull from Drive</button>
+        </div>
+        <div style="font-family:var(--fx);font-size:.62rem;color:var(--txm);margin-top:.5rem;line-height:1.5">
+          // <a href="https://myaccount.google.com/permissions" target="_blank" style="color:var(--txm)">revoke access anytime</a> · data goes directly to your Drive, never through our servers
+        </div>
+      </div>
+
       <div class="settings-section">
         <div class="settings-section-title">⇅ Sync</div>
         <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);line-height:1.6;margin-bottom:.5rem">
@@ -975,6 +991,7 @@
 <script src="js/fullscreen.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/sync.js"></script>
+<script src="js/gdrive.js"></script>
 <script src="js/mobile.js"></script>
 <script src="js/router.js"></script>
 

@@ -18,6 +18,7 @@ const ASSETS = [
   '/js/fullscreen.js',
   '/js/settings.js',
   '/js/sync.js',
+  '/js/gdrive.js',
   '/js/mobile.js',
   '/js/tiptap-bundle.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',

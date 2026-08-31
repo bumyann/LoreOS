@@ -267,9 +267,11 @@ function libImportSelective(file, type, onDone) {
 }
 
 // ═══════════════════════════════════════════════════════
-// AUTO-PUSH STUB (no-op — kept so core.js calls don't break)
+// AUTO-PUSH — triggers GDrive debounced push on any save
 // ═══════════════════════════════════════════════════════
-function syncAutoPush() {}
+function syncAutoPush() {
+  if (typeof gdriveAutoPush === 'function') gdriveAutoPush();
+}
 
 // ═══════════════════════════════════════════════════════
 // WIRE
@@ -280,6 +282,7 @@ function wireSync() {
 
   // Bulk import
   g('syncImportBtn')?.addEventListener('click', () => g('syncImportFile').click());
+
   g('syncImportFile')?.addEventListener('change', e => {
     syncImportFile(e.target.files[0]);
     e.target.value = '';
@@ -325,6 +328,9 @@ function wireSync() {
     });
     e.target.value = '';
   });
+
+  // Google Drive
+  if (typeof wireGdrive === 'function') wireGdrive();
 }
 
 // Helper: figure out which library is currently open in the lib modal
