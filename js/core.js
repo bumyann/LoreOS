@@ -419,11 +419,10 @@ function attachFieldUndoRedo(ta) {
   const pair = document.createElement('div');
   pair.className = 'field-ur-pair';
   pair.innerHTML =
-    `<span class="field-ur-label">field:</span>` +
     `<button class="field-ur-btn" title="Undo" tabindex="-1">↩</button>` +
     `<button class="field-ur-btn" title="Redo" tabindex="-1">↪</button>`;
-  const undoBtn = pair.children[1];
-  const redoBtn = pair.children[2];
+  const undoBtn = pair.children[0];
+  const redoBtn = pair.children[1];
   undoBtn.addEventListener('mousedown', e => { e.preventDefault(); undo(); });
   redoBtn.addEventListener('mousedown', e => { e.preventDefault(); redo(); });
   // Touch support for mobile
