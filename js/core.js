@@ -29,6 +29,14 @@ let activePresetId = null;
 let presetFormState = {};
 let presetUnsaved = false;
 
+// ── Workshop-level tabs ──
+// wsItems: array of { id, type: 'lore'|'char'|'preset', itemId, unsaved }
+// Max 5 tabs open at once
+const WS_MAX_TABS = 5;
+let wsItems = [];      // open workshop tabs
+let wsActiveId = null; // currently focused ws tab id
+let wsNextId = 1;      // internal tab id counter
+
 // ── Pronoun/noun tool globals — must live here so wireEvents can reference PT ──
 const PT = {
   open: false,
@@ -131,6 +139,8 @@ function loadFromStorage() {
 
     charLibrary = JSON.parse(localStorage.getItem('aet_charLibrary') || '{}');
     presetLibrary = JSON.parse(localStorage.getItem('aet_presetLibrary') || '{}');
+
+    renderWsTabs();
 
     if (Object.keys(lorebook.entries).length > 0) {
       renderList(); renderTabs();
@@ -293,6 +303,18 @@ function wireEvents() {
   // Library
   g('libSaveBtn').onclick = libSaveCurrent;
 
+  // Workshop tab bar
+  g('workshopTabAdd')?.addEventListener('click', openWsPicker);
+
+  // Workshop picker type tabs
+  document.querySelectorAll('.ws-picker-type').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.ws-picker-type').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderWsPickerList(btn.dataset.type);
+    });
+  });
+
   // Keyboard shortcuts
   document.addEventListener('keydown', e => {
     const inInput = ['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName);
@@ -341,6 +363,327 @@ function toggleTheme() {
   document.body.classList.toggle('pink');
   localStorage.setItem('aet_theme', document.body.classList.contains('pink') ? 'pink' : 'dark');
   applyCustomTheme(); // re-apply custom overrides for the new mode
+}
+
+// ═══════════════════════════════════════════════════════
+// WORKSHOP TABS
+// ═══════════════════════════════════════════════════════
+
+function wsTabId() { return wsNextId++; }
+
+function wsOpenItem(type, itemId) {
+  // If already open, just focus it
+  const existing = wsItems.find(t => t.type === type && t.itemId === itemId);
+  if (existing) { wsActivate(existing.id); return; }
+
+  if (wsItems.length >= WS_MAX_TABS) {
+    toast(`Max ${WS_MAX_TABS} tabs open — close one first.`, 'warn');
+    return;
+  }
+
+  const tab = { id: wsTabId(), type, itemId, unsaved: false };
+  wsItems.push(tab);
+  wsActivate(tab.id);
+  closeModal('wsPickerModal');
+}
+
+function wsActivate(tabId) {
+  wsActiveId = tabId;
+  const tab = wsItems.find(t => t.id === tabId);
+  if (!tab) return;
+  renderWsTabs();
+  // Switch editor mode and load the item
+  if (tab.type === 'lore') {
+    if (typeof switchMode === 'function') switchMode('lore');
+    // lorebooks keyed by name
+    if (typeof libLoad === 'function') libLoad(tab.itemId);
+  } else if (tab.type === 'char') {
+    if (typeof switchMode === 'function') switchMode('char');
+    if (typeof openChar === 'function') openChar(tab.itemId);
+  } else if (tab.type === 'preset') {
+    if (typeof switchMode === 'function') switchMode('preset');
+    if (typeof openPreset === 'function') openPreset(tab.itemId);
+  }
+}
+
+function wsCloseTab(tabId) {
+  const tab = wsItems.find(t => t.id === tabId);
+  if (!tab) return;
+
+  // Autosave before closing
+  if (tab.type === 'lore') {
+    const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+    if (lib[tab.itemId]) itemHistoryPush('lore', tab.itemId, lib[tab.itemId]);
+  } else if (tab.type === 'char') {
+    if (charLibrary[tab.itemId]) itemHistoryPush('char', tab.itemId, JSON.parse(JSON.stringify(charLibrary[tab.itemId])));
+  } else if (tab.type === 'preset') {
+    if (presetLibrary[tab.itemId]) itemHistoryPush('preset', tab.itemId, JSON.parse(JSON.stringify(presetLibrary[tab.itemId])));
+  }
+
+  wsItems = wsItems.filter(t => t.id !== tabId);
+
+  // Focus adjacent tab if we closed the active one
+  if (wsActiveId === tabId) {
+    wsActiveId = wsItems.length ? wsItems[wsItems.length - 1].id : null;
+    if (wsActiveId) wsActivate(wsActiveId);
+    else renderWsTabs();
+  } else {
+    renderWsTabs();
+  }
+}
+
+function wsMarkUnsaved(type, itemId) {
+  const tab = wsItems.find(t => t.type === type && t.itemId === itemId);
+  if (tab) { tab.unsaved = true; renderWsTabs(); }
+}
+
+function wsMarkSaved(type, itemId) {
+  const tab = wsItems.find(t => t.type === type && t.itemId === itemId);
+  if (tab) { tab.unsaved = false; renderWsTabs(); }
+}
+
+function renderWsTabs() {
+  const bar = g('workshopTabs');
+  if (!bar) return;
+  bar.innerHTML = '';
+
+  const TYPE_LABEL = { lore: 'LB', char: 'CH', preset: 'PS' };
+
+  wsItems.forEach(tab => {
+    let name = '...';
+    if (tab.type === 'lore') {
+      const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+      name = lib[tab.itemId]?.name || 'Untitled';
+    } else if (tab.type === 'char') {
+      name = charLibrary[tab.itemId]?.name || 'Untitled';
+    } else if (tab.type === 'preset') {
+      name = presetLibrary[tab.itemId]?.name || 'Untitled';
+    }
+
+    const el = document.createElement('div');
+    el.className = 'ws-tab' + (tab.id === wsActiveId ? ' active' : '') + (tab.unsaved ? ' unsaved' : '');
+    el.innerHTML = `
+      <span class="ws-tab-type">${TYPE_LABEL[tab.type] || ''}</span>
+      <span class="ws-tab-label" title="${name}">${name}</span>
+      <span class="ws-tab-unsaved"></span>
+      <span class="ws-tab-x" data-close-tab="${tab.id}">×</span>`;
+    el.addEventListener('click', e => {
+      if (e.target.dataset.closeTab) { wsCloseTab(parseInt(e.target.dataset.closeTab)); return; }
+      wsActivate(tab.id);
+    });
+    bar.appendChild(el);
+  });
+
+  // Show/hide the add button based on limit
+  const addBtn = g('workshopTabAdd');
+  if (addBtn) addBtn.style.opacity = wsItems.length >= WS_MAX_TABS ? '.35' : '1';
+}
+
+function openWsPicker() {
+  if (wsItems.length >= WS_MAX_TABS) { toast(`Max ${WS_MAX_TABS} tabs open.`, 'warn'); return; }
+  // Reset to lorebook tab
+  document.querySelectorAll('.ws-picker-type').forEach(b => b.classList.toggle('active', b.dataset.type === 'lore'));
+  renderWsPickerList('lore');
+  openModal('wsPickerModal');
+}
+
+function renderWsPickerList(type) {
+  const list = g('wsPickerList');
+  if (!list) return;
+  list.innerHTML = '';
+
+  let items = [];
+  if (type === 'lore') {
+    const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+    // Lorebook lib: { [name]: { name, lb, savedAt } } — add name as id for consistency
+    items = Object.values(lib).map(b => ({ id: b.name, name: b.name, savedAt: b.savedAt }))
+      .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+  } else if (type === 'char') {
+    items = Object.values(charLibrary).sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+  } else if (type === 'preset') {
+    items = Object.values(presetLibrary).sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+  }
+
+  if (!items.length) {
+    list.innerHTML = `<div class="lib-empty">// no ${type === 'lore' ? 'lorebooks' : type === 'char' ? 'characters' : 'presets'} saved yet</div>`;
+    return;
+  }
+
+  const alreadyOpen = new Set(wsItems.filter(t => t.type === type).map(t => t.itemId));
+
+  items.forEach(entry => {
+    const date = new Date(entry.savedAt).toLocaleDateString();
+    const isOpen = alreadyOpen.has(entry.id);
+    const item = document.createElement('div');
+    item.className = 'lib-item' + (isOpen ? ' active' : '');
+    item.innerHTML = `
+      <span class="lib-name">${entry.name || 'Unnamed'}</span>
+      <span class="lib-meta">${isOpen ? 'open' : date}</span>
+      <div class="lib-acts">
+        <button class="btn btn-s btn-sm" ${isOpen ? 'disabled' : ''}>${isOpen ? 'Open' : 'Open'}</button>
+      </div>`;
+    if (!isOpen) {
+      item.querySelector('button').addEventListener('click', () => wsOpenItem(type, entry.id));
+      item.querySelector('.lib-name').addEventListener('click', () => wsOpenItem(type, entry.id));
+    }
+    list.appendChild(item);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// VERSION HISTORY (per-item, stored inside library entries)
+// ═══════════════════════════════════════════════════════
+
+const ITEM_HIST_MAX = 10;
+
+// Push an autosave snapshot into an item's history.
+// For lorebooks, pass the raw entry object (has a .lb field).
+// For char/preset, pass the library entry directly.
+function itemHistoryPush(type, itemId, entryOrData, label = null) {
+  // Determine what to compress: lorebooks store the lorebook under .lb
+  const payload = (type === 'lore' && entryOrData?.lb) ? entryOrData.lb : entryOrData;
+  const snapshot = {
+    ts: new Date().toISOString(),
+    label: label || null,
+    data: LZString.compress(JSON.stringify(payload)),
+  };
+
+  if (type === 'lore') {
+    const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+    if (!lib[itemId]) return;
+    if (!lib[itemId].history) lib[itemId].history = [];
+    lib[itemId].history.unshift(snapshot);
+    if (lib[itemId].history.length > ITEM_HIST_MAX) lib[itemId].history.splice(ITEM_HIST_MAX);
+    localStorage.setItem('aet_library', JSON.stringify(lib));
+  } else if (type === 'char') {
+    if (!charLibrary[itemId]) return;
+    if (!charLibrary[itemId].history) charLibrary[itemId].history = [];
+    charLibrary[itemId].history.unshift(snapshot);
+    if (charLibrary[itemId].history.length > ITEM_HIST_MAX) charLibrary[itemId].history.splice(ITEM_HIST_MAX);
+    saveCharLibrary();
+  } else if (type === 'preset') {
+    if (!presetLibrary[itemId]) return;
+    if (!presetLibrary[itemId].history) presetLibrary[itemId].history = [];
+    presetLibrary[itemId].history.unshift(snapshot);
+    if (presetLibrary[itemId].history.length > ITEM_HIST_MAX) presetLibrary[itemId].history.splice(ITEM_HIST_MAX);
+    savePresetLibrary();
+  }
+}
+
+// Save a named checkpoint
+function itemHistorySaveCheckpoint(type, itemId, label) {
+  if (!label || !label.trim()) { toast('Enter a checkpoint name.', 'warn'); return; }
+  if (type === 'lore') {
+    const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+    if (lib[itemId]) itemHistoryPush(type, itemId, lib[itemId], label.trim());
+  } else if (type === 'char') {
+    itemHistoryPush(type, itemId, charLibrary[itemId], label.trim());
+  } else if (type === 'preset') {
+    itemHistoryPush(type, itemId, presetLibrary[itemId], label.trim());
+  }
+  toast('Checkpoint saved.', 'ok');
+}
+
+// Open the version history modal for an item
+function openItemHistory(type, itemId) {
+  let entry, history;
+  if (type === 'lore') {
+    const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+    entry = lib[itemId];
+  } else if (type === 'char') {
+    entry = charLibrary[itemId];
+  } else if (type === 'preset') {
+    entry = presetLibrary[itemId];
+  }
+
+  if (!entry) { toast('Item not found.', 'err'); return; }
+  history = entry.history || [];
+
+  // Build and show modal dynamically
+  let existing = g('itemHistoryModal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'itemHistoryModal';
+  modal.className = 'modal open';
+  modal.innerHTML = `
+    <div class="modal-box lg">
+      <div class="modal-head">
+        <h2>Version History — ${entry.name || 'Untitled'}</h2>
+        <button class="modal-x" data-close="itemHistoryModal">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex;gap:.4rem;align-items:center;margin-bottom:.75rem;flex-wrap:wrap">
+          <input type="text" id="histCheckpointLabel" class="finput" style="flex:1;min-width:140px" placeholder="Checkpoint name...">
+          <button class="btn btn-s btn-sm" id="histSaveCheckpointBtn">Save Checkpoint</button>
+        </div>
+        <div style="font-family:var(--fx);font-size:.65rem;color:var(--txm);margin-bottom:.55rem;letter-spacing:.3px">
+          Up to ${ITEM_HIST_MAX} snapshots — autosaved on close and export. Restore replaces current data.
+        </div>
+        <div id="histList" class="lib-list" style="max-height:340px">
+          ${!history.length ? '<div class="lib-empty">// no snapshots yet — close a tab or export to create one</div>' : ''}
+        </div>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+
+  modal.querySelector('#histSaveCheckpointBtn').addEventListener('click', () => {
+    const label = modal.querySelector('#histCheckpointLabel').value;
+    itemHistorySaveCheckpoint(type, itemId, label);
+    modal.querySelector('#histCheckpointLabel').value = '';
+    openItemHistory(type, itemId); // refresh
+  });
+
+  modal.addEventListener('click', e => {
+    const closeTarget = e.target.closest('[data-close]');
+    if (closeTarget) { modal.remove(); return; }
+    if (e.target === modal) modal.remove();
+  });
+
+  const listEl = modal.querySelector('#histList');
+
+  history.forEach((snap, i) => {
+    const ts = new Date(snap.ts).toLocaleString();
+    const isCheckpoint = !!snap.label;
+    const item = document.createElement('div');
+    item.className = 'hist-item' + (isCheckpoint ? ' checkpoint' : '');
+    item.innerHTML = `
+      <span class="hist-ts">${ts} ${i === 0 ? '<span style="color:var(--ok);font-size:.6rem">● latest</span>' : ''}</span>
+      ${isCheckpoint ? `<span class="hist-label">${snap.label}</span>` : '<span class="hist-auto">auto</span>'}
+      <div class="hist-acts">
+        <button class="btn btn-s btn-sm hist-restore">Restore</button>
+        <button class="btn btn-s btn-sm hist-export">Export</button>
+      </div>`;
+
+    item.querySelector('.hist-restore').addEventListener('click', () => {
+      try {
+        const data = JSON.parse(LZString.decompress(snap.data));
+        if (type === 'lore') {
+          const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+          if (lib[itemId]) { lib[itemId].lb = data; localStorage.setItem('aet_library', JSON.stringify(lib)); }
+        } else if (type === 'char') {
+          if (charLibrary[itemId]) { Object.assign(charLibrary[itemId], data); saveCharLibrary(); }
+        } else if (type === 'preset') {
+          if (presetLibrary[itemId]) { Object.assign(presetLibrary[itemId], data); savePresetLibrary(); }
+        }
+        modal.remove();
+        toast('Restored to ' + ts + ' — reload to apply.', 'ok');
+      } catch(e) { toast('Snapshot corrupted.', 'err'); }
+    });
+
+    item.querySelector('.hist-export').addEventListener('click', () => {
+      try {
+        const data = JSON.parse(LZString.decompress(snap.data));
+        const json = JSON.stringify(data, null, 2);
+        const name = (entry.name || 'item').replace(/\s+/g,'-').toLowerCase();
+        const date = snap.ts.slice(0,10);
+        dlFile(json, `${name}-snapshot-${date}.json`, 'application/json');
+      } catch(e) { toast('Snapshot corrupted.', 'err'); }
+    });
+
+    listEl.appendChild(item);
+  });
 }
 
 

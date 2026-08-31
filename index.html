@@ -192,6 +192,12 @@
         </div>
       </header>
 
+      <!-- Workshop-level tabs (open items: lorebooks, chars, presets) -->
+      <div id="workshopTabBar">
+        <div id="workshopTabs"></div>
+        <button id="workshopTabAdd" class="ws-tab-add" title="Open item">+</button>
+      </div>
+
       <!-- Editor mode tabs -->
       <div id="modeTabs">
         <button class="mode-tab active" data-mode="lore">Lorebook</button>
@@ -845,6 +851,21 @@
       <div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--bd);font-family:var(--fx);font-size:.7rem;color:var(--txm);letter-spacing:.5px">
         LoreOS // Universal Editor — built for SillyTavern · JanitorAI · SaucepanAI
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- WORKSHOP TAB PICKER MODAL -->
+<div id="wsPickerModal" class="modal">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-head"><h2>Open Item</h2><button class="modal-x" data-close="wsPickerModal">×</button></div>
+    <div class="modal-body">
+      <div style="display:flex;gap:.3rem;margin-bottom:.75rem" id="wsPickerTypeTabs">
+        <button class="ws-picker-type active" data-type="lore">Lorebook</button>
+        <button class="ws-picker-type" data-type="char">Character</button>
+        <button class="ws-picker-type" data-type="preset">Preset</button>
+      </div>
+      <div id="wsPickerList" class="lib-list" style="max-height:300px"></div>
     </div>
   </div>
 </div>

@@ -803,6 +803,8 @@ function saveChar() {
   entry.savedAt = new Date().toISOString();
   charUnsaved = false;
   charFormState = {};
+  // Snapshot before overwriting (history stored inside entry)
+  if (typeof itemHistoryPush === 'function') itemHistoryPush('char', activeCharId, JSON.parse(JSON.stringify(entry)));
   saveCharLibrary();
   renderCharSidebar();
   toast('Character saved.', 'ok');
@@ -1290,10 +1292,12 @@ function openCharLibrary() {
         <span class="lib-meta">${date}</span>
         <div class="lib-acts">
           <button class="btn btn-s btn-sm lib-load">Load</button>
+          <button class="btn btn-s btn-sm lib-hist lib-item-hist" title="Version history">🕓</button>
           <button class="btn btn-err btn-sm lib-del">✕</button>
         </div>`;
       item.querySelector('.lib-name').addEventListener('click', () => { openChar(entry.id); closeModal('libModal'); });
       item.querySelector('.lib-load').addEventListener('click', () => { openChar(entry.id); closeModal('libModal'); });
+      item.querySelector('.lib-hist').addEventListener('click', () => { if (typeof openItemHistory === 'function') openItemHistory('char', entry.id); });
       item.querySelector('.lib-del').addEventListener('click', () => { deleteChar(entry.id); openCharLibrary(); });
       list.append(item);
     });

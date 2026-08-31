@@ -733,6 +733,8 @@ function savePreset() {
 
   entry.name = p.name;
   entry.savedAt = new Date().toISOString();
+  // Snapshot on every explicit save
+  if (typeof itemHistoryPush === 'function') itemHistoryPush('preset', activePresetId, JSON.parse(JSON.stringify(entry)));
   savePresetLibrary();
   renderPresetSidebar();
   toast('Preset saved.', 'ok');
@@ -782,10 +784,12 @@ function openPresetLibrary() {
         <span class="lib-meta">${(entry.preset.prompts||[]).length} prompts · ${date}</span>
         <div class="lib-acts">
           <button class="btn btn-p btn-sm lib-load">Load</button>
+          <button class="btn btn-s btn-sm lib-hist lib-item-hist" title="Version history">🕓</button>
           <button class="btn btn-err btn-sm lib-del">✕</button>
         </div>`;
       item.querySelector('.lib-name').addEventListener('click', () => { openPreset(entry.id); closeModal('libModal'); });
       item.querySelector('.lib-load').addEventListener('click', () => { openPreset(entry.id); closeModal('libModal'); });
+      item.querySelector('.lib-hist').addEventListener('click', () => { if (typeof openItemHistory === 'function') openItemHistory('preset', entry.id); });
       item.querySelector('.lib-del').addEventListener('click', () => { deletePreset(entry.id); openPresetLibrary(); });
       list.append(item);
     });

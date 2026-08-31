@@ -271,18 +271,20 @@ function switchMode(newMode) {
     return;
   }
 
+  // Sidebar is only used in lorebook mode — hide it for char/preset (full-width editors)
+  const sidebar = g('sidebar');
+  if (sidebar) sidebar.style.display = newMode === 'lore' ? '' : 'none';
+
   if (newMode === 'lore') {
     sbTitle.textContent = 'Entries';
     g('zoomRow').style.display = '';
     g('sbSearch').placeholder = 'Search entries...';
     renderList(); renderTabs(); renderEditor();
   } else if (newMode === 'char') {
-    sbTitle.textContent = 'Characters';
     g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search characters...';
     renderCharSidebar(); renderCharEditor();
   } else if (newMode === 'preset') {
-    sbTitle.textContent = 'Presets';
     g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search presets...';
     renderPresetSidebar(); renderPresetEditor();
@@ -1088,11 +1090,13 @@ function renderLibraryList() {
       <div class="lib-acts">
         <button class="btn btn-s btn-sm lib-load">Load</button>
         <button class="btn btn-s btn-sm lib-rename">Rename</button>
+        <button class="btn btn-s btn-sm lib-hist lib-item-hist" title="Version history">🕓</button>
         <button class="btn btn-err btn-sm lib-del">✕</button>
       </div>`;
     item.querySelector('.lib-name').addEventListener('click', () => libLoad(book.name));
     item.querySelector('.lib-load').addEventListener('click', () => libLoad(book.name));
     item.querySelector('.lib-rename').addEventListener('click', () => libRename(book.name));
+    item.querySelector('.lib-hist').addEventListener('click', () => { if (typeof openItemHistory === 'function') openItemHistory('lore', book.name); });
     item.querySelector('.lib-del').addEventListener('click', () => libDelete(book.name));
     container.append(item);
   });
@@ -1104,6 +1108,8 @@ async function libSaveCurrent() {
   if (lib[name] && !await askConfirm(`"${name}" already exists. Overwrite?`)) return;
   lib[name] = { name, lb: JSON.parse(JSON.stringify(lorebook)), savedAt: new Date().toISOString() };
   libSet(lib);
+  // Snapshot on every explicit save to library
+  if (typeof itemHistoryPush === 'function') itemHistoryPush('lore', name, lib[name]);
   g('libNewName').value = '';
   renderLibraryList();
   toast(`Saved "${name}" to library.`, 'ok');
