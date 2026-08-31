@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LoreOS — Privacy Policy & Terms of Service</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Pixelify+Sans&family=Noto+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:   #0e0d12;
+    --bg2:  #13111a;
+    --bg3:  #1a1726;
+    --bd:   #2a2640;
+    --p:    #9d8fcc;
+    --pg:   rgba(157,143,204,.15);
+    --tx:   #c8c2dc;
+    --txd:  #e2ddf0;
+    --txm:  #7a748f;
+    --fp:   'VT323', monospace;
+    --fx:   'Pixelify Sans', monospace;
+    --fb:   'Noto Sans', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--tx);
+    font-family: var(--fb);
+    font-size: 1rem;
+    line-height: 1.75;
+    min-height: 100vh;
+  }
+
+  /* ── layout ── */
+  .page {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 4rem 1.5rem 6rem;
+  }
+
+  /* ── header ── */
+  .site-head {
+    margin-bottom: 3.5rem;
+    border-bottom: 1px solid var(--bd);
+    padding-bottom: 2rem;
+  }
+
+  .wordmark {
+    font-family: var(--fp);
+    font-size: 2.8rem;
+    color: var(--p);
+    letter-spacing: 3px;
+    line-height: 1;
+    display: block;
+    margin-bottom: .4rem;
+  }
+
+  .page-title {
+    font-family: var(--fx);
+    font-size: .8rem;
+    color: var(--txm);
+    letter-spacing: 1.5px;
+  }
+
+  .updated {
+    font-family: var(--fx);
+    font-size: .7rem;
+    color: var(--txm);
+    margin-top: .75rem;
+    letter-spacing: .5px;
+  }
+
+  /* ── nav ── */
+  .toc {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+    margin-bottom: 3rem;
+  }
+
+  .toc a {
+    font-family: var(--fx);
+    font-size: .7rem;
+    color: var(--txm);
+    text-decoration: none;
+    border: 1px solid var(--bd);
+    border-radius: 2px;
+    padding: .25rem .6rem;
+    letter-spacing: .4px;
+    transition: border-color .12s, color .12s;
+  }
+
+  .toc a:hover { border-color: var(--p); color: var(--p); }
+
+  /* ── sections ── */
+  .section {
+    margin-bottom: 3rem;
+  }
+
+  .section-label {
+    font-family: var(--fp);
+    font-size: 1.5rem;
+    color: var(--p);
+    letter-spacing: 2px;
+    margin-bottom: 1.25rem;
+    padding-bottom: .5rem;
+    border-bottom: 1px solid var(--bd);
+  }
+
+  .section-label span {
+    font-family: var(--fx);
+    font-size: .65rem;
+    color: var(--txm);
+    letter-spacing: 1px;
+    margin-left: .5rem;
+    vertical-align: middle;
+  }
+
+  h3 {
+    font-family: var(--fx);
+    font-size: .82rem;
+    color: var(--txd);
+    letter-spacing: .6px;
+    margin: 1.5rem 0 .4rem;
+  }
+
+  p {
+    color: var(--tx);
+    font-size: .93rem;
+    margin-bottom: .75rem;
+    max-width: 62ch;
+  }
+
+  ul {
+    list-style: none;
+    margin-bottom: .75rem;
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+  }
+
+  ul li {
+    font-size: .93rem;
+    color: var(--tx);
+    padding-left: 1.1rem;
+    position: relative;
+    max-width: 62ch;
+  }
+
+  ul li::before {
+    content: '✦';
+    font-size: .5rem;
+    color: var(--p);
+    position: absolute;
+    left: 0;
+    top: .45rem;
+  }
+
+  a {
+    color: var(--p);
+    text-decoration: none;
+  }
+
+  a:hover { text-decoration: underline; }
+
+  code {
+    font-family: var(--fx);
+    font-size: .78rem;
+    color: var(--txd);
+    background: var(--bg3);
+    border: 1px solid var(--bd);
+    border-radius: 2px;
+    padding: .1rem .35rem;
+  }
+
+  /* ── callout ── */
+  .callout {
+    background: var(--bg3);
+    border: 1px solid var(--bd);
+    border-left: 3px solid var(--p);
+    border-radius: 3px;
+    padding: .75rem 1rem;
+    margin: 1.25rem 0;
+    font-family: var(--fx);
+    font-size: .75rem;
+    color: var(--txd);
+    letter-spacing: .3px;
+    line-height: 1.6;
+  }
+
+  /* ── divider ── */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--bd);
+    margin: 3rem 0;
+  }
+
+  /* ── footer ── */
+  .foot {
+    font-family: var(--fx);
+    font-size: .68rem;
+    color: var(--txm);
+    letter-spacing: .4px;
+    line-height: 1.8;
+    border-top: 1px solid var(--bd);
+    padding-top: 1.5rem;
+    margin-top: 3rem;
+  }
+
+  @media (max-width: 600px) {
+    .page { padding: 2.5rem 1.25rem 4rem; }
+    .wordmark { font-size: 2.2rem; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="site-head">
+    <a href="https://loreos.pages.dev" class="wordmark">LoreOS</a>
+    <div class="page-title">Privacy Policy & Terms of Service</div>
+    <div class="updated">Last updated: August 2026</div>
+  </header>
+
+  <nav class="toc">
+    <a href="#privacy">Privacy Policy</a>
+    <a href="#data">What We Collect</a>
+    <a href="#gdrive">Google Drive</a>
+    <a href="#terms">Terms of Service</a>
+    <a href="#contact">Contact</a>
+  </nav>
+
+  <!-- PRIVACY POLICY -->
+  <section class="section" id="privacy">
+    <div class="section-label">Privacy Policy <span>§ 1</span></div>
+
+    <div class="callout">
+      LoreOS does not collect, transmit, or store any of your personal data on any server. Everything you create lives in your own browser or your own Google Drive account.
+    </div>
+
+    <h3>Who we are</h3>
+    <p>LoreOS is a browser-based creative workspace for AI roleplay creators, built and maintained by an independent developer. The app is accessible at <a href="https://loreos.pages.dev">loreos.pages.dev</a>.</p>
+  </section>
+
+  <section class="section" id="data">
+    <div class="section-label">What We Collect <span>§ 2</span></div>
+
+    <h3>Data stored locally</h3>
+    <p>All lorebooks, character cards, presets, journal pages, and settings are stored in your browser's <code>localStorage</code>. This data never leaves your device unless you explicitly export it or enable Google Drive sync.</p>
+
+    <h3>Data we do not collect</h3>
+    <ul>
+      <li>No account registration or login required</li>
+      <li>No analytics, tracking scripts, or telemetry</li>
+      <li>No cookies beyond what your browser sets locally</li>
+      <li>No server-side storage of any kind</li>
+      <li>No advertising, ad networks, or data brokers</li>
+    </ul>
+
+    <h3>Third-party services</h3>
+    <p>LoreOS loads fonts from Google Fonts. Google's own privacy policy applies to that request. No other third-party services are loaded unless you choose to enable Google Drive sync.</p>
+  </section>
+
+  <section class="section" id="gdrive">
+    <div class="section-label">Google Drive Sync <span>§ 3</span></div>
+
+    <p>Google Drive sync is entirely optional. If you choose to connect it:</p>
+
+    <ul>
+      <li>LoreOS requests the <code>drive.appdata</code> scope only — a restricted hidden app folder that is not visible in your Drive and cannot access any of your existing files</li>
+      <li>Your data is written directly from your browser to your own Google Drive account — it does not pass through any LoreOS server</li>
+      <li>The sync file (<code>LoreOS-sync.json</code>) contains only the data you have created in LoreOS</li>
+      <li>Your Google account credentials are never seen or stored by LoreOS — authentication is handled entirely by Google's own OAuth system</li>
+      <li>Access tokens are stored in memory only and are cleared when you close or refresh the page</li>
+      <li>You can revoke LoreOS's Drive access at any time at <a href="https://myaccount.google.com/permissions" target="_blank">myaccount.google.com/permissions</a></li>
+    </ul>
+
+    <p>Google's use of information received from LoreOS is subject to the <a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a>.</p>
+  </section>
+
+  <hr class="divider">
+
+  <!-- TERMS OF SERVICE -->
+  <section class="section" id="terms">
+    <div class="section-label">Terms of Service <span>§ 4</span></div>
+
+    <h3>Use of the app</h3>
+    <p>LoreOS is provided free of charge as a creative tool. By using it, you agree to use it in good faith and not attempt to reverse-engineer, redistribute, or misuse the application.</p>
+
+    <h3>Your content</h3>
+    <p>Everything you create in LoreOS belongs entirely to you. LoreOS makes no claim over your lorebooks, characters, presets, or journal entries. We have no access to your content.</p>
+
+    <h3>No warranty</h3>
+    <p>LoreOS is provided as-is. While every effort is made to keep it functional and bug-free, no guarantee is made regarding uptime, data integrity, or fitness for any particular purpose. Always keep your own backups using the Export function.</p>
+
+    <h3>Data loss</h3>
+    <p>Because all data is stored in browser localStorage, clearing your browser data will erase your LoreOS content. We strongly recommend regular exports. LoreOS is not liable for any data loss resulting from browser behaviour, cache clearing, or device issues.</p>
+
+    <h3>Changes to these terms</h3>
+    <p>These terms may be updated occasionally. Continued use of LoreOS after any changes constitutes acceptance of the updated terms. The date at the top of this page reflects the most recent revision.</p>
+  </section>
+
+  <section class="section" id="contact">
+    <div class="section-label">Contact <span>§ 5</span></div>
+    <p>For questions about this policy or the app, open an issue on the <a href="https://github.com/bumyann/LoreOS" target="_blank">GitHub repository</a>.</p>
+  </section>
+
+  <footer class="foot">
+    <div>LoreOS · by yuu, for yuu</div>
+    <div>loreos.pages.dev · github.com/bumyann/LoreOS</div>
+    <div style="margin-top:.5rem">// this document covers both the Privacy Policy and Terms of Service for LoreOS</div>
+  </footer>
+
+</div>
+</body>
+</html>
