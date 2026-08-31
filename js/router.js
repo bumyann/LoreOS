@@ -112,7 +112,7 @@ function renderGetStarted(el) {
           <div class="home-card-desc">22+ built-in templates for characters, lorebooks, and NPCs. Save your own for reuse.</div>
         </div>
       </div>
-      <div class="home-footer-note">// built for SillyTavern · JanitorAI · SaucepanAI &nbsp;·&nbsp; all data stays in your browser</div>
+      <div class="home-footer-note">// built for SillyTavern · JanitorAI · SaucepanAI &nbsp;·&nbsp; all data stays in your browser &nbsp;·&nbsp; <a href="/legal.html" target="_blank" style="color:var(--txm);text-decoration:none;border-bottom:1px solid var(--bd)">privacy & terms</a></div>
     </div>
   `;
 }
@@ -170,6 +170,7 @@ function renderDashboard(el) {
         <div class="dash-stat"><span class="dash-stat-num">${Object.keys(ch).length}</span><span class="dash-stat-lbl">characters</span></div>
         <div class="dash-stat"><span class="dash-stat-num">${Object.keys(pr).length}</span><span class="dash-stat-lbl">presets</span></div>
       </div>
+      <div class="home-footer-note">// all data stays in your browser &nbsp;·&nbsp; <a href="/legal.html" target="_blank" style="color:var(--txm);text-decoration:none;border-bottom:1px solid var(--bd)">privacy & terms</a></div>
     </div>
   `;
 

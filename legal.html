@@ -35,14 +35,12 @@
     min-height: 100vh;
   }
 
-  /* ── layout ── */
   .page {
     max-width: 680px;
     margin: 0 auto;
     padding: 4rem 1.5rem 6rem;
   }
 
-  /* ── header ── */
   .site-head {
     margin-bottom: 3.5rem;
     border-bottom: 1px solid var(--bd);
@@ -57,6 +55,7 @@
     line-height: 1;
     display: block;
     margin-bottom: .4rem;
+    text-decoration: none;
   }
 
   .page-title {
@@ -74,7 +73,6 @@
     letter-spacing: .5px;
   }
 
-  /* ── nav ── */
   .toc {
     display: flex;
     gap: .5rem;
@@ -96,7 +94,6 @@
 
   .toc a:hover { border-color: var(--p); color: var(--p); }
 
-  /* ── sections ── */
   .section {
     margin-bottom: 3rem;
   }
@@ -160,11 +157,7 @@
     top: .45rem;
   }
 
-  a {
-    color: var(--p);
-    text-decoration: none;
-  }
-
+  a { color: var(--p); text-decoration: none; }
   a:hover { text-decoration: underline; }
 
   code {
@@ -177,7 +170,6 @@
     padding: .1rem .35rem;
   }
 
-  /* ── callout ── */
   .callout {
     background: var(--bg3);
     border: 1px solid var(--bd);
@@ -192,14 +184,12 @@
     line-height: 1.6;
   }
 
-  /* ── divider ── */
   .divider {
     border: none;
     border-top: 1px solid var(--bd);
     margin: 3rem 0;
   }
 
-  /* ── footer ── */
   .foot {
     font-family: var(--fx);
     font-size: .68rem;
@@ -227,32 +217,55 @@
   </header>
 
   <nav class="toc">
+    <a href="#terms">Terms of Service</a>
     <a href="#privacy">Privacy Policy</a>
     <a href="#data">What We Collect</a>
     <a href="#gdrive">Google Drive</a>
-    <a href="#terms">Terms of Service</a>
     <a href="#contact">Contact</a>
   </nav>
 
+  <!-- TERMS OF SERVICE -->
+  <section class="section" id="terms">
+    <div class="section-label">Terms of Service <span>§ 1</span></div>
+
+    <h3>Who we are</h3>
+    <p>LoreOS is a creator's sanctuary — an all-in-one creative workspace for AI roleplay creators. Lorebook editor, character card editor, chat completion preset editor, and a private journal, all in one place. No accounts, no subscriptions, nothing leaves your browser unless you choose to sync it. Just your work, organized.</p>
+    <p>Built and maintained by an independent developer. Made with AI assistance by someone who writes a lot of lore and has poor impulse control.</p>
+
+    <h3>Use of the app</h3>
+    <p>LoreOS is provided free of charge as a creative tool. By using it, you agree to use it in good faith and not attempt to reverse-engineer, redistribute, or misuse the application.</p>
+
+    <h3>Your content</h3>
+    <p>Everything you create in LoreOS belongs entirely to you. LoreOS makes no claim over your lorebooks, characters, presets, or journal entries. We have no access to your content.</p>
+
+    <h3>No warranty</h3>
+    <p>LoreOS is provided as-is. While every effort is made to keep it functional and bug-free, no guarantee is made regarding uptime, data integrity, or fitness for any particular purpose. Always keep your own backups using the Export function.</p>
+
+    <h3>Data loss</h3>
+    <p>All data is stored in your browser's localStorage. Clearing your browser data will erase your LoreOS content. We strongly recommend regular exports. LoreOS is not liable for any data loss resulting from browser behaviour, cache clearing, or device issues.</p>
+
+    <h3>Changes to these terms</h3>
+    <p>These terms may be updated occasionally. Continued use of LoreOS after any changes constitutes acceptance of the updated terms. The date at the top of this page reflects the most recent revision.</p>
+  </section>
+
+  <hr class="divider">
+
   <!-- PRIVACY POLICY -->
   <section class="section" id="privacy">
-    <div class="section-label">Privacy Policy <span>§ 1</span></div>
+    <div class="section-label">Privacy Policy <span>§ 2</span></div>
 
     <div class="callout">
       LoreOS does not collect, transmit, or store any of your personal data on any server. Everything you create lives in your own browser or your own Google Drive account.
     </div>
 
-    <h3>Who we are</h3>
-    <p>LoreOS is a browser-based creative workspace for AI roleplay creators, built and maintained by an independent developer. The app is accessible at <a href="https://loreos.pages.dev">loreos.pages.dev</a>.</p>
+    <h3>Data stored locally</h3>
+    <p>All lorebooks, character cards, presets, journal pages, and settings are stored in your browser's <code>localStorage</code>. This data never leaves your device unless you explicitly export it or enable Google Drive sync.</p>
   </section>
 
   <section class="section" id="data">
-    <div class="section-label">What We Collect <span>§ 2</span></div>
+    <div class="section-label">What We Collect <span>§ 3</span></div>
 
-    <h3>Data stored locally</h3>
-    <p>All lorebooks, character cards, presets, journal pages, and settings are stored in your browser's <code>localStorage</code>. This data never leaves your device unless you explicitly export it or enable Google Drive sync.</p>
-
-    <h3>Data we do not collect</h3>
+    <h3>Nothing</h3>
     <ul>
       <li>No account registration or login required</li>
       <li>No analytics, tracking scripts, or telemetry</li>
@@ -266,42 +279,19 @@
   </section>
 
   <section class="section" id="gdrive">
-    <div class="section-label">Google Drive Sync <span>§ 3</span></div>
+    <div class="section-label">Google Drive Sync <span>§ 4</span></div>
 
     <p>Google Drive sync is entirely optional. If you choose to connect it:</p>
 
     <ul>
-      <li>LoreOS requests the <code>drive.appdata</code> scope only — a restricted hidden app folder that is not visible in your Drive and cannot access any of your existing files</li>
-      <li>Your data is written directly from your browser to your own Google Drive account — it does not pass through any LoreOS server</li>
-      <li>The sync file (<code>LoreOS-sync.json</code>) contains only the data you have created in LoreOS</li>
-      <li>Your Google account credentials are never seen or stored by LoreOS — authentication is handled entirely by Google's own OAuth system</li>
-      <li>Access tokens are stored in memory only and are cleared when you close or refresh the page</li>
+      <li>LoreOS requests the <code>drive.appdata</code> scope only — a hidden app folder not visible in your Drive, inaccessible to any of your existing files</li>
+      <li>Your data is written directly from your browser to your own Google Drive — it does not pass through any LoreOS server</li>
+      <li>Your Google account credentials are never seen or stored by LoreOS — authentication is handled entirely by Google's OAuth system</li>
+      <li>Access tokens are stored in memory only and cleared when you close or refresh the page</li>
       <li>You can revoke LoreOS's Drive access at any time at <a href="https://myaccount.google.com/permissions" target="_blank">myaccount.google.com/permissions</a></li>
     </ul>
 
     <p>Google's use of information received from LoreOS is subject to the <a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a>.</p>
-  </section>
-
-  <hr class="divider">
-
-  <!-- TERMS OF SERVICE -->
-  <section class="section" id="terms">
-    <div class="section-label">Terms of Service <span>§ 4</span></div>
-
-    <h3>Use of the app</h3>
-    <p>LoreOS is provided free of charge as a creative tool. By using it, you agree to use it in good faith and not attempt to reverse-engineer, redistribute, or misuse the application.</p>
-
-    <h3>Your content</h3>
-    <p>Everything you create in LoreOS belongs entirely to you. LoreOS makes no claim over your lorebooks, characters, presets, or journal entries. We have no access to your content.</p>
-
-    <h3>No warranty</h3>
-    <p>LoreOS is provided as-is. While every effort is made to keep it functional and bug-free, no guarantee is made regarding uptime, data integrity, or fitness for any particular purpose. Always keep your own backups using the Export function.</p>
-
-    <h3>Data loss</h3>
-    <p>Because all data is stored in browser localStorage, clearing your browser data will erase your LoreOS content. We strongly recommend regular exports. LoreOS is not liable for any data loss resulting from browser behaviour, cache clearing, or device issues.</p>
-
-    <h3>Changes to these terms</h3>
-    <p>These terms may be updated occasionally. Continued use of LoreOS after any changes constitutes acceptance of the updated terms. The date at the top of this page reflects the most recent revision.</p>
   </section>
 
   <section class="section" id="contact">
@@ -310,9 +300,8 @@
   </section>
 
   <footer class="foot">
-    <div>LoreOS · by yuu, for yuu</div>
-    <div>loreos.pages.dev · github.com/bumyann/LoreOS</div>
-    <div style="margin-top:.5rem">// this document covers both the Privacy Policy and Terms of Service for LoreOS</div>
+    <div>LoreOS &mdash; From Yuu, For You</div>
+    <div>loreos.pages.dev &nbsp;&middot;&nbsp; github.com/bumyann/LoreOS</div>
   </footer>
 
 </div>
