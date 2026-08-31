@@ -230,10 +230,6 @@ function reorderEntry(oldUid, newUid) {
 // MODE SWITCHING
 // ═══════════════════════════════════════════════════════
 function switchMode(newMode) {
-  // Stub modes — navigate to editor and show coming soon
-  const STUB_MODES = ['persona', 'prompt', 'regex'];
-  const isStub = STUB_MODES.includes(newMode);
-
   // Navigate to editor view when switching modes
   if (typeof navigateTo === 'function') navigateTo('editor');
 
@@ -244,7 +240,7 @@ function switchMode(newMode) {
   g('viewToggle').style.display = newMode === 'lore' ? '' : 'none';
   if (newMode !== 'lore') { sideBySide = false; }
 
-  // Show/hide mode headers (lore/char/preset have headers; stubs get empty placeholder)
+  // Show/hide mode headers
   ['lore','char','preset','persona','prompt','regex'].forEach(m => {
     const el = g('hdr-' + m);
     if (el) el.style.display = newMode === m ? '' : 'none';
@@ -257,23 +253,12 @@ function switchMode(newMode) {
   const sbTitle = g('sbTitle');
   g('entryList').innerHTML = '';
   g('tabBar').innerHTML = '';
+  g('zoomRow').style.display = 'none';
 
-  if (isStub) {
-    const labels = { persona: 'Persona', prompt: 'Prompt', regex: 'Regex' };
-    sbTitle.textContent = '' + (labels[newMode] || newMode);
-    g('zoomRow').style.display = 'none';
-    g('sbSearch').placeholder = 'Search...';
-    g('editorContent').innerHTML = `
-      <div class="empty-state" style="flex-direction:column;gap:.75rem">
-        <div style="font-family:var(--fp);font-size:1.8rem;color:var(--p);opacity:.5;letter-spacing:2px">// coming soon</div>
-        <div style="font-family:var(--fx);font-size:.75rem;color:var(--txm);letter-spacing:1px">${labels[newMode] || newMode} editor is under construction.</div>
-      </div>`;
-    return;
-  }
-
-  // Sidebar is only used in lorebook mode — hide it for char/preset (full-width editors)
+  // Sidebar: only lorebook and modes with a sidebar list use it
+  const SIDEBAR_MODES = ['lore', 'persona', 'prompt', 'regex'];
   const sidebar = g('sidebar');
-  if (sidebar) sidebar.style.display = newMode === 'lore' ? '' : 'none';
+  if (sidebar) sidebar.style.display = SIDEBAR_MODES.includes(newMode) ? '' : 'none';
 
   if (newMode === 'lore') {
     sbTitle.textContent = 'Entries';
@@ -281,13 +266,26 @@ function switchMode(newMode) {
     g('sbSearch').placeholder = 'Search entries...';
     renderList(); renderTabs(); renderEditor();
   } else if (newMode === 'char') {
-    g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search characters...';
     renderCharSidebar(); renderCharEditor();
   } else if (newMode === 'preset') {
-    g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search presets...';
     renderPresetSidebar(); renderPresetEditor();
+  } else if (newMode === 'persona') {
+    g('sbSearch').placeholder = 'Search personas...';
+    if (typeof loadPersonas === 'function') loadPersonas();
+    if (typeof renderPersonaSidebar === 'function') renderPersonaSidebar();
+    if (typeof renderPersonaEditor === 'function') renderPersonaEditor();
+  } else if (newMode === 'prompt') {
+    g('sbSearch').placeholder = 'Search configs...';
+    if (typeof loadPrompts === 'function') loadPrompts();
+    if (typeof renderPromptSidebar === 'function') renderPromptSidebar();
+    if (typeof renderPromptEditor === 'function') renderPromptEditor();
+  } else if (newMode === 'regex') {
+    g('sbSearch').placeholder = 'Search rules...';
+    if (typeof loadRegex === 'function') loadRegex();
+    if (typeof renderRegexSidebar === 'function') renderRegexSidebar();
+    if (typeof renderRegexEditor === 'function') renderRegexEditor();
   }
 }
 

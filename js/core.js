@@ -140,6 +140,11 @@ function loadFromStorage() {
     charLibrary = JSON.parse(localStorage.getItem('aet_charLibrary') || '{}');
     presetLibrary = JSON.parse(localStorage.getItem('aet_presetLibrary') || '{}');
 
+    // Load new editor libraries
+    if (typeof loadPersonas === 'function') loadPersonas();
+    if (typeof loadPrompts === 'function') loadPrompts();
+    if (typeof loadRegex === 'function') loadRegex();
+
     renderWsTabs();
 
     if (Object.keys(lorebook.entries).length > 0) {
@@ -260,10 +265,16 @@ function wireEvents() {
   if (g('loreSettingsBtn')) g('loreSettingsBtn').onclick = openLoreSettings;
   if (g('lsApplyBtn')) g('lsApplyBtn').onclick = applyLoreSettings;
 
-  // Stub mode tabs — mark as stub
-  ['persona','prompt','regex'].forEach(m => {
-    document.querySelectorAll(`.mode-tab[data-mode="${m}"]`).forEach(t => t.classList.add('stub'));
-  });
+  // Persona header buttons
+  if (g('personaImportBtn')) g('personaImportBtn').onclick = () => g('filePersonaInput')?.click();
+  if (g('personaExportBtn')) g('personaExportBtn').onclick = () => { if (typeof activePersonaId !== 'undefined' && activePersonaId && typeof personaLibrary !== 'undefined') { const p = personaLibrary[activePersonaId]; if (p) { const fn = (p.name||'persona').replace(/[^a-z0-9_\- ]/gi,'_')+'_persona.json'; dlFile(JSON.stringify(p,null,2),fn,'application/json'); toast('Persona exported.','ok'); } else toast('No persona selected.','warn'); } };
+  if (g('promptExportBtn')) g('promptExportBtn').onclick = () => { if (typeof exportPromptConfig === 'function') exportPromptConfig(); };
+  if (g('regexImportBtn')) g('regexImportBtn').onclick = () => g('fileRegexInput')?.click();
+  if (g('regexExportBtn')) g('regexExportBtn').onclick = () => { if (typeof exportRegexJson === 'function') exportRegexJson(); };
+
+  // Import file inputs for persona and regex
+  if (g('filePersonaInput')) g('filePersonaInput').onchange = e => { if (typeof importPersonaJson === 'function') importPersonaJson(e); };
+  if (g('fileRegexInput')) g('fileRegexInput').onchange = e => { if (typeof importRegexJson === 'function') importRegexJson(e); };
   g('fileInput').onchange = handleImport;
   g('fileMergeInput').onchange = handleMergeImport;
   g('lorebookName').oninput = e => { lorebook.name = e.target.value.trim(); };
