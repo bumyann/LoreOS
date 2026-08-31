@@ -455,17 +455,25 @@
    FIELD-LEVEL UNDO/REDO BUTTONS
 ═══════════════════════════════════════════ */
 .field-ur-pair{
-  display:flex;gap:2px;justify-content:flex-end;
-  margin-top:.2rem;
+  display:flex;align-items:center;gap:3px;
+  margin-top:.2rem;margin-bottom:.1rem;
+}
+.field-ur-label{
+  font-family:var(--fx);font-size:.58rem;color:var(--txm);
+  letter-spacing:.5px;margin-right:2px;opacity:.7;
 }
 .field-ur-btn{
-  font-family:var(--fx);font-size:.65rem;padding:.18rem .45rem;
+  font-family:var(--fx);font-size:.72rem;
+  padding:.3rem .6rem;min-width:2.2rem;min-height:2rem;
   background:var(--sf);border:1px solid var(--bd);border-radius:2px;
   color:var(--txm);cursor:pointer;transition:all .12s;
-  line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
 }
 .field-ur-btn:hover:not(:disabled){border-color:var(--p);color:var(--p)}
-.field-ur-btn:disabled{opacity:.3;cursor:default}
+.field-ur-btn:active:not(:disabled){background:var(--sf2)}
+.field-ur-btn:disabled{opacity:.28;cursor:default}
 
 /* Item-level undo/redo in editor-actions */
 .item-ur-btn{font-size:.75rem}

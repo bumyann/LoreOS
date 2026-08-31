@@ -16,7 +16,16 @@ function openFullscreen(fieldId, label) {
     g('fullscreenMeta').textContent = c + ' chars · ~' + Math.ceil(c/4) + ' tok';
   }, { once: false });
   openModal('fullscreenModal');
-  setTimeout(() => g('fullscreenTA').focus(), 80);
+  setTimeout(() => {
+    g('fullscreenTA').focus();
+    // Wire field undo/redo fresh each time the modal opens (reset state)
+    const ta = g('fullscreenTA');
+    ta._undoAttached = false; // force re-attach so stack resets to current value
+    // Remove old pair if present
+    const old = g('fullscreenModal').querySelector('.field-ur-pair');
+    if (old) old.remove();
+    if (typeof attachFieldUndoRedo === 'function') attachFieldUndoRedo(ta);
+  }, 80);
 }
 
 function wireFullscreen() {

@@ -369,15 +369,13 @@ function attachFieldUndoRedo(ta) {
   if (!ta || ta._undoAttached) return;
   ta._undoAttached = true;
 
-  const stack = [ta.value]; // history stack
-  let ptr = 0;              // current position in stack
+  const stack = [ta.value];
+  let ptr = 0;
   let debounceTimer = null;
 
-  // Push state to stack on input (debounced)
   ta.addEventListener('input', () => {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-      // Truncate forward history if we branched
       stack.splice(ptr + 1);
       stack.push(ta.value);
       if (stack.length > FIELD_HIST_MAX) stack.shift();
@@ -406,24 +404,33 @@ function attachFieldUndoRedo(ta) {
     if (redoBtn) redoBtn.disabled = ptr >= stack.length - 1;
   }
 
-  // Build button pair and inject next to textarea
-  const wrap = ta.closest('.content-wrap') || ta.parentElement;
-  const pair = document.createElement('div');
-  pair.className = 'field-ur-pair';
-  pair.innerHTML = `<button class="field-ur-btn" title="Undo (field)" tabindex="-1">↩</button><button class="field-ur-btn" title="Redo (field)" tabindex="-1">↪</button>`;
-  const undoBtn = pair.children[0];
-  const redoBtn = pair.children[1];
-  undoBtn.addEventListener('click', e => { e.preventDefault(); undo(); });
-  redoBtn.addEventListener('click', e => { e.preventDefault(); redo(); });
-
-  // Keyboard shortcut: only fire when this textarea is focused
+  // Keyboard shortcut when this textarea is focused
   ta.addEventListener('keydown', e => {
     if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
     if ((e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'z') ||
         (e.ctrlKey && e.key.toLowerCase() === 'y')) { e.preventDefault(); redo(); }
   });
 
-  wrap.appendChild(pair);
+  // Inject button row AFTER the content-wrap (or after the textarea itself)
+  // so it never overlaps tok-count / expand-btn which are inside content-wrap
+  const wrap = ta.closest('.content-wrap') || ta;
+  const insertAfter = wrap.closest('.content-wrap') || wrap;
+
+  const pair = document.createElement('div');
+  pair.className = 'field-ur-pair';
+  pair.innerHTML =
+    `<span class="field-ur-label">field:</span>` +
+    `<button class="field-ur-btn" title="Undo" tabindex="-1">↩</button>` +
+    `<button class="field-ur-btn" title="Redo" tabindex="-1">↪</button>`;
+  const undoBtn = pair.children[1];
+  const redoBtn = pair.children[2];
+  undoBtn.addEventListener('mousedown', e => { e.preventDefault(); undo(); });
+  redoBtn.addEventListener('mousedown', e => { e.preventDefault(); redo(); });
+  // Touch support for mobile
+  undoBtn.addEventListener('touchend', e => { e.preventDefault(); undo(); });
+  redoBtn.addEventListener('touchend', e => { e.preventDefault(); redo(); });
+
+  insertAfter.insertAdjacentElement('afterend', pair);
   syncBtns();
 }
 
