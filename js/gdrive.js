@@ -1,12 +1,13 @@
 // ═══════════════════════════════════════════════════════
 // LOREOS — GOOGLE DRIVE SYNC
-// Uses drive.file scope (only sees files LoreOS creates)
+// Uses drive.appdata scope (hidden app folder, not visible
+// in user's Drive — simpler verification, no audit needed)
 // Client-side OAuth via GSI — no backend required
 // Token stored in memory only (cleared on page reload)
 // ═══════════════════════════════════════════════════════
 
 const GDRIVE_CLIENT_ID = '218324898243-cm0as5dqcsl9g7tgj1lf6lk83pc1qti3.apps.googleusercontent.com';
-const GDRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.file';
+const GDRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.appdata';
 const GDRIVE_FILE_NAME = 'LoreOS-sync.json';
 const GDRIVE_PUSH_DELAY = 5000; // ms debounce for auto-push
 
@@ -87,7 +88,7 @@ async function gdriveFindOrCreateFile() {
   // Search for existing LoreOS-sync.json
   try {
     const search = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=name%3D%22${GDRIVE_FILE_NAME}%22+and+trashed%3Dfalse&fields=files(id,name,modifiedTime)&spaces=drive`,
+      `https://www.googleapis.com/drive/v3/files?q=name%3D%22${GDRIVE_FILE_NAME}%22+and+trashed%3Dfalse&fields=files(id,name,modifiedTime)&spaces=appDataFolder`,
       { headers: { Authorization: 'Bearer ' + gdriveToken } }
     ).then(r => r.json());
 
@@ -96,9 +97,9 @@ async function gdriveFindOrCreateFile() {
       return gdriveFileId;
     }
 
-    // Not found — create it with empty bundle
+    // Not found — create it in appDataFolder
     const bundle = typeof syncBundleData === 'function' ? syncBundleData() : { _version: '1', _note: 'LoreOS sync file' };
-    const meta = { name: GDRIVE_FILE_NAME, mimeType: 'application/json' };
+    const meta = { name: GDRIVE_FILE_NAME, mimeType: 'application/json', parents: ['appDataFolder'] };
     const body = new FormData();
     body.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
     body.append('media', new Blob([JSON.stringify(bundle)], { type: 'application/json' }));
