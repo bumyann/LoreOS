@@ -230,6 +230,10 @@ function reorderEntry(oldUid, newUid) {
 // MODE SWITCHING
 // ═══════════════════════════════════════════════════════
 function switchMode(newMode) {
+  // Stub modes — navigate to editor and show coming soon
+  const STUB_MODES = ['persona', 'prompt', 'regex'];
+  const isStub = STUB_MODES.includes(newMode);
+
   // Navigate to editor view when switching modes
   if (typeof navigateTo === 'function') navigateTo('editor');
 
@@ -240,7 +244,7 @@ function switchMode(newMode) {
   g('viewToggle').style.display = newMode === 'lore' ? '' : 'none';
   if (newMode !== 'lore') { sideBySide = false; }
 
-  // Show/hide mode headers
+  // Show/hide mode headers (lore/char/preset have headers; stubs get empty placeholder)
   ['lore','char','preset','persona','prompt','regex'].forEach(m => {
     const el = g('hdr-' + m);
     if (el) el.style.display = newMode === m ? '' : 'none';
@@ -253,12 +257,23 @@ function switchMode(newMode) {
   const sbTitle = g('sbTitle');
   g('entryList').innerHTML = '';
   g('tabBar').innerHTML = '';
-  g('zoomRow').style.display = 'none';
 
-  // Sidebar: only lorebook and modes with a sidebar list use it
-  const SIDEBAR_MODES = ['lore', 'persona', 'prompt', 'regex'];
+  if (isStub) {
+    const labels = { persona: 'Persona', prompt: 'Prompt', regex: 'Regex' };
+    sbTitle.textContent = '' + (labels[newMode] || newMode);
+    g('zoomRow').style.display = 'none';
+    g('sbSearch').placeholder = 'Search...';
+    g('editorContent').innerHTML = `
+      <div class="empty-state" style="flex-direction:column;gap:.75rem">
+        <div style="font-family:var(--fp);font-size:1.8rem;color:var(--p);opacity:.5;letter-spacing:2px">// coming soon</div>
+        <div style="font-family:var(--fx);font-size:.75rem;color:var(--txm);letter-spacing:1px">${labels[newMode] || newMode} editor is under construction.</div>
+      </div>`;
+    return;
+  }
+
+  // Sidebar is only used in lorebook mode — hide it for char/preset (full-width editors)
   const sidebar = g('sidebar');
-  if (sidebar) sidebar.style.display = SIDEBAR_MODES.includes(newMode) ? '' : 'none';
+  if (sidebar) sidebar.style.display = newMode === 'lore' ? '' : 'none';
 
   if (newMode === 'lore') {
     sbTitle.textContent = 'Entries';
@@ -266,26 +281,13 @@ function switchMode(newMode) {
     g('sbSearch').placeholder = 'Search entries...';
     renderList(); renderTabs(); renderEditor();
   } else if (newMode === 'char') {
+    g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search characters...';
     renderCharSidebar(); renderCharEditor();
   } else if (newMode === 'preset') {
+    g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search presets...';
     renderPresetSidebar(); renderPresetEditor();
-  } else if (newMode === 'persona') {
-    g('sbSearch').placeholder = 'Search personas...';
-    if (typeof loadPersonas === 'function') loadPersonas();
-    if (typeof renderPersonaSidebar === 'function') renderPersonaSidebar();
-    if (typeof renderPersonaEditor === 'function') renderPersonaEditor();
-  } else if (newMode === 'prompt') {
-    g('sbSearch').placeholder = 'Search configs...';
-    if (typeof loadPrompts === 'function') loadPrompts();
-    if (typeof renderPromptSidebar === 'function') renderPromptSidebar();
-    if (typeof renderPromptEditor === 'function') renderPromptEditor();
-  } else if (newMode === 'regex') {
-    g('sbSearch').placeholder = 'Search rules...';
-    if (typeof loadRegex === 'function') loadRegex();
-    if (typeof renderRegexSidebar === 'function') renderRegexSidebar();
-    if (typeof renderRegexEditor === 'function') renderRegexEditor();
   }
 }
 
@@ -688,6 +690,8 @@ function buildEditorHTML(en, uid) {
     </div>
     <div class="editor-actions">
       <button class="btn btn-p save-btn" data-uid="${uid}">Save Changes</button>
+      <button class="btn btn-s item-ur-btn entry-undo-btn" data-uid="${uid}" title="Undo entry change" disabled>↩ Undo</button>
+      <button class="btn btn-s item-ur-btn entry-redo-btn" data-uid="${uid}" title="Redo entry change" disabled>Redo ↪</button>
       <button class="btn btn-err del-btn" data-uid="${uid}">Delete Entry</button>
     </div>
   </div>`;
@@ -737,12 +741,51 @@ function attachEditorEvents(container, uid) {
   const markUnsaved = () => {
     unsaved.add(uid);
     captureState(uid, container);
+    if (typeof itemUndoPush === 'function') itemUndoPush('lore', uid, JSON.parse(JSON.stringify(formState[uid] || {})));
     renderTabs();
+    syncEntryUndoButtons(uid, container);
   };
   container.querySelectorAll('input,textarea,select').forEach(el => {
     el.addEventListener('input', markUnsaved);
     el.addEventListener('change', markUnsaved);
   });
+
+  // Wire entry-level undo/redo buttons
+  const undoBtn = container.querySelector(`.entry-undo-btn[data-uid="${uid}"]`);
+  const redoBtn = container.querySelector(`.entry-redo-btn[data-uid="${uid}"]`);
+  if (undoBtn) undoBtn.addEventListener('click', () => applyEntryUndo(uid, 'undo', container));
+  if (redoBtn) redoBtn.addEventListener('click', () => applyEntryUndo(uid, 'redo', container));
+
+  // Push initial state so undo has a baseline
+  captureState(uid, container);
+  if (typeof itemUndoPush === 'function') itemUndoPush('lore', uid, JSON.parse(JSON.stringify(formState[uid] || {})));
+
+  // Wire field-level undo/redo on all textareas
+  if (typeof wireFieldUndoRedo === 'function') wireFieldUndoRedo(container);
+}
+
+// ═══════════════════════════════════════════════════════
+// ENTRY UNDO/REDO HELPERS
+// ═══════════════════════════════════════════════════════
+
+function syncEntryUndoButtons(uid, container) {
+  const undoBtn = container?.querySelector(`.entry-undo-btn[data-uid="${uid}"]`);
+  const redoBtn = container?.querySelector(`.entry-redo-btn[data-uid="${uid}"]`);
+  if (undoBtn) undoBtn.disabled = !itemUndoCanUndo('lore', uid);
+  if (redoBtn) redoBtn.disabled = !itemUndoCanRedo('lore', uid);
+}
+
+function applyEntryUndo(uid, direction, container) {
+  const snapshot = itemUndoGet('lore', uid, direction);
+  if (!snapshot) return;
+  // Restore formState and re-render editor
+  formState[uid] = snapshot;
+  unsaved.add(uid);
+  renderEditor(); // re-renders from formState
+  renderTabs();
+  // Sync buttons after re-render (container changes on re-render)
+  const newContainer = document.querySelector(`.entry-editor[data-uid="${uid}"]`);
+  syncEntryUndoButtons(uid, newContainer);
 }
 
 // ═══════════════════════════════════════════════════════

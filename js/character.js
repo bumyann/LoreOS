@@ -310,6 +310,8 @@ function renderCharEditor() {
 
     <div class="editor-actions">
       <button class="btn btn-p" id="chSaveBtn">Save Changes</button>
+      <button class="btn btn-s item-ur-btn" id="chUndoBtn" title="Undo last change" disabled>↩ Undo</button>
+      <button class="btn btn-s item-ur-btn" id="chRedoBtn" title="Redo" disabled>Redo ↪</button>
       <div class="dd" id="dd-char-export">
         <button class="btn btn-s dd-btn">&#8657; Export</button>
         <div class="dd-menu">
@@ -383,6 +385,22 @@ function renderCharEditor() {
     renderCharEditor();
   });
   g('chSaveBtn').addEventListener('click', saveChar);
+  if (g('chUndoBtn')) g('chUndoBtn').addEventListener('click', () => {
+    const snap = itemUndoGet('char', activeCharId, 'undo');
+    if (!snap) return;
+    charFormState = snap;
+    charUnsaved = true;
+    renderCharEditor();
+    syncItemUndoButtons('char', activeCharId);
+  });
+  if (g('chRedoBtn')) g('chRedoBtn').addEventListener('click', () => {
+    const snap = itemUndoGet('char', activeCharId, 'redo');
+    if (!snap) return;
+    charFormState = snap;
+    charUnsaved = true;
+    renderCharEditor();
+    syncItemUndoButtons('char', activeCharId);
+  });
   g('chExportJsonBtn').addEventListener('click', () => exportCharJson(activeCharId));
   g('chExportPngBtn').addEventListener('click', () => openCharPngExport(activeCharId));
   g('chExportSaucepanBtn').addEventListener('click', () => exportCharSaucepan(activeCharId));
@@ -440,11 +458,27 @@ function renderCharEditor() {
     e.target.value = '';
   });
 
-  // Mark unsaved on input
+  // Mark unsaved on input + push item undo snapshot
   ec.querySelectorAll('input,textarea,select').forEach(el => {
-    el.addEventListener('input', () => { charUnsaved = true; captureCharState(); });
-    el.addEventListener('change', () => { charUnsaved = true; captureCharState(); });
+    el.addEventListener('input', () => {
+      charUnsaved = true; captureCharState();
+      if (typeof itemUndoPush === 'function') itemUndoPush('char', activeCharId, JSON.parse(JSON.stringify(charFormState)));
+      syncItemUndoButtons('char', activeCharId);
+    });
+    el.addEventListener('change', () => {
+      charUnsaved = true; captureCharState();
+      if (typeof itemUndoPush === 'function') itemUndoPush('char', activeCharId, JSON.parse(JSON.stringify(charFormState)));
+      syncItemUndoButtons('char', activeCharId);
+    });
   });
+
+  // Wire field-level undo/redo on all textareas
+  if (typeof wireFieldUndoRedo === 'function') wireFieldUndoRedo(ec);
+
+  // Push initial baseline for undo
+  captureCharState();
+  if (typeof itemUndoPush === 'function') itemUndoPush('char', activeCharId, JSON.parse(JSON.stringify(charFormState)));
+  syncItemUndoButtons('char', activeCharId);
 }
 
 function renderAltGreetings(list) {

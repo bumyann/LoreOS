@@ -240,6 +240,8 @@ function renderPresetEditor() {
 
     <div class="editor-actions">
       <button class="btn btn-p" id="psSaveBtn">Save Preset</button>
+      <button class="btn btn-s item-ur-btn" id="psUndoBtn" title="Undo last change" disabled>↩ Undo</button>
+      <button class="btn btn-s item-ur-btn" id="psRedoBtn" title="Redo" disabled>Redo ↪</button>
       <button class="btn btn-s" id="psExportBtn">Export JSON</button>
       <button class="btn btn-err" id="psDeleteBtn">Delete Preset</button>
     </div>
@@ -406,6 +408,34 @@ function renderPresetEditor() {
   g('psSaveBtn').addEventListener('click', savePreset);
   g('psExportBtn').addEventListener('click', exportPreset);
   g('psDeleteBtn').addEventListener('click', () => deletePreset(activePresetId));
+
+  // Item-level undo/redo
+  if (g('psUndoBtn')) g('psUndoBtn').addEventListener('click', () => {
+    const snap = itemUndoGet('preset', activePresetId, 'undo');
+    if (!snap) return;
+    presetFormState = snap;
+    renderPresetEditor();
+    syncItemUndoButtons('preset', activePresetId);
+  });
+  if (g('psRedoBtn')) g('psRedoBtn').addEventListener('click', () => {
+    const snap = itemUndoGet('preset', activePresetId, 'redo');
+    if (!snap) return;
+    presetFormState = snap;
+    renderPresetEditor();
+    syncItemUndoButtons('preset', activePresetId);
+  });
+
+  // Wire field-level undo/redo on preset textareas
+  if (typeof wireFieldUndoRedo === 'function') wireFieldUndoRedo(g('editorContent'));
+
+  // Push undo baseline after editor renders
+  if (typeof itemUndoPush === 'function') {
+    setTimeout(() => {
+      const snap = {}; document.querySelectorAll('#editorContent input,#editorContent select').forEach(el => { snap[el.id] = el.type === 'checkbox' ? el.checked : el.value; });
+      itemUndoPush('preset', activePresetId, snap);
+      syncItemUndoButtons('preset', activePresetId);
+    }, 0);
+  }
 
   // Variables panel
   g('psVarsHead').addEventListener('click', () => {

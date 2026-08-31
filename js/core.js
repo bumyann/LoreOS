@@ -140,11 +140,6 @@ function loadFromStorage() {
     charLibrary = JSON.parse(localStorage.getItem('aet_charLibrary') || '{}');
     presetLibrary = JSON.parse(localStorage.getItem('aet_presetLibrary') || '{}');
 
-    // Load new editor libraries
-    if (typeof loadPersonas === 'function') loadPersonas();
-    if (typeof loadPrompts === 'function') loadPrompts();
-    if (typeof loadRegex === 'function') loadRegex();
-
     renderWsTabs();
 
     if (Object.keys(lorebook.entries).length > 0) {
@@ -265,16 +260,10 @@ function wireEvents() {
   if (g('loreSettingsBtn')) g('loreSettingsBtn').onclick = openLoreSettings;
   if (g('lsApplyBtn')) g('lsApplyBtn').onclick = applyLoreSettings;
 
-  // Persona header buttons
-  if (g('personaImportBtn')) g('personaImportBtn').onclick = () => g('filePersonaInput')?.click();
-  if (g('personaExportBtn')) g('personaExportBtn').onclick = () => { if (typeof activePersonaId !== 'undefined' && activePersonaId && typeof personaLibrary !== 'undefined') { const p = personaLibrary[activePersonaId]; if (p) { const fn = (p.name||'persona').replace(/[^a-z0-9_\- ]/gi,'_')+'_persona.json'; dlFile(JSON.stringify(p,null,2),fn,'application/json'); toast('Persona exported.','ok'); } else toast('No persona selected.','warn'); } };
-  if (g('promptExportBtn')) g('promptExportBtn').onclick = () => { if (typeof exportPromptConfig === 'function') exportPromptConfig(); };
-  if (g('regexImportBtn')) g('regexImportBtn').onclick = () => g('fileRegexInput')?.click();
-  if (g('regexExportBtn')) g('regexExportBtn').onclick = () => { if (typeof exportRegexJson === 'function') exportRegexJson(); };
-
-  // Import file inputs for persona and regex
-  if (g('filePersonaInput')) g('filePersonaInput').onchange = e => { if (typeof importPersonaJson === 'function') importPersonaJson(e); };
-  if (g('fileRegexInput')) g('fileRegexInput').onchange = e => { if (typeof importRegexJson === 'function') importRegexJson(e); };
+  // Stub mode tabs — mark as stub
+  ['persona','prompt','regex'].forEach(m => {
+    document.querySelectorAll(`.mode-tab[data-mode="${m}"]`).forEach(t => t.classList.add('stub'));
+  });
   g('fileInput').onchange = handleImport;
   g('fileMergeInput').onchange = handleMergeImport;
   g('lorebookName').oninput = e => { lorebook.name = e.target.value.trim(); };
@@ -366,6 +355,135 @@ function closeAllDropdowns() {
 
 function openModal(id) { g(id).classList.add('open'); }
 function closeModal(id) { g(id).classList.remove('open'); }
+
+// ═══════════════════════════════════════════════════════
+// FIELD-LEVEL UNDO/REDO
+// Attaches native undo/redo button pair to any textarea.
+// Per-field history stack, debounced push on input.
+// ═══════════════════════════════════════════════════════
+
+const FIELD_HIST_MAX = 80;
+const FIELD_HIST_DEBOUNCE = 400; // ms
+
+function attachFieldUndoRedo(ta) {
+  if (!ta || ta._undoAttached) return;
+  ta._undoAttached = true;
+
+  const stack = [ta.value]; // history stack
+  let ptr = 0;              // current position in stack
+  let debounceTimer = null;
+
+  // Push state to stack on input (debounced)
+  ta.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      // Truncate forward history if we branched
+      stack.splice(ptr + 1);
+      stack.push(ta.value);
+      if (stack.length > FIELD_HIST_MAX) stack.shift();
+      ptr = stack.length - 1;
+      syncBtns();
+    }, FIELD_HIST_DEBOUNCE);
+  });
+
+  function applyState(val) {
+    ta.value = val;
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function undo() {
+    clearTimeout(debounceTimer);
+    if (ptr > 0) { ptr--; applyState(stack[ptr]); syncBtns(); }
+  }
+
+  function redo() {
+    clearTimeout(debounceTimer);
+    if (ptr < stack.length - 1) { ptr++; applyState(stack[ptr]); syncBtns(); }
+  }
+
+  function syncBtns() {
+    if (undoBtn) undoBtn.disabled = ptr <= 0;
+    if (redoBtn) redoBtn.disabled = ptr >= stack.length - 1;
+  }
+
+  // Build button pair and inject next to textarea
+  const wrap = ta.closest('.content-wrap') || ta.parentElement;
+  const pair = document.createElement('div');
+  pair.className = 'field-ur-pair';
+  pair.innerHTML = `<button class="field-ur-btn" title="Undo (field)" tabindex="-1">↩</button><button class="field-ur-btn" title="Redo (field)" tabindex="-1">↪</button>`;
+  const undoBtn = pair.children[0];
+  const redoBtn = pair.children[1];
+  undoBtn.addEventListener('click', e => { e.preventDefault(); undo(); });
+  redoBtn.addEventListener('click', e => { e.preventDefault(); redo(); });
+
+  // Keyboard shortcut: only fire when this textarea is focused
+  ta.addEventListener('keydown', e => {
+    if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+    if ((e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'z') ||
+        (e.ctrlKey && e.key.toLowerCase() === 'y')) { e.preventDefault(); redo(); }
+  });
+
+  wrap.appendChild(pair);
+  syncBtns();
+}
+
+// Call this after any editor renders to wire all textareas in a container
+function wireFieldUndoRedo(container) {
+  (container || document).querySelectorAll('textarea.ftextarea').forEach(ta => {
+    attachFieldUndoRedo(ta);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// ITEM-LEVEL UNDO/REDO (in-session, per open item)
+// Separate from version history — lightweight session stack.
+// ═══════════════════════════════════════════════════════
+
+// itemUndoStacks: { key: { stack: [...snapshots], ptr } }
+// key = 'lore:{uid}' | 'char:{id}' | 'preset:{id}'
+const itemUndoStacks = {};
+const ITEM_UNDO_MAX = 30;
+
+function itemUndoKey(type, id) { return `${type}:${id}`; }
+
+function itemUndoPush(type, id, snapshot) {
+  const key = itemUndoKey(type, id);
+  if (!itemUndoStacks[key]) itemUndoStacks[key] = { stack: [], ptr: -1 };
+  const s = itemUndoStacks[key];
+  // Truncate forward history
+  s.stack.splice(s.ptr + 1);
+  s.stack.push(JSON.stringify(snapshot));
+  if (s.stack.length > ITEM_UNDO_MAX) s.stack.shift();
+  s.ptr = s.stack.length - 1;
+}
+
+function itemUndoCanUndo(type, id) {
+  const s = itemUndoStacks[itemUndoKey(type, id)];
+  return s && s.ptr > 0;
+}
+
+function itemUndoCanRedo(type, id) {
+  const s = itemUndoStacks[itemUndoKey(type, id)];
+  return s && s.ptr < s.stack.length - 1;
+}
+
+function itemUndoGet(type, id, direction) {
+  const key = itemUndoKey(type, id);
+  const s = itemUndoStacks[key];
+  if (!s) return null;
+  if (direction === 'undo' && s.ptr > 0) s.ptr--;
+  else if (direction === 'redo' && s.ptr < s.stack.length - 1) s.ptr++;
+  else return null;
+  return JSON.parse(s.stack[s.ptr]);
+}
+
+function syncItemUndoButtons(type, id) {
+  const undoBtn = g('itemUndoBtn');
+  const redoBtn = g('itemRedoBtn');
+  if (undoBtn) undoBtn.disabled = !itemUndoCanUndo(type, id);
+  if (redoBtn) redoBtn.disabled = !itemUndoCanRedo(type, id);
+}
+
 
 // ═══════════════════════════════════════════════════════
 // THEME

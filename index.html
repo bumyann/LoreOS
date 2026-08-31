@@ -112,6 +112,11 @@
           <input type="text" id="lorebookName" placeholder="untitled">
         </div>
         <div id="editor-header-right">
+          <!-- Item-level undo/redo (session history) -->
+          <div id="itemUndoRedoBtns" style="display:none;gap:.25rem;align-items:center">
+            <button id="itemUndoBtn" class="btn btn-s btn-sm item-ur-btn" title="Undo last change" disabled>↩ Undo</button>
+            <button id="itemRedoBtn" class="btn btn-s btn-sm item-ur-btn" title="Redo" disabled>Redo ↪</button>
+          </div>
           <!-- LOREBOOK MODE ACTIONS -->
           <div class="hdr-actions mode-actions" id="hdr-lore">
             <div class="dd" id="dd-import">
@@ -184,20 +189,9 @@
           </div>
 
           <!-- STUB MODE ACTIONS (persona / prompt / regex) -->
-          <div class="hdr-actions mode-actions" id="hdr-persona" style="display:none">
-            <button class="btn btn-p" id="personaImportBtn">&#8659; Import</button>
-            <button class="btn btn-s" id="personaExportBtn">&#8657; Export</button>
-            <button class="btn btn-ok" onclick="createPersona()">+ New Persona</button>
-          </div>
-          <div class="hdr-actions mode-actions" id="hdr-prompt" style="display:none">
-            <button class="btn btn-s" id="promptExportBtn">&#8657; Export Config</button>
-            <button class="btn btn-ok" onclick="createPromptConfig()">+ New Config</button>
-          </div>
-          <div class="hdr-actions mode-actions" id="hdr-regex" style="display:none">
-            <button class="btn btn-p" id="regexImportBtn">&#8659; Import JSON</button>
-            <button class="btn btn-s" id="regexExportBtn">&#8657; Export JSON</button>
-            <button class="btn btn-ok" onclick="createRegexRule()">+ New Rule</button>
-          </div>
+          <div class="hdr-actions mode-actions" id="hdr-persona" style="display:none"></div>
+          <div class="hdr-actions mode-actions" id="hdr-prompt" style="display:none"></div>
+          <div class="hdr-actions mode-actions" id="hdr-regex" style="display:none"></div>
 
           <button class="btn-icon btn mob-hide" id="helpBtn" title="Help">?</button>
         </div>
@@ -272,8 +266,6 @@
 <input type="file" id="fileCharxInput" accept=".charx" style="display:none">
 <input type="file" id="fileCharCompanionInput" accept=".json" style="display:none">
 <input type="file" id="filePresetInput" accept=".json" style="display:none">
-<input type="file" id="filePersonaInput" accept=".json" style="display:none">
-<input type="file" id="fileRegexInput" accept=".json" style="display:none">
 
 <!-- Notifications -->
 <div id="notifs"></div>
@@ -984,9 +976,6 @@
 <script src="js/settings.js"></script>
 <script src="js/sync.js"></script>
 <script src="js/mobile.js"></script>
-<script src="js/persona.js"></script>
-<script src="js/prompt_workbench.js"></script>
-<script src="js/regex_editor.js"></script>
 <script src="js/router.js"></script>
 
 <script>
