@@ -4,6 +4,12 @@
 // in user's Drive — simpler verification, no audit needed)
 // Client-side OAuth via GSI — no backend required
 // Token stored in memory only (cleared on page reload)
+//
+// Authorised origins (Google Cloud Console):
+//   https://loreos.net
+//   https://loreos.pages.dev
+//   https://bumyann.github.io
+//   http://localhost:8080
 // ═══════════════════════════════════════════════════════
 
 const GDRIVE_CLIENT_ID = '218324898243-cm0as5dqcsl9g7tgj1lf6lk83pc1qti3.apps.googleusercontent.com';
