@@ -474,6 +474,9 @@
   <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharImport" title="Import Card" style="display:none">
     <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
   </button>
+  <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharExport" title="Export Card" style="display:none">
+    <span class="icon">↑</span><span class="mob-nav-lbl">Export</span>
+  </button>
   <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharLibrary" title="Character Library" style="display:none">
     <span class="icon">📚</span><span class="mob-nav-lbl">Library</span>
   </button>
@@ -547,6 +550,20 @@
     <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
       <button class="btn btn-p" id="mobCharImportJsonBtn" style="width:100%;justify-content:center;padding:.65rem">Import JSON Card</button>
       <button class="btn btn-s" id="mobCharImportPngBtn" style="width:100%;justify-content:center;padding:.65rem">Import PNG Card</button>
+    </div>
+  </div>
+</div>
+
+<div id="mobCharExportModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2>Export Card</h2><button class="modal-x" data-close="mobCharExportModal">×</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
+      <button class="btn btn-p" id="mobCharExportJsonBtn" style="width:100%;justify-content:center;padding:.65rem">ST / JanitorAI (V3 JSON)</button>
+      <button class="btn btn-s" id="mobCharExportV2JsonBtn" style="width:100%;justify-content:center;padding:.65rem">ST / JanitorAI (V2 JSON)</button>
+      <button class="btn btn-s" id="mobCharExportPngBtn" style="width:100%;justify-content:center;padding:.65rem">PNG Card</button>
+      <button class="btn btn-s" id="mobCharExportWithLbBtn" style="width:100%;justify-content:center;padding:.65rem">JSON + Lorebook (merged)</button>
+      <button class="btn btn-s" id="mobCharExportSaucepanBtn" style="width:100%;justify-content:center;padding:.65rem">SaucepanAI (companion.json)</button>
+      <button class="btn btn-s" id="mobCharExportCharxBtn" style="width:100%;justify-content:center;padding:.65rem">.charx (Lumiverse)</button>
     </div>
   </div>
 </div>
