@@ -316,7 +316,9 @@ function renderCharEditor() {
         <button class="btn btn-s dd-btn">&#8657; Export</button>
         <div class="dd-menu">
           <button class="dd-item" id="chExportJsonBtn">ST / JanitorAI (V3 JSON)</button>
+          <button class="dd-item" id="chExportV2JsonBtn">ST / JanitorAI (V2 JSON)</button>
           <button class="dd-item" id="chExportPngBtn">ST / JanitorAI (PNG Card)</button>
+          <button class="dd-item" id="chExportWithLbBtn">JSON + Lorebook (merged)</button>
           <button class="dd-item" id="chExportSaucepanBtn">SaucepanAI (companion.json)</button>
           <button class="dd-item" id="chExportCharxBtn">.charx (Lumiverse)</button>
         </div>
@@ -402,6 +404,8 @@ function renderCharEditor() {
     syncItemUndoButtons('char', activeCharId);
   });
   g('chExportJsonBtn').addEventListener('click', () => exportCharJson(activeCharId));
+  if (g('chExportV2JsonBtn'))   g('chExportV2JsonBtn').addEventListener('click',   () => exportCharJsonV2(activeCharId));
+  if (g('chExportWithLbBtn'))   g('chExportWithLbBtn').addEventListener('click',   () => exportCharJsonWithLorebook(activeCharId));
   g('chExportPngBtn').addEventListener('click', () => openCharPngExport(activeCharId));
   g('chExportSaucepanBtn').addEventListener('click', () => exportCharSaucepan(activeCharId));
   if (g('chExportCharxBtn')) g('chExportCharxBtn').addEventListener('click', () => exportCharCharx(activeCharId));
@@ -966,6 +970,59 @@ function exportCharJson(id) {
   const fn = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi, '_') + '.json';
   dlFile(JSON.stringify(entry.card, null, 2), fn, 'application/json');
   toast('Exported: ' + fn, 'ok');
+}
+
+// Export as V2 JSON (chara_card_v2 / spec_version 2.0)
+// Strips V3-only fields (group_only_greetings, assets, character_version) for max compat
+function exportCharJsonV2(id) {
+  const entry = charLibrary[id]; if (!entry) return;
+  captureCharState();
+  const d = entry.card.data;
+  const v2card = {
+    spec: 'chara_card_v2',
+    spec_version: '2.0',
+    data: {
+      name:                     d.name || '',
+      description:              d.description || '',
+      personality:              d.personality || '',
+      scenario:                 d.scenario || '',
+      first_mes:                d.first_mes || '',
+      mes_example:              d.mes_example || '',
+      creator_notes:            d.creator_notes || '',
+      system_prompt:            d.system_prompt || '',
+      post_history_instructions:d.post_history_instructions || '',
+      alternate_greetings:      (d.alternate_greetings || []).map(g => typeof g === 'object' ? (g.message || '') : (g || '')),
+      tags:                     d.tags || [],
+      creator:                  d.creator || '',
+      character_version:        d.character_version || '',
+      extensions:               d.extensions || {},
+      ...(d.character_book ? { character_book: d.character_book } : {})
+    }
+  };
+  const fn = (d.name || 'character').replace(/[^a-z0-9_-]/gi, '_') + '_v2.json';
+  dlFile(JSON.stringify(v2card, null, 2), fn, 'application/json');
+  toast('Exported V2: ' + fn, 'ok');
+}
+
+// Export JSON with attached lorebook merged into character_book field
+function exportCharJsonWithLorebook(id) {
+  const entry = charLibrary[id]; if (!entry) return;
+  captureCharState();
+
+  // Check for a lorebook in the library and use the attached one, or prompt
+  const cb = entry.card.data.character_book;
+  if (!cb || !cb.entries || Object.keys(cb.entries).length === 0) {
+    toast('No lorebook attached. Use Attach LB first.', 'warn');
+    return;
+  }
+
+  // Build merged card: deep clone then ensure character_book is present
+  const merged = JSON.parse(JSON.stringify(entry.card));
+  merged.data.character_book = cb;
+
+  const fn = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi, '_') + '_with_lorebook.json';
+  dlFile(JSON.stringify(merged, null, 2), fn, 'application/json');
+  toast('Exported with lorebook: ' + fn, 'ok');
 }
 
 function exportCharSaucepan(id) {
