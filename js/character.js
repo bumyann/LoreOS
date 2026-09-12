@@ -301,7 +301,7 @@ function renderCharEditor() {
       </div>
     </div>
 
-    <div class="attach-lb-panel">
+    <div class="attach-lb-panel"${isSauce ? ' style="display:none"' : ''}>
       <div class="attach-lb-status" id="chLbStatus">🌐 No lorebook attached</div>
       <div class="attach-lb-acts">
         <button class="btn btn-s btn-sm" id="chLbManageBtn">Manage Attached Lorebook</button>
