@@ -176,8 +176,8 @@ function wireMobile() {
   g('mobCharExport').addEventListener('click', () => openModal('mobCharExportModal'));
   if (g('mobCharExportJsonBtn'))      g('mobCharExportJsonBtn').addEventListener('click',      () => { closeModal('mobCharExportModal'); exportCharJson(activeCharId); });
   if (g('mobCharExportV2JsonBtn'))    g('mobCharExportV2JsonBtn').addEventListener('click',    () => { closeModal('mobCharExportModal'); exportCharJsonV2(activeCharId); });
-  if (g('mobCharExportPngBtn'))       g('mobCharExportPngBtn').addEventListener('click',       () => { closeModal('mobCharExportModal'); openCharPngExport(activeCharId); });
-  if (g('mobCharExportWithLbBtn'))    g('mobCharExportWithLbBtn').addEventListener('click',    () => { closeModal('mobCharExportModal'); exportCharJsonWithLorebook(activeCharId); });
+  if (g('mobCharExportV3PngBtn'))     g('mobCharExportV3PngBtn').addEventListener('click',     () => { closeModal('mobCharExportModal'); openCharPngExport(activeCharId, false); });
+  if (g('mobCharExportPngBtn'))       g('mobCharExportPngBtn').addEventListener('click',       () => { closeModal('mobCharExportModal'); openCharPngExport(activeCharId, true); });
   if (g('mobCharExportSaucepanBtn'))  g('mobCharExportSaucepanBtn').addEventListener('click',  () => { closeModal('mobCharExportModal'); exportCharSaucepan(activeCharId); });
   if (g('mobCharExportCharxBtn'))     g('mobCharExportCharxBtn').addEventListener('click',     () => { closeModal('mobCharExportModal'); exportCharCharx(activeCharId); });
 

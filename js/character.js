@@ -315,11 +315,11 @@ function renderCharEditor() {
       <div class="dd" id="dd-char-export">
         <button class="btn btn-s dd-btn">&#8657; Export</button>
         <div class="dd-menu">
-          <button class="dd-item" id="chExportJsonBtn">ST / JanitorAI (V3 JSON)</button>
-          <button class="dd-item" id="chExportV2JsonBtn">ST / JanitorAI (V2 JSON)</button>
-          <button class="dd-item" id="chExportPngBtn">ST / JanitorAI (PNG Card)</button>
-          <button class="dd-item" id="chExportWithLbBtn">JSON + Lorebook (merged)</button>
-          <button class="dd-item" id="chExportSaucepanBtn">SaucepanAI (companion.json)</button>
+          <button class="dd-item" id="chExportJsonBtn">V3 JSON</button>
+          <button class="dd-item" id="chExportV2JsonBtn">V2 JSON</button>
+          <button class="dd-item" id="chExportV3PngBtn">V3 PNG</button>
+          <button class="dd-item" id="chExportPngBtn">V2 PNG</button>
+          <button class="dd-item" id="chExportSaucepanBtn">Companion (SaucepanAI)</button>
           <button class="dd-item" id="chExportCharxBtn">.charx (Lumiverse)</button>
         </div>
       </div>
@@ -405,9 +405,9 @@ function renderCharEditor() {
   });
   g('chExportJsonBtn').addEventListener('click', () => exportCharJson(activeCharId));
   if (g('chExportV2JsonBtn'))   g('chExportV2JsonBtn').addEventListener('click',   () => exportCharJsonV2(activeCharId));
-  if (g('chExportWithLbBtn'))   g('chExportWithLbBtn').addEventListener('click',   () => exportCharJsonWithLorebook(activeCharId));
   if (g('chLbManageBtn'))       g('chLbManageBtn').addEventListener('click',       () => openAttachLbModal());
-  g('chExportPngBtn').addEventListener('click', () => openCharPngExport(activeCharId));
+  g('chExportPngBtn').addEventListener('click', () => openCharPngExport(activeCharId, true));
+  if (g('chExportV3PngBtn')) g('chExportV3PngBtn').addEventListener('click', () => openCharPngExport(activeCharId, false));
   g('chExportSaucepanBtn').addEventListener('click', () => exportCharSaucepan(activeCharId));
   if (g('chExportCharxBtn')) g('chExportCharxBtn').addEventListener('click', () => exportCharCharx(activeCharId));
   // Wire the char export dropdown
@@ -1005,27 +1005,6 @@ function exportCharJsonV2(id) {
   toast('Exported V2: ' + fn, 'ok');
 }
 
-// Export JSON with attached lorebook merged into character_book field
-function exportCharJsonWithLorebook(id) {
-  const entry = charLibrary[id]; if (!entry) return;
-  captureCharState();
-
-  // Check for a lorebook in the library and use the attached one, or prompt
-  const cb = entry.card.data.character_book;
-  if (!cb || !cb.entries || Object.keys(cb.entries).length === 0) {
-    toast('No lorebook attached. Use Attach LB first.', 'warn');
-    return;
-  }
-
-  // Build merged card: deep clone then ensure character_book is present
-  const merged = JSON.parse(JSON.stringify(entry.card));
-  merged.data.character_book = cb;
-
-  const fn = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi, '_') + '_with_lorebook.json';
-  dlFile(JSON.stringify(merged, null, 2), fn, 'application/json');
-  toast('Exported with lorebook: ' + fn, 'ok');
-}
-
 function exportCharSaucepan(id) {
   const entry = charLibrary[id]; if (!entry) return;
   captureCharState();
@@ -1193,22 +1172,22 @@ function exportCharCharx(id) {
 // ── PNG character card embed / extract ──
 // Character data is stored in a tEXt chunk keyword "chara" as base64 JSON.
 
-function openCharPngExport(id) {
+function openCharPngExport(id, forceV2 = true) {
   const entry = charLibrary[id]; if (!entry) return;
 
   const doExport = (arrayBuf) => {
     try {
       const buf = new Uint8Array(arrayBuf);
-      const v2card = Object.assign({}, entry.card, { spec: 'chara_card_v2', spec_version: '2.0' });
-      const outBuf = embedCharInPng(buf, v2card);
+      const outCard = forceV2 ? Object.assign({}, entry.card, { spec: 'chara_card_v2', spec_version: '2.0' }) : entry.card;
+      const outBuf = embedCharInPng(buf, outCard);
       const blob = new Blob([outBuf], { type: 'image/png' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi,'_') + '.png';
+      a.download = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi,'_') + (forceV2 ? '_v2' : '_v3') + '.png';
       document.body.append(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
-      toast('PNG card exported!', 'ok');
+      toast((forceV2 ? 'V2' : 'V3') + ' PNG card exported!', 'ok');
     } catch(err) { toast('PNG export error: ' + err.message, 'err'); console.error(err); }
   };
 

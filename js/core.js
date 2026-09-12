@@ -236,8 +236,8 @@ function wireEvents() {
   // Header export buttons (char)
   if (g('charHdrExportJsonBtn')) g('charHdrExportJsonBtn').onclick = () => exportCharJson(activeCharId);
   if (g('charHdrExportV2JsonBtn')) g('charHdrExportV2JsonBtn').onclick = () => exportCharJsonV2(activeCharId);
-  if (g('charHdrExportPngBtn')) g('charHdrExportPngBtn').onclick = () => openCharPngExport(activeCharId);
-  if (g('charHdrExportWithLbBtn')) g('charHdrExportWithLbBtn').onclick = () => exportCharJsonWithLorebook(activeCharId);
+  if (g('charHdrExportV3PngBtn')) g('charHdrExportV3PngBtn').onclick = () => openCharPngExport(activeCharId, false);
+  if (g('charHdrExportPngBtn')) g('charHdrExportPngBtn').onclick = () => openCharPngExport(activeCharId, true);
   if (g('charHdrExportSaucepanBtn')) g('charHdrExportSaucepanBtn').onclick = () => exportCharSaucepan(activeCharId);
   if (g('charHdrExportCharxBtn')) g('charHdrExportCharxBtn').onclick = () => exportCharCharx(activeCharId);
   // Header export button (preset)
