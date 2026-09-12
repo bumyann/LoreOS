@@ -12,8 +12,8 @@ Currently compatible with: **SillyTavern**, **JanitorAI** — SaucepanAI support
 
 ## Online Website!
 Hosted, no install needed!
-- Main Branch: **[loreos.net](https://loreos.net)** 
-- Staging Branch (Experimental updates here!): **[loreos.github.io](https://bumyann.github.io/LoreOS/)
+- Main Branch: [loreos.net](https://loreos.net)
+- Staging Branch (Experimental updates here!):[loreos.github.io](https://bumyann.github.io/LoreOS/)
 
 ---
 
