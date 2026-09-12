@@ -1,4 +1,4 @@
-# LoreOS — From Yuu, For You
+# LoreOS — From Yuu, For You (EARLY ACCESS)
 
 **A creator's sanctuary. built for the ones who write too much lore and have too many tabs open.**
 
@@ -11,8 +11,9 @@ Currently compatible with: **SillyTavern**, **JanitorAI** — SaucepanAI support
 ---
 
 ## Online Website!
-
-**[loreos.net](https://loreos.net)** — Hosted, no install needed!
+Hosted, no install needed!
+- Main Branch: **[loreos.net](https://loreos.net)** 
+- Staging Branch (Experimental updates here!): **[loreos.github.io](https://bumyann.github.io/LoreOS/)
 
 ---
 
@@ -61,7 +62,6 @@ bash start-termux.sh
 ---
 
 ## Status
-
 LoreOS is in **Early Access** — actively developed, features ship regularly. If something breaks, open an issue or find me on Discord!
 
 ---
