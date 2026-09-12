@@ -65,7 +65,7 @@ function normalizeCharCard(card) {
   if (typeof d.character_version !== 'string') d.character_version = '';
   if (!d.extensions) d.extensions = {};
   if (!card.spec) card.spec = 'chara_card_v2';
-  if (!card.spec_version) card.spec = 'chara_card_v3'; card.spec_version = '3.0'; // always export V3
+  if (!card.spec_version) { card.spec = 'chara_card_v3'; card.spec_version = '3.0'; } // default new cards to V3
   return card;
 }
 
@@ -406,6 +406,7 @@ function renderCharEditor() {
   g('chExportJsonBtn').addEventListener('click', () => exportCharJson(activeCharId));
   if (g('chExportV2JsonBtn'))   g('chExportV2JsonBtn').addEventListener('click',   () => exportCharJsonV2(activeCharId));
   if (g('chExportWithLbBtn'))   g('chExportWithLbBtn').addEventListener('click',   () => exportCharJsonWithLorebook(activeCharId));
+  if (g('chLbManageBtn'))       g('chLbManageBtn').addEventListener('click',       () => openAttachLbModal());
   g('chExportPngBtn').addEventListener('click', () => openCharPngExport(activeCharId));
   g('chExportSaucepanBtn').addEventListener('click', () => exportCharSaucepan(activeCharId));
   if (g('chExportCharxBtn')) g('chExportCharxBtn').addEventListener('click', () => exportCharCharx(activeCharId));
