@@ -217,7 +217,7 @@ function renderCharEditor() {
         </div>
         <div style="flex:0 0 auto;align-self:flex-end">
           <select id="chFormatPicker" class="finput" style="font-family:var(--fx);font-size:.62rem;letter-spacing:.5px;padding:.35rem .5rem;cursor:pointer">
-            <option value="st"${fmt === 'st' ? ' selected' : ''}>V3 · SillyTavern</option>
+            <option value="st"${fmt === 'st' ? ' selected' : ''}>SillyTavern</option>
             <option value="saucepan"${fmt === 'saucepan' ? ' selected' : ''}>SaucepanAI</option>
             <option value="lumiverse"${fmt === 'lumiverse' ? ' selected' : ''}>Lumiverse</option>
           </select>
