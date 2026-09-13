@@ -1166,9 +1166,20 @@ function exportCharCharx(id) {
   };
 
   if (entry.imageData) {
-    // imageData is a base64 data URL — extract raw base64
+    // imageData is a base64 data URL — extract raw bytes
     const b64 = entry.imageData.split(',')[1];
-    zip.folder('assets/icon/image').file('main.png', b64, { base64: true });
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
+    // If it's a PNG, strip any leftover text metadata (generation prompts,
+    // LoRA/checkpoint names, etc. from the source image) before packaging —
+    // .charx keeps card data in card.json, so main.png should be image-only.
+    const pngSig = [137,80,78,71,13,10,26,10];
+    const isPng = pngSig.every((b, i) => bytes[i] === b);
+    const outBytes = isPng ? stripExistingCharaChunks(bytes) : bytes;
+
+    zip.folder('assets/icon/image').file('main.png', outBytes);
     finish();
   } else {
     // No image stored — export without image
@@ -1179,6 +1190,37 @@ function exportCharCharx(id) {
 
 // ── PNG character card embed / extract ──
 // Character data is stored in a tEXt chunk keyword "chara" as base64 JSON.
+
+// Converts a base64 data URL to a PNG ArrayBuffer, auto-converting via
+// canvas if the source isn't already PNG (e.g. stored as JPEG/WebP).
+function dataUrlToPngArrayBuffer(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const b64 = dataUrl.split(',')[1];
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
+    const pngSig = [137,80,78,71,13,10,26,10];
+    if (pngSig.every((b, i) => bytes[i] === b)) {
+      resolve(bytes.buffer);
+      return;
+    }
+
+    // Not PNG — convert via canvas
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      canvas.toBlob(blob => {
+        if (!blob) { reject(new Error('Canvas PNG conversion failed')); return; }
+        blob.arrayBuffer().then(resolve).catch(reject);
+      }, 'image/png');
+    };
+    img.onerror = () => reject(new Error('Could not load stored image for conversion'));
+    img.src = dataUrl;
+  });
+}
 
 function openCharPngExport(id, forceV2 = true) {
   const entry = charLibrary[id]; if (!entry) return;
@@ -1201,13 +1243,10 @@ function openCharPngExport(id, forceV2 = true) {
   };
 
   if (entry.imageData) {
-    // Convert stored base64 data URL to ArrayBuffer
-    const b64 = entry.imageData.split(',')[1];
-    const bin = atob(b64);
-    const buf = new ArrayBuffer(bin.length);
-    const view = new Uint8Array(buf);
-    for (let i = 0; i < bin.length; i++) view[i] = bin.charCodeAt(i);
-    doExport(buf);
+    dataUrlToPngArrayBuffer(entry.imageData).then(doExport).catch(err => {
+      toast('Image conversion error: ' + err.message, 'err');
+      console.error(err);
+    });
   } else {
     // No stored image — ask user to pick one
     const input = document.createElement('input');
