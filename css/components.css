@@ -81,7 +81,7 @@
 /* ─── MODALS ─── */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:2000;padding:.9rem}
 .modal.open{display:flex}
-.modal-box{background:var(--bg2);border:1px solid var(--bdb);border-radius:4px;width:90%;max-width:570px;max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--sh),0 0 35px var(--pg);overflow:hidden}
+.modal-box{background:var(--bg2);border:1px solid var(--bdb);border-radius:4px;width:90%;max-width:570px;max-height:88vh;max-height:88dvh;display:flex;flex-direction:column;box-shadow:var(--sh),0 0 35px var(--pg);overflow:hidden}
 .modal-box.lg{max-width:750px}
 .modal-head{display:flex;justify-content:space-between;align-items:center;padding:.75rem 1.1rem;background:var(--bg3);border-bottom:1px solid var(--bd);flex-shrink:0}
 .modal-head h2{font-family:var(--fp);font-size:1.2rem;color:var(--p);letter-spacing:2px;text-shadow:0 0 8px var(--pg)}

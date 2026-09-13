@@ -27,7 +27,7 @@ body.pink{
 }
 
 /* ─── BASE ─── */
-body{font-family:var(--fb);background:var(--bg);color:var(--tx);font-size:14px;line-height:1.6;overflow:hidden;height:100vh}
+body{font-family:var(--fb);background:var(--bg);color:var(--tx);font-size:14px;line-height:1.6;overflow:hidden;height:100vh;height:100dvh}
 body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);pointer-events:none;z-index:9999}
 body.pink::before{background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.015) 2px,rgba(0,0,0,.015) 4px)}
 ::-webkit-scrollbar{width:5px;height:5px}
@@ -35,7 +35,7 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
 ::-webkit-scrollbar-thumb{background:var(--bdb);border-radius:3px}
 
 /* ─── APP SHELL ─── */
-#app{height:100vh;display:flex;overflow:hidden}
+#app{height:100vh;height:100dvh;display:flex;overflow:hidden}
 
 /* ══════════════════════════════════════════
    NAV SIDEBAR
