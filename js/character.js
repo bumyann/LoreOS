@@ -973,13 +973,12 @@ function exportCharJson(id) {
   toast('Exported: ' + fn, 'ok');
 }
 
-// Export as V2 JSON (chara_card_v2 / spec_version 2.0)
-// Strips V3-only fields (group_only_greetings, assets, character_version) for max compat
-function exportCharJsonV2(id) {
-  const entry = charLibrary[id]; if (!entry) return;
-  captureCharState();
-  const d = entry.card.data;
-  const v2card = {
+// Build a clean chara_card_v2-shaped card from internal card data.
+// Flattens alternate_greetings from internal {title,message} objects back to
+// plain strings (V2 spec requires string[]) and drops LoreOS-internal fields
+// (top-level `id`, greeting titles, etc.) that aren't part of the V2 spec.
+function toV2Card(d) {
+  return {
     spec: 'chara_card_v2',
     spec_version: '2.0',
     data: {
@@ -1000,6 +999,15 @@ function exportCharJsonV2(id) {
       ...(d.character_book ? { character_book: d.character_book } : {})
     }
   };
+}
+
+// Export as V2 JSON (chara_card_v2 / spec_version 2.0)
+// Strips V3-only fields (group_only_greetings, assets, character_version) for max compat
+function exportCharJsonV2(id) {
+  const entry = charLibrary[id]; if (!entry) return;
+  captureCharState();
+  const d = entry.card.data;
+  const v2card = toV2Card(d);
   const fn = (d.name || 'character').replace(/[^a-z0-9_-]/gi, '_') + '_v2.json';
   dlFile(JSON.stringify(v2card, null, 2), fn, 'application/json');
   toast('Exported V2: ' + fn, 'ok');
@@ -1178,7 +1186,8 @@ function openCharPngExport(id, forceV2 = true) {
   const doExport = (arrayBuf) => {
     try {
       const buf = new Uint8Array(arrayBuf);
-      const outCard = forceV2 ? Object.assign({}, entry.card, { spec: 'chara_card_v2', spec_version: '2.0' }) : entry.card;
+      captureCharState();
+      const outCard = forceV2 ? toV2Card(entry.card.data) : entry.card;
       const outBuf = embedCharInPng(buf, outCard);
       const blob = new Blob([outBuf], { type: 'image/png' });
       const url = URL.createObjectURL(blob);
