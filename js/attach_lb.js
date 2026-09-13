@@ -1,46 +1,83 @@
 // ═══════════════════════════════════════════════════════
 // ATTACHED LOREBOOK (character_book field)
+// Supports multiple attached lorebooks merged into one character_book.
+// Raw sources live on the library entry (entry.attachedLbSources), NOT
+// inside card.data, so they never leak into exported card JSON.
 // ═══════════════════════════════════════════════════════
 
 function updateLbStatus(entry) {
   const statusEl = g('chLbStatus');
   if (!statusEl) return;
+  const sources = entry?.attachedLbSources || [];
   const cb = entry?.card?.data?.character_book;
   if (cb && cb.entries && Object.keys(cb.entries).length > 0) {
     const count = Object.keys(cb.entries).length;
-    const name = cb.name || 'Unnamed lorebook';
-    statusEl.innerHTML = `🌐 <strong>${name}</strong> — ${count} ${count === 1 ? 'entry' : 'entries'} attached`;
+    if (sources.length > 1) {
+      statusEl.innerHTML = `🌐 <strong>${sources.length} lorebooks merged</strong> — ${count} ${count === 1 ? 'entry' : 'entries'} total`;
+    } else {
+      const name = sources.length === 1 ? sources[0].name : (cb.name || 'Unnamed lorebook');
+      statusEl.innerHTML = `🌐 <strong>${name}</strong> — ${count} ${count === 1 ? 'entry' : 'entries'} attached`;
+    }
   } else {
     statusEl.textContent = '🌐 No lorebook attached';
   }
 }
 
-function openAttachLbModal() {
-  if (!activeCharId) { toast('Open a character first.', 'warn'); return; }
+// Rebuild card.data.character_book fresh from every attached source,
+// remapping entry uids so entries from different lorebooks never collide.
+function rebuildCharacterBook(entry) {
+  const sources = entry.attachedLbSources || [];
+  if (!sources.length) { entry.card.data.character_book = null; return; }
+  const merged = {};
+  let nextUid = 0;
+  sources.forEach(src => {
+    Object.values(src.lb.entries || {}).forEach(en => {
+      const clone = JSON.parse(JSON.stringify(en));
+      clone.uid = nextUid;
+      clone.displayIndex = nextUid;
+      if ('order' in clone) clone.order = nextUid;
+      merged[nextUid] = clone;
+      nextUid++;
+    });
+  });
+  const name = sources.length === 1 ? (sources[0].name || 'Attached Lorebook') : `${sources.length} lorebooks merged`;
+  entry.card.data.character_book = { name, entries: merged };
+}
+
+function renderAttachLbList() {
   const list = g('attachLbLibList');
+  if (!list) return;
   list.innerHTML = '';
   const lib = libGet();
   const books = Object.values(lib).sort((a,b) => b.savedAt.localeCompare(a.savedAt));
   const entry = charLibrary[activeCharId];
-  const current = entry?.card?.data?.character_book?.name;
+  const attachedNames = new Set((entry?.attachedLbSources || []).map(s => s.name));
 
   if (!books.length) {
     list.innerHTML = '<div class="lib-empty">// no lorebooks in library yet</div>';
-  } else {
-    books.forEach(book => {
-      const count = Object.keys(book.lb.entries || {}).length;
-      const date = new Date(book.savedAt).toLocaleDateString();
-      const isAttached = book.name === current;
-      const item = document.createElement('div');
-      item.className = 'lib-item' + (isAttached ? ' active' : '');
-      item.innerHTML = `
-        <span class="lib-name">${book.name}${isAttached ? ' ✓' : ''}</span>
-        <span class="lib-meta">${count} entries · ${date}</span>
-        <button class="btn btn-p btn-sm">${isAttached ? 'Re-attach' : 'Attach'}</button>`;
-      item.querySelector('.btn').addEventListener('click', () => attachLorebook(book.lb));
-      list.append(item);
-    });
+    return;
   }
+  books.forEach(book => {
+    const count = Object.keys(book.lb.entries || {}).length;
+    const date = new Date(book.savedAt).toLocaleDateString();
+    const isAttached = attachedNames.has(book.name);
+    const item = document.createElement('div');
+    item.className = 'lib-item' + (isAttached ? ' active' : '');
+    item.innerHTML = `
+      <span class="lib-name">${book.name}${isAttached ? ' ✓' : ''}</span>
+      <span class="lib-meta">${count} entries · ${date}</span>
+      <button class="btn ${isAttached ? 'btn-err' : 'btn-p'} btn-sm">${isAttached ? 'Detach' : 'Attach'}</button>`;
+    item.querySelector('.btn').addEventListener('click', () => {
+      if (isAttached) detachOneLorebook(book.name);
+      else attachLorebook(book.lb);
+    });
+    list.append(item);
+  });
+}
+
+function openAttachLbModal() {
+  if (!activeCharId) { toast('Open a character first.', 'warn'); return; }
+  renderAttachLbList();
 
   g('attachLbUploadBtn').onclick = () => g('attachLbFileInput').click();
   g('attachLbFileInput').onchange = e => {
@@ -59,27 +96,48 @@ function openAttachLbModal() {
   openModal('attachLbModal');
 }
 
+// Attach one more lorebook on top of whatever's already attached — merges
+// rather than replaces. Re-attaching the same name refreshes its entries.
 function attachLorebook(lb) {
   if (!activeCharId || !charLibrary[activeCharId]) return;
   const entry = charLibrary[activeCharId];
-  // Convert to character_book format (ST expects entries as array or object)
-  entry.card.data.character_book = {
-    name: lb.name || 'Attached Lorebook',
-    entries: lb.entries || {}
-  };
+  if (!entry.attachedLbSources) entry.attachedLbSources = [];
+  const name = lb.name || 'Attached Lorebook';
+  const existingIdx = entry.attachedLbSources.findIndex(s => s.name === name);
+  if (existingIdx > -1) {
+    entry.attachedLbSources[existingIdx] = { name, lb };
+    toast(`"${name}" refreshed.`, 'ok');
+  } else {
+    entry.attachedLbSources.push({ name, lb });
+    toast(`"${name}" attached.`, 'ok');
+  }
+  rebuildCharacterBook(entry);
   saveCharLibrary();
   updateLbStatus(entry);
-  closeModal('attachLbModal');
-  toast(`Lorebook "${entry.card.data.character_book.name}" attached.`, 'ok');
+  renderAttachLbList(); // keep modal open so more can be attached
 }
 
+// Detach a single attached lorebook by name, keeping the rest merged.
+function detachOneLorebook(name) {
+  const entry = charLibrary[activeCharId]; if (!entry) return;
+  entry.attachedLbSources = (entry.attachedLbSources || []).filter(s => s.name !== name);
+  rebuildCharacterBook(entry);
+  saveCharLibrary();
+  updateLbStatus(entry);
+  renderAttachLbList();
+  toast(`"${name}" detached.`, 'ok');
+}
+
+// Detach everything at once (the modal's "Detach All" button).
 function detachLorebook() {
   if (!activeCharId || !charLibrary[activeCharId]) return;
-  charLibrary[activeCharId].card.data.character_book = null;
+  const entry = charLibrary[activeCharId];
+  entry.attachedLbSources = [];
+  entry.card.data.character_book = null;
   saveCharLibrary();
-  updateLbStatus(charLibrary[activeCharId]);
-  closeModal('attachLbModal');
-  toast('Lorebook detached.', 'ok');
+  updateLbStatus(entry);
+  renderAttachLbList();
+  toast('All lorebooks detached.', 'ok');
 }
 // ═══════════════════════════════════════════════════════
 // PRESET VARIABLES PANEL

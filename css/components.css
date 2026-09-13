@@ -442,6 +442,20 @@
 .lib-item-hist{cursor:pointer;font-family:var(--fx);font-size:.62rem;color:var(--txm);border:1px solid var(--bd);border-radius:2px;padding:0 5px;transition:all .12s;white-space:nowrap}
 .lib-item-hist:hover{border-color:var(--p);color:var(--p)}
 
+/* ─── DISABLED BUTTON STATE ─── */
+/* Undo/Redo buttons go grey when disabled — needs explicit style to avoid theme bleed */
+.btn:disabled,.btn[disabled]{
+  opacity:.38;cursor:not-allowed;pointer-events:none;
+  background:var(--sf)!important;color:var(--txm)!important;
+  border-color:var(--bd)!important;box-shadow:none!important;
+}
+
+/* ─── EMOJI FONT FIX (mobile nav icons) ─── */
+/* Force system emoji font so emoji render correctly on iOS/Android */
+.mob-nav-btn .icon{
+  font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;
+}
+
 /* ─── LUMIVERSE VARIANT FIELDS ─── */
 .lumi-vwrap{display:flex;flex-direction:column;gap:.4rem}
 .lumi-vtabs{display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.2rem}

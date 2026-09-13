@@ -65,7 +65,7 @@ function normalizeCharCard(card) {
   if (typeof d.character_version !== 'string') d.character_version = '';
   if (!d.extensions) d.extensions = {};
   if (!card.spec) card.spec = 'chara_card_v2';
-  if (!card.spec_version) card.spec = 'chara_card_v3'; card.spec_version = '3.0'; // always export V3
+  if (!card.spec_version) { card.spec = 'chara_card_v3'; card.spec_version = '3.0'; } // default new cards to V3
   return card;
 }
 
@@ -217,7 +217,7 @@ function renderCharEditor() {
         </div>
         <div style="flex:0 0 auto;align-self:flex-end">
           <select id="chFormatPicker" class="finput" style="font-family:var(--fx);font-size:.62rem;letter-spacing:.5px;padding:.35rem .5rem;cursor:pointer">
-            <option value="st"${fmt === 'st' ? ' selected' : ''}>V3 · SillyTavern</option>
+            <option value="st"${fmt === 'st' ? ' selected' : ''}>SillyTavern</option>
             <option value="saucepan"${fmt === 'saucepan' ? ' selected' : ''}>SaucepanAI</option>
             <option value="lumiverse"${fmt === 'lumiverse' ? ' selected' : ''}>Lumiverse</option>
           </select>
@@ -301,7 +301,7 @@ function renderCharEditor() {
       </div>
     </div>
 
-    <div class="attach-lb-panel">
+    <div class="attach-lb-panel"${isSauce ? ' style="display:none"' : ''}>
       <div class="attach-lb-status" id="chLbStatus">🌐 No lorebook attached</div>
       <div class="attach-lb-acts">
         <button class="btn btn-s btn-sm" id="chLbManageBtn">Manage Attached Lorebook</button>
@@ -315,9 +315,11 @@ function renderCharEditor() {
       <div class="dd" id="dd-char-export">
         <button class="btn btn-s dd-btn">&#8657; Export</button>
         <div class="dd-menu">
-          <button class="dd-item" id="chExportJsonBtn">ST / JanitorAI (V3 JSON)</button>
-          <button class="dd-item" id="chExportPngBtn">ST / JanitorAI (PNG Card)</button>
-          <button class="dd-item" id="chExportSaucepanBtn">SaucepanAI (companion.json)</button>
+          <button class="dd-item" id="chExportJsonBtn">V3 JSON</button>
+          <button class="dd-item" id="chExportV2JsonBtn">V2 JSON</button>
+          <button class="dd-item" id="chExportV3PngBtn">V3 PNG</button>
+          <button class="dd-item" id="chExportPngBtn">V2 PNG</button>
+          <button class="dd-item" id="chExportSaucepanBtn">Companion (SaucepanAI)</button>
           <button class="dd-item" id="chExportCharxBtn">.charx (Lumiverse)</button>
         </div>
       </div>
@@ -402,7 +404,10 @@ function renderCharEditor() {
     syncItemUndoButtons('char', activeCharId);
   });
   g('chExportJsonBtn').addEventListener('click', () => exportCharJson(activeCharId));
-  g('chExportPngBtn').addEventListener('click', () => openCharPngExport(activeCharId));
+  if (g('chExportV2JsonBtn'))   g('chExportV2JsonBtn').addEventListener('click',   () => exportCharJsonV2(activeCharId));
+  if (g('chLbManageBtn'))       g('chLbManageBtn').addEventListener('click',       () => openAttachLbModal());
+  g('chExportPngBtn').addEventListener('click', () => openCharPngExport(activeCharId, true));
+  if (g('chExportV3PngBtn')) g('chExportV3PngBtn').addEventListener('click', () => openCharPngExport(activeCharId, false));
   g('chExportSaucepanBtn').addEventListener('click', () => exportCharSaucepan(activeCharId));
   if (g('chExportCharxBtn')) g('chExportCharxBtn').addEventListener('click', () => exportCharCharx(activeCharId));
   // Wire the char export dropdown
@@ -968,6 +973,38 @@ function exportCharJson(id) {
   toast('Exported: ' + fn, 'ok');
 }
 
+// Export as V2 JSON (chara_card_v2 / spec_version 2.0)
+// Strips V3-only fields (group_only_greetings, assets, character_version) for max compat
+function exportCharJsonV2(id) {
+  const entry = charLibrary[id]; if (!entry) return;
+  captureCharState();
+  const d = entry.card.data;
+  const v2card = {
+    spec: 'chara_card_v2',
+    spec_version: '2.0',
+    data: {
+      name:                     d.name || '',
+      description:              d.description || '',
+      personality:              d.personality || '',
+      scenario:                 d.scenario || '',
+      first_mes:                d.first_mes || '',
+      mes_example:              d.mes_example || '',
+      creator_notes:            d.creator_notes || '',
+      system_prompt:            d.system_prompt || '',
+      post_history_instructions:d.post_history_instructions || '',
+      alternate_greetings:      (d.alternate_greetings || []).map(g => typeof g === 'object' ? (g.message || '') : (g || '')),
+      tags:                     d.tags || [],
+      creator:                  d.creator || '',
+      character_version:        d.character_version || '',
+      extensions:               d.extensions || {},
+      ...(d.character_book ? { character_book: d.character_book } : {})
+    }
+  };
+  const fn = (d.name || 'character').replace(/[^a-z0-9_-]/gi, '_') + '_v2.json';
+  dlFile(JSON.stringify(v2card, null, 2), fn, 'application/json');
+  toast('Exported V2: ' + fn, 'ok');
+}
+
 function exportCharSaucepan(id) {
   const entry = charLibrary[id]; if (!entry) return;
   captureCharState();
@@ -1135,22 +1172,22 @@ function exportCharCharx(id) {
 // ── PNG character card embed / extract ──
 // Character data is stored in a tEXt chunk keyword "chara" as base64 JSON.
 
-function openCharPngExport(id) {
+function openCharPngExport(id, forceV2 = true) {
   const entry = charLibrary[id]; if (!entry) return;
 
   const doExport = (arrayBuf) => {
     try {
       const buf = new Uint8Array(arrayBuf);
-      const v2card = Object.assign({}, entry.card, { spec: 'chara_card_v2', spec_version: '2.0' });
-      const outBuf = embedCharInPng(buf, v2card);
+      const outCard = forceV2 ? Object.assign({}, entry.card, { spec: 'chara_card_v2', spec_version: '2.0' }) : entry.card;
+      const outBuf = embedCharInPng(buf, outCard);
       const blob = new Blob([outBuf], { type: 'image/png' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi,'_') + '.png';
+      a.download = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi,'_') + (forceV2 ? '_v2' : '_v3') + '.png';
       document.body.append(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
-      toast('PNG card exported!', 'ok');
+      toast((forceV2 ? 'V2' : 'V3') + ' PNG card exported!', 'ok');
     } catch(err) { toast('PNG export error: ' + err.message, 'err'); console.error(err); }
   };
 

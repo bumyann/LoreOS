@@ -7,7 +7,7 @@
 :: ═══════════════════════════════════════════════════════
 
 setlocal enabledelayedexpansion
-set REPO=bumyann/LoreOS-Universal-Editor
+set REPO=bumyann/LoreOS
 set ASSET_URL=https://github.com/%REPO%/releases/latest/download/LoreOS.zip
 set RELEASE_API=https://api.github.com/repos/%REPO%/releases/latest
 set PORT=8080
@@ -15,7 +15,7 @@ set DIR=%~dp0
 set VERSION_FILE=%DIR%version.txt
 
 echo.
-echo   LoreOS // Universal Editor
+echo   LoreOS // loreos.net
 echo   ----------------------------
 
 :: ── Check Python ──

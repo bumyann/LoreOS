@@ -29,6 +29,11 @@ function wireMobile() {
         btn.style.display = (m === modeKey) ? '' : 'none';
       });
     });
+    // Hide the entries/sidebar toggle for char and preset — they're full-width, no sidebar
+    const entriesBtn = g('mobEntries');
+    const sep = g('mob-nav-sep');
+    if (entriesBtn) entriesBtn.style.display = (m === 'lore') ? '' : 'none';
+    if (sep) sep.style.display = (m === 'lore') ? '' : 'none';
   }
 
   // ── updateMobViewBtns: show/hide view-specific controls ──
@@ -76,11 +81,13 @@ function wireMobile() {
     }
     if (backSep) backSep.style.display = isEditor ? '' : 'none';
 
-    // Sidebar toggle + sep
+    // Sidebar toggle + sep — only show in editor AND only for lorebook mode (char/preset have no sidebar)
     const entriesBtn = g('mobEntries');
     const sep = g('mob-nav-sep');
-    if (entriesBtn) entriesBtn.style.display = isEditor ? '' : 'none';
-    if (sep) sep.style.display = isEditor ? '' : 'none';
+    const sidebarMode = (typeof mode !== 'undefined') ? mode : 'lore';
+    const showSidebar = isEditor && sidebarMode === 'lore';
+    if (entriesBtn) entriesBtn.style.display = showSidebar ? '' : 'none';
+    if (sep) sep.style.display = showSidebar ? '' : 'none';
 
     // Mode action buttons
     if (!isEditor) {
@@ -164,6 +171,15 @@ function wireMobile() {
   // Mobile char import picker
   if (g('mobCharImportJsonBtn')) g('mobCharImportJsonBtn').addEventListener('click', () => { closeModal('mobCharImportModal'); g('fileCharInput').accept='.json'; g('fileCharInput').click(); });
   if (g('mobCharImportPngBtn'))  g('mobCharImportPngBtn').addEventListener('click',  () => { closeModal('mobCharImportModal'); g('fileCharInput').accept='.png';  g('fileCharInput').click(); });
+
+  // Mobile char export
+  g('mobCharExport').addEventListener('click', () => openModal('mobCharExportModal'));
+  if (g('mobCharExportJsonBtn'))      g('mobCharExportJsonBtn').addEventListener('click',      () => { closeModal('mobCharExportModal'); exportCharJson(activeCharId); });
+  if (g('mobCharExportV2JsonBtn'))    g('mobCharExportV2JsonBtn').addEventListener('click',    () => { closeModal('mobCharExportModal'); exportCharJsonV2(activeCharId); });
+  if (g('mobCharExportV3PngBtn'))     g('mobCharExportV3PngBtn').addEventListener('click',     () => { closeModal('mobCharExportModal'); openCharPngExport(activeCharId, false); });
+  if (g('mobCharExportPngBtn'))       g('mobCharExportPngBtn').addEventListener('click',       () => { closeModal('mobCharExportModal'); openCharPngExport(activeCharId, true); });
+  if (g('mobCharExportSaucepanBtn'))  g('mobCharExportSaucepanBtn').addEventListener('click',  () => { closeModal('mobCharExportModal'); exportCharSaucepan(activeCharId); });
+  if (g('mobCharExportCharxBtn'))     g('mobCharExportCharxBtn').addEventListener('click',     () => { closeModal('mobCharExportModal'); exportCharCharx(activeCharId); });
 
   // ── PRESET buttons ──
   g('mobPresetNew').addEventListener('click', () => { createPreset(); if(isMob()) closeSidebar(); });
