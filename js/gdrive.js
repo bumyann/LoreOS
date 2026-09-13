@@ -16,6 +16,7 @@ const GDRIVE_CLIENT_ID = '218324898243-cm0as5dqcsl9g7tgj1lf6lk83pc1qti3.apps.goo
 const GDRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.appdata';
 const GDRIVE_FILE_NAME = 'LoreOS-sync.json';
 const GDRIVE_PUSH_DELAY = 5000; // ms debounce for auto-push
+const GDRIVE_LINK_FLAG = 'loreos_gdrive_linked'; // non-sensitive: just "was connected", never the token itself
 
 // ── Runtime state (memory-only — cleared on reload) ──
 let gdriveToken      = null;  // access token
@@ -53,6 +54,7 @@ function gdriveConnect() {
         return;
       }
       gdriveToken = resp.access_token;
+      localStorage.setItem(GDRIVE_LINK_FLAG, '1');
       // Fetch user info for display
       try {
         const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -72,6 +74,50 @@ function gdriveConnect() {
   client.requestAccessToken({ prompt: 'consent' });
 }
 
+// ═══════════════════════════════════════════════════════
+// SILENT RECONNECT — on page load, try to re-acquire a token
+// without any prompt if this browser was previously linked.
+// No token is ever persisted; only a plain "was linked" flag is.
+// Falls back to showing the normal Connect button if this fails
+// (expired browser session, revoked consent, etc.) — no error toast.
+// ═══════════════════════════════════════════════════════
+function gdriveTrySilentReconnect(retriesLeft = 10) {
+  if (!gdriveAvailable) return;
+  if (localStorage.getItem(GDRIVE_LINK_FLAG) !== '1') return;
+
+  if (typeof google === 'undefined' || !google.accounts?.oauth2) {
+    // GSI script loads async/defer — it may not be ready yet on first call
+    if (retriesLeft > 0) setTimeout(() => gdriveTrySilentReconnect(retriesLeft - 1), 300);
+    return;
+  }
+
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: GDRIVE_CLIENT_ID,
+    scope: GDRIVE_SCOPE,
+    callback: async (resp) => {
+      if (resp.error) {
+        // Silent auth failed (session expired / consent revoked elsewhere) —
+        // just fall back to manual connect, no toast needed on a background attempt.
+        localStorage.removeItem(GDRIVE_LINK_FLAG);
+        return;
+      }
+      gdriveToken = resp.access_token;
+      try {
+        const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: 'Bearer ' + gdriveToken }
+        }).then(r => r.json());
+        gdriveEmail = info.email || 'connected';
+      } catch(e) {
+        gdriveEmail = 'connected';
+      }
+      gdriveUpdateUI();
+      await gdriveFindOrCreateFile();
+    },
+  });
+
+  client.requestAccessToken({ prompt: '' }); // '' = try silently, no popup
+}
+
 function gdriveDisconnect() {
   if (gdriveToken && typeof google !== 'undefined') {
     google.accounts.oauth2.revoke(gdriveToken, () => {});
@@ -81,6 +127,7 @@ function gdriveDisconnect() {
   gdriveEmail    = null;
   gdriveLastSync = null;
   clearTimeout(gdrivePushTimer);
+  localStorage.removeItem(GDRIVE_LINK_FLAG);
   toast('Disconnected from Google Drive.', 'ok');
   gdriveUpdateUI();
 }
@@ -250,6 +297,7 @@ function gdriveUpdateUI() {
 // ═══════════════════════════════════════════════════════
 function wireGdrive() {
   gdriveInit();
+  gdriveTrySilentReconnect();
   g('gdriveConnectBtn')?.addEventListener('click', gdriveConnect);
   g('gdriveDisconnectBtn')?.addEventListener('click', gdriveDisconnect);
   g('gdrivePushBtn')?.addEventListener('click', gdrivePushManual);

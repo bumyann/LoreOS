@@ -1166,9 +1166,20 @@ function exportCharCharx(id) {
   };
 
   if (entry.imageData) {
-    // imageData is a base64 data URL — extract raw base64
+    // imageData is a base64 data URL — extract raw bytes
     const b64 = entry.imageData.split(',')[1];
-    zip.folder('assets/icon/image').file('main.png', b64, { base64: true });
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
+    // If it's a PNG, strip any leftover text metadata (generation prompts,
+    // LoRA/checkpoint names, etc. from the source image) before packaging —
+    // .charx keeps card data in card.json, so main.png should be image-only.
+    const pngSig = [137,80,78,71,13,10,26,10];
+    const isPng = pngSig.every((b, i) => bytes[i] === b);
+    const outBytes = isPng ? stripExistingCharaChunks(bytes) : bytes;
+
+    zip.folder('assets/icon/image').file('main.png', outBytes);
     finish();
   } else {
     // No image stored — export without image
@@ -1179,6 +1190,37 @@ function exportCharCharx(id) {
 
 // ── PNG character card embed / extract ──
 // Character data is stored in a tEXt chunk keyword "chara" as base64 JSON.
+
+// Converts a base64 data URL to a PNG ArrayBuffer, auto-converting via
+// canvas if the source isn't already PNG (e.g. stored as JPEG/WebP).
+function dataUrlToPngArrayBuffer(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const b64 = dataUrl.split(',')[1];
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
+    const pngSig = [137,80,78,71,13,10,26,10];
+    if (pngSig.every((b, i) => bytes[i] === b)) {
+      resolve(bytes.buffer);
+      return;
+    }
+
+    // Not PNG — convert via canvas
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      canvas.toBlob(blob => {
+        if (!blob) { reject(new Error('Canvas PNG conversion failed')); return; }
+        blob.arrayBuffer().then(resolve).catch(reject);
+      }, 'image/png');
+    };
+    img.onerror = () => reject(new Error('Could not load stored image for conversion'));
+    img.src = dataUrl;
+  });
+}
 
 function openCharPngExport(id, forceV2 = true) {
   const entry = charLibrary[id]; if (!entry) return;
@@ -1201,13 +1243,10 @@ function openCharPngExport(id, forceV2 = true) {
   };
 
   if (entry.imageData) {
-    // Convert stored base64 data URL to ArrayBuffer
-    const b64 = entry.imageData.split(',')[1];
-    const bin = atob(b64);
-    const buf = new ArrayBuffer(bin.length);
-    const view = new Uint8Array(buf);
-    for (let i = 0; i < bin.length; i++) view[i] = bin.charCodeAt(i);
-    doExport(buf);
+    dataUrlToPngArrayBuffer(entry.imageData).then(doExport).catch(err => {
+      toast('Image conversion error: ' + err.message, 'err');
+      console.error(err);
+    });
   } else {
     // No stored image — ask user to pick one
     const input = document.createElement('input');
@@ -1298,6 +1337,11 @@ function embedCharInPng(pngBuf, card) {
   return out;
 }
 
+// Strips ALL text metadata chunks (tEXt/zTXt/iTXt) — not just chara/ccv3.
+// Source images (e.g. from ComfyUI/A1111) often carry their own generation
+// metadata (prompt, workflow, LoRA/checkpoint names) baked in as tEXt chunks.
+// None of that belongs in an exported character card, so we clear it all
+// before embedding our own "chara" chunk.
 function stripExistingCharaChunks(buf) {
   const out = [];
   let pos = 8;
@@ -1306,15 +1350,9 @@ function stripExistingCharaChunks(buf) {
     const len = (buf[pos]<<24 | buf[pos+1]<<16 | buf[pos+2]<<8 | buf[pos+3]) >>> 0;
     const type = String.fromCharCode(buf[pos+4], buf[pos+5], buf[pos+6], buf[pos+7]);
     const chunkTotal = 4 + 4 + len + 4;
-    if (type === 'tEXt') {
-      // Check keyword
-      let kwEnd = pos + 8;
-      while (kwEnd < pos + 8 + len && buf[kwEnd] !== 0) kwEnd++;
-      const keyword = String.fromCharCode(...buf.subarray(pos+8, kwEnd));
-      if (keyword === 'chara' || keyword === 'ccv3') {
-        pos += chunkTotal;
-        continue; // skip this chunk
-      }
+    if (type === 'tEXt' || type === 'zTXt' || type === 'iTXt') {
+      pos += chunkTotal;
+      continue; // skip all text metadata chunks, regardless of keyword
     }
     out.push(buf.subarray(pos, pos + chunkTotal));
     pos += chunkTotal;
