@@ -282,8 +282,12 @@ function initNavSidebar() {
     item.addEventListener('click', () => {
       const view = item.dataset.view;
       if (view === 'settings') {
-        // open modal directly, no navigation
-        openModal('settingsModal');
+        // openSettings() is what fills the panel in — colour pickers,
+        // saved themes, font fields, storage meter. Opening the modal
+        // directly (as this used to) left every field blank, and then
+        // hitting Apply wrote those blanks back over your saved theme.
+        if (typeof openSettings === 'function') openSettings();
+        else openModal('settingsModal');
       } else {
         navigateTo(view);
       }
@@ -315,7 +319,7 @@ function nbGet() {
   catch(e) { return { pages: {}, activePageId: null }; }
 }
 function nbSet(data) {
-  try { localStorage.setItem('loreos_notebook', JSON.stringify(data)); } catch(e) {}
+  return safeSet('loreos_notebook', JSON.stringify(data));
 }
 function nbId() { return 'nb_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
 
@@ -478,12 +482,23 @@ function nbSaveActive() {
     data.pages[_nbActiveId].content = _nbEditor.storage.markdown.getMarkdown();
   }
   data.pages[_nbActiveId].updatedAt = new Date().toISOString();
-  nbSet(data);
+  const ok = nbSet(data);
+  const st = document.getElementById('nbSaveStatus');
+  if (!ok) {
+    if (st) { st.textContent = 'NOT SAVED'; st.style.color = 'var(--err)'; }
+    return false;
+  }
   const item = document.querySelector(`.nb-page-item[data-nb-id="${_nbActiveId}"] .nb-page-date`);
   if (item) item.textContent = new Date().toLocaleDateString();
-  const st = document.getElementById('nbSaveStatus');
   if (st) { st.textContent = 'saved'; st.style.color = 'var(--ok)'; }
+  return true;
 }
+
+// The journal autosaves 2s after you stop typing. Closing the tab
+// mid-sentence used to lose whatever was inside that window.
+window.addEventListener('beforeunload', () => {
+  try { if (_nbActiveId) nbSaveActive(); } catch(e) {}
+});
 
 function nbNewPage() {
   nbSaveActive();

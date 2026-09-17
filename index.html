@@ -727,6 +727,25 @@
       </div>
 
       <div class="settings-section">
+        <div class="settings-section-title">Storage
+          <button class="btn btn-s btn-sm" id="stgStorageRefresh" style="margin-left:.5rem">Refresh</button>
+        </div>
+        <div id="stgStorageBody"></div>
+        <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;margin-top:.7rem">
+          <button class="btn btn-p btn-sm" id="stgOptimiseAvatars">Optimise existing avatars</button>
+          <label class="cb-row" style="margin-left:auto">
+            <input type="checkbox" id="stgKeepFullAvatars">
+            <span class="flabel-sm">Keep avatars at full resolution</span>
+          </label>
+        </div>
+        <div style="font-family:var(--fx);font-size:.65rem;color:var(--txm);line-height:1.6;margin-top:.45rem">
+          Avatars are resized to 512px on import — that's the size every frontend
+          displays them at, and it keeps your storage from filling up. Turn the
+          toggle on if you want originals kept instead.
+        </div>
+      </div>
+
+      <div class="settings-section">
         <div class="settings-section-title">Saved Themes</div>
         <div id="stgThemeSlots" style="display:flex;flex-direction:column;gap:.3rem;margin-bottom:.6rem"></div>
         <div style="display:flex;gap:.4rem">

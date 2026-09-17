@@ -11,7 +11,7 @@ document.addEventListener('focusin', e => {
 
 function tplKey(m) { return m === 'lore' ? 'aet_tpl_lore' : m === 'preset' ? 'aet_tpl_preset' : 'aet_tpl_char'; }
 function tplGet(m) { try { return JSON.parse(localStorage.getItem(tplKey(m)) || '{}'); } catch(e) { return {}; } }
-function tplSet(m, d) { localStorage.setItem(tplKey(m), JSON.stringify(d)); }
+function tplSet(m, d) { return safeSet(tplKey(m), JSON.stringify(d)); }
 function tplNewId() { return 't' + Date.now() + Math.floor(Math.random()*1000); }
 
 // ═══════════════════════════════════════════════════════

@@ -386,7 +386,7 @@ function renderCharEditor() {
     charActiveFormat = e.target.value;
     renderCharEditor();
   });
-  g('chSaveBtn').addEventListener('click', saveChar);
+  g('chSaveBtn').addEventListener('click', () => saveChar());
   if (g('chUndoBtn')) g('chUndoBtn').addEventListener('click', () => {
     const snap = itemUndoGet('char', activeCharId, 'undo');
     if (!snap) return;
@@ -451,13 +451,17 @@ function renderCharEditor() {
   imgInput.addEventListener('change', e => {
     const file = e.target.files[0]; if (!file) return;
     const r = new FileReader();
-    r.onload = ev => {
-      if (charEntry) {
-        charEntry.imageData = ev.target.result; // base64 data URL
-        saveCharLibrary();
-        refreshImagePreview();
-        toast('Image set.', 'ok');
-      }
+    r.onload = async ev => {
+      if (!charEntry) return;
+      const raw = ev.target.result;              // base64 data URL
+      const small = await downscaleAvatar(raw);  // resize before storing
+      charEntry.imageData = small;
+      if (!saveCharLibrary()) return;            // safeSet already explained why
+      refreshImagePreview();
+      const saved = raw.length - small.length;
+      toast(saved > 1024
+        ? `Image set (resized, saved ${Math.round(saved/1024)}KB).`
+        : 'Image set.', 'ok');
     };
     r.readAsDataURL(file);
     e.target.value = '';
@@ -633,7 +637,7 @@ function wireLumiVariantFields() {
         const idx   = parseInt(btn.dataset.idx);
         const lv    = charFormState._lumiVariants || captureLumiVariants();
         if (!lv[field] || !lv[field][idx]) return;
-        const newLabel = await askPrompt('Rename variant:', lv[field][idx].label || ('Variant ' + (idx+1)));
+        const newLabel = await askInput('Rename variant:', lv[field][idx].label || ('Variant ' + (idx+1)));
         if (newLabel === null) return;
         lv[field][idx].label = newLabel.trim() || ('Variant ' + (idx+1));
         charFormState._lumiVariants = lv;
@@ -805,8 +809,8 @@ function captureCharState() {
   }
 }
 
-function saveChar() {
-  if (!activeCharId || !charLibrary[activeCharId]) return;
+function saveChar(opts = {}) {
+  if (!activeCharId || !charLibrary[activeCharId]) return false;
   captureCharState();
   const entry = charLibrary[activeCharId];
   const card = entry.card;
@@ -842,11 +846,19 @@ function saveChar() {
   entry.savedAt = new Date().toISOString();
   charUnsaved = false;
   charFormState = {};
-  // Snapshot before overwriting (history stored inside entry)
-  if (typeof itemHistoryPush === 'function') itemHistoryPush('char', activeCharId, JSON.parse(JSON.stringify(entry)));
-  saveCharLibrary();
+
+  // Snapshot this version into history. The snapshot strips the avatar
+  // and the nested history list (see itemHistoryPush) — previously each
+  // snapshot carried a full copy of the image, which meant the write
+  // blew the storage quota and silently failed, which is why history
+  // has never actually persisted.
+  if (typeof itemHistoryPush === 'function') itemHistoryPush('char', activeCharId, entry);
+
+  const ok = saveCharLibrary();
   renderCharSidebar();
-  toast('Character saved.', 'ok');
+  if (typeof wsMarkSaved === 'function') wsMarkSaved('char', activeCharId);
+  if (ok && !opts.silent) toast('Character saved.', 'ok');
+  return ok;
 }
 
 // ── Import / Export ──
@@ -960,14 +972,32 @@ function importCharCard(data, filename, imageData = null) {
 
   card.id = charId();
   charLibrary[card.id] = { id: card.id, name: card.data.name, card, imageData, savedAt: new Date().toISOString() };
-  saveCharLibrary();
-  renderCharSidebar();
-  openChar(card.id);
-  toast('Imported: ' + card.data.name, 'ok');
+
+  // Resize the avatar before it ever reaches storage, then save.
+  Promise.resolve(downscaleAvatar(imageData)).then(small => {
+    const before = (imageData || '').length;
+    const after  = (small || '').length;
+    if (small !== imageData) charLibrary[card.id].imageData = small;
+    saveCharLibrary();
+    renderCharSidebar();
+    openChar(card.id);
+    const saving = before && after < before
+      ? ` (avatar ${Math.round(before/1024)}KB → ${Math.round(after/1024)}KB)` : '';
+    toast('Imported: ' + card.data.name + saving, 'ok');
+  });
+}
+
+// Commit whatever is currently typed in the editor into the stored card.
+// Every export path must call this first, or it ships stale data.
+function commitBeforeExport(id) {
+  if (id && activeCharId === id && typeof saveChar === 'function') {
+    saveChar({ silent: true });
+  }
 }
 
 function exportCharJson(id) {
   const entry = charLibrary[id]; if (!entry) return;
+  commitBeforeExport(id);
   const fn = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi, '_') + '.json';
   dlFile(JSON.stringify(entry.card, null, 2), fn, 'application/json');
   toast('Exported: ' + fn, 'ok');
@@ -1005,7 +1035,7 @@ function toV2Card(d) {
 // Strips V3-only fields (group_only_greetings, assets, character_version) for max compat
 function exportCharJsonV2(id) {
   const entry = charLibrary[id]; if (!entry) return;
-  captureCharState();
+  commitBeforeExport(id);
   const d = entry.card.data;
   const v2card = toV2Card(d);
   const fn = (d.name || 'character').replace(/[^a-z0-9_-]/gi, '_') + '_v2.json';
@@ -1015,7 +1045,7 @@ function exportCharJsonV2(id) {
 
 function exportCharSaucepan(id) {
   const entry = charLibrary[id]; if (!entry) return;
-  captureCharState();
+  commitBeforeExport(id);
   const s = charFormState;
   const d = entry.card.data;
 
@@ -1138,8 +1168,7 @@ function exportCharCharx(id) {
   }
 
   // Make sure card is saved first
-  captureCharState();
-  saveChar();
+  commitBeforeExport(id);
 
   const zip = new JSZip();
   zip.file('card.json', JSON.stringify(entry.card, null, 2));
@@ -1188,6 +1217,68 @@ function exportCharCharx(id) {
 }
 
 
+
+// ═══════════════════════════════════════════════════════
+// AVATAR SIZING
+// Avatars are stored as text (a base64 data URL) inside the same
+// JSON blob as everything else, which inflates them ~33% over the
+// real file size. A single 1.8MB import was eating a third of the
+// entire ~5MB browser storage budget. Character cards are displayed
+// small everywhere (SillyTavern, JanitorAI, Saucepan), so we resize
+// on the way in and re-encode as WebP.
+//
+// Users who genuinely want full-resolution avatars can turn this off
+// in Settings; the trade-off is storage.
+// ═══════════════════════════════════════════════════════
+
+const AVATAR_MAX = 512;        // px, longest edge
+const AVATAR_QUALITY = 0.88;   // WebP quality
+
+function keepFullAvatars() {
+  try { return !!(JSON.parse(localStorage.getItem('aet_settings') || '{}').keepFullAvatars); }
+  catch(e) { return false; }
+}
+
+// Takes a data URL, returns a smaller data URL (or the original if
+// it's already small enough / the user opted out / anything fails).
+function downscaleAvatar(dataUrl, force = false) {
+  return new Promise(resolve => {
+    if (!dataUrl) { resolve(dataUrl); return; }
+    if (!force && keepFullAvatars()) { resolve(dataUrl); return; }
+
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth, h = img.naturalHeight;
+        if (!w || !h) { resolve(dataUrl); return; }
+
+        const scale = Math.min(1, AVATAR_MAX / Math.max(w, h));
+        const tw = Math.max(1, Math.round(w * scale));
+        const th = Math.max(1, Math.round(h * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = tw; canvas.height = th;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, tw, th);
+
+        // WebP is dramatically smaller than PNG for photographic
+        // avatars. Fall back to PNG if the browser won't encode it.
+        let out = canvas.toDataURL('image/webp', AVATAR_QUALITY);
+        if (!out || out.indexOf('data:image/webp') !== 0) {
+          out = canvas.toDataURL('image/png');
+        }
+        resolve(out.length < dataUrl.length ? out : dataUrl);
+      } catch(e) {
+        console.error('[LoreOS] avatar downscale failed:', e);
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 // ── PNG character card embed / extract ──
 // Character data is stored in a tEXt chunk keyword "chara" as base64 JSON.
 
@@ -1224,11 +1315,11 @@ function dataUrlToPngArrayBuffer(dataUrl) {
 
 function openCharPngExport(id, forceV2 = true) {
   const entry = charLibrary[id]; if (!entry) return;
+  commitBeforeExport(id);
 
   const doExport = (arrayBuf) => {
     try {
       const buf = new Uint8Array(arrayBuf);
-      captureCharState();
       const outCard = forceV2 ? toV2Card(entry.card.data) : entry.card;
       const outBuf = embedCharInPng(buf, outCard);
       const blob = new Blob([outBuf], { type: 'image/png' });

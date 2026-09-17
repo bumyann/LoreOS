@@ -98,22 +98,126 @@ let PT_nounTgt = 'masc';
 let PT_nounTokens = [];
 
 // ═══════════════════════════════════════════════════════
-// INIT
+// STORAGE SAFETY LAYER
+// Every write to localStorage goes through safeSet(). If the
+// browser refuses the write (quota full), we say so out loud
+// instead of swallowing it — a save that fails silently is
+// worse than one that crashes, because the user keeps working
+// on data that isn't being kept.
 // ═══════════════════════════════════════════════════════
+
+let _quotaWarned = false;
+
+function isQuotaError(e) {
+  return e && (
+    e.name === 'QuotaExceededError' ||
+    e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+    e.code === 22 || e.code === 1014
+  );
+}
+
+// Returns true on success, false on failure. Never throws.
+function safeSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch(e) {
+    if (isQuotaError(e)) {
+      console.error('[LoreOS] storage full writing', key, e);
+      if (!_quotaWarned) {
+        _quotaWarned = true;
+        setTimeout(() => { _quotaWarned = false; }, 6000);
+        if (typeof toast === 'function') {
+          toast('Storage full — that did NOT save. Open Settings → Storage to free space.', 'err');
+        }
+      }
+    } else {
+      console.error('[LoreOS] storage write failed for', key, e);
+      if (typeof toast === 'function') toast('Could not save: ' + e.message, 'err');
+    }
+    return false;
+  }
+}
+
+// Approximate bytes used across all of localStorage for this origin.
+function storageUsage() {
+  const rows = [];
+  let total = 0;
+  for (const k in localStorage) {
+    if (!Object.prototype.hasOwnProperty.call(localStorage, k)) continue;
+    const bytes = (localStorage[k] || '').length;
+    total += bytes;
+    rows.push({ key: k, bytes });
+  }
+  rows.sort((a, b) => b.bytes - a.bytes);
+  return { rows, total, limit: 5 * 1024 * 1024 };
+}
+
+// ── LZ helpers ──
+// LZString.compress() emits raw UTF-16 including unpaired surrogates,
+// which can be mangled on the way into localStorage. compressToUTF16()
+// is the storage-safe variant. Unpack falls back to the old format so
+// any snapshot written by an earlier build still opens.
+function lzPack(obj) {
+  return LZString.compressToUTF16(JSON.stringify(obj));
+}
+function lzUnpack(str) {
+  let json = null;
+  try { json = LZString.decompressFromUTF16(str); } catch(e) {}
+  if (!json) { try { json = LZString.decompress(str); } catch(e) {} }
+  if (!json) throw new Error('snapshot unreadable');
+  return JSON.parse(json);
+}
+
+// ═══════════════════════════════════════════════════════
+// GLOBAL ERROR CATCHER
+// Nothing in LoreOS used to surface a thrown error, which is how
+// a hard crash on page load went unnoticed. Now anything uncaught
+// shows up as a red toast.
+// ═══════════════════════════════════════════════════════
+(function wireErrorReporting() {
+  let lastMsg = '', lastAt = 0;
+  function report(what, err) {
+    const msg = (err && err.message) ? err.message : String(err);
+    const now = Date.now();
+    if (msg === lastMsg && now - lastAt < 3000) return; // don't spam on loops
+    lastMsg = msg; lastAt = now;
+    console.error('[LoreOS]', what, err);
+    if (typeof toast === 'function') toast('Something broke: ' + msg, 'err');
+  }
+  window.addEventListener('error', e => report('uncaught error:', e.error || e.message));
+  window.addEventListener('unhandledrejection', e => report('unhandled promise:', e.reason));
+})();
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// Each step is isolated: one module failing to start must not
+// stop the rest of the app from starting.
+// ═══════════════════════════════════════════════════════
+function initStep(name, fn) {
+  try { fn(); }
+  catch(e) {
+    console.error(`[LoreOS] init step "${name}" failed:`, e);
+    setTimeout(() => {
+      if (typeof toast === 'function') toast(`Startup problem in ${name} — see console.`, 'warn');
+    }, 400);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  loadPrefs();
-  wireEvents();
-  try { wireMobile(); } catch(e) { console.error('[LoreOS] wireMobile crashed:', e); }
-  loadFromStorage();
-  switchMode('lore');
-  if (typeof initRouter === 'function') initRouter();
-  wirePronounTool();
-  wireFullscreen();
-  wireTplLibrary();
-  wireSettings();
-  wireFonts();
-  applyAllCustomisations();
-  applyFonts();
+  initStep('prefs',        loadPrefs);
+  initStep('events',       wireEvents);
+  initStep('mobile',       wireMobile);
+  initStep('storage',      loadFromStorage);
+  initStep('mode',         () => switchMode('lore'));
+  initStep('router',       () => { if (typeof initRouter === 'function') initRouter(); });
+  initStep('pronoun tool', wirePronounTool);
+  initStep('fullscreen',   wireFullscreen);
+  initStep('templates',    wireTplLibrary);
+  initStep('settings',     wireSettings);
+  initStep('fonts',        wireFonts);
+  initStep('theme',        applyAllCustomisations);
+  initStep('font apply',   applyFonts);
 });
 
 function loadPrefs() {
@@ -122,51 +226,75 @@ function loadPrefs() {
   if (z !== null) { zoomLevel = parseInt(z); applyZoom(); }
 }
 
+// Read one key, parse it, and never let a failure here stop the
+// next one. A mangled lorebook used to take the character library,
+// the preset library and the workshop tabs down with it.
+function loadPart(name, fn) {
+  try { fn(); }
+  catch(e) {
+    console.error(`[LoreOS] could not load ${name}:`, e);
+    setTimeout(() => {
+      if (typeof toast === 'function') toast(`Couldn't load your ${name} — it may be corrupted.`, 'err');
+    }, 500);
+  }
+}
+
 function loadFromStorage() {
-  try {
+  loadPart('lorebook', () => {
     const lb = localStorage.getItem('aet_lorebook');
-    if (lb) {
-      lorebook = JSON.parse(lb);
-      g('lorebookName').value = lorebook.name || '';
-      lorebook.entries = rebuildEntries(lorebook.entries || {});
-    }
+    if (!lb) return;
+    lorebook = JSON.parse(lb);
+    g('lorebookName').value = lorebook.name || '';
+    lorebook.entries = rebuildEntries(lorebook.entries || {});
+  });
+
+  loadPart('open tabs', () => {
     const tabs = localStorage.getItem('aet_tabs');
     if (tabs) openTabs = JSON.parse(tabs);
     const atab = localStorage.getItem('aet_activeTab');
     if (atab && atab !== 'null') activeTabId = parseInt(atab);
     const nu = localStorage.getItem('aet_nextUid');
     if (nu) nextUid = parseInt(nu);
+  });
 
+  loadPart('character library', () => {
     charLibrary = JSON.parse(localStorage.getItem('aet_charLibrary') || '{}');
+  });
+
+  loadPart('preset library', () => {
     presetLibrary = JSON.parse(localStorage.getItem('aet_presetLibrary') || '{}');
+  });
 
-    renderWsTabs();
+  loadPart('workshop tabs', renderWsTabs);
 
-    if (Object.keys(lorebook.entries).length > 0) {
+  loadPart('editor', () => {
+    if (Object.keys(lorebook.entries || {}).length > 0) {
       renderList(); renderTabs();
       if (activeTabId !== null) renderEditor();
     }
-  } catch(e) { console.error(e); }
+  });
 }
 
 function saveToStorage() {
-  try {
-    localStorage.setItem('aet_lorebook', JSON.stringify(lorebook));
-    localStorage.setItem('aet_tabs', JSON.stringify(openTabs));
-    localStorage.setItem('aet_activeTab', activeTabId);
-    localStorage.setItem('aet_nextUid', nextUid);
-    syncAutoPush();
-  } catch(e) { console.error(e); }
+  const ok =
+    safeSet('aet_lorebook', JSON.stringify(lorebook)) &&
+    safeSet('aet_tabs', JSON.stringify(openTabs)) &&
+    safeSet('aet_activeTab', String(activeTabId)) &&
+    safeSet('aet_nextUid', String(nextUid));
+  if (ok) syncAutoPush();
+  return ok;
 }
 
 function saveCharLibrary() {
-  try { localStorage.setItem('aet_charLibrary', JSON.stringify(charLibrary)); syncAutoPush(); }
-  catch(e) { console.error(e); }
+  const ok = safeSet('aet_charLibrary', JSON.stringify(charLibrary));
+  if (ok) syncAutoPush();
+  return ok;
 }
 
 function savePresetLibrary() {
-  try { localStorage.setItem('aet_presetLibrary', JSON.stringify(presetLibrary)); syncAutoPush(); }
-  catch(e) { console.error(e); }
+  const ok = safeSet('aet_presetLibrary', JSON.stringify(presetLibrary));
+  if (ok) syncAutoPush();
+  return ok;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -351,6 +479,15 @@ function wireEvents() {
 
 function g(id) { return document.getElementById(id); }
 
+// Escape a value for safe interpolation into an HTML string.
+// Anything that came from an imported file is untrusted — a character
+// card named `<img src=x onerror=...>` should render as text, not run.
+function esc(v) {
+  const d = document.createElement('div');
+  d.textContent = (v === null || v === undefined) ? '' : String(v);
+  return d.innerHTML;
+}
+
 function closeAllDropdowns() {
   document.querySelectorAll('.dd-menu.open').forEach(m => m.classList.remove('open'));
 }
@@ -498,7 +635,7 @@ function syncItemUndoButtons(type, id) {
 // ═══════════════════════════════════════════════════════
 function toggleTheme() {
   document.body.classList.toggle('pink');
-  localStorage.setItem('aet_theme', document.body.classList.contains('pink') ? 'pink' : 'dark');
+  safeSet('aet_theme', document.body.classList.contains('pink') ? 'pink' : 'dark');
   applyCustomTheme(); // re-apply custom overrides for the new mode
 }
 
@@ -678,11 +815,22 @@ const ITEM_HIST_MAX = 10;
 // For char/preset, pass the library entry directly.
 function itemHistoryPush(type, itemId, entryOrData, label = null) {
   // Determine what to compress: lorebooks store the lorebook under .lb
-  const payload = (type === 'lore' && entryOrData?.lb) ? entryOrData.lb : entryOrData;
+  let payload = (type === 'lore' && entryOrData?.lb) ? entryOrData.lb : entryOrData;
+
+  // A snapshot is for recovering your *writing*, not your avatar.
+  // Storing imageData in every snapshot meant one character with a
+  // picture could be keeping eleven copies of that picture. Strip it —
+  // and strip the nested history so snapshots don't contain snapshots.
+  if (payload && typeof payload === 'object' && (type === 'char' || type === 'preset')) {
+    payload = { ...payload };
+    delete payload.imageData;
+    delete payload.history;
+  }
+
   const snapshot = {
     ts: new Date().toISOString(),
     label: label || null,
-    data: LZString.compress(JSON.stringify(payload)),
+    data: lzPack(payload),
   };
 
   if (type === 'lore') {
@@ -691,7 +839,7 @@ function itemHistoryPush(type, itemId, entryOrData, label = null) {
     if (!lib[itemId].history) lib[itemId].history = [];
     lib[itemId].history.unshift(snapshot);
     if (lib[itemId].history.length > ITEM_HIST_MAX) lib[itemId].history.splice(ITEM_HIST_MAX);
-    localStorage.setItem('aet_library', JSON.stringify(lib));
+    safeSet('aet_library', JSON.stringify(lib));
   } else if (type === 'char') {
     if (!charLibrary[itemId]) return;
     if (!charLibrary[itemId].history) charLibrary[itemId].history = [];
@@ -793,30 +941,40 @@ function openItemHistory(type, itemId) {
         <button class="btn btn-s btn-sm hist-export">Export</button>
       </div>`;
 
-    item.querySelector('.hist-restore').addEventListener('click', () => {
+    item.querySelector('.hist-restore').addEventListener('click', async () => {
+      if (!await askConfirm(`Restore this item to its state at ${ts}?`)) return;
       try {
-        const data = JSON.parse(LZString.decompress(snap.data));
+        const data = lzUnpack(snap.data);
+        // A snapshot must never carry the history list or the avatar back
+        // with it. Restoring an old snapshot used to overwrite `history`
+        // with the shorter list from that moment, permanently deleting
+        // every newer snapshot, and blank the character's image.
+        if (data && typeof data === 'object') { delete data.history; delete data.imageData; }
+
+        let ok = false;
         if (type === 'lore') {
           const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
-          if (lib[itemId]) { lib[itemId].lb = data; localStorage.setItem('aet_library', JSON.stringify(lib)); }
+          if (lib[itemId]) { lib[itemId].lb = data; ok = safeSet('aet_library', JSON.stringify(lib)); }
         } else if (type === 'char') {
-          if (charLibrary[itemId]) { Object.assign(charLibrary[itemId], data); saveCharLibrary(); }
+          if (charLibrary[itemId]) { Object.assign(charLibrary[itemId], data); ok = saveCharLibrary(); }
         } else if (type === 'preset') {
-          if (presetLibrary[itemId]) { Object.assign(presetLibrary[itemId], data); savePresetLibrary(); }
+          if (presetLibrary[itemId]) { Object.assign(presetLibrary[itemId], data); ok = savePresetLibrary(); }
         }
+        if (!ok) return; // safeSet already told the user why
         modal.remove();
-        toast('Restored to ' + ts + ' — reload to apply.', 'ok');
-      } catch(e) { toast('Snapshot corrupted.', 'err'); }
+        toast('Restored to ' + ts + ' — reloading...', 'ok');
+        setTimeout(() => location.reload(), 900);
+      } catch(e) { toast('Snapshot unreadable: ' + e.message, 'err'); }
     });
 
     item.querySelector('.hist-export').addEventListener('click', () => {
       try {
-        const data = JSON.parse(LZString.decompress(snap.data));
+        const data = lzUnpack(snap.data);
         const json = JSON.stringify(data, null, 2);
         const name = (entry.name || 'item').replace(/\s+/g,'-').toLowerCase();
         const date = snap.ts.slice(0,10);
         dlFile(json, `${name}-snapshot-${date}.json`, 'application/json');
-      } catch(e) { toast('Snapshot corrupted.', 'err'); }
+      } catch(e) { toast('Snapshot unreadable: ' + e.message, 'err'); }
     });
 
     listEl.appendChild(item);

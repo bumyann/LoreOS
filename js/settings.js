@@ -25,7 +25,7 @@ let stgEditingMode = 'dark'; // which mode we're currently editing colours for
 function settingsGet() {
   try { return JSON.parse(localStorage.getItem('aet_settings') || '{}'); } catch(e) { return {}; }
 }
-function settingsSet(d) { localStorage.setItem('aet_settings', JSON.stringify(d)); }
+function settingsSet(d) { return safeSet('aet_settings', JSON.stringify(d)); }
 
 function applyCustomTheme() {
   const cfg = settingsGet();
@@ -54,13 +54,14 @@ function applyCustomTheme() {
 
 function applyCustomTitle() {
   const cfg = settingsGet();
-  // v1.0.0: title lives in .nav-logo-text, version in #versionTag
+  // Title lives in .nav-logo-text; the version tag is left alone.
   const logoEl = document.querySelector('.nav-logo-text');
-  const verEl = document.getElementById('versionTag');
   const main = cfg.titleMain || 'LoreOS';
+  const sub  = cfg.titleSub || '';   // <- this was referenced but never declared,
+                                     //    throwing on every page load and on Apply
   if (logoEl) logoEl.textContent = main;
-  // version tag stays as-is — don't overwrite it with subtitle
-  // subtitle stored in cfg but not displayed in collapsed nav (no room)
+  // Subtitle isn't shown in the collapsed nav (no room), but it does
+  // go in the browser tab title.
   document.title = main + (sub ? ' ' + sub : '');
 }
 
@@ -95,6 +96,11 @@ function openSettings() {
   populateColourPickers();
   // Theme slots
   renderThemeSlots();
+  // Storage panel
+  renderStoragePanel();
+  // Avatar handling toggle
+  const keepFull = g('stgKeepFullAvatars');
+  if (keepFull) keepFull.checked = !!cfg.keepFullAvatars;
   openModal('settingsModal');
 }
 
@@ -187,13 +193,25 @@ function wireSettings() {
     const editingPink = stgEditingMode === 'pink';
     if (editingPink !== currentlyPink) {
       document.body.classList.toggle('pink');
-      localStorage.setItem('aet_theme', editingPink ? 'pink' : 'dark');
+      safeSet('aet_theme', editingPink ? 'pink' : 'dark');
     }
 
     applyCustomTheme();
     applyCustomTitle();
     closeModal('settingsModal');
     toast('Settings applied.', 'ok');
+  });
+
+  // ── Storage panel ──
+  g('stgStorageRefresh')?.addEventListener('click', renderStoragePanel);
+  g('stgOptimiseAvatars')?.addEventListener('click', optimiseStoredAvatars);
+  g('stgKeepFullAvatars')?.addEventListener('change', e => {
+    const cfg = settingsGet();
+    cfg.keepFullAvatars = e.target.checked;
+    settingsSet(cfg);
+    toast(e.target.checked
+      ? 'Avatars will be kept at full resolution. Watch your storage.'
+      : 'Avatars will be resized on import.', 'ok');
   });
 
   // Save current as named theme
@@ -279,7 +297,7 @@ const FONT_DEFAULTS = { fp: 'VT323', fx: 'Pixelify Sans', fb: 'Noto Sans' };
 const FONT_STORAGE_KEY = 'aet_fonts';
 
 function fontsGet() { try { return JSON.parse(localStorage.getItem(FONT_STORAGE_KEY) || '{}'); } catch(e) { return {}; } }
-function fontsSet(d) { localStorage.setItem(FONT_STORAGE_KEY, JSON.stringify(d)); }
+function fontsSet(d) { return safeSet(FONT_STORAGE_KEY, JSON.stringify(d)); }
 
 // Apply saved fonts on load
 function applyFonts() {
@@ -407,3 +425,99 @@ function wireFonts() {
   wireSync();
 }
 
+
+
+// ═══════════════════════════════════════════════════════
+// STORAGE PANEL
+// Shows where the ~5MB browser storage budget is going, so a
+// full disk is something you can see coming instead of something
+// that silently eats a save.
+// ═══════════════════════════════════════════════════════
+
+const STORAGE_LABELS = {
+  aet_charLibrary:  'Characters',
+  aet_library:      'Lorebook library',
+  aet_lorebook:     'Open lorebook',
+  aet_presetLibrary:'Presets',
+  loreos_notebook:  'Journal',
+  aet_tpl_char:     'Character templates',
+  aet_tpl_lore:     'Lorebook templates',
+  aet_tpl_preset:   'Prompt library',
+  aet_backup_history:'Backup snapshots',
+  aet_fonts:        'Custom fonts',
+  aet_settings:     'Theme & settings',
+};
+
+function fmtKB(bytes) {
+  const kb = bytes / 1024;
+  return kb >= 1024 ? (kb / 1024).toFixed(1) + ' MB' : Math.round(kb) + ' KB';
+}
+
+function renderStoragePanel() {
+  const host = g('stgStorageBody');
+  if (!host) return;
+
+  const { rows, total, limit } = storageUsage();
+  const pct = Math.min(100, (total / limit) * 100);
+  const level = pct > 85 ? 'err' : pct > 60 ? 'warn' : 'ok';
+
+  const visible = rows.filter(r => r.bytes > 512);
+  const listHTML = visible.map(r => {
+    const label = STORAGE_LABELS[r.key] || r.key;
+    const share = Math.max(1, (r.bytes / Math.max(total, 1)) * 100);
+    return `<div class="stg-storage-row">
+      <span class="stg-storage-name">${esc(label)}</span>
+      <span class="stg-storage-bar"><i style="width:${share.toFixed(1)}%"></i></span>
+      <span class="stg-storage-val">${fmtKB(r.bytes)}</span>
+    </div>`;
+  }).join('') || '<div class="stg-storage-empty">// nothing stored yet</div>';
+
+  host.innerHTML = `
+    <div class="stg-storage-total ${level}">
+      <div class="stg-storage-meter"><i style="width:${pct.toFixed(1)}%"></i></div>
+      <div class="stg-storage-caption">
+        ${fmtKB(total)} used of about ${fmtKB(limit)} &nbsp;·&nbsp; ${pct.toFixed(0)}%
+        ${pct > 85 ? '<br><strong>Almost full — saves may start failing.</strong>' : ''}
+      </div>
+    </div>
+    <div class="stg-storage-list">${listHTML}</div>`;
+}
+
+// One-time cleanup: shrink avatars that were imported before
+// resizing existed. Reports exactly how much it freed.
+async function optimiseStoredAvatars() {
+  const btn = g('stgOptimiseAvatars');
+  const ids = Object.keys(charLibrary || {});
+  if (!ids.length) { toast('No characters to optimise.', 'warn'); return; }
+
+  const before = storageUsage().total;
+  if (btn) { btn.disabled = true; btn.textContent = 'Optimising...'; }
+
+  let changed = 0, skipped = 0;
+  for (const id of ids) {
+    const entry = charLibrary[id];
+    if (!entry || !entry.imageData) { skipped++; continue; }
+    const originalLen = entry.imageData.length;
+    try {
+      const shrunk = await downscaleAvatar(entry.imageData, true); // explicit click overrides the keep-full setting
+      // Only keep the new one if it's actually smaller
+      if (shrunk && shrunk.length < originalLen) { entry.imageData = shrunk; changed++; }
+      else skipped++;
+    } catch(e) {
+      console.error('[LoreOS] could not optimise avatar for', entry.name || id, e);
+      skipped++;
+    }
+  }
+
+  const saved = saveCharLibrary();
+  if (btn) { btn.disabled = false; btn.textContent = 'Optimise existing avatars'; }
+
+  if (!saved) return; // safeSet already explained
+  const after = storageUsage().total;
+  const freed = Math.max(0, before - after);
+  renderStoragePanel();
+  if (typeof renderCharSidebar === 'function') renderCharSidebar();
+  toast(changed
+    ? `Optimised ${changed} avatar${changed === 1 ? '' : 's'} — freed ${fmtKB(freed)}.`
+    : 'Nothing to optimise — avatars are already small.', changed ? 'ok' : 'info');
+}

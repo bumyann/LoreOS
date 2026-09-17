@@ -477,3 +477,38 @@
   font-family:var(--fx);font-size:.65rem;color:var(--txm);
   letter-spacing:.2px;
 }
+
+/* ═══════════════════════════════════════════
+   FIREFOX FORM-CONTROL FIXES
+   Gecko refuses to shrink form controls below their intrinsic
+   width inside a flex row, so the Sampler pane's number inputs
+   ignored their width and burst out of the grid cell. Firefox
+   also always draws number spinners (Chrome hides them until
+   hover), eating another ~17px.
+   ═══════════════════════════════════════════ */
+.adv-grid .fg > div{min-width:0}
+.adv-grid input[type=range]{min-width:0;width:100%;flex:1 1 0}
+.fnum{min-width:0;flex-shrink:1}
+input[type=number].fnum{appearance:textfield;-moz-appearance:textfield}
+input[type=number].fnum::-webkit-outer-spin-button,
+input[type=number].fnum::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+/* a little more breathing room per sampler cell */
+.adv-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+
+/* ═══════════════════════════════════════════
+   SETTINGS — STORAGE PANEL
+   ═══════════════════════════════════════════ */
+.stg-storage-total{margin-bottom:.6rem}
+.stg-storage-meter{height:8px;background:var(--sf);border:1px solid var(--bd);border-radius:3px;overflow:hidden}
+.stg-storage-meter i{display:block;height:100%;background:var(--ok);transition:width .3s}
+.stg-storage-total.warn .stg-storage-meter i{background:var(--warn)}
+.stg-storage-total.err  .stg-storage-meter i{background:var(--err)}
+.stg-storage-caption{font-family:var(--fx);font-size:.66rem;color:var(--txm);margin-top:.35rem;letter-spacing:.3px;line-height:1.5}
+.stg-storage-total.err .stg-storage-caption strong{color:var(--err)}
+.stg-storage-list{display:flex;flex-direction:column;gap:.28rem}
+.stg-storage-row{display:flex;align-items:center;gap:.5rem;font-family:var(--fx);font-size:.68rem;color:var(--txd)}
+.stg-storage-name{flex:0 0 40%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stg-storage-bar{flex:1;height:5px;background:var(--sf);border-radius:2px;overflow:hidden;min-width:0}
+.stg-storage-bar i{display:block;height:100%;background:var(--p);opacity:.75}
+.stg-storage-val{flex:0 0 auto;color:var(--txm);min-width:56px;text-align:right}
+.stg-storage-empty{font-family:var(--fx);font-size:.7rem;color:var(--txm)}
