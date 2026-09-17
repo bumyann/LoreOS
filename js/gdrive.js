@@ -141,12 +141,27 @@ async function gdriveFindOrCreateFile() {
   // Search for existing LoreOS-sync.json
   try {
     const search = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=name%3D%22${GDRIVE_FILE_NAME}%22+and+trashed%3Dfalse&fields=files(id,name,modifiedTime)&spaces=appDataFolder`,
+      `https://www.googleapis.com/drive/v3/files?q=name%3D%22${GDRIVE_FILE_NAME}%22+and+trashed%3Dfalse&fields=files(id,name,modifiedTime)&spaces=appDataFolder&orderBy=modifiedTime+desc`,
       { headers: { Authorization: 'Bearer ' + gdriveToken } }
     ).then(r => r.json());
 
     if (search.files && search.files.length > 0) {
+      // appDataFolder doesn't enforce unique filenames — if more than one
+      // sync file exists (e.g. from a session that lost its cached file ID
+      // and re-created one), always use the most recently modified, and
+      // quietly trash the older duplicates so push/pull can't disagree
+      // about which file is current.
       gdriveFileId = search.files[0].id;
+      if (search.files.length > 1) {
+        console.warn('[GDrive] found', search.files.length, 'duplicate sync files — keeping the most recent, trashing the rest.');
+        search.files.slice(1).forEach(f => {
+          fetch(`https://www.googleapis.com/drive/v3/files/${f.id}`, {
+            method: 'PATCH',
+            headers: { Authorization: 'Bearer ' + gdriveToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ trashed: true }),
+          }).catch(e => console.error('[GDrive] failed to trash duplicate:', e));
+        });
+      }
       return gdriveFileId;
     }
 
