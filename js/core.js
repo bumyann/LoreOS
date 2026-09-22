@@ -246,6 +246,12 @@ function loadFromStorage() {
     lorebook = JSON.parse(lb);
     g('lorebookName').value = lorebook.name || '';
     lorebook.entries = rebuildEntries(lorebook.entries || {});
+    // Re-link to the library entry it came from, if that still exists
+    const linked = localStorage.getItem('aet_lorebookLibName');
+    if (linked) {
+      const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+      if (lib[linked]) loreLinkToLib(linked); else loreLinkToLib(null);
+    }
   });
 
   loadPart('open tabs', () => {
@@ -275,7 +281,63 @@ function loadFromStorage() {
   });
 }
 
+// ── Live lorebook <-> library link ──
+// The editor works on `lorebook` (aet_lorebook), but workshop tabs, version
+// history and checkpoints all read the library copy (aet_library). Nothing
+// kept the two in sync, so entry edits never reached the library: snapshots
+// captured the stale copy, and switching workshop tabs reloaded it over your
+// edits. When the open lorebook came from the library, every save now writes
+// through to its library entry.
+// Tracked by object identity, so any import / clear that replaces `lorebook`
+// with a new object automatically unlinks it and can't overwrite the entry.
+let loreLibName = null;
+let loreLibRef = null;
+
+function loreLinkToLib(name) {
+  loreLibName = name || null;
+  loreLibRef = name ? lorebook : null;
+  try { localStorage.setItem('aet_lorebookLibName', name || ''); } catch (e) {}
+}
+
+function loreActiveLibName() {
+  return (loreLibName && loreLibRef === lorebook) ? loreLibName : null;
+}
+
+function loreSyncToLib() {
+  // `lorebook` was replaced (import, clear, etc.): drop the stale link so a
+  // reload can't re-attach the new content to the old library entry
+  if (loreLibName && loreLibRef !== lorebook) loreLinkToLib(null);
+  const name = loreActiveLibName();
+  if (!name) return true;
+  const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+  if (!lib[name]) { loreLinkToLib(null); return true; }
+  const next = JSON.stringify(lorebook);
+  if (JSON.stringify(lib[name].lb) === next) return true;
+  lib[name].lb = JSON.parse(next);
+  lib[name].savedAt = new Date().toISOString();
+  return safeSet('aet_library', JSON.stringify(lib));
+}
+
+// Debounced lorebook snapshot: a burst of entry saves/deletes becomes one
+// snapshot instead of burning through all 10 slots.
+let loreSnapTimer = null;
+function loreSnapshotSoon() {
+  if (!loreActiveLibName()) return;
+  clearTimeout(loreSnapTimer);
+  loreSnapTimer = setTimeout(loreSnapshotNow, 2000);
+}
+function loreSnapshotNow() {
+  clearTimeout(loreSnapTimer); loreSnapTimer = null;
+  const name = loreActiveLibName();
+  if (!name) return;
+  loreSyncToLib();
+  const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+  if (lib[name]) itemHistoryPush('lore', name, lib[name]);
+}
+window.addEventListener('pagehide', () => { if (loreSnapTimer) loreSnapshotNow(); });
+
 function saveToStorage() {
+  loreSyncToLib();
   const ok =
     safeSet('aet_lorebook', JSON.stringify(lorebook)) &&
     safeSet('aet_tabs', JSON.stringify(openTabs)) &&
@@ -492,8 +554,10 @@ function closeAllDropdowns() {
   document.querySelectorAll('.dd-menu.open').forEach(m => m.classList.remove('open'));
 }
 
-function openModal(id) { g(id).classList.add('open'); }
-function closeModal(id) { g(id).classList.remove('open'); }
+// Null-guarded: dynamically built modals (version history) remove themselves,
+// and the delegated close handler used to then crash on the missing element.
+function openModal(id) { const el = g(id); if (el) el.classList.add('open'); }
+function closeModal(id) { const el = g(id); if (el) el.classList.remove('open'); }
 
 // ═══════════════════════════════════════════════════════
 // FIELD-LEVEL UNDO/REDO
@@ -686,6 +750,7 @@ function wsCloseTab(tabId) {
 
   // Autosave before closing
   if (tab.type === 'lore') {
+    if (loreActiveLibName() === tab.itemId) loreSyncToLib();
     const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
     if (lib[tab.itemId]) itemHistoryPush('lore', tab.itemId, lib[tab.itemId]);
   } else if (tab.type === 'char') {
@@ -833,6 +898,13 @@ function itemHistoryPush(type, itemId, entryOrData, label = null) {
     data: lzPack(payload),
   };
 
+  // Skip an auto snapshot identical to the newest one (e.g. closing a tab
+  // right after saving), so real versions don't get pushed out of the 10 slots
+  const histOf = type === 'lore'
+    ? (JSON.parse(localStorage.getItem('aet_library') || '{}')[itemId] || {}).history
+    : type === 'char' ? charLibrary[itemId]?.history : presetLibrary[itemId]?.history;
+  if (!label && histOf && histOf[0] && histOf[0].data === snapshot.data) return;
+
   if (type === 'lore') {
     const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
     if (!lib[itemId]) return;
@@ -859,6 +931,8 @@ function itemHistoryPush(type, itemId, entryOrData, label = null) {
 function itemHistorySaveCheckpoint(type, itemId, label) {
   if (!label || !label.trim()) { toast('Enter a checkpoint name.', 'warn'); return; }
   if (type === 'lore') {
+    // Checkpoint the lorebook as it is on screen, not the last library save
+    if (loreActiveLibName() === itemId) loreSyncToLib();
     const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
     if (lib[itemId]) itemHistoryPush(type, itemId, lib[itemId], label.trim());
   } else if (type === 'char') {
@@ -870,6 +944,28 @@ function itemHistorySaveCheckpoint(type, itemId, label) {
 }
 
 // Open the version history modal for an item
+// After a restore, reload the item into its editor if it's the one on screen
+function itemHistoryRefreshOpen(type, itemId) {
+  if (type === 'lore') {
+    if (loreActiveLibName() !== itemId) return;
+    const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+    if (!lib[itemId]) return;
+    lorebook = JSON.parse(JSON.stringify(lib[itemId].lb));
+    lorebook.entries = rebuildEntries(lorebook.entries || {});
+    openTabs = []; activeTabId = null; unsaved = new Set(); formState = {};
+    nextUid = Object.keys(lorebook.entries).length
+      ? Math.max(...Object.keys(lorebook.entries).map(Number)) + 1 : 0;
+    loreLinkToLib(itemId);
+    g('lorebookName').value = lorebook.name || itemId;
+    if (mode === 'lore') { renderList(); renderTabs(); renderEditor(); }
+    saveToStorage();
+  } else if (type === 'char') {
+    if (activeCharId === itemId && mode === 'char' && typeof openChar === 'function') openChar(itemId);
+  } else if (type === 'preset') {
+    if (activePresetId === itemId && mode === 'preset' && typeof openPreset === 'function') openPreset(itemId);
+  }
+}
+
 function openItemHistory(type, itemId) {
   let entry, history;
   if (type === 'lore') {
@@ -922,8 +1018,9 @@ function openItemHistory(type, itemId) {
 
   modal.addEventListener('click', e => {
     const closeTarget = e.target.closest('[data-close]');
-    if (closeTarget) { modal.remove(); return; }
-    if (e.target === modal) modal.remove();
+    // stopPropagation so the global delegated handler doesn't also try to close it
+    if (closeTarget) { e.stopPropagation(); modal.remove(); return; }
+    if (e.target === modal) { e.stopPropagation(); modal.remove(); }
   });
 
   const listEl = modal.querySelector('#histList');
@@ -962,8 +1059,9 @@ function openItemHistory(type, itemId) {
         }
         if (!ok) return; // safeSet already told the user why
         modal.remove();
-        toast('Restored to ' + ts + ' — reloading...', 'ok');
-        setTimeout(() => location.reload(), 900);
+        // Re-render in place instead of reloading (which dumped you on Home)
+        itemHistoryRefreshOpen(type, itemId);
+        toast('Restored to ' + ts + '.', 'ok');
       } catch(e) { toast('Snapshot unreadable: ' + e.message, 'err'); }
     });
 

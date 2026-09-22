@@ -576,74 +576,74 @@ function renderLumiVariantField(baseId, field, defaultVal, variants, placeholder
   </div>`;
 }
 
+const LUMI_FIELDS = ['description', 'personality', 'scenario'];
+const LUMI_FIELD_IDS = { description: 'chDesc', personality: 'chPers', scenario: 'chScen' };
+
+// Which tab is showing in a field's shared textarea: '-1' = Default, else variant index
+function lumiActiveIdx(field) {
+  const wrap = document.getElementById('lumi-vwrap-' + field);
+  const active = wrap && wrap.querySelector('.lumi-vtab.active');
+  return active ? active.dataset.idx : '-1';
+}
+
+// Write what the shared textarea currently shows back into the slot it belongs to
+function lumiStashField(field, lv) {
+  const ta = g(LUMI_FIELD_IDS[field]);
+  if (!ta) return;
+  const idx = lumiActiveIdx(field);
+  if (idx === '-1' || idx === 'add') {
+    charFormState[field] = ta.value;
+  } else {
+    const v = lv[field] && lv[field][parseInt(idx)];
+    if (v) v.content = ta.value;
+  }
+}
+
 function wireLumiVariantFields() {
   document.querySelectorAll('.lumi-vtab').forEach(btn => {
     btn.addEventListener('click', () => {
       const field = btn.dataset.field;
       const idx   = btn.dataset.idx;
       const wrap  = document.getElementById('lumi-vwrap-' + field);
-      if (!wrap) return;
+      const ta    = g(LUMI_FIELD_IDS[field]);
+      if (!wrap || !ta) return;
 
-      // Capture current textarea value before switching
-      const ta = wrap.querySelector('textarea');
-      const curActive = wrap.querySelector('.lumi-vtab.active');
-      const curIdx = curActive ? curActive.dataset.idx : '-1';
-
-      // Save current value back into state
-      const lv = charFormState._lumiVariants || captureLumiVariants();
-      if (curIdx === '-1') {
-        // Default tab — map to the correct charFormState field
-        const fieldMap = { description: 'chDesc', personality: 'chPers', scenario: 'chScen' };
-        const el = g(fieldMap[field]);
-        if (el) el.value = ta.value;
-      } else {
-        if (lv[field] && lv[field][parseInt(curIdx)]) {
-          lv[field][parseInt(curIdx)].content = ta.value;
-        }
-      }
-      charFormState._lumiVariants = lv;
+      // Save whatever is on screen into its own slot BEFORE the textarea changes
+      captureCharState();
+      const lv = charFormState._lumiVariants;
 
       if (idx === 'add') {
-        // Add new variant
         if (!lv[field]) lv[field] = [];
         lv[field].push({ id: lumiGenId(), label: 'Variant ' + (lv[field].length + 1), content: '' });
-        charFormState._lumiVariants = lv;
         charUnsaved = true;
         renderCharEditor();
         return;
       }
 
-      // Switch tabs
       wrap.querySelectorAll('.lumi-vtab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
 
       if (idx === '-1') {
-        // Default: read from the main textarea's stored value
-        const fieldMap = { description: 'chDesc', personality: 'chPers', scenario: 'chScen' };
-        const el = g(fieldMap[field]);
-        ta.value = el ? el.value : (charFormState[field] || '');
+        ta.value = charFormState[field] || '';
       } else {
         const v = lv[field] && lv[field][parseInt(idx)];
         ta.value = v ? (v.content || '') : '';
       }
-
-      // Long-press / right-click to rename or delete variant
     });
 
-    // Double-click to rename
     if (btn.dataset.idx !== '-1' && btn.dataset.idx !== 'add') {
+      // Double-click to rename
       btn.addEventListener('dblclick', async () => {
         const field = btn.dataset.field;
         const idx   = parseInt(btn.dataset.idx);
-        const lv    = charFormState._lumiVariants || captureLumiVariants();
+        captureCharState();
+        const lv = charFormState._lumiVariants;
         if (!lv[field] || !lv[field][idx]) return;
         const newLabel = await askInput('Rename variant:', lv[field][idx].label || ('Variant ' + (idx+1)));
         if (newLabel === null) return;
         lv[field][idx].label = newLabel.trim() || ('Variant ' + (idx+1));
-        charFormState._lumiVariants = lv;
         charUnsaved = true;
         btn.textContent = lv[field][idx].label;
-        // Add delete X button
       });
 
       // Right-click to delete
@@ -651,11 +651,11 @@ function wireLumiVariantFields() {
         e.preventDefault();
         const field = btn.dataset.field;
         const idx   = parseInt(btn.dataset.idx);
-        const lv    = charFormState._lumiVariants || captureLumiVariants();
-        if (!lv[field]) return;
         if (!await askConfirm('Delete this variant?')) return;
+        captureCharState();
+        const lv = charFormState._lumiVariants;
+        if (!lv[field]) return;
         lv[field].splice(idx, 1);
-        charFormState._lumiVariants = lv;
         charUnsaved = true;
         renderCharEditor();
       });
@@ -663,25 +663,17 @@ function wireLumiVariantFields() {
   });
 }
 
+// Returns a fresh copy of all variants with the on-screen textarea routed into
+// the right slot. Falls back to the card's stored variants the first time,
+// previously it fell back to {}, which dropped every imported variant.
 function captureLumiVariants() {
-  // Read current textarea values for whichever tab is active
-  const fields = ['description', 'personality', 'scenario'];
-  const existing = charFormState._lumiVariants || {};
+  const card = charLibrary[activeCharId]?.card;
+  const src = charFormState._lumiVariants || {};
   const result = {};
-  fields.forEach(field => {
-    result[field] = (existing[field] || []).map(v => ({ ...v }));
-    // If Default tab is active, the main textarea has the default value — variants unchanged
-    // If a variant tab is active, read the textarea into that variant's content
-    const wrap = document.getElementById('lumi-vwrap-' + field);
-    if (!wrap) return;
-    const activeTab = wrap.querySelector('.lumi-vtab.active');
-    if (!activeTab) return;
-    const idx = activeTab.dataset.idx;
-    if (idx === '-1' || idx === 'add') return;
-    const ta = wrap.querySelector('textarea');
-    if (ta && result[field][parseInt(idx)] !== undefined) {
-      result[field][parseInt(idx)].content = ta.value;
-    }
+  LUMI_FIELDS.forEach(field => {
+    const base = src[field] || getLumiVariants(card, field);
+    result[field] = base.map(v => ({ ...v }));
+    lumiStashField(field, result);
   });
   return result;
 }
@@ -789,10 +781,18 @@ function gtWriteToCard(card, firstMesTitle, firstMesDesc, altGreetings) {
 
 function captureCharState() {
   charFormState.name = g('chName')?.value;
-  // For lumiverse: default field is the first tab (id="chDesc" etc still present)
-  charFormState.description = g('chDesc')?.value;
-  charFormState.personality = g('chPers')?.value;
-  charFormState.scenario = g('chScen')?.value;
+  // Lumiverse: chDesc/chPers/chScen are shared between the Default tab and
+  // every variant tab, so the textarea only holds the Default text while the
+  // Default tab is active. captureLumiVariants() routes each textarea's value
+  // into the right slot (charFormState[field] for Default, the variant's
+  // .content otherwise). Reading the textarea straight into description here
+  // is what made variant text overwrite Default.
+  const lumiUi = charActiveFormat === 'lumiverse' && document.getElementById('lumi-vwrap-description');
+  if (!lumiUi) {
+    charFormState.description = g('chDesc')?.value;
+    charFormState.personality = g('chPers')?.value;
+    charFormState.scenario = g('chScen')?.value;
+  }
   charFormState.first_mes = g('chFirst')?.value;
   charFormState.mes_example = g('chMesEx')?.value;
   charFormState.system_prompt = g('chSysPrompt')?.value;
@@ -803,9 +803,13 @@ function captureCharState() {
   charFormState.tags = g('chTags')?.value;
   charFormState.spec = g('chSpec')?.value;
   charFormState.alternate_greetings = captureCharGreetings();
-  // Lumiverse variant fields
-  if (charActiveFormat === 'lumiverse') {
+  // Lumiverse variant fields (also stashes the Default text, see above)
+  if (lumiUi) {
     charFormState._lumiVariants = captureLumiVariants();
+    // Safety net: never let a Default field fall through as undefined,
+    // saveChar() would turn that into an empty string.
+    const d = charLibrary[activeCharId]?.card?.data || {};
+    LUMI_FIELDS.forEach(f => { if (charFormState[f] === undefined) charFormState[f] = d[f] || ''; });
   }
 }
 

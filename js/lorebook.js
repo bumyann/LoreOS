@@ -201,6 +201,8 @@ function copyEntry(srcUid) {
   lorebook.entries = rebuilt;
   nextUid = Math.max(...Object.keys(rebuilt).map(Number)) + 1;
   renderList(); openInTab(newUid);
+  saveToStorage();
+  if (typeof loreSnapshotSoon === 'function') loreSnapshotSoon();
 }
 
 async function deleteSidebar(uid) {
@@ -209,6 +211,7 @@ async function deleteSidebar(uid) {
   closeTab(uid);
   renderList();
   saveToStorage();
+  if (typeof loreSnapshotSoon === 'function') loreSnapshotSoon();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -886,6 +889,7 @@ function saveEntry(uid) {
 
   unsaved.delete(uid); delete formState[uid];
   renderList(); renderTabs(); saveToStorage();
+  if (typeof loreSnapshotSoon === 'function') loreSnapshotSoon();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1171,8 +1175,11 @@ async function libSaveCurrent() {
   const name = (g('libNewName').value.trim() || g('lorebookName').value.trim() || 'Untitled').substring(0, 60);
   const lib = libGet();
   if (lib[name] && !await askConfirm(`"${name}" already exists. Overwrite?`)) return;
-  lib[name] = { name, lb: JSON.parse(JSON.stringify(lorebook)), savedAt: new Date().toISOString() };
+  // Keep any existing history when overwriting an entry of the same name
+  lib[name] = { ...(lib[name] || {}), name, lb: JSON.parse(JSON.stringify(lorebook)), savedAt: new Date().toISOString() };
   libSet(lib);
+  // From now on, edits to this lorebook write through to this library entry
+  if (typeof loreLinkToLib === 'function') loreLinkToLib(name);
   // Snapshot on every explicit save to library
   if (typeof itemHistoryPush === 'function') itemHistoryPush('lore', name, lib[name]);
   g('libNewName').value = '';
@@ -1193,6 +1200,7 @@ async function libLoad(name) {
     : 0;
 
   g('lorebookName').value = lorebook.name || name;
+  if (typeof loreLinkToLib === 'function') loreLinkToLib(name);
   renderList(); renderTabs(); renderEditor();
   saveToStorage();
   closeModal('libModal');
@@ -1209,6 +1217,12 @@ async function libRename(oldName) {
   lib[trimmed] = { ...lib[oldName], name: trimmed };
   delete lib[oldName];
   libSet(lib);
+  // Keep the open lorebook (and any open workshop tab) pointed at the new name
+  if (typeof loreActiveLibName === 'function' && loreActiveLibName() === oldName) loreLinkToLib(trimmed);
+  if (typeof wsItems !== 'undefined') {
+    wsItems.forEach(t => { if (t.type === 'lore' && t.itemId === oldName) t.itemId = trimmed; });
+    if (typeof renderWsTabs === 'function') renderWsTabs();
+  }
   renderLibraryList();
   toast(`Renamed to "${trimmed}".`, 'ok');
 }
@@ -1218,6 +1232,7 @@ async function libDelete(name) {
   const lib = libGet();
   delete lib[name];
   libSet(lib);
+  if (typeof loreActiveLibName === 'function' && loreActiveLibName() === name) loreLinkToLib(null);
   renderLibraryList();
   toast(`Deleted "${name}".`, 'info');
 }

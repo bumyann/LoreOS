@@ -512,3 +512,8 @@ input[type=number].fnum::-webkit-inner-spin-button{-webkit-appearance:none;margi
 .stg-storage-bar i{display:block;height:100%;background:var(--p);opacity:.75}
 .stg-storage-val{flex:0 0 auto;color:var(--txm);min-width:56px;text-align:right}
 .stg-storage-empty{font-family:var(--fx);font-size:.7rem;color:var(--txm)}
+
+/* Confirm / input dialogs sit above every other modal, including the
+   dynamically appended version history modal (same z-index, later in the DOM,
+   so it used to cover the restore confirm). Still below toasts (#notifs, 3000). */
+#confirmModal, #renameModal, #inputModal { z-index: 2500; }
