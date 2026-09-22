@@ -17,909 +17,729 @@ function tplNewId() { return 't' + Date.now() + Math.floor(Math.random()*1000); 
 // ═══════════════════════════════════════════════════════
 // BUILT-IN TEMPLATES
 // ═══════════════════════════════════════════════════════
+// Synced from yuu's burrow → Templates (Notion), 2026-09-22.
+// `hint` shows in the library list; `keys` fill an empty Primary keywords
+// field when pasted into a lorebook entry.
 const BUILTIN_TEMPLATES = {
   char: [
     {
-      category: 'Basic',
+      category: "Basic",
       items: [
-        { name: '📝 Standalone Character Card', content: `<character_overview>
-\`OVERVIEW\`
-Full Name:
-Aliases/Nicknames:
-Social Media Handle:
-Gender & Pronouns:
-Sexuality:
-Species/Race:
-Ethnicity:
-Age:
-Occupation:
-Affiliation:
-Residence:
-</character_overview>
+        { name: "📝 Standalone Character Card", hint: "Full card for bots without a lorebook. Everything lives in the card.", content: `# OVERVIEW
+- Full Name:
+- Aliases/Nicknames:
+- Social Media Handle:
+- Gender & Pronouns:
+- Sexuality:
+- Species/Race:
+- Ethnicity:
+- Age:
+- Occupation:
+- Affiliation:
+- Residence:
 
+# APPEARANCE
+- Hair:
+- Face:
+- Body:
+- Distinguishing Details:
 
-<appearance>
-\`APPEARANCE\`
-Hair:
-Face:
-Body:
-Distinguishing Details:
-</appearance>
+# VOICE & SPEECH
+- Tone/Cadence:
+- Vocabulary Level:
+- Speech Quirks:
+- Languages:
 
+# CLOTHING
+- Default:
+- Formal/Special:
+- Notable Item:
 
-<voice_and_speech>
-\`VOICE & SPEECH\`
-Tone/Cadence:
-Vocabulary Level:
-Speech Quirks:
-Languages:
-</voice_and_speech>
-
-
-<clothing>
-\`CLOTHING\`
-Default:
-Formal/Special:
-Notable Item:
-</clothing>
-
-
-<background>
-\`BACKGROUND\`
+# BACKGROUND
 // full history — origin, formative events, what shaped them into who they are now
 // no length limit here; write as much as the character needs
 
-</background>
 
-
-<personality>
-\`PERSONALITY\`
-Outwardly:
+# PERSONALITY
+- Outwardly:
 // more than one line — include what they hide, how they see themselves,
 // the belief they carry about the world that colours everything else
-Inwardly:
-Core Need:
-Core Fear:
+- Inwardly:
+- Core Need:
+- Core Fear:
 
-When annoyed/angry:
-When upset/hurt:
-When content/happy:
-When affectionate:
-Love Language:
-</personality>
+- When annoyed/angry:
+- When upset/hurt:
+- When content/happy:
+- When affectionate:
+- Love Language:
 
+# CURRENT PURSUIT
+// what they're actively working toward when the story opens —
+// this is what makes them move on their own instead of waiting on {{user}}
+- Goal:
+- Why It Matters To Them:
+- What's In The Way:
+- How They Pursue It:
 
-<skills_and_interests>
-\`SKILLS & INTERESTS\`
-Skills:
-Genuine Passions:
-Dislikes/Aversions:
-</skills_and_interests>
+# SKILLS & INTERESTS
+- Skills:
+- Genuine Passions:
+- Dislikes/Aversions:
 
-
-<behaviour_and_habits>
-\`BEHAVIOUR & HABITS\`
-Daily:
-Social:
-Under Pressure:
+# BEHAVIOUR & HABITS
+- Daily:
+- Social:
+- Under Pressure:
 // what they do when stressed, overwhelmed, or pushed
-Stress Response:
-Recurring Habits:
+- Stress Response:
+- Recurring Habits:
 // things they do that they don't notice
-</behaviour_and_habits>
 
-
-<sexual_behaviour>
-\`SEXUAL BEHAVIOUR\`
-General Approach:
-What Intimacy Means To Them:
+# SEXUAL BEHAVIOUR
+- General Approach:
+- What Intimacy Means To Them:
 // not just preferences — what closeness actually represents emotionally
-Turn-Ons:
-Kinks/Preferences:
-Hard Limits:
-</sexual_behaviour>
+- Turn-Ons:
+- Kinks/Preferences:
+- Hard Limits:
 
-
-<relationship_with_user>
-\`RELATIONSHIP WITH {{user}}\`
-Dynamic:
-How They Met: // leave blank if user-defined
-Current Status:
-How They Feel About {{user}}:
+# RELATIONSHIP WITH {{user}}
+- Dynamic:
+- How They Met: // leave blank if user-defined
+- Current Status:
+- How They Feel About {{user}}:
 // more than one line — what {{user}} makes them feel that others don't,
 // what they'd never say directly, how their behaviour shifts around them
-</relationship_with_user>
 
-
-<voice_sample>
-\`VOICE SAMPLE\`
+# VOICE SAMPLE
 "[line one — their default register]"
 "[line two — optional, different mood]"
 "[line three — optional]"
-</voice_sample>
 
-
-<notes>
-\`NOTES\`
+# NOTES
 -
--
-</notes>` },
-        { name: '💬 Example Dialogues', content: `<example_dialogues>
-\`EXAMPLE DIALOGUES\`
+-` },
+        { name: "💬 Example Dialogues", hint: "Style anchors by mood. Keep the NOT VERBATIM header.", content: `# EXAMPLE DIALOGUES
 (FOR REFERENCE ONLY — NOT VERBATIM)
 
 
-\`GREETING {{user}}\`
+## GREETING {{user}}
 // first contact or re-entry into scene — sets baseline voice
 
 
-\`HAPPY / LIGHT\`
+## HAPPY / LIGHT
 // joy, amusement, something going right — how do they carry
 // warmth? are they loud about it or does it leak out quietly?
 
 
-\`ANGRY\`
+## ANGRY
 // how does anger sound in their mouth — cold, loud, clipped,
 // dangerously calm? do they go still or do they take up space?
 
 
-\`UPSET / HURT\`
+## UPSET / HURT
 // distinct from angry — this is the soft underbelly
 // do they go quiet? deflect? push away? overcorrect?
 
 
-\`AWKWARD / CAUGHT OFF GUARD\`
+## AWKWARD / CAUGHT OFF GUARD
 // when they don't have a script — filler words, physical tells,
 // what breaks their composure and how does it show?
 
 
-\`EMBARRASSED\`
+## EMBARRASSED
 // different from awkward — there's heat here, something exposed
 // do they lean into it, laugh it off, or try to bury it fast?
 
 
-\`LOVING / TENDER\`
+## LOVING / TENDER
 // the version of them that only comes out when guard is down
 // can be subtle — love doesn't have to be declared to be felt
 
 
-\`TENSE / GUARDED\`
+## TENSE / GUARDED
 // when something is wrong but they're not saying it
 // subtext-heavy — what they say and what they mean should diverge
 
 
-\`ADDITIONAL LINES\`
+## ADDITIONAL LINES
 // voice anchors that don't fit a specific state —
 // filler phrases, a line that's just very them, a deflection
-// they use often, something they say when they're thinking
-
-</example_dialogues>` },
-        { name: '👤 Persona Card', content: `<user_persona>
-\`PERSONA\`
-
-<identity>
-\`IDENTITY\`
-Name:
-Aliases/Nicknames:              // [OPTIONAL]
-Gender & Pronouns:
-Age:
-Species/Race:                   // [OPTIONAL] leave blank if human default
-Occupation/Role:                // [OPTIONAL] relevant if bots would know this
-Affiliation:                    // [OPTIONAL] faction, school, group
-</identity>
-
-
-<appearance>
-\`APPEARANCE\`
-Hair:
-Face:
-Body:
-Distinguishing Details:         // [OPTIONAL] scars, marks, anything notable
-Default Clothing Style:         // [OPTIONAL]
-</appearance>
-
-
-<presence_and_bearing>
-\`PRESENCE & BEARING\`
-// how {{user}} comes across to others at first glance —
-// not personality, but the impression they make physically
-First Impression:
-Energy:
-</presence_and_bearing>
-
-
-<personality>
-\`PERSONALITY\`
-// keep this light — broad strokes only
-Surface:
-Under The Surface:              // [OPTIONAL]
-Notable Quirks:                 // [OPTIONAL]
-</personality>
-
-
-<voice_and_speech>
-\`VOICE & SPEECH\`                // [OPTIONAL]
-Tone/Cadence:
-Speech Quirks:
-</voice_and_speech>
-
-
-<background>
-\`BACKGROUND\`                    // [OPTIONAL]
-// brief only — 2-3 sentences max
-</background>
-
-
-<skills_and_abilities>
-\`SKILLS & ABILITIES\`            // [OPTIONAL]
-Skills:
-Abilities/Powers:               // [OPTIONAL]
-</skills_and_abilities>
-
-
-<notes>
-\`NOTES\`
--
--
-</notes>
-
-</user_persona>` },
+// they use often, something they say when they're thinking` },
       ]
     },
     {
-      category: 'Advanced',
+      category: "Advanced",
       items: [
-        { name: '📚 Lorebook-Paired Card', content: `<character_overview>
-\`OVERVIEW\`
-Full Name:
-Aliases/Nicknames:
-Social Media Handle:
-Gender & Pronouns:
-Sexuality:
-Species/Race:
-Ethnicity:
-Age:
-Occupation:
-Affiliation:
-Residence:
-</character_overview>
+        { name: "📚 Lorebook-Paired Card", hint: "Lean card; the depth goes in the Character Lorebook entries.", content: `# OVERVIEW
+- Full Name:
+- Aliases/Nicknames:
+- Social Media Handle:
+- Gender & Pronouns:
+- Sexuality:
+- Species/Race:
+- Ethnicity:
+- Age:
+- Occupation:
+- Affiliation:
+- Residence:
 
+# APPEARANCE
+- Hair:
+- Face:
+- Body:
+- Distinguishing Details:
 
-<appearance>
-\`APPEARANCE\`
-Hair:
-Face:
-Body:
-Distinguishing Details:
-</appearance>
+# VOICE & SPEECH
+- Tone/Cadence:
+- Vocabulary Level:
+- Speech Quirks:
+- Languages:
 
+# CLOTHING
+- Default:
+- Formal/Special:
+- Notable Item:
 
-<voice_and_speech>
-\`VOICE & SPEECH\`
-Tone/Cadence:
-Vocabulary Level:
-Speech Quirks:
-Languages:
-</voice_and_speech>
-
-
-<clothing>
-\`CLOTHING\`
-Default:
-Formal/Special:
-Notable Item:
-</clothing>
-
-
-<background_summary>
-\`BACKGROUND\`
+# BACKGROUND
 // 2–4 sentences. Public-facing only.
 
-</background_summary>
 
+# PERSONALITY
+- Outwardly:
+- Inwardly: // one line hint only
+- Core Need:
+- Core Fear:
 
-<personality>
-\`PERSONALITY\`
-Outwardly:
-Inwardly: // one line hint only
-Core Need:
-Core Fear:
+- When annoyed/angry:
+- When upset/hurt:
+- When content/happy:
+- When affectionate:
+- Love Language:
 
-When annoyed/angry:
-When upset/hurt:
-When content/happy:
-When affectionate:
-Love Language:
-</personality>
+# CURRENT PURSUIT
+// what they're actively after when the story opens — one line each
+// the deeper why behind it → lorebook
+- Goal:
+- What's In The Way:
+- How They Pursue It:
 
+# SKILLS & INTERESTS
+- Skills:
+- Genuine Passions:
+- Dislikes/Aversions:
 
-<skills_and_interests>
-\`SKILLS & INTERESTS\`
-Skills:
-Genuine Passions:
-Dislikes/Aversions:
-</skills_and_interests>
+# BEHAVIOUR & HABITS
+- Daily:
+- Social:
+- Stress Response:
 
-
-<behaviour_and_habits>
-\`BEHAVIOUR & HABITS\`
-Daily:
-Social:
-Stress Response:
-</behaviour_and_habits>
-
-
-<sexual_behaviour>
-\`SEXUAL BEHAVIOUR\`
-General Approach:
-Turn-Ons:
-Kinks/Preferences:
-Hard Limits:
+# SEXUAL BEHAVIOUR
+- General Approach:
+- Turn-Ons:
+- Kinks/Preferences:
+- Hard Limits:
 // interior experience → lorebook (Intimacy Layer)
-</sexual_behaviour>
 
+# RELATIONSHIP WITH {{user}}
+- Dynamic:
+- How They Met: // leave blank if user-defined
+- Current Status:
+- Their Private Feeling About {{user}}: // one line only
 
-<relationship_with_user>
-\`RELATIONSHIP WITH {{user}}\`
-Dynamic:
-How They Met: // leave blank if user-defined
-Current Status:
-Their Private Feeling About {{user}}: // one line only
-</relationship_with_user>
-
-
-<voice_sample>
-\`VOICE SAMPLE\`
-"[line one — their default register]"
-"[line two — optional, different mood]"
-"[line three — optional]"
-</voice_sample>
-
-
-<active_lorebooks>
-\`LOREBOOKS\`
-World Lorebook:        [ y / n ]
-Series Lorebook:       [ y / n ]
-Series NPCs Lorebook:  [ y / n ]
-Personal Lorebook:     [ y / n ]
-</active_lorebooks>
-
-
-<notes>
-\`NOTES\`
+# NOTES
 -
--
-</notes>` },
+-` },
       ]
-    }
+    },
   ],
   lore: [
     {
-      category: 'Character Lorebook',
+      category: "Character Lorebook",
       items: [
-        { name: '🎤 Voice Anchor', content: `[CHARACTER] speaks [cadence]. They tend to [one verbal habit]. They rarely say [something they avoid]. A typical line: "[example]."` },
-        { name: '📖 Backstory', content: `<backstory>
-\`BACKSTORY\`
+        { name: "📖 Backstory", keys: ["past", "childhood", "before", "history", "how did you", "grew up", "back then", "where are you from", "origins", "upbringing"], content: `# BACKSTORY
 
-Early environment:
+- Early environment:
 
-Family & key figures:
+- Family & key figures:
 
-Formative period:
+- Formative period:
 
-What was normal for them that wouldn't be for others:
+- What was normal for them that wouldn't be for others:
 
-What was missing:
-</backstory>` },
-        { name: '💭 Core Memories', content: `<core_memories>
-\`CORE MEMORIES\`
+- What was missing:` },
+        { name: "💭 Core Memories", keys: ["remember", "memory", "never forgot", "that day", "back when", "still think about", "haunts", "can't forget", "scarred"], content: `# CORE MEMORIES
 // each entry is a specific moment, not a period or summary
 // write with sensory detail
 
-Memory — [label]:
+- Memory — [label]:
 
-Memory — [label]:
+- Memory — [label]:
 
-Memory — [label]:
-</core_memories>` },
-        { name: '🧠 Psychological Core', content: `<psychological_core>
-\`PSYCHOLOGICAL CORE\`
+- Memory — [label]:` },
+        { name: "🧠 Psychological Core", keys: ["think", "believe", "why do you", "how do you see yourself", "what do you think of yourself", "mindset", "perspective", "worldview"], content: `# PSYCHOLOGICAL CORE
 
-Self-concept:
+- Self-concept:
 
-Core belief about the world:
+- Core belief about the world:
 
-Cognitive patterns:
+- Cognitive patterns:
 
-Defence mechanisms:
+- Defence mechanisms:
 
-Blind spots:
+- Blind spots:
 
-What they need that they'd never ask for:
+- What they need that they'd never ask for:
 
-What they fear becoming:
-</psychological_core>` },
-        { name: '💢 Emotional Mechanics', content: `<emotional_mechanics>
-\`EMOTIONAL MECHANICS\`
+- What they fear becoming:` },
+        { name: "💢 Emotional Mechanics", keys: ["feel", "emotion", "upset", "hurt", "angry", "scared", "nervous", "overwhelmed", "reaction", "feeling", "emotional"], content: `# EMOTIONAL MECHANICS
 
-Emotional baseline:
+- Emotional baseline:
 
-How quickly they feel things:
+- How quickly they feel things:
 
-What triggers the strongest reactions:
+- What triggers the strongest reactions:
 
-How each emotion moves through them:
-- Anger:
-- Hurt:
-- Fear:
-- Love/affection:
-- Joy:
+- How each emotion moves through them:
+  - Anger:
+  - Hurt:
+  - Fear:
+  - Love/affection:
+  - Joy:
 
-How they process emotion:
+- How they process emotion:
 
-How they show what they're not saying:
-</emotional_mechanics>` },
-        { name: '🔄 Behaviour Patterns', content: `<behaviour_patterns>
-\`BEHAVIOUR PATTERNS\`
+- How they show what they're not saying:` },
+        { name: "🔄 Behaviour Patterns", keys: ["always", "habit", "pattern", "tend to", "keeps doing", "why do you always", "notice", "compulsive", "reflex"], content: `# BEHAVIOUR PATTERNS
 
-Under pressure:
+- Under pressure:
 
-When something is wrong but they won't say it:
+- When something is wrong but they won't say it:
 
-When they're comfortable:
+- When they're comfortable:
 
-When they're being observed or evaluated:
+- When they're being observed or evaluated:
 
-Recurring habits they don't notice:
+- Recurring habits they don't notice:
 
-How they fill silence:
+- How they fill silence:
 
-What they always do when [specific trigger]:
-</behaviour_patterns>` },
-        { name: '🤝 Relational Patterns', content: `<relational_patterns>
-\`RELATIONAL PATTERNS\`
+- What they always do when [specific trigger]:` },
+        { name: "🤝 Relational Patterns", keys: ["relationship", "trust", "close", "attachment", "let in", "push away", "distance", "people"], content: `# RELATIONAL PATTERNS
 
-Attachment in practice:
+- Attachment in practice:
 
-How they get close to people:
+- How they get close to people:
 
-What they do when someone gets too close:
+- What they do when someone gets too close:
 
-What makes them trust someone:
+- What makes them trust someone:
 
-What breaks trust for them:
+- What breaks trust for them:
 
-How they love:
+- How they love:
 
-How they hurt people without meaning to:
+- How they hurt people without meaning to:
 
-What they look for in people without realising it:
-</relational_patterns>` },
-        { name: '👥 Private Relationship', content: `<private_relationship>
-\`[NAME] — [RELATIONSHIP TYPE]\`
+- What they look for in people without realising it:` },
+        { name: "👥 Private Relationships", hint: "One per NPC. Add their name and relationship terms as keywords.", keys: ["mother", "father", "family"], content: `# [NAME] — [RELATIONSHIP TYPE]
 
-Who they are:
+- Who they are:
 
-How [CHARACTER] genuinely feels about them:
+- How [CHARACTER] genuinely feels about them:
 
-History between them:
+- History between them:
 
-What's unresolved:
+- What's unresolved:
 
-What [NAME] represents to [CHARACTER] unconsciously:
+- What [NAME] represents to [CHARACTER] unconsciously:
 
-Current state:
-</private_relationship>` },
-        { name: '🎭 The Mask', content: `<the_mask>
-\`THE MASK\`
+- Current state:` },
+        { name: "🎭 The Mask", keys: ["really", "actually", "underneath", "not saying", "hiding", "what you really", "true", "pretend"], content: `# THE MASK
 
-What they present as:
+- What they present as:
 
-What's actually happening underneath:
+- What's actually happening underneath:
 
-How it shows up in their behaviour:
+- How it shows up in their behaviour:
 
-What would have to happen for it to drop:
+- What would have to happen for it to drop:
 
-What they're most afraid of someone seeing:
-</the_mask>` },
-        { name: '🔒 Secrets & Hidden Lore', content: `<secrets>
-\`SECRETS\`
+- What they're most afraid of someone seeing:` },
+        { name: "🔒 Secrets & Hidden Lore", keys: ["secret", "truth", "hiding", "real reason", "never told", "lied", "no one knows", "what really happened", "concealing"], content: `# SECRETS
 
-What they're hiding and from whom:
+- What they're hiding and from whom:
 
-Why:
+- Why:
 
-What it would cost them if it came out:
+- What it would cost them if it came out:
 
-How it affects their behaviour without anyone knowing why:
+- How it affects their behaviour without anyone knowing why:
 
-Physical evidence or tells:
-</secrets>` },
-        { name: '💞 {{user}} Dynamic', content: `<user_dynamic>
-\`{{user}} DYNAMIC\`
+- Physical evidence or tells:` },
+        { name: "💞 {{user}} Dynamic", keys: ["{{user}}", "you and me", "us", "together", "our", "between us", "with you", "what you mean", "you make me"], content: `# {{user}} DYNAMIC
 
-Pre-established dynamic:
+- Pre-established dynamic:
 
-How they met / first impression:
+- How they met / first impression:
 
-What {{user}} makes them feel that others don't:
+- What {{user}} makes them feel that others don't:
 
-What {{user}} triggers in them psychologically:
+- What {{user}} triggers in them psychologically:
 
-What they would never say to {{user}} directly:
+- What they would never say to {{user}} directly:
 
-How their behaviour shifts around {{user}}:
+- How their behaviour shifts around {{user}}:
 
-What they want from {{user}} that they haven't named:
+- What they want from {{user}} that they haven't named:
 
-Where the unresolved feeling lives:
-</user_dynamic>` },
-        { name: '🔥 Intimacy', content: `<intimacy>
-\`INTIMACY\`
+- Where the unresolved feeling lives:` },
+        { name: "🔥 Intimacy Layer", hint: "Flag as NSFW on platforms that support it.", keys: ["touch", "close", "intimate", "want", "desire", "body", "hold", "need", "bedroom", "skin", "kiss", "physical"], content: `# INTIMACY
 
-What intimacy means to them emotionally:
+- What intimacy means to them emotionally:
 
-How their psychological patterns show up here:
+- How their psychological patterns show up here:
 
-What they need but can't ask for:
+- What they need but can't ask for:
 
-What they do when someone gets genuinely close:
+- What they do when someone gets genuinely close:
 
-What makes them pull back:
+- What makes them pull back:
 
-What their body does before their mind catches up:
+- What their body does before their mind catches up:
 
-Specific behaviours only visible in intimate contexts:
-</intimacy>` },
+- Specific behaviours only visible in intimate contexts:` },
+        { name: "🎤 Voice Anchor", hint: "Always-on / constant, lowest insertion order, 3 sentences max.", content: `[CHARACTER] speaks [cadence]. They tend to [one verbal habit]. They rarely say [something they avoid]. A typical line: "[example]."` },
       ]
     },
     {
-      category: 'General Lorebook',
+      category: "General Lorebook",
       items: [
-        { name: '🌌 Cosmological Entry', content: `<cosmological_entry>
-\`LORE TITLE\`
+        { name: "🌌 Cosmological Entry", hint: "Planes, realms, universal mechanics, existence rules.", content: `# LORE TITLE
 
 
-\`WHAT IT IS\`
+## WHAT IT IS
 // 2–4 sentences — what is it, where does it exist, what is its fundamental nature?
 
 
-\`SENSORY REALITY\`
+## SENSORY REALITY
 // what it looks, sounds, feels like to exist within or near it
 // skip if purely abstract
 
 
-\`MECHANICS & RULES\`
+## MECHANICS & RULES
 -
 -
 
 
-\`WHO OR WHAT INHABITS IT\` // [OPTIONAL]
+## WHO OR WHAT INHABITS IT // [OPTIONAL]
 
 
-\`INTERACTION WITH MORTALS\`
+## INTERACTION WITH MORTALS
 
 
-\`RELATIONSHIP TO OTHER PLANES/CONCEPTS\` // [OPTIONAL]
+## RELATIONSHIP TO OTHER PLANES/CONCEPTS // [OPTIONAL]
 
 
-\`NOTES\`
-
-</cosmological_entry>` },
-        { name: '🧬 Species Entry', content: `<species_entry>
-\`LORE TITLE\`
+## NOTES` },
+        { name: "🧬 Species Entry", hint: "Any named species or category of being.", content: `# LORE TITLE
 
 
-\`WHAT THEY ARE\`
+## WHAT THEY ARE
 // 2–3 sentences — mortal or immortal? origin? what makes them distinct at a glance?
 
 
-\`APPEARANCE\` // [OPTIONAL — skip if varies too widely]
+## APPEARANCE // [OPTIONAL — skip if varies too widely]
 
 
-\`BIOLOGY & LIFECYCLE\`
+## BIOLOGY & LIFECYCLE
 
 
-\`REPRODUCTION\` // [OPTIONAL]
+## REPRODUCTION // [OPTIONAL]
 
 
-\`ABILITIES & POWERS\`
+## ABILITIES & POWERS
 // include limits and costs
 -
 -
 
 
-\`MORTALITY & DEATH\`
+## MORTALITY & DEATH
 
 
-\`SOCIAL BEHAVIOR & CULTURE\` // [OPTIONAL]
+## SOCIAL BEHAVIOR & CULTURE // [OPTIONAL]
 
 
-\`HOW THEY FIT IN THE WORLD\`
+## HOW THEY FIT IN THE WORLD
 
 
-\`NOTES\`
-
-</species_entry>` },
-        { name: '🕍 Belief System Entry', content: `<belief_entry>
-\`LORE TITLE\`
+## NOTES` },
+        { name: "🕍 Belief System Entry", hint: "Faiths, deities, religious mechanics, practices.", content: `# LORE TITLE
 
 
-\`OVERVIEW\`
+## OVERVIEW
 // 2–4 sentences — what does this system hold to be true? who/what do they worship?
 
 
-\`MECHANICS\`
+## MECHANICS
 -
 -
 
 
-\`DEITIES & FIGURES\` // [OPTIONAL]
-[DEITY/FIGURE]:
-[DEITY/FIGURE]:
+## DEITIES & FIGURES // [OPTIONAL]
+- [DEITY/FIGURE]:
+- [DEITY/FIGURE]:
 
 
-\`PRACTICES & RITUALS\` // [OPTIONAL]
+## PRACTICES & RITUALS // [OPTIONAL]
 
 
-\`SOCIAL ROLE\`
+## SOCIAL ROLE
 
 
-\`RELATIONSHIP TO OTHER FAITHS\` // [OPTIONAL]
+## RELATIONSHIP TO OTHER FAITHS // [OPTIONAL]
 
 
-\`NOTES\`
-
-</belief_entry>` },
-        { name: '📜 Historical Event Entry', content: `<historical_entry>
-\`LORE TITLE\`
+## NOTES` },
+        { name: "📜 Historical Event Entry", hint: "World-shaping events, eras, disasters.", content: `# LORE TITLE
 
 
-\`WHAT HAPPENED\`
+## WHAT HAPPENED
 
 
-\`BEFORE\`
+## BEFORE
 
 
-\`DURING\`
+## DURING
 
 
-\`AFTER\`
+## AFTER
 
 
-\`HOW IT IS REMEMBERED\`
+## HOW IT IS REMEMBERED
 // truth vs. what people believe — myth, denial, reverence, trauma?
 
 
-\`RELEVANCE TO CHARACTERS\` // [OPTIONAL]
+## RELEVANCE TO CHARACTERS // [OPTIONAL]
 
 
-\`NOTES\`
-
-</historical_entry>` },
-        { name: '⚔️ Faction / Clan Entry', content: `<faction_entry>
-\`LORE TITLE\`
+## NOTES` },
+        { name: "⚔️ Faction / Clan Entry", hint: "Groups with structure, history, and internal logic.", content: `# LORE TITLE
 
 
-\`OVERVIEW\`
+## OVERVIEW
 
 
-\`HISTORY & ORIGIN\`
+## HISTORY & ORIGIN
 
 
-\`CURRENT ERA\`
+## CURRENT ERA
 
 
-\`INTERNAL STRUCTURE & HIERARCHY\`
+## INTERNAL STRUCTURE & HIERARCHY
 -
 -
 
 
-\`CODE & VALUES\`
+## CODE & VALUES
 
 
-\`TERRITORY & PRESENCE\` // [OPTIONAL]
+## TERRITORY & PRESENCE // [OPTIONAL]
 
 
-\`PUBLIC FACE VS. REALITY\`
+## PUBLIC FACE VS. REALITY
 
 
-\`RELATIONSHIP TO OTHER FACTIONS\` // [OPTIONAL]
+## RELATIONSHIP TO OTHER FACTIONS // [OPTIONAL]
 
 
-\`NOTES\`
-
-</faction_entry>` },
-        { name: '🏛️ Institution Entry', content: `<institution_entry>
-\`LORE TITLE\`
+## NOTES` },
+        { name: "🏛️ Institution Entry", hint: "Schools, academies, formal programmes, ranked systems.", content: `# LORE TITLE
 
 
-\`OVERVIEW\`
+## OVERVIEW
 
 
-\`ADMISSION & ENTRY\`
+## ADMISSION & ENTRY
 
 
-\`STRUCTURE & PROGRAMMES\`
+## STRUCTURE & PROGRAMMES
 
 
-\`POPULATION & HIERARCHY\`
+## POPULATION & HIERARCHY
 
 
-\`STAFF & LEADERSHIP\` // [OPTIONAL]
+## STAFF & LEADERSHIP // [OPTIONAL]
 
 
-\`NOTABLE FEATURES\`
+## NOTABLE FEATURES
 
 
-\`CULTURE & SOCIAL LIFE\`
+## CULTURE & SOCIAL LIFE
 
 
-\`NOTES\`
-
-</institution_entry>` },
-        { name: '📍 Location Entry', content: `<location_entry>
-\`LORE TITLE\`
+## NOTES` },
+        { name: "📍 Location Entry", hint: "Physical spaces: rooms, buildings, towns, campuses.", content: `# LORE TITLE
 
 
-\`WHAT IT IS\`
+## WHAT IT IS
 
 
-\`ATMOSPHERE & SENSORY DETAIL\`
+## ATMOSPHERE & SENSORY DETAIL
 
 
-\`LAYOUT & FEATURES\`
+## LAYOUT & FEATURES
 
 
-\`WHO IS HERE\` // [OPTIONAL]
+## WHO IS HERE // [OPTIONAL]
 
 
-\`RULES & ACCESS\` // [OPTIONAL]
+## RULES & ACCESS // [OPTIONAL]
 
 
-\`SOCIAL FUNCTION\`
+## SOCIAL FUNCTION
 // what does this place mean beyond its stated purpose?
 
 
-\`NOTES\`
-
-</location_entry>` },
-        { name: '📊 Social System Entry', content: `<social_system_entry>
-\`LORE TITLE\`
+## NOTES` },
+        { name: "📊 Social System Entry", hint: "Class structures, cultural norms, group rules, hierarchies.", content: `# LORE TITLE
 
 
-\`OVERVIEW\`
+## OVERVIEW
 
 
-\`TIERS / CATEGORIES\`
+## TIERS / CATEGORIES
 // one block per tier — duplicate as needed
 
-[TIER NAME]:
-- Who belongs:
-- What it grants them:
-- How others perceive them:
+- [TIER NAME]:
+  - Who belongs:
+  - What it grants them:
+  - How others perceive them:
 
-[TIER NAME]:
-- Who belongs:
-- What it grants them:
-- How others perceive them:
-
-
-\`HOW ONE MOVES WITHIN IT\`
+- [TIER NAME]:
+  - Who belongs:
+  - What it grants them:
+  - How others perceive them:
 
 
-\`UNWRITTEN RULES\`
+## HOW ONE MOVES WITHIN IT
 
 
-\`RELATIONSHIP TO POWER\` // [OPTIONAL]
+## UNWRITTEN RULES
 
 
-\`HOW CHARACTERS ARE AFFECTED\`
+## RELATIONSHIP TO POWER // [OPTIONAL]
 
 
-\`NOTES\`
+## HOW CHARACTERS ARE AFFECTED
 
-</social_system_entry>` },
+
+## NOTES` },
       ]
     },
     {
-      category: 'NPC Lorebook',
+      category: "NPC Lorebook",
       items: [
-        { name: '👤 NPC Profile', content: `<npc_name>
-\`IDENTITY\`
-Name:
-Aliases/Nicknames:
-Gender & Pronouns:
-Species/Race:
-Age:
-Occupation/Role:
-Affiliation:
-Residence/Location:
+        { name: "👤 NPC Profile", hint: "Public wiki page. Keywords: name, nicknames, role/title, affiliation.", content: `# IDENTITY
+- Name:
+- Aliases/Nicknames:
+- Gender & Pronouns:
+- Species/Race:
+- Age:
+- Occupation/Role:
+- Affiliation:
+- Residence/Location:
 
-\`PUBLIC APPEARANCE\`
+
+# PUBLIC APPEARANCE
 // 2–3 visually distinctive details someone who's seen them would remember
-Hair:
-Face:
-Body:
-Distinguishing Details:
+- Hair:
+- Face:
+- Body:
+- Distinguishing Details:
 
-\`REPUTATION & PUBLIC PERCEPTION\`
-General Reputation:
-What People Assume:
-Known For:
 
-\`ROLE IN THE SERIES\`
-Role:
-Allegiances:
-Notable Involvements: // [OPTIONAL]
+# REPUTATION & PUBLIC PERCEPTION
+- General Reputation:
+- What People Assume:
+- Known For:
 
-\`RELATIONSHIPS TO OTHER NAMED CHARACTERS\`
+
+# ROLE IN THE SERIES
+- Role:
+- Allegiances:
+- Notable Involvements: // [OPTIONAL]
+
+
+# RELATIONSHIPS TO OTHER NAMED CHARACTERS
 // public-facing only — private feelings → character lorebook
-[CHARACTER A]: [nature of connection]
-[CHARACTER B]:
+- [CHARACTER A]: [nature of connection]
+- [CHARACTER B]:
 
-\`KNOWN BACKSTORY\`
+
+# KNOWN BACKSTORY
 // 2–4 sentences max, publicly discoverable only
 
-\`SURFACE PERSONALITY\`
+
+# SURFACE PERSONALITY
 // 3–5 observable traits written as behaviour, not adjectives
 
-\`NOTES\`
+
+# NOTES
 // cross-bot consistency flags
 -
--
-</npc_name>` },
-        { name: '🔗 Relationship Entry', content: `<relationship_entry>
-\`RELATIONSHIP OVERVIEW\`
+-` },
+        { name: "🔗 Relationship Entry", hint: "How this bot privately sees an NPC. Keywords: NPC name + bot name; secondary: bot name.", content: `# RELATIONSHIP OVERVIEW
 [BOT NAME] — [NPC NAME]
-Dynamic Type: // rivals, estranged, one-sided, complicated allies, something unspoken
+- Dynamic Type: // rivals, estranged, one-sided, complicated allies, something unspoken
 
-\`INTERIOR FEELING\`
+
+# INTERIOR FEELING
 // how [BOT] genuinely feels — NOT how they act, NOT the public dynamic
-What [BOT] actually feels:
-What [BOT] would never admit:
-What [NPC] represents to [BOT] unconsciously: // a wound, a reminder, a possibility, a threat
+- What [BOT] actually feels:
+- What [BOT] would never admit:
+- What [NPC] represents to [BOT] unconsciously: // a wound, a reminder, a possibility, a threat
 
-\`BEHAVIORAL SHIFT\`
-How [BOT] acts around [NPC]:
-What [BOT] does differently around [NPC] vs. others:
-A tell that gives them away:
 
-\`SHARED HISTORY\`
-How they met:
-A defining moment between them:
-Something that shifted the dynamic:
-What neither has addressed directly:
+# BEHAVIORAL SHIFT
+- How [BOT] acts around [NPC]:
+- What [BOT] does differently around [NPC] vs. others:
+- A tell that gives them away:
 
-\`UNRESOLVED TENSION\`
-What's unspoken:
-What [BOT] wants from [NPC] but won't ask for:
-What [NPC] wants from [BOT] that [BOT] either can't or won't give: // [OPTIONAL]
 
-\`HOW THIS RELATIONSHIP HAS CHANGED [BOT]\`
-// one or two lines — don't over-explain
+# SHARED HISTORY
+- How they met:
+- A defining moment between them:
+- Something that shifted the dynamic:
+- What neither has addressed directly:
 
-</relationship_entry>` },
-        { name: '🌊 NPC Depth Entry', content: `<npc_name_depth>
-\`[NPC NAME] — BENEATH THE SURFACE\`
 
-Core belief about the world:
+# UNRESOLVED TENSION
+- What's unspoken:
+- What [BOT] wants from [NPC] but won't ask for:
+- What [NPC] wants from [BOT] that [BOT] either can't or won't give: // [OPTIONAL]
 
-Self-concept:
 
-The mask: // what they present vs. what's actually there
+# HOW THIS RELATIONSHIP HAS CHANGED [BOT]
+// one or two lines — don't over-explain` },
+        { name: "🌊 NPC Depth Entry", hint: "Private depth for NPCs users pursue. Add the NPC name to the keywords.", keys: ["feelings", "closer", "pursue", "interested in", "what is she really", "beneath", "actually like"], content: `# [NPC NAME] — BENEATH THE SURFACE
 
-What they need but would never ask for:
+- Core belief about the world:
 
-What would crack them open:
+- Self-concept:
 
-In pursuit/romantic contexts:
-// what shifts, what surfaces, what they do when they can't redirect it
-</npc_name_depth>` },
+- The mask: // what they present vs. what's actually there
+
+- What they need but would never ask for:
+
+- What would crack them open:
+
+- In pursuit/romantic contexts:
+// what shifts, what surfaces, what they do when they can't redirect it` },
       ]
-    }
-  ]
+    },
+  ],
 };
 
 // ═══════════════════════════════════════════════════════
@@ -1009,10 +829,10 @@ function makeBuiltinItem(tpl, m) {
   item.innerHTML = `
     <div style="flex:1;min-width:0">
       <div class="tpl-name" style="display:flex;align-items:center;gap:.4rem">
-        ${tpl.name}
+        ${esc(tpl.name)}
         <span style="font-family:var(--fx);font-size:.56rem;padding:1px 4px;background:var(--sf2);border:1px solid var(--bd);border-radius:2px;color:var(--txm)">built-in</span>
       </div>
-      <div class="tpl-preview">${tpl.content.substring(0,60).replace(/\n/g,' ')}…</div>
+      <div class="tpl-preview">${tpl.hint ? esc(tpl.hint) : esc(tpl.content.substring(0,60).replace(/\n/g,' ')) + '…'}</div>
     </div>
     <div class="tpl-acts">
       <button class="btn btn-p btn-sm tpl-paste">Paste</button>
@@ -1067,8 +887,8 @@ function renderSavedTemplates(items, m, list) {
     item.className = 'tpl-item';
     item.innerHTML = `
       <div style="flex:1;min-width:0">
-        <div class="tpl-name">${tpl.name}</div>
-        <div class="tpl-preview">${(tpl.content||'').substring(0,80).replace(/\n/g,' ')}</div>
+        <div class="tpl-name">${esc(tpl.name)}</div>
+        <div class="tpl-preview">${esc((tpl.content||'').substring(0,80).replace(/\n/g,' '))}</div>
       </div>
       <div class="tpl-acts">
         <button class="btn btn-p btn-sm tpl-paste">Paste</button>
@@ -1092,6 +912,16 @@ function tplPaste(tpl) {
   }
   el.value = tpl.content;
   el.dispatchEvent(new Event('input', { bubbles: true }));
+  // Lorebook entry templates carry suggested keywords: fill them in only if
+  // the entry's Primary keywords field is still empty
+  const m = /^eContent-(\d+)$/.exec(el.id || '');
+  if (m && Array.isArray(tpl.keys) && tpl.keys.length) {
+    const kw = g('eKw-' + m[1]);
+    if (kw && !kw.value.trim()) {
+      kw.value = tpl.keys.join(', ');
+      kw.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }
   closeModal('tplModal');
   toast(`Pasted "${tpl.name}".`, 'ok');
 }
