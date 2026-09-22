@@ -727,11 +727,8 @@ function buildEditorHTML(en, uid) {
 function attachEditorEvents(container, uid) {
   // Save / Delete
   container.querySelector(`.save-btn[data-uid="${uid}"]`)?.addEventListener('click', () => saveEntry(uid));
-  container.querySelector(`.del-btn[data-uid="${uid}"]`)?.addEventListener('click', async () => {
-    if (!await askConfirm('Delete this entry?')) return;
-    delete lorebook.entries[uid];
-    closeTab(uid); renderList(); saveToStorage();
-  });
+  // Same path as the sidebar delete, so both confirm, save, and snapshot the same way
+  container.querySelector(`.del-btn[data-uid="${uid}"]`)?.addEventListener('click', () => deleteSidebar(uid));
 
   // Expand buttons
   container.querySelectorAll('.expand-btn[data-field]').forEach(btn => {
