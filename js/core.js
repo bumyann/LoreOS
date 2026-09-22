@@ -211,6 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initStep('storage',      loadFromStorage);
   initStep('mode',         () => switchMode('lore'));
   initStep('router',       () => { if (typeof initRouter === 'function') initRouter(); });
+  initStep('workshop tabs', wsRestoreTabs);
   initStep('pronoun tool', wirePronounTool);
   initStep('fullscreen',   wireFullscreen);
   initStep('templates',    wireTplLibrary);
@@ -803,7 +804,7 @@ function renderWsTabs() {
     el.className = 'ws-tab' + (tab.id === wsActiveId ? ' active' : '') + (tab.unsaved ? ' unsaved' : '');
     el.innerHTML = `
       <span class="ws-tab-type">${TYPE_LABEL[tab.type] || ''}</span>
-      <span class="ws-tab-label" title="${name}">${name}</span>
+      <span class="ws-tab-label" title="${esc(name)}">${esc(name)}</span>
       <span class="ws-tab-unsaved"></span>
       <span class="ws-tab-x" data-close-tab="${tab.id}">×</span>`;
     el.addEventListener('click', e => {
@@ -816,6 +817,74 @@ function renderWsTabs() {
   // Show/hide the add button based on limit
   const addBtn = g('workshopTabAdd');
   if (addBtn) addBtn.style.opacity = wsItems.length >= WS_MAX_TABS ? '.35' : '1';
+
+  // Every tab change goes through here, so this is where tabs get persisted
+  wsSaveTabs();
+}
+
+// ── Workshop tab persistence ──
+// Tabs used to live only in memory, so a refresh closed every character and
+// preset tab. (Lorebooks only looked like they survived because the working
+// lorebook itself is saved in aet_lorebook.)
+function wsSaveTabs() {
+  // Don't persist anything until the saved tabs have been restored, or the
+  // empty tab bar rendered during startup would overwrite them
+  if (wsRestoring || !wsTabsRestored) return;
+  try {
+    const active = wsItems.findIndex(t => t.id === wsActiveId);
+    localStorage.setItem('aet_wsTabs', JSON.stringify({
+      items: wsItems.map(t => ({ type: t.type, itemId: t.itemId })),
+      active,
+    }));
+  } catch (e) {}
+}
+
+let wsRestoring = false;
+let wsTabsRestored = false;
+function wsRestoreTabs() {
+  try { wsRestoreTabsInner(); } finally { wsTabsRestored = true; wsSaveTabs(); }
+}
+function wsRestoreTabsInner() {
+  let saved;
+  try { saved = JSON.parse(localStorage.getItem('aet_wsTabs') || 'null'); } catch (e) { saved = null; }
+  if (!saved || !Array.isArray(saved.items) || !saved.items.length) return;
+
+  // Drop tabs whose item was deleted since
+  const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+  const exists = t =>
+    t.type === 'lore'   ? !!lib[t.itemId] :
+    t.type === 'char'   ? !!charLibrary[t.itemId] :
+    t.type === 'preset' ? !!presetLibrary[t.itemId] : false;
+
+  const activeSaved = saved.items[saved.active];
+  wsItems = saved.items.filter(exists).slice(0, WS_MAX_TABS)
+    .map(t => ({ id: wsTabId(), type: t.type, itemId: t.itemId, unsaved: false }));
+  if (!wsItems.length) { wsActiveId = null; renderWsTabs(); return; }
+
+  const activeTab = (activeSaved && wsItems.find(t => t.type === activeSaved.type && t.itemId === activeSaved.itemId)) || null;
+  wsActiveId = activeTab ? activeTab.id : null;
+
+  // Load the active item into the editor, then put the view back where the
+  // router left it (cold loads still start on Home; the tabs are waiting in
+  // the Workshop). switchMode() always navigates to the editor.
+  const view = (typeof currentView !== 'undefined') ? currentView : null;
+  wsRestoring = true;
+  try {
+    if (activeTab) {
+      if (activeTab.type === 'lore') {
+        // The working lorebook (aet_lorebook) is already loaded and is at
+        // least as fresh as the library copy. Only switch modes, never
+        // libLoad over it, or an unsaved import could be replaced.
+        if (typeof switchMode === 'function') switchMode('lore');
+      } else {
+        wsActivate(activeTab.id);
+      }
+    }
+  } finally {
+    wsRestoring = false;
+  }
+  renderWsTabs();
+  if (view && typeof navigateTo === 'function' && view !== 'editor') navigateTo(view);
 }
 
 function openWsPicker() {

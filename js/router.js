@@ -83,7 +83,7 @@ function renderHomeView() {
 function renderGetStarted(el) {
   el.innerHTML = `
     <div class="home-hero">
-      <div class="home-hero-title">LoreOS<span class="home-hero-sub">Universal Editor</span></div>
+      <div class="home-hero-title">LoreOS</div>
       <div class="home-hero-tagline">// lorebooks. characters. presets. all in one place.</div>
       <div class="home-hero-actions">
         <button class="btn btn-ok home-cta" onclick="navigateTo('editor'); setTimeout(()=>{ switchMode('lore'); createEntry(); },80)">✦ New Lorebook Entry</button>

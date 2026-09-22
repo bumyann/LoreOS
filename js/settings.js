@@ -52,8 +52,21 @@ function applyCustomTheme() {
   target.style.setProperty('--pg', hexToRgba(p, pgAlpha));
 }
 
+// One-time cleanup: 'Universal Editor' was the old default subtitle, so it got
+// saved into existing settings and themes and kept showing in the tab title
+// even after the default changed.
+function migrateOldTitleSub(cfg) {
+  if (cfg._titleSubMigrated) return false;
+  const OLD = 'Universal Editor';
+  if (cfg.titleSub === OLD) cfg.titleSub = '';
+  Object.values(cfg.savedThemes || {}).forEach(t => { if (t && t.titleSub === OLD) t.titleSub = ''; });
+  cfg._titleSubMigrated = true;
+  return true;
+}
+
 function applyCustomTitle() {
   const cfg = settingsGet();
+  if (migrateOldTitleSub(cfg)) settingsSet(cfg);
   // Title lives in .nav-logo-text; the version tag is left alone.
   const logoEl = document.querySelector('.nav-logo-text');
   const main = cfg.titleMain || 'LoreOS';
@@ -80,7 +93,7 @@ function openSettings() {
   const cfg = settingsGet();
   // Title
   g('stgTitleMain').value = cfg.titleMain || 'LoreOS';
-  g('stgTitleSub').value = cfg.titleSub !== undefined ? cfg.titleSub : 'Universal Editor';
+  g('stgTitleSub').value = cfg.titleSub || '';
   // Pre-fill font inputs
   const savedFonts = fontsGet();
   Object.keys(FONT_ROLES).forEach(role => {
@@ -128,6 +141,19 @@ function populateColourPickers() {
 
 function wireSettings() {
   if (g('settingsBtn')) g('settingsBtn').addEventListener('click', openSettings);
+
+  // Closing Settings without Apply used to leave the live colour preview on
+  // screen while the swatches (read from saved settings) showed the old
+  // palette. Now any close re-applies the saved theme, dropping unapplied
+  // preview colours. Apply saves first, so this is a no-op after Apply.
+  const stgModal = g('settingsModal');
+  if (stgModal && typeof MutationObserver !== 'undefined') {
+    // Uses oldValue so an open+close batched into one callback still counts
+    new MutationObserver(records => {
+      const wasOpen = records.some(r => /(^|\s)open(\s|$)/.test(r.oldValue || ''));
+      if (wasOpen && !stgModal.classList.contains('open')) applyCustomTheme();
+    }).observe(stgModal, { attributes: true, attributeFilter: ['class'], attributeOldValue: true });
+  }
 
   g('stgModeToggle').addEventListener('click', () => {
     stgEditingMode = stgEditingMode === 'dark' ? 'pink' : 'dark';
@@ -225,7 +251,7 @@ function wireSettings() {
       dark:  { ...(DEFAULT_THEMES.dark),  ...(cfg.colours?.dark  || {}) },
       pink:  { ...(DEFAULT_THEMES.pink),  ...(cfg.colours?.pink  || {}) },
       titleMain: cfg.titleMain || 'LoreOS',
-      titleSub:  cfg.titleSub !== undefined ? cfg.titleSub : 'Universal Editor',
+      titleSub:  cfg.titleSub || '',
     };
     settingsSet(cfg);
     g('stgThemeSaveName').value = '';
@@ -324,8 +350,11 @@ function loadGoogleFont(role, name, save = true) {
   link.id = linkId;
   link.rel = 'stylesheet';
   link.href = `https://fonts.googleapis.com/css2?family=${urlName}&display=swap`;
+  // Set the variable right away (not on load) so the browser starts fetching
+  // the font file immediately; display=swap covers the gap
+  document.body.style.setProperty(cssVar, `'${name.trim()}', sans-serif`);
+  document.documentElement.style.setProperty(cssVar, `'${name.trim()}', sans-serif`);
   link.onload = () => {
-    document.body.style.setProperty(cssVar, `'${name.trim()}', sans-serif`);
     const statusEl = g(`stgFontStatus${role.toUpperCase()}`);
     if (statusEl) statusEl.textContent = `✓ loaded "${name.trim()}" from Google Fonts`;
   };
@@ -354,6 +383,7 @@ function injectUploadedFont(role, name, dataUrl, save = true) {
   style.textContent = `@font-face { font-family: '${fontName}'; src: url('${dataUrl}') format('${fmt}'); }`;
   document.head.appendChild(style);
   document.body.style.setProperty(cssVar, `'${fontName}', sans-serif`);
+  document.documentElement.style.setProperty(cssVar, `'${fontName}', sans-serif`);
 
   const statusEl = g(`stgFontStatus${role.toUpperCase()}`);
   if (statusEl) statusEl.textContent = `✓ loaded "${name}" from file`;
@@ -370,6 +400,7 @@ function resetFont(role) {
   document.getElementById(`gf-font-${role}`)?.remove();
   document.getElementById(`uploaded-font-${role}`)?.remove();
   document.body.style.removeProperty(cssVar);
+  document.documentElement.style.removeProperty(cssVar); // set by the early loader in index.html
   // clear from storage
   const d = fontsGet(); delete d[role]; fontsSet(d);
   const inputEl = g(`stgFont${role.toUpperCase()}`);
