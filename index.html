@@ -7,6 +7,7 @@
 <meta name="description" content="Lorebook, character card, and preset editor for SillyTavern, JanitorAI & SaucepanAI">
 <meta name="theme-color" content="#9d8fcc">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="LoreOS">
 <link rel="manifest" href="manifest.json">
@@ -19,6 +20,38 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=VT323&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/base.css">
+<script>
+// Apply saved custom fonts before first paint. settings.js applyFonts() used
+// to be the first place they were applied, at the very end of init, so the
+// default fonts flashed for a moment on every load.
+(function () {
+  try {
+    var saved = JSON.parse(localStorage.getItem('aet_fonts') || '{}');
+    var roles = { fp: '--fp', fx: '--fx', fb: '--fb' };
+    var root = document.documentElement;
+    Object.keys(roles).forEach(function (role) {
+      var d = saved[role];
+      if (!d || !d.name) return;
+      if (d.type === 'gf') {
+        var link = document.createElement('link');
+        link.id = 'gf-font-' + role;
+        link.rel = 'stylesheet';
+        link.href = 'https://fonts.googleapis.com/css2?family=' + d.name.trim().replace(/ /g, '+') + '&display=swap';
+        document.head.appendChild(link);
+        root.style.setProperty(roles[role], "'" + d.name.trim() + "', sans-serif");
+      } else if (d.type === 'upload' && d.dataUrl) {
+        var ext = d.name.split('.').pop().toLowerCase();
+        var fmt = ext === 'woff2' ? 'woff2' : ext === 'woff' ? 'woff' : 'truetype';
+        var st = document.createElement('style');
+        st.id = 'uploaded-font-' + role;
+        st.textContent = "@font-face { font-family: 'CustomFont_" + role + "'; src: url('" + d.dataUrl + "') format('" + fmt + "'); }";
+        document.head.appendChild(st);
+        root.style.setProperty(roles[role], "'CustomFont_" + role + "', sans-serif");
+      }
+    });
+  } catch (e) {}
+})();
+</script>
 <link rel="stylesheet" href="css/components.css">
 <script src="js/tiptap-bundle.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -727,6 +760,25 @@
       </div>
 
       <div class="settings-section">
+        <div class="settings-section-title">Storage
+          <button class="btn btn-s btn-sm" id="stgStorageRefresh" style="margin-left:.5rem">Refresh</button>
+        </div>
+        <div id="stgStorageBody"></div>
+        <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;margin-top:.7rem">
+          <button class="btn btn-p btn-sm" id="stgOptimiseAvatars">Optimise existing avatars</button>
+          <label class="cb-row" style="margin-left:auto">
+            <input type="checkbox" id="stgKeepFullAvatars">
+            <span class="flabel-sm">Keep avatars at full resolution</span>
+          </label>
+        </div>
+        <div style="font-family:var(--fx);font-size:.65rem;color:var(--txm);line-height:1.6;margin-top:.45rem">
+          Avatars are resized to 512px on import — that's the size every frontend
+          displays them at, and it keeps your storage from filling up. Turn the
+          toggle on if you want originals kept instead.
+        </div>
+      </div>
+
+      <div class="settings-section">
         <div class="settings-section-title">Saved Themes</div>
         <div id="stgThemeSlots" style="display:flex;flex-direction:column;gap:.3rem;margin-bottom:.6rem"></div>
         <div style="display:flex;gap:.4rem">
@@ -889,7 +941,7 @@
         </div>
       </div>
       <div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--bd);font-family:var(--fx);font-size:.7rem;color:var(--txm);letter-spacing:.5px">
-        LoreOS // Universal Editor — built for SillyTavern · JanitorAI · SaucepanAI
+        LoreOS — built for SillyTavern · JanitorAI · SaucepanAI
       </div>
     </div>
   </div>

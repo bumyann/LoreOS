@@ -386,7 +386,7 @@ function renderCharEditor() {
     charActiveFormat = e.target.value;
     renderCharEditor();
   });
-  g('chSaveBtn').addEventListener('click', saveChar);
+  g('chSaveBtn').addEventListener('click', () => saveChar());
   if (g('chUndoBtn')) g('chUndoBtn').addEventListener('click', () => {
     const snap = itemUndoGet('char', activeCharId, 'undo');
     if (!snap) return;
@@ -451,13 +451,17 @@ function renderCharEditor() {
   imgInput.addEventListener('change', e => {
     const file = e.target.files[0]; if (!file) return;
     const r = new FileReader();
-    r.onload = ev => {
-      if (charEntry) {
-        charEntry.imageData = ev.target.result; // base64 data URL
-        saveCharLibrary();
-        refreshImagePreview();
-        toast('Image set.', 'ok');
-      }
+    r.onload = async ev => {
+      if (!charEntry) return;
+      const raw = ev.target.result;              // base64 data URL
+      const small = await downscaleAvatar(raw);  // resize before storing
+      charEntry.imageData = small;
+      if (!saveCharLibrary()) return;            // safeSet already explained why
+      refreshImagePreview();
+      const saved = raw.length - small.length;
+      toast(saved > 1024
+        ? `Image set (resized, saved ${Math.round(saved/1024)}KB).`
+        : 'Image set.', 'ok');
     };
     r.readAsDataURL(file);
     e.target.value = '';
@@ -572,74 +576,74 @@ function renderLumiVariantField(baseId, field, defaultVal, variants, placeholder
   </div>`;
 }
 
+const LUMI_FIELDS = ['description', 'personality', 'scenario'];
+const LUMI_FIELD_IDS = { description: 'chDesc', personality: 'chPers', scenario: 'chScen' };
+
+// Which tab is showing in a field's shared textarea: '-1' = Default, else variant index
+function lumiActiveIdx(field) {
+  const wrap = document.getElementById('lumi-vwrap-' + field);
+  const active = wrap && wrap.querySelector('.lumi-vtab.active');
+  return active ? active.dataset.idx : '-1';
+}
+
+// Write what the shared textarea currently shows back into the slot it belongs to
+function lumiStashField(field, lv) {
+  const ta = g(LUMI_FIELD_IDS[field]);
+  if (!ta) return;
+  const idx = lumiActiveIdx(field);
+  if (idx === '-1' || idx === 'add') {
+    charFormState[field] = ta.value;
+  } else {
+    const v = lv[field] && lv[field][parseInt(idx)];
+    if (v) v.content = ta.value;
+  }
+}
+
 function wireLumiVariantFields() {
   document.querySelectorAll('.lumi-vtab').forEach(btn => {
     btn.addEventListener('click', () => {
       const field = btn.dataset.field;
       const idx   = btn.dataset.idx;
       const wrap  = document.getElementById('lumi-vwrap-' + field);
-      if (!wrap) return;
+      const ta    = g(LUMI_FIELD_IDS[field]);
+      if (!wrap || !ta) return;
 
-      // Capture current textarea value before switching
-      const ta = wrap.querySelector('textarea');
-      const curActive = wrap.querySelector('.lumi-vtab.active');
-      const curIdx = curActive ? curActive.dataset.idx : '-1';
-
-      // Save current value back into state
-      const lv = charFormState._lumiVariants || captureLumiVariants();
-      if (curIdx === '-1') {
-        // Default tab — map to the correct charFormState field
-        const fieldMap = { description: 'chDesc', personality: 'chPers', scenario: 'chScen' };
-        const el = g(fieldMap[field]);
-        if (el) el.value = ta.value;
-      } else {
-        if (lv[field] && lv[field][parseInt(curIdx)]) {
-          lv[field][parseInt(curIdx)].content = ta.value;
-        }
-      }
-      charFormState._lumiVariants = lv;
+      // Save whatever is on screen into its own slot BEFORE the textarea changes
+      captureCharState();
+      const lv = charFormState._lumiVariants;
 
       if (idx === 'add') {
-        // Add new variant
         if (!lv[field]) lv[field] = [];
         lv[field].push({ id: lumiGenId(), label: 'Variant ' + (lv[field].length + 1), content: '' });
-        charFormState._lumiVariants = lv;
         charUnsaved = true;
         renderCharEditor();
         return;
       }
 
-      // Switch tabs
       wrap.querySelectorAll('.lumi-vtab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
 
       if (idx === '-1') {
-        // Default: read from the main textarea's stored value
-        const fieldMap = { description: 'chDesc', personality: 'chPers', scenario: 'chScen' };
-        const el = g(fieldMap[field]);
-        ta.value = el ? el.value : (charFormState[field] || '');
+        ta.value = charFormState[field] || '';
       } else {
         const v = lv[field] && lv[field][parseInt(idx)];
         ta.value = v ? (v.content || '') : '';
       }
-
-      // Long-press / right-click to rename or delete variant
     });
 
-    // Double-click to rename
     if (btn.dataset.idx !== '-1' && btn.dataset.idx !== 'add') {
+      // Double-click to rename
       btn.addEventListener('dblclick', async () => {
         const field = btn.dataset.field;
         const idx   = parseInt(btn.dataset.idx);
-        const lv    = charFormState._lumiVariants || captureLumiVariants();
+        captureCharState();
+        const lv = charFormState._lumiVariants;
         if (!lv[field] || !lv[field][idx]) return;
-        const newLabel = await askPrompt('Rename variant:', lv[field][idx].label || ('Variant ' + (idx+1)));
+        const newLabel = await askInput('Rename variant:', lv[field][idx].label || ('Variant ' + (idx+1)));
         if (newLabel === null) return;
         lv[field][idx].label = newLabel.trim() || ('Variant ' + (idx+1));
-        charFormState._lumiVariants = lv;
         charUnsaved = true;
         btn.textContent = lv[field][idx].label;
-        // Add delete X button
       });
 
       // Right-click to delete
@@ -647,11 +651,11 @@ function wireLumiVariantFields() {
         e.preventDefault();
         const field = btn.dataset.field;
         const idx   = parseInt(btn.dataset.idx);
-        const lv    = charFormState._lumiVariants || captureLumiVariants();
-        if (!lv[field]) return;
         if (!await askConfirm('Delete this variant?')) return;
+        captureCharState();
+        const lv = charFormState._lumiVariants;
+        if (!lv[field]) return;
         lv[field].splice(idx, 1);
-        charFormState._lumiVariants = lv;
         charUnsaved = true;
         renderCharEditor();
       });
@@ -659,25 +663,17 @@ function wireLumiVariantFields() {
   });
 }
 
+// Returns a fresh copy of all variants with the on-screen textarea routed into
+// the right slot. Falls back to the card's stored variants the first time,
+// previously it fell back to {}, which dropped every imported variant.
 function captureLumiVariants() {
-  // Read current textarea values for whichever tab is active
-  const fields = ['description', 'personality', 'scenario'];
-  const existing = charFormState._lumiVariants || {};
+  const card = charLibrary[activeCharId]?.card;
+  const src = charFormState._lumiVariants || {};
   const result = {};
-  fields.forEach(field => {
-    result[field] = (existing[field] || []).map(v => ({ ...v }));
-    // If Default tab is active, the main textarea has the default value — variants unchanged
-    // If a variant tab is active, read the textarea into that variant's content
-    const wrap = document.getElementById('lumi-vwrap-' + field);
-    if (!wrap) return;
-    const activeTab = wrap.querySelector('.lumi-vtab.active');
-    if (!activeTab) return;
-    const idx = activeTab.dataset.idx;
-    if (idx === '-1' || idx === 'add') return;
-    const ta = wrap.querySelector('textarea');
-    if (ta && result[field][parseInt(idx)] !== undefined) {
-      result[field][parseInt(idx)].content = ta.value;
-    }
+  LUMI_FIELDS.forEach(field => {
+    const base = src[field] || getLumiVariants(card, field);
+    result[field] = base.map(v => ({ ...v }));
+    lumiStashField(field, result);
   });
   return result;
 }
@@ -785,10 +781,18 @@ function gtWriteToCard(card, firstMesTitle, firstMesDesc, altGreetings) {
 
 function captureCharState() {
   charFormState.name = g('chName')?.value;
-  // For lumiverse: default field is the first tab (id="chDesc" etc still present)
-  charFormState.description = g('chDesc')?.value;
-  charFormState.personality = g('chPers')?.value;
-  charFormState.scenario = g('chScen')?.value;
+  // Lumiverse: chDesc/chPers/chScen are shared between the Default tab and
+  // every variant tab, so the textarea only holds the Default text while the
+  // Default tab is active. captureLumiVariants() routes each textarea's value
+  // into the right slot (charFormState[field] for Default, the variant's
+  // .content otherwise). Reading the textarea straight into description here
+  // is what made variant text overwrite Default.
+  const lumiUi = charActiveFormat === 'lumiverse' && document.getElementById('lumi-vwrap-description');
+  if (!lumiUi) {
+    charFormState.description = g('chDesc')?.value;
+    charFormState.personality = g('chPers')?.value;
+    charFormState.scenario = g('chScen')?.value;
+  }
   charFormState.first_mes = g('chFirst')?.value;
   charFormState.mes_example = g('chMesEx')?.value;
   charFormState.system_prompt = g('chSysPrompt')?.value;
@@ -799,14 +803,18 @@ function captureCharState() {
   charFormState.tags = g('chTags')?.value;
   charFormState.spec = g('chSpec')?.value;
   charFormState.alternate_greetings = captureCharGreetings();
-  // Lumiverse variant fields
-  if (charActiveFormat === 'lumiverse') {
+  // Lumiverse variant fields (also stashes the Default text, see above)
+  if (lumiUi) {
     charFormState._lumiVariants = captureLumiVariants();
+    // Safety net: never let a Default field fall through as undefined,
+    // saveChar() would turn that into an empty string.
+    const d = charLibrary[activeCharId]?.card?.data || {};
+    LUMI_FIELDS.forEach(f => { if (charFormState[f] === undefined) charFormState[f] = d[f] || ''; });
   }
 }
 
-function saveChar() {
-  if (!activeCharId || !charLibrary[activeCharId]) return;
+function saveChar(opts = {}) {
+  if (!activeCharId || !charLibrary[activeCharId]) return false;
   captureCharState();
   const entry = charLibrary[activeCharId];
   const card = entry.card;
@@ -842,11 +850,19 @@ function saveChar() {
   entry.savedAt = new Date().toISOString();
   charUnsaved = false;
   charFormState = {};
-  // Snapshot before overwriting (history stored inside entry)
-  if (typeof itemHistoryPush === 'function') itemHistoryPush('char', activeCharId, JSON.parse(JSON.stringify(entry)));
-  saveCharLibrary();
+
+  // Snapshot this version into history. The snapshot strips the avatar
+  // and the nested history list (see itemHistoryPush) — previously each
+  // snapshot carried a full copy of the image, which meant the write
+  // blew the storage quota and silently failed, which is why history
+  // has never actually persisted.
+  if (typeof itemHistoryPush === 'function') itemHistoryPush('char', activeCharId, entry);
+
+  const ok = saveCharLibrary();
   renderCharSidebar();
-  toast('Character saved.', 'ok');
+  if (typeof wsMarkSaved === 'function') wsMarkSaved('char', activeCharId);
+  if (ok && !opts.silent) toast('Character saved.', 'ok');
+  return ok;
 }
 
 // ── Import / Export ──
@@ -960,14 +976,32 @@ function importCharCard(data, filename, imageData = null) {
 
   card.id = charId();
   charLibrary[card.id] = { id: card.id, name: card.data.name, card, imageData, savedAt: new Date().toISOString() };
-  saveCharLibrary();
-  renderCharSidebar();
-  openChar(card.id);
-  toast('Imported: ' + card.data.name, 'ok');
+
+  // Resize the avatar before it ever reaches storage, then save.
+  Promise.resolve(downscaleAvatar(imageData)).then(small => {
+    const before = (imageData || '').length;
+    const after  = (small || '').length;
+    if (small !== imageData) charLibrary[card.id].imageData = small;
+    saveCharLibrary();
+    renderCharSidebar();
+    openChar(card.id);
+    const saving = before && after < before
+      ? ` (avatar ${Math.round(before/1024)}KB → ${Math.round(after/1024)}KB)` : '';
+    toast('Imported: ' + card.data.name + saving, 'ok');
+  });
+}
+
+// Commit whatever is currently typed in the editor into the stored card.
+// Every export path must call this first, or it ships stale data.
+function commitBeforeExport(id) {
+  if (id && activeCharId === id && typeof saveChar === 'function') {
+    saveChar({ silent: true });
+  }
 }
 
 function exportCharJson(id) {
   const entry = charLibrary[id]; if (!entry) return;
+  commitBeforeExport(id);
   const fn = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi, '_') + '.json';
   dlFile(JSON.stringify(entry.card, null, 2), fn, 'application/json');
   toast('Exported: ' + fn, 'ok');
@@ -1005,7 +1039,7 @@ function toV2Card(d) {
 // Strips V3-only fields (group_only_greetings, assets, character_version) for max compat
 function exportCharJsonV2(id) {
   const entry = charLibrary[id]; if (!entry) return;
-  captureCharState();
+  commitBeforeExport(id);
   const d = entry.card.data;
   const v2card = toV2Card(d);
   const fn = (d.name || 'character').replace(/[^a-z0-9_-]/gi, '_') + '_v2.json';
@@ -1015,7 +1049,7 @@ function exportCharJsonV2(id) {
 
 function exportCharSaucepan(id) {
   const entry = charLibrary[id]; if (!entry) return;
-  captureCharState();
+  commitBeforeExport(id);
   const s = charFormState;
   const d = entry.card.data;
 
@@ -1138,8 +1172,7 @@ function exportCharCharx(id) {
   }
 
   // Make sure card is saved first
-  captureCharState();
-  saveChar();
+  commitBeforeExport(id);
 
   const zip = new JSZip();
   zip.file('card.json', JSON.stringify(entry.card, null, 2));
@@ -1188,6 +1221,68 @@ function exportCharCharx(id) {
 }
 
 
+
+// ═══════════════════════════════════════════════════════
+// AVATAR SIZING
+// Avatars are stored as text (a base64 data URL) inside the same
+// JSON blob as everything else, which inflates them ~33% over the
+// real file size. A single 1.8MB import was eating a third of the
+// entire ~5MB browser storage budget. Character cards are displayed
+// small everywhere (SillyTavern, JanitorAI, Saucepan), so we resize
+// on the way in and re-encode as WebP.
+//
+// Users who genuinely want full-resolution avatars can turn this off
+// in Settings; the trade-off is storage.
+// ═══════════════════════════════════════════════════════
+
+const AVATAR_MAX = 512;        // px, longest edge
+const AVATAR_QUALITY = 0.88;   // WebP quality
+
+function keepFullAvatars() {
+  try { return !!(JSON.parse(localStorage.getItem('aet_settings') || '{}').keepFullAvatars); }
+  catch(e) { return false; }
+}
+
+// Takes a data URL, returns a smaller data URL (or the original if
+// it's already small enough / the user opted out / anything fails).
+function downscaleAvatar(dataUrl, force = false) {
+  return new Promise(resolve => {
+    if (!dataUrl) { resolve(dataUrl); return; }
+    if (!force && keepFullAvatars()) { resolve(dataUrl); return; }
+
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth, h = img.naturalHeight;
+        if (!w || !h) { resolve(dataUrl); return; }
+
+        const scale = Math.min(1, AVATAR_MAX / Math.max(w, h));
+        const tw = Math.max(1, Math.round(w * scale));
+        const th = Math.max(1, Math.round(h * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = tw; canvas.height = th;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, tw, th);
+
+        // WebP is dramatically smaller than PNG for photographic
+        // avatars. Fall back to PNG if the browser won't encode it.
+        let out = canvas.toDataURL('image/webp', AVATAR_QUALITY);
+        if (!out || out.indexOf('data:image/webp') !== 0) {
+          out = canvas.toDataURL('image/png');
+        }
+        resolve(out.length < dataUrl.length ? out : dataUrl);
+      } catch(e) {
+        console.error('[LoreOS] avatar downscale failed:', e);
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 // ── PNG character card embed / extract ──
 // Character data is stored in a tEXt chunk keyword "chara" as base64 JSON.
 
@@ -1224,11 +1319,11 @@ function dataUrlToPngArrayBuffer(dataUrl) {
 
 function openCharPngExport(id, forceV2 = true) {
   const entry = charLibrary[id]; if (!entry) return;
+  commitBeforeExport(id);
 
   const doExport = (arrayBuf) => {
     try {
       const buf = new Uint8Array(arrayBuf);
-      captureCharState();
       const outCard = forceV2 ? toV2Card(entry.card.data) : entry.card;
       const outBuf = embedCharInPng(buf, outCard);
       const blob = new Blob([outBuf], { type: 'image/png' });

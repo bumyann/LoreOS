@@ -5,22 +5,43 @@ function handleImport(e) {
   const file = e.target.files[0]; if (!file) return;
   const r = new FileReader();
   r.onload = ev => {
+    // Build the whole thing in a scratch object first. Nothing touches
+    // the live `lorebook` until we're sure the file is actually valid —
+    // a failed import used to destroy whatever you had open.
+    let staged;
     try {
       const data = JSON.parse(ev.target.result);
-      lorebook = data;
-      if (!lorebook.name) lorebook.name = file.name.replace(/\.json$/i, '');
-      g('lorebookName').value = lorebook.name;
 
-      lorebook.entries = rebuildEntries(lorebook.entries);
-      nextUid = Object.keys(lorebook.entries).length
-        ? Math.max(...Object.keys(lorebook.entries).map(Number)) + 1
-        : 0;
+      if (Array.isArray(data)) {
+        throw new Error("That looks like a JanitorAI lorebook (a plain list). Use Import → JanitorAI instead.");
+      }
+      if (!data || typeof data !== 'object') {
+        throw new Error('Not a lorebook file.');
+      }
+      if (data.entries === undefined || data.entries === null) {
+        throw new Error("No 'entries' found — this doesn't look like a SillyTavern lorebook.");
+      }
 
-      openTabs = []; activeTabId = null; unsaved = new Set(); formState = {};
-      renderList(); renderTabs(); renderEditor();
-      saveToStorage();
-      toast('Imported: ' + lorebook.name, 'ok');
-    } catch(err) { toast('Import error: ' + err.message, 'err'); console.error(err); }
+      staged = data;
+      if (!staged.name) staged.name = file.name.replace(/\.json$/i, '');
+      staged.entries = rebuildEntries(staged.entries);
+    } catch(err) {
+      toast('Import failed: ' + err.message, 'err');
+      console.error(err);
+      return; // your open lorebook is untouched
+    }
+
+    // Validated — now it's safe to swap in.
+    lorebook = staged;
+    g('lorebookName').value = lorebook.name;
+    nextUid = Object.keys(lorebook.entries).length
+      ? Math.max(...Object.keys(lorebook.entries).map(Number)) + 1
+      : 0;
+
+    openTabs = []; activeTabId = null; unsaved = new Set(); formState = {};
+    renderList(); renderTabs(); renderEditor();
+    saveToStorage();
+    toast('Imported: ' + lorebook.name, 'ok');
   };
   r.readAsText(file);
   e.target.value = '';
@@ -52,7 +73,10 @@ function handleMergeImport(e) {
   const r = new FileReader();
   r.onload = ev => {
     try {
-      mergeStaging = JSON.parse(ev.target.result);
+      const incoming = JSON.parse(ev.target.result);
+      if (Array.isArray(incoming)) throw new Error('That looks like a JanitorAI lorebook — use Import → JanitorAI.');
+      if (!incoming || incoming.entries === undefined) throw new Error("No 'entries' found in this file.");
+      mergeStaging = incoming;
       if (!mergeStaging.name) mergeStaging.name = file.name.replace(/\.json$/i, '');
       mergeStaging.entries = rebuildEntries(mergeStaging.entries);
       mergeSelected = [];
@@ -177,6 +201,8 @@ function copyEntry(srcUid) {
   lorebook.entries = rebuilt;
   nextUid = Math.max(...Object.keys(rebuilt).map(Number)) + 1;
   renderList(); openInTab(newUid);
+  saveToStorage();
+  if (typeof loreSnapshotSoon === 'function') loreSnapshotSoon();
 }
 
 async function deleteSidebar(uid) {
@@ -185,6 +211,7 @@ async function deleteSidebar(uid) {
   closeTab(uid);
   renderList();
   saveToStorage();
+  if (typeof loreSnapshotSoon === 'function') loreSnapshotSoon();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -421,7 +448,7 @@ function moveDragged(uids, targetUid) {
 function changeZoom(d) {
   zoomLevel = Math.max(0, Math.min(2, zoomLevel + d));
   applyZoom();
-  localStorage.setItem('aet_zoom', zoomLevel);
+  safeSet('aet_zoom', String(zoomLevel));
   renderList();
 }
 function applyZoom() {
@@ -700,11 +727,8 @@ function buildEditorHTML(en, uid) {
 function attachEditorEvents(container, uid) {
   // Save / Delete
   container.querySelector(`.save-btn[data-uid="${uid}"]`)?.addEventListener('click', () => saveEntry(uid));
-  container.querySelector(`.del-btn[data-uid="${uid}"]`)?.addEventListener('click', async () => {
-    if (!await askConfirm('Delete this entry?')) return;
-    delete lorebook.entries[uid];
-    closeTab(uid); renderList(); saveToStorage();
-  });
+  // Same path as the sidebar delete, so both confirm, save, and snapshot the same way
+  container.querySelector(`.del-btn[data-uid="${uid}"]`)?.addEventListener('click', () => deleteSidebar(uid));
 
   // Expand buttons
   container.querySelectorAll('.expand-btn[data-field]').forEach(btn => {
@@ -862,6 +886,7 @@ function saveEntry(uid) {
 
   unsaved.delete(uid); delete formState[uid];
   renderList(); renderTabs(); saveToStorage();
+  if (typeof loreSnapshotSoon === 'function') loreSnapshotSoon();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1046,7 +1071,7 @@ function doExportTxt() {
     if (opts.comments && en.comment && en.comment !== 'Untitled Entry') md += `**Notes:** ${en.comment}\n\n`;
     md += '---\n\n';
   });
-  md += `*LoreOS v0.1.1 — ${new Date().toLocaleDateString()}*\n`;
+  md += `*Exported from LoreOS — ${new Date().toLocaleDateString()}*\n`;
   dlFile(md, fn + '.txt', 'text/plain');
   closeModal('expTxtModal');
   toast('Exported text.', 'ok');
@@ -1100,7 +1125,7 @@ function doExportPublic() {
 // LIBRARY
 // ═══════════════════════════════════════════════════════
 function libGet() { try { return JSON.parse(localStorage.getItem('aet_library') || '{}'); } catch(e) { return {}; } }
-function libSet(d) { localStorage.setItem('aet_library', JSON.stringify(d)); }
+function libSet(d) { return safeSet('aet_library', JSON.stringify(d)); }
 
 function openLibrary() {
   g('libModalTitle').textContent = 'Lorebook Library';
@@ -1147,8 +1172,11 @@ async function libSaveCurrent() {
   const name = (g('libNewName').value.trim() || g('lorebookName').value.trim() || 'Untitled').substring(0, 60);
   const lib = libGet();
   if (lib[name] && !await askConfirm(`"${name}" already exists. Overwrite?`)) return;
-  lib[name] = { name, lb: JSON.parse(JSON.stringify(lorebook)), savedAt: new Date().toISOString() };
+  // Keep any existing history when overwriting an entry of the same name
+  lib[name] = { ...(lib[name] || {}), name, lb: JSON.parse(JSON.stringify(lorebook)), savedAt: new Date().toISOString() };
   libSet(lib);
+  // From now on, edits to this lorebook write through to this library entry
+  if (typeof loreLinkToLib === 'function') loreLinkToLib(name);
   // Snapshot on every explicit save to library
   if (typeof itemHistoryPush === 'function') itemHistoryPush('lore', name, lib[name]);
   g('libNewName').value = '';
@@ -1169,6 +1197,7 @@ async function libLoad(name) {
     : 0;
 
   g('lorebookName').value = lorebook.name || name;
+  if (typeof loreLinkToLib === 'function') loreLinkToLib(name);
   renderList(); renderTabs(); renderEditor();
   saveToStorage();
   closeModal('libModal');
@@ -1185,6 +1214,12 @@ async function libRename(oldName) {
   lib[trimmed] = { ...lib[oldName], name: trimmed };
   delete lib[oldName];
   libSet(lib);
+  // Keep the open lorebook (and any open workshop tab) pointed at the new name
+  if (typeof loreActiveLibName === 'function' && loreActiveLibName() === oldName) loreLinkToLib(trimmed);
+  if (typeof wsItems !== 'undefined') {
+    wsItems.forEach(t => { if (t.type === 'lore' && t.itemId === oldName) t.itemId = trimmed; });
+    if (typeof renderWsTabs === 'function') renderWsTabs();
+  }
   renderLibraryList();
   toast(`Renamed to "${trimmed}".`, 'ok');
 }
@@ -1194,6 +1229,7 @@ async function libDelete(name) {
   const lib = libGet();
   delete lib[name];
   libSet(lib);
+  if (typeof loreActiveLibName === 'function' && loreActiveLibName() === name) loreLinkToLib(null);
   renderLibraryList();
   toast(`Deleted "${name}".`, 'info');
 }
