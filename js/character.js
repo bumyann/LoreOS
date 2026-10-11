@@ -95,6 +95,7 @@ function openChar(id) {
 async function deleteChar(id) {
   if (!await askConfirm('Delete this character? This cannot be undone.')) return;
   delete charLibrary[id];
+  if (typeof wsDropItem === 'function') wsDropItem('char', id);
   if (activeCharId === id) activeCharId = null;
   saveCharLibrary();
   renderCharSidebar();
@@ -1009,7 +1010,7 @@ function exportCharJson(id) {
   const entry = charLibrary[id]; if (!entry) return;
   commitBeforeExport(id);
   const fn = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi, '_') + '.json';
-  dlFile(JSON.stringify(entry.card, null, 2), fn, 'application/json');
+  dlFile(JSON.stringify(toV3Card(entry.card), null, 2), fn, 'application/json');
   toast('Exported: ' + fn, 'ok');
 }
 
@@ -1037,6 +1038,27 @@ function toV2Card(d) {
       character_version:        d.character_version || '',
       extensions:               d.extensions || {},
       ...(d.character_book ? { character_book: d.character_book } : {})
+    }
+  };
+}
+
+// Build a spec-clean chara_card_v3 from the internal card. The editor keeps one
+// canonical card (stored as V3-shaped); every export derives its target format
+// from it. Drops LoreOS-internal fields (top-level `id`, greeting titles) and
+// guarantees the fields the V3 spec requires, which blank/imported cards lack.
+function toV3Card(card) {
+  const d = (card && card.data) || {};
+  const flat = a => (Array.isArray(a) ? a : []).map(g => typeof g === 'object' && g ? (g.message || '') : (g || ''));
+  return {
+    spec: 'chara_card_v3',
+    spec_version: '3.0',
+    data: {
+      ...d,
+      name: d.name || '',
+      alternate_greetings: flat(d.alternate_greetings),
+      group_only_greetings: flat(d.group_only_greetings),
+      tags: Array.isArray(d.tags) ? d.tags : [],
+      extensions: d.extensions || {},
     }
   };
 }
@@ -1181,7 +1203,7 @@ function exportCharCharx(id) {
   commitBeforeExport(id);
 
   const zip = new JSZip();
-  zip.file('card.json', JSON.stringify(entry.card, null, 2));
+  zip.file('card.json', JSON.stringify(toV3Card(entry.card), null, 2));
 
   const name = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi, '_');
 
@@ -1205,21 +1227,14 @@ function exportCharCharx(id) {
   };
 
   if (entry.imageData) {
-    // imageData is a base64 data URL — extract raw bytes
-    const b64 = entry.imageData.split(',')[1];
-    const bin = atob(b64);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-
-    // If it's a PNG, strip any leftover text metadata (generation prompts,
-    // LoRA/checkpoint names, etc. from the source image) before packaging —
-    // .charx keeps card data in card.json, so main.png should be image-only.
-    const pngSig = [137,80,78,71,13,10,26,10];
-    const isPng = pngSig.every((b, i) => bytes[i] === b);
-    const outBytes = isPng ? stripExistingCharaChunks(bytes) : bytes;
-
-    zip.folder('assets/icon/image').file('main.png', outBytes);
-    finish();
+    // Stored avatars are often WebP (see AVATAR SIZING), but .charx wants a
+    // real PNG at main.png, so convert unless it already is one.
+    dataUrlToPngArrayBuffer(entry.imageData).then(ab => {
+      // Strip leftover text metadata (generation prompts, LoRA/checkpoint names
+      // from the source image): .charx keeps card data in card.json
+      zip.folder('assets/icon/image').file('main.png', stripExistingCharaChunks(new Uint8Array(ab)));
+      finish();
+    }).catch(err => toast('.charx image error: ' + err.message, 'err'));
   } else {
     // No image stored — export without image
     finish();
@@ -1330,8 +1345,11 @@ function openCharPngExport(id, forceV2 = true) {
   const doExport = (arrayBuf) => {
     try {
       const buf = new Uint8Array(arrayBuf);
-      const outCard = forceV2 ? toV2Card(entry.card.data) : entry.card;
-      const outBuf = embedCharInPng(buf, outCard);
+      // V2: one `chara` chunk. V3: `ccv3` (the V3 card) plus a V2 `chara` chunk
+      // so older readers still find something, as SillyTavern does.
+      const outBuf = forceV2
+        ? embedCharInPng(buf, toV2Card(entry.card.data))
+        : embedCharInPng(buf, toV2Card(entry.card.data), toV3Card(entry.card));
       const blob = new Blob([outBuf], { type: 'image/png' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1396,45 +1414,45 @@ function strToBytes(s) {
   return new Uint8Array([...s].map(c => c.charCodeAt(0)));
 }
 
-function embedCharInPng(pngBuf, card) {
-  // Validate PNG signature
-  const sig = [137,80,78,71,13,10,26,10];
-  for (let i = 0; i < 8; i++) if (pngBuf[i] !== sig[i]) throw new Error('Not a valid PNG file');
-
-  const json = JSON.stringify(card);
-  const b64 = btoa(unescape(encodeURIComponent(json)));
-  const keyword = 'chara';
-  const textData = keyword + '\0' + b64;
-  const textBytes = strToBytes(textData);
-
-  // Build tEXt chunk: length(4) + "tEXt"(4) + data + crc(4)
+// One tEXt chunk: length + "tEXt" + keyword\0base64(json) + crc
+function buildTextChunk(keyword, obj) {
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+  const textBytes = strToBytes(keyword + '\0' + b64);
   const typeBytes = strToBytes('tEXt');
   const chunkBody = new Uint8Array(typeBytes.length + textBytes.length);
   chunkBody.set(typeBytes, 0);
   chunkBody.set(textBytes, typeBytes.length);
-  const crc = crc32(chunkBody);
-  const lenBytes = u32be(textBytes.length);
-  const crcBytes = u32be(crc);
+  const chunk = new Uint8Array(4 + 4 + textBytes.length + 4);
+  chunk.set(u32be(textBytes.length), 0);
+  chunk.set(typeBytes, 4);
+  chunk.set(textBytes, 8);
+  chunk.set(u32be(crc32(chunkBody)), 8 + textBytes.length);
+  return chunk;
+}
 
-  const newChunk = new Uint8Array(4 + 4 + textBytes.length + 4);
-  newChunk.set(lenBytes, 0);
-  newChunk.set(typeBytes, 4);
-  newChunk.set(textBytes, 8);
-  newChunk.set(crcBytes, 8 + textBytes.length);
+// `card` goes in the `chara` chunk; `v3card`, when given, also goes in `ccv3`
+function embedCharInPng(pngBuf, card, v3card) {
+  // Validate PNG signature
+  const sig = [137,80,78,71,13,10,26,10];
+  for (let i = 0; i < 8; i++) if (pngBuf[i] !== sig[i]) throw new Error('Not a valid PNG file');
+
+  const chunks = [buildTextChunk('chara', card)];
+  if (v3card) chunks.push(buildTextChunk('ccv3', v3card));
+  const newLen = chunks.reduce((n, c) => n + c.length, 0);
 
   // Find insertion point: right after IHDR chunk (first chunk after the 8-byte signature)
-  // IHDR chunk: 4(len) + 4(type) + 13(data) + 4(crc) = 25 bytes, starts at offset 8
   const ihdrLen = (pngBuf[8]<<24 | pngBuf[9]<<16 | pngBuf[10]<<8 | pngBuf[11]) >>> 0;
   const insertAt = 8 + 4 + 4 + ihdrLen + 4; // sig + len + type + data + crc
 
-  // Remove any existing "chara" tEXt chunks first
+  // Remove any existing text chunks first
   const stripped = stripExistingCharaChunks(pngBuf);
   const adjInsertAt = Math.min(insertAt, stripped.length);
 
-  const out = new Uint8Array(stripped.length + newChunk.length);
+  const out = new Uint8Array(stripped.length + newLen);
   out.set(stripped.subarray(0, adjInsertAt), 0);
-  out.set(newChunk, adjInsertAt);
-  out.set(stripped.subarray(adjInsertAt), adjInsertAt + newChunk.length);
+  let off = adjInsertAt;
+  chunks.forEach(c => { out.set(c, off); off += c.length; });
+  out.set(stripped.subarray(adjInsertAt), off);
   return out;
 }
 
@@ -1466,11 +1484,14 @@ function stripExistingCharaChunks(buf) {
   return result;
 }
 
+// Reads every tEXt chunk and returns the card. V3 PNGs carry the V3 card in
+// `ccv3` (and often a V2 copy in `chara`); prefer ccv3, fall back to chara.
 function extractCharFromPng(buf) {
   const sig = [137,80,78,71,13,10,26,10];
   for (let i = 0; i < 8; i++) if (buf[i] !== sig[i]) throw new Error('Not a valid PNG file');
   let pos = 8;
-  while (pos < buf.length) {
+  const found = {};
+  while (pos + 8 <= buf.length) {
     const len = (buf[pos]<<24 | buf[pos+1]<<16 | buf[pos+2]<<8 | buf[pos+3]) >>> 0;
     const type = String.fromCharCode(buf[pos+4], buf[pos+5], buf[pos+6], buf[pos+7]);
     if (type === 'tEXt') {
@@ -1478,18 +1499,18 @@ function extractCharFromPng(buf) {
       const chunkEnd = pos + 8 + len;
       while (kwEnd < chunkEnd && buf[kwEnd] !== 0) kwEnd++;
       const keyword = String.fromCharCode(...buf.subarray(pos+8, kwEnd));
-      if (keyword === 'chara') {
-        // Use TextDecoder instead of spread into fromCharCode — spread blows
+      if (keyword === 'chara' || keyword === 'ccv3') {
+        // TextDecoder instead of spread into fromCharCode — spread blows
         // the call stack on large PNGs (maximum call stack size exceeded)
         const b64 = new TextDecoder('latin1').decode(buf.subarray(kwEnd+1, chunkEnd));
-        const json = decodeURIComponent(escape(atob(b64)));
-        return JSON.parse(json);
+        try { found[keyword] = JSON.parse(decodeURIComponent(escape(atob(b64)))); }
+        catch (e) { if (keyword === 'ccv3' && !found.chara) throw e; }
       }
     }
     if (type === 'IEND') break;
     pos += 4 + 4 + len + 4;
   }
-  return null;
+  return found.ccv3 || found.chara || null;
 }
 
 // Character library modal reuses the same #libModal as lorebooks, but
@@ -1498,7 +1519,7 @@ function openCharLibrary() {
   g('libModalTitle').textContent = 'Character Library';
   const list = g('libList');
   list.innerHTML = '';
-  const chars = Object.values(charLibrary).sort((a,b) => b.savedAt.localeCompare(a.savedAt));
+  const chars = Object.values(charLibrary).sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
   if (!chars.length) {
     list.innerHTML = '<div class="lib-empty">// no characters yet</div>';
   } else {
@@ -1507,7 +1528,7 @@ function openCharLibrary() {
       item.className = 'lib-item' + (entry.id === activeCharId ? ' active' : '');
       const date = new Date(entry.savedAt).toLocaleDateString();
       item.innerHTML = `
-        <span class="lib-name">${entry.name || 'Unnamed'}</span>
+        <span class="lib-name">${esc(entry.name || 'Unnamed')}</span>
         <span class="lib-meta">${date}</span>
         <div class="lib-acts">
           <button class="btn btn-s btn-sm lib-load">Load</button>
