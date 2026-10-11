@@ -28,6 +28,7 @@ Hosted, no install needed!
 - **⚙ Settings** — theme/font customization, Google Drive sync, or manual backup/restore via import/export JSON
 - Field-level and item-level undo/redo, plus per-item version history with named checkpoints you can restore or export individually
 - Works on desktop, mobile, and tablet (tablet UI still needs some love)
+- Works offline once it has loaded, and can be installed as an app (it keeps a saved copy and updates itself in the background)
 
 ---
 
@@ -62,14 +63,17 @@ bash start.sh
 
 ### Android (Termux)
 1. Install [Termux](https://f-droid.org/packages/com.termux/) from F-Droid (not the Play Store version)
-2. Clone the repo and run:
+2. Install Python and Git, clone the repo and start it:
 ```bash
-
-bash start-termux.sh
-
+pkg install python git
+git clone https://github.com/bumyann/LoreOS
+cd LoreOS
+bash start.sh
 ```
 3. Open Chrome → `http://localhost:8080`
 4. Three-dot menu → **Add to Home Screen**
+
+> LoreOS is built from ES modules, so it has to be served over `http://` (the start scripts do this). Opening `index.html` straight from your files won't work, and the page will tell you so.
 
 ---
 
