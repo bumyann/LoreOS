@@ -171,21 +171,22 @@ export function renderPresetEditor() {
           <div class="fg"><label class="cb-row"><input type="checkbox" id="psShowThoughts" ${p.show_thoughts?'checked':''}><span class="flabel-sm">Show Thoughts</span></label></div>
           <div class="fg"><label class="flabel-sm">Reasoning Effort</label>
             <select id="psReasoningEffort" class="fselect">
-              ${['auto','low','medium','high','disabled'].map(v=>`<option value="${v}" ${p.reasoning_effort===v?'selected':''}>${v}</option>`).join('')}
+              ${selOpts(['auto','low','medium','high','disabled'],p.reasoning_effort)}
             </select>
           </div>
           <div class="fg"><label class="flabel-sm">Verbosity</label>
             <select id="psVerbosity" class="fselect">
-              ${['auto','concise','detailed'].map(v=>`<option value="${v}" ${p.verbosity===v?'selected':''}>${v}</option>`).join('')}
+              ${selOpts(['auto','concise','detailed'],p.verbosity)}
             </select>
           </div>
           <div class="fg"><label class="flabel-sm">Tool Reasoning Mode</label>
             <select id="psTRMode" class="fselect">
-              ${['disabled','auto','chain_of_thought'].map(v=>`<option value="${v}" ${p.tool_reasoning_mode===v?'selected':''}>${v}</option>`).join('')}
+              ${selOpts(['disabled','auto','chain_of_thought'],p.tool_reasoning_mode)}
             </select>
           </div>
           <div class="fg"><label class="flabel-sm">Names Behavior</label>
             <select id="psNamesBehavior" class="fselect">
+              ${p.names_behavior===-1?'<option value="-1" selected>None (-1)</option>':''}
               <option value="0" ${p.names_behavior===0?'selected':''}>Default</option>
               <option value="1" ${p.names_behavior===1?'selected':''}>Always</option>
               <option value="2" ${p.names_behavior===2?'selected':''}>Never</option>
@@ -487,6 +488,13 @@ export function presetSlider(id, label, val, min, max, step) {
   </div>`;
 }
 
+// <option> list that also keeps a value the preset already has but the list
+// doesn't know (newer ST versions add values), so opening a preset never alters it
+function selOpts(list, cur) {
+  const all = (cur === undefined || cur === null || list.includes(cur)) ? list : [...list, cur];
+  return all.map(v => `<option value="${esc(v)}" ${cur===v?'selected':''}>${esc(v === '' ? '(unset)' : v)}</option>`).join('');
+}
+
 export function presetStringField(id, label, val, tall=false) {
   return `<div class="fg">
     <label class="flabel-sm">${label}</label>
@@ -731,11 +739,13 @@ export function makeBlankPrompt() {
 
 export function syncPromptOrder(preset) {
   // Rebuild prompt_order to match current prompts array order + enabled state
-  preset.prompt_order = [{
-    id: preset.prompt_order?.[0]?.id ?? 0,
-    character_id: preset.prompt_order?.[0]?.character_id ?? 0,
-    order: (preset.prompts || []).map(pr => ({ identifier: pr.identifier, enabled: pr.enabled !== false }))
-  }];
+  // Entries for other character ids are kept as they were; only the first
+  // (the one the editor shows) is rebuilt from the prompt list
+  const first = preset.prompt_order?.[0];
+  const head = { character_id: first?.character_id ?? 0,
+    order: (preset.prompts || []).map(pr => ({ identifier: pr.identifier, enabled: pr.enabled !== false })) };
+  if (first && 'id' in first) head.id = first.id;
+  preset.prompt_order = [head, ...(preset.prompt_order || []).slice(1)];
 }
 
 // opts.silent: no toast; opts.noHistory: no version-history snapshot (both
@@ -765,10 +775,11 @@ export function savePreset(opts = {}) {
   p.use_sysprompt  = gc('psUseSys');
   p.squash_system_messages = gc('psSquash');
   p.show_thoughts  = gc('psShowThoughts');
-  p.reasoning_effort   = gv('psReasoningEffort') || 'auto';
-  p.verbosity          = gv('psVerbosity')       || 'auto';
-  p.tool_reasoning_mode= gv('psTRMode')          || 'disabled';
-  p.names_behavior     = parseInt(gv('psNamesBehavior')) || 0;
+  p.reasoning_effort   = gv('psReasoningEffort') ?? 'auto';
+  p.verbosity          = gv('psVerbosity')       ?? 'auto';
+  p.tool_reasoning_mode= gv('psTRMode')          ?? 'disabled';
+  const nb = parseInt(gv('psNamesBehavior'));
+  p.names_behavior     = isNaN(nb) ? 0 : nb;
 
   // String fields
   p.assistant_prefill       = gv('psAssistPrefill')    || '';
@@ -782,7 +793,9 @@ export function savePreset(opts = {}) {
   p.new_group_chat_prompt   = gv('psNewGroupPrompt')   || '';
   p.new_example_chat_prompt = gv('psNewExamplePrompt') || '';
   p.continue_nudge_prompt   = gv('psContinueNudge')    || '';
-  p.continue_postfix        = gv('psContinuePostfix')  ?? ' ';
+  // a text box can't show a newline, so an untouched postfix keeps its original
+  const cpf = gv('psContinuePostfix') ?? ' ';
+  if (!(typeof p.continue_postfix === 'string' && cpf === p.continue_postfix.replace(/[\r\n]/g, ''))) p.continue_postfix = cpf;
   p.group_nudge_prompt      = gv('psGroupNudge')       || '';
 
   // Rebuild prompt_order to mirror current prompts array order + enabled state

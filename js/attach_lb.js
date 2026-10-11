@@ -40,7 +40,7 @@ export function rebuildCharacterBook(entry) {
   sources.forEach(src => {
     Object.values(src.lb.entries || {}).forEach(en => {
       const id = merged.length;
-      merged.push(worldInfoEntryToSpec(en, id, id));
+      merged.push(worldInfoEntryToSpec(en, id, en.order));
     });
   });
   const name = sources.length === 1 ? (sources[0].name || 'Attached Lorebook') : `${sources.length} lorebooks merged`;
