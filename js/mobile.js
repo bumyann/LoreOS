@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════
 
 import { createChar, openCharLibrary } from './character.js';
-import { exportCharCharx, exportCharJson, exportCharJsonV2, exportCharSaucepan, openCharPngExport } from './character_io.js';
+import { exportCharCharx, exportCharJson, exportCharJsonV2, openCharPngExport } from './character_io.js';
 import { openLibrary } from './library.js';
 import { clearEditor, openLoreSettings } from './lorebook.js';
 import { exportJanitorJson, exportJson, exportSaucepanJson, openJanitorPasteModal, openPublicExport } from './lorebook_io.js';
@@ -188,7 +188,8 @@ export function wireMobile() {
   if (g('mobCharExportV2JsonBtn'))    g('mobCharExportV2JsonBtn').addEventListener('click',    () => { closeModal('mobCharExportModal'); exportCharJsonV2(state.activeCharId); });
   if (g('mobCharExportV3PngBtn'))     g('mobCharExportV3PngBtn').addEventListener('click',     () => { closeModal('mobCharExportModal'); openCharPngExport(state.activeCharId, false); });
   if (g('mobCharExportPngBtn'))       g('mobCharExportPngBtn').addEventListener('click',       () => { closeModal('mobCharExportModal'); openCharPngExport(state.activeCharId, true); });
-  if (g('mobCharExportSaucepanBtn'))  g('mobCharExportSaucepanBtn').addEventListener('click',  () => { closeModal('mobCharExportModal'); exportCharSaucepan(state.activeCharId); });
+  if (g('mobCharExportJanitorBtn'))   g('mobCharExportJanitorBtn').addEventListener('click',   () => { closeModal('mobCharExportModal'); exportCharJsonV2(state.activeCharId, { janitor: true }); });
+  if (g('mobCharExportJanitorPngBtn')) g('mobCharExportJanitorPngBtn').addEventListener('click', () => { closeModal('mobCharExportModal'); openCharPngExport(state.activeCharId, true, { janitor: true }); });
   if (g('mobCharExportCharxBtn'))     g('mobCharExportCharxBtn').addEventListener('click',     () => { closeModal('mobCharExportModal'); exportCharCharx(state.activeCharId); });
 
   // ── PRESET buttons ──
@@ -354,7 +355,8 @@ registerMarkup(180, `<div id="mobCharExportModal" class="modal">
       <button class="btn btn-s" id="mobCharExportV2JsonBtn" style="width:100%;justify-content:center;padding:.65rem">V2 JSON</button>
       <button class="btn btn-s" id="mobCharExportV3PngBtn" style="width:100%;justify-content:center;padding:.65rem">V3 PNG</button>
       <button class="btn btn-s" id="mobCharExportPngBtn" style="width:100%;justify-content:center;padding:.65rem">V2 PNG</button>
-      <button class="btn btn-s" id="mobCharExportSaucepanBtn" style="width:100%;justify-content:center;padding:.65rem">Companion (SaucepanAI)</button>
+      <button class="btn btn-s" id="mobCharExportJanitorBtn" style="width:100%;justify-content:center;padding:.65rem">JanitorAI JSON</button>
+      <button class="btn btn-s" id="mobCharExportJanitorPngBtn" style="width:100%;justify-content:center;padding:.65rem">JanitorAI PNG</button>
       <button class="btn btn-s" id="mobCharExportCharxBtn" style="width:100%;justify-content:center;padding:.65rem">.charx (Lumiverse)</button>
     </div>
   </div>

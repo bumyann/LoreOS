@@ -6,12 +6,12 @@ const http=require('http'),fs=require('fs'),path=require('path'); const root=pat
 const srv=http.createServer((q,s)=>{let p=q.url.split('?')[0]; if(p==='/')p='/index.html'; const f=path.join(root,p); fs.readFile(f,(e,d)=>{ if(e){s.writeHead(404);s.end();return;} s.writeHead(200,{'content-type':f.endsWith('.js')?'text/javascript':f.endsWith('.html')?'text/html':f.endsWith('.css')?'text/css':'application/octet-stream'}); s.end(d);});}).listen(0);
 
 // ── the fake Drive ──
-const drive = { files: {}, nextId: 1, searchStatus: 200, force401: 0, version404: 0, log: [] };
+const drive = { userinfo401: false, files: {}, nextId: 1, searchStatus: 200, force401: 0, version404: 0, log: [] };
 function handle(route) {
   const req = route.request(); const u = new URL(req.url()); const m = req.method();
   const json = (o, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(o) });
   drive.log.push(m + ' ' + u.pathname);
-  if (u.pathname.endsWith('/userinfo')) return json({ email: 'yann@example.com' });
+  if (u.pathname.endsWith('/userinfo')) return drive.userinfo401 ? json({ error: 'invalid_token' }, 401) : json({ email: 'yann@example.com' });
   if (drive.force401 > 0) { drive.force401--; return json({ error: 'unauthorized' }, 401); }
   const idm = u.pathname.match(/files\/([^/?]+)$/);
   if (u.pathname === '/drive/v3/files' && m === 'GET') {
@@ -37,7 +37,7 @@ function handle(route) {
   }
   return json({ error: 'unhandled ' + m + ' ' + u.pathname }, 500);
 }
-const GSI = `window.google={accounts:{oauth2:{initTokenClient:cfg=>({requestAccessToken:o=>setTimeout(()=>cfg.callback({access_token:'tok'+Date.now(),expires_in:3600}),5)}),revoke:()=>{}}}};`;
+const GSI = `window.google={accounts:{oauth2:{initTokenClient:cfg=>({requestAccessToken:o=>{ window.__gsi=(window.__gsi||0)+1; setTimeout(()=>cfg.callback({access_token:'tok'+Date.now(),expires_in:3600}),5); }}),revoke:()=>{}}}};`;
 
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROMIUM || '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
@@ -51,6 +51,15 @@ const GSI = `window.google={accounts:{oauth2:{initTokenClient:cfg=>({requestAcce
     await pg.goto(`http://localhost:${srv.address().port}/`); await pg.waitForTimeout(700);
     return { ctx, pg, ev: (c) => ev(pg, c) };
   }
+  // regression: the account lookup answers 401 (token has no email scope). That must not log us out
+  // or open a second sign-in popup.
+  drive.userinfo401 = true;
+  const Z = await device();
+  await Z.ev(`gdriveConnect()`); await Z.pg.waitForTimeout(900);
+  chk('connect survives a 401 on the account lookup', await Z.ev(`!!gdriveToken`));
+  chk('exactly one sign-in popup', (await Z.pg.evaluate(() => window.__gsi)) === 1, await Z.pg.evaluate(() => window.__gsi));
+  chk('UI shows connected, not Reconnect', await Z.pg.evaluate(() => document.getElementById('gdriveConnectBtn').style.display === 'none'));
+  await Z.ctx.close(); for (const id of Object.keys(drive.files)) delete drive.files[id]; drive.userinfo401 = false;
   const A = await device();
   // device A: create some data, connect, first sync creates the file
   await A.ev(`(async()=>{ charLibrary.c1={id:'c1',name:'Alice',card:{spec:'chara_card_v3',spec_version:'3.0',data:{name:'Alice'}},imageData:null,savedAt:new Date().toISOString()}; saveCharLibrary&&saveCharLibrary(); })()`).catch(()=>{});
@@ -81,6 +90,8 @@ const GSI = `window.google={accounts:{oauth2:{initTokenClient:cfg=>({requestAcce
   const r2 = await B.ev(`gdrivePush()`);
   chk('B clean but behind refuses push', r2.ok === false && r2.reason === 'behind', r2);
   // 401 once => silent refresh and retry succeeds
+  // ten minutes later the token is still valid by the clock but Drive rejects it once (revoked/rotated): refresh + retry
+  await A.pg.evaluate(() => { const real = Date.now.bind(Date); Date.now = () => real() + 600000; });
   drive.force401 = 1;
   const A2 = await A.ev(`(async()=>{ gdriveState='ok'; const r=await gdrivePush({force:true}); return r; })()`);
   chk('A survives one 401 (refresh + retry)', A2.ok === true, A2);

@@ -12,6 +12,7 @@ import { currentView, navigateTo } from './router.js';
 import { state, WS_MAX_TABS } from './state.js';
 import { loreActiveLibName, loreSyncToLib } from './storage.js';
 import { closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
+import { fitHeader } from './header_fit.js';
 
 // ═══════════════════════════════════════════════════════
 // WORKSHOP TABS
@@ -367,6 +368,7 @@ export function renderWsPickerList(type) {
 export function switchMode(newMode) {
   applyMode(newMode);
   mobileAfterModeSwitch(newMode);
+  fitHeader();
 }
 
 export function applyMode(newMode) {

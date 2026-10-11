@@ -155,6 +155,15 @@ export function exportCharJson(id) {
 // Flattens alternate_greetings from internal {title,message} objects back to
 // plain strings (V2 spec requires string[]) and drops LoreOS-internal fields
 // (top-level `id`, greeting titles, etc.) that aren't part of the V2 spec.
+// JanitorAI reads a card's `description` as the public bio and only `personality`
+// as the character definition. For a Janitor export the definition therefore
+// moves into `personality` (joined with any personality text) and the bio gets
+// the creator notes, if there are any.
+export function toJanitorData(d) {
+  const def = [d.description, d.personality].map(x => (x || '').trim()).filter(Boolean).join('\n\n');
+  return { ...d, description: d.creator_notes || '', personality: def };
+}
+
 export function toV2Card(d) {
   return {
     spec: 'chara_card_v2',
@@ -202,89 +211,14 @@ export function toV3Card(card) {
 
 // Export as V2 JSON (chara_card_v2 / spec_version 2.0)
 // Strips V3-only fields (group_only_greetings, assets, character_version) for max compat
-export function exportCharJsonV2(id) {
+export function exportCharJsonV2(id, { janitor = false } = {}) {
   const entry = state.charLibrary[id]; if (!entry) return;
   commitBeforeExport(id);
   const d = entry.card.data;
-  const v2card = toV2Card(d);
-  const fn = safeFileName(d.name, 'character') + '_v2.json';
+  const v2card = toV2Card(janitor ? toJanitorData(d) : d);
+  const fn = safeFileName(d.name, 'character') + (janitor ? '_janitor' : '_v2') + '.json';
   dlFile(JSON.stringify(v2card, null, 2), fn, 'application/json');
-  toast('Exported V2: ' + fn, 'ok');
-}
-
-export function exportCharSaucepan(id) {
-  const entry = state.charLibrary[id]; if (!entry) return;
-  commitBeforeExport(id);
-  const s = state.charFormState;
-  const d = entry.card.data;
-
-  // Build starting_scenarios from first_mes + alternate_greetings
-  // Uses greeting titles if present, falls back to generated labels
-  const altGreets = (s.alternate_greetings || d.alternate_greetings || [])
-    .filter(g => (typeof g === 'object' ? g.message : g || '').trim() !== '');
-
-  const scenarios = [];
-
-  // First message
-  const firstMsg = s.first_mes || d.first_mes || '';
-  if (firstMsg.trim()) {
-    const firstTitle = s.first_mes_title || (
-      d.extensions && d.extensions.greeting_tools && d.extensions.greeting_tools.mainGreeting
-        ? d.extensions.greeting_tools.mainGreeting.title
-        : ''
-    ) || 'Opening';
-    scenarios.push({ title: firstTitle, message: firstMsg, portrait_id: null });
-  }
-
-  // Alternate greetings
-  altGreets.forEach((g, i) => {
-    const msg   = typeof g === 'object' ? (g.message || '') : (g || '');
-    const title = typeof g === 'object' && g.title ? g.title : ('Scenario ' + (i + 2));
-    scenarios.push({ title, message: msg, portrait_id: null });
-  });
-
-  // Preserve existing SaucepanAI metadata if card was originally imported from Saucepan
-  const existingMeta = d.extensions && d.extensions._saucepan ? d.extensions._saucepan : {};
-
-  const companion = {
-    id:           existingMeta.id   || crypto.randomUUID(),
-    name:         s.name            || d.name || 'Unknown',
-    display_name: existingMeta.display_name || s.name || d.name || 'Unknown',
-    full_description:  s.creator_notes || d.creator_notes || '',
-    short_description: s.creator_notes ? s.creator_notes.slice(0, 200) : (d.creator_notes || '').slice(0, 200),
-    tags:         (s.tags ? s.tags.split(',').map(t => t.trim()).filter(Boolean) : d.tags) || [],
-    fandom_tags:  existingMeta.fandom_tags || [],
-    image:        existingMeta.image || { id: null },
-    image_crop_zoom: null, image_crop_x: null, image_crop_y: null,
-    sus:          existingMeta.sus  ?? false,
-    very_sus:     existingMeta.very_sus ?? false,
-    card:         s.description     || d.description || '',
-    temperature_offset_percentage: existingMeta.temperature_offset_percentage ?? 0,
-    portraits:    existingMeta.portraits || [],
-    example_dialogue: s.mes_example || d.mes_example || null,
-    locked_starting_message: existingMeta.locked_starting_message ?? false,
-    starting_scenarios: scenarios,
-    access_level: existingMeta.access_level || 'private',
-    formatting_instructions: s.system_prompt || d.system_prompt || null,
-    advanced_prompt: s.post_history_instructions || d.post_history_instructions || null,
-    open_definition: existingMeta.open_definition ?? true,
-    hidden_fields: existingMeta.hidden_fields ?? 0,
-    external_model_policy: existingMeta.external_model_policy || 'vetted_only',
-    unlocked_portraits: existingMeta.unlocked_portraits ?? false,
-    hide_on_owner_profile: existingMeta.hide_on_owner_profile ?? false,
-    companion_profile_banner_crop_zoom: null,
-    companion_profile_banner_crop_x: null,
-    companion_profile_banner_crop_y: null,
-    default_profile_banner_collection_image_crop_zoom: null,
-    default_profile_banner_collection_image_crop_x: null,
-    default_profile_banner_collection_image_crop_y: null,
-    suppress_companion_profile_banner: existingMeta.suppress_companion_profile_banner ?? false,
-    companion_profile_banner_very_sus: existingMeta.companion_profile_banner_very_sus ?? false,
-  };
-
-  const fn = safeFileName(d.name, 'companion') + '_saucepan.json';
-  dlFile(JSON.stringify(companion, null, 2), fn, 'application/json');
-  toast('Exported for SaucepanAI: ' + fn, 'ok');
+  toast((janitor ? 'Exported for JanitorAI: ' : 'Exported V2: ') + fn, 'ok');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -412,7 +346,7 @@ export function dataUrlToPngArrayBuffer(dataUrl) {
   });
 }
 
-export function openCharPngExport(id, forceV2 = true) {
+export function openCharPngExport(id, forceV2 = true, { janitor = false } = {}) {
   const entry = state.charLibrary[id]; if (!entry) return;
   commitBeforeExport(id);
 
@@ -422,16 +356,16 @@ export function openCharPngExport(id, forceV2 = true) {
       // V2: one `chara` chunk. V3: `ccv3` (the V3 card) plus a V2 `chara` chunk
       // so older readers still find something, as SillyTavern does.
       const outBuf = forceV2
-        ? embedCharInPng(buf, toV2Card(entry.card.data))
+        ? embedCharInPng(buf, toV2Card(janitor ? toJanitorData(entry.card.data) : entry.card.data))
         : embedCharInPng(buf, toV2Card(entry.card.data), toV3Card(entry.card));
       const blob = new Blob([outBuf], { type: 'image/png' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = safeFileName(entry.card.data.name, 'character') + (forceV2 ? '_v2' : '_v3') + '.png';
+      a.download = safeFileName(entry.card.data.name, 'character') + (janitor ? '_janitor' : forceV2 ? '_v2' : '_v3') + '.png';
       document.body.append(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
-      toast((forceV2 ? 'V2' : 'V3') + ' PNG card exported!', 'ok');
+      toast((janitor ? 'JanitorAI' : forceV2 ? 'V2' : 'V3') + ' PNG card exported!', 'ok');
     } catch(err) { toast('PNG export error: ' + err.message, 'err'); console.error(err); }
   };
 

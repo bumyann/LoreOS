@@ -27,7 +27,8 @@ import { openImportModal, syncBundleData, syncLocalHasData } from './sync.js';
 import { askConfirm, esc, g, toast } from './util.js';
 
 export const GDRIVE_CLIENT_ID = '218324898243-cm0as5dqcsl9g7tgj1lf6lk83pc1qti3.apps.googleusercontent.com';
-export const GDRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.appdata';
+// drive.appdata = the hidden app folder; userinfo.email = so we can show (and remember) which account
+export const GDRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.email';
 export const GDRIVE_FILE_NAME = 'LoreOS-sync.json';
 export const GDRIVE_PUSH_DELAY = 5000; // ms debounce for auto-push
 export const GDRIVE_LINK_FLAG = 'loreos_gdrive_linked'; // non-sensitive: just "was connected", never the token itself
@@ -39,6 +40,7 @@ export const GDRIVE_RECHECK_MS = 60000;                 // min gap between "did 
 // ── Runtime state (memory-only — cleared on reload) ──
 export let gdriveToken      = null;  // access token
 export let gdriveTokenExpiry = 0;    // ms epoch when the token stops working
+export let gdriveTokenAt     = 0;    // ms epoch when this token was handed out
 export let gdriveFileId     = null;  // Drive file ID once located/created
 export let gdriveEmail      = null;  // connected account email
 export let gdriveLastSync   = null;  // ISO timestamp of last successful sync
@@ -124,6 +126,7 @@ export function gdriveRequestToken(prompt) {
 
 export function gdriveSetToken(resp) {
   gdriveToken = resp.access_token;
+  gdriveTokenAt = Date.now();
   // Google access tokens last ~1h. Remember when, so we refresh BEFORE a
   // request fails instead of after (the old code only found out via a 401).
   gdriveTokenExpiry = Date.now() + (Number(resp.expires_in) || 3600) * 1000;
@@ -174,6 +177,10 @@ export async function gdriveFetch(url, opts = {}) {
   if (!(await gdriveEnsureToken())) throw gdriveAuthError();
   let res = await send();
   if (res.status === 401) {
+    // A token Google handed out seconds ago that Drive still rejects is not
+    // "expired": refreshing again only opens another sign-in popup for the
+    // same answer. Give up instead of looping.
+    if (Date.now() - gdriveTokenAt < 30000) { gdriveExpire(); throw gdriveAuthError(); }
     gdriveTokenExpiry = 0; // force a refresh
     if (!(await gdriveEnsureToken())) throw gdriveAuthError();
     res = await send();
@@ -183,20 +190,26 @@ export async function gdriveFetch(url, opts = {}) {
 }
 
 export async function gdriveFetchEmail() {
+  // Plain fetch, NOT gdriveFetch: this token only has the Drive-app-folder
+  // scope, so Google may answer 401 here. That must never be treated as an
+  // expired session (it used to log you straight back out and pop sign-in again).
+  let email = null;
   try {
-    const info = await gdriveFetch('https://www.googleapis.com/oauth2/v3/userinfo').then(r => r.json());
-    gdriveEmail = info.email || 'connected';
-    if (info.email) { try { localStorage.setItem(GDRIVE_HINT_KEY, info.email); } catch (e) {} }
-  } catch (e) {
-    gdriveEmail = gdriveEmail || 'connected';
-  }
+    const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + gdriveToken } });
+    if (r.ok) email = (await r.json()).email || null;
+  } catch (e) { /* offline or blocked: fall back below */ }
+  let hint = null;
+  try { hint = localStorage.getItem(GDRIVE_HINT_KEY); } catch (e) {}
+  gdriveEmail = email || gdriveEmail || hint || 'connected';
+  if (email) { try { localStorage.setItem(GDRIVE_HINT_KEY, email); } catch (e) {} }
 }
 
 // ═══════════════════════════════════════════════════════
 // CONNECT / DISCONNECT
 // ═══════════════════════════════════════════════════════
+export let gdriveConnecting = false; // a sign-in popup is already open: ignore extra clicks
 export function gdriveConnect() {
-  if (!gdriveAvailable) return;
+  if (!gdriveAvailable || gdriveConnecting) return;
   if (!gdriveGsiReady()) {
     toast('Google Sign-In library not loaded yet — try again.', 'warn');
     return;
@@ -204,7 +217,8 @@ export function gdriveConnect() {
   // No `await` before this call: the popup has to open from the click itself.
   // prompt '' = Google only asks for consent the first time; with the saved
   // email hint, reconnecting is a quick tap instead of a full sign-in again.
-  gdriveRequestToken('').then(async resp => {
+  gdriveConnecting = true;
+  gdriveRequestToken('').finally(() => { gdriveConnecting = false; }).then(async resp => {
     if (!resp || resp.error || !resp.access_token) {
       toast('Google auth failed' + (resp && resp.error ? ': ' + resp.error : ' (no response).'), 'err');
       return;
@@ -241,7 +255,7 @@ export async function gdriveTrySilentReconnect(retriesLeft = 10) {
     // Google wants a tap (phones block popups that don't come from a tap, and
     // the browser session may have lapsed). Keep the link, show "Reconnect",
     // and never forget the account: a failed silent try is not a sign-out.
-    if (resp && resp.error) { gdriveState = 'expired'; gdriveUpdateUI(); }
+    if (resp && resp.error && !gdriveToken) { gdriveState = 'expired'; gdriveUpdateUI(); }
     return;
   }
   gdriveSetToken(resp);

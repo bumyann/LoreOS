@@ -4,7 +4,7 @@
 
 import { migrateCharacterBook, openAttachLbModal, updateLbStatus } from './attach_lb.js';
 import { downscaleAvatar } from './avatar.js';
-import { exportCharCharx, exportCharJson, exportCharJsonV2, exportCharSaucepan, openCharPngExport } from './character_io.js';
+import { exportCharCharx, exportCharJson, exportCharJsonV2, openCharPngExport } from './character_io.js';
 import { openFullscreen } from './fullscreen.js';
 import { itemHistoryPush, itemUndoGet, itemUndoPush, openItemHistory, syncItemUndoButtons, wireFieldUndoRedo } from './history.js';
 import { closeMobSidebar } from './mobile.js';
@@ -354,7 +354,8 @@ export function renderCharEditor() {
           <button class="dd-item" id="chExportV2JsonBtn">V2 JSON</button>
           <button class="dd-item" id="chExportV3PngBtn">V3 PNG</button>
           <button class="dd-item" id="chExportPngBtn">V2 PNG</button>
-          <button class="dd-item" id="chExportSaucepanBtn">Companion (SaucepanAI)</button>
+          <button class="dd-item" id="chExportJanitorBtn">JanitorAI JSON</button>
+          <button class="dd-item" id="chExportJanitorPngBtn">JanitorAI PNG</button>
           <button class="dd-item" id="chExportCharxBtn">.charx (Lumiverse)</button>
         </div>
       </div>
@@ -443,7 +444,8 @@ export function renderCharEditor() {
   if (g('chLbManageBtn'))       g('chLbManageBtn').addEventListener('click',       () => openAttachLbModal());
   g('chExportPngBtn').addEventListener('click', () => openCharPngExport(state.activeCharId, true));
   if (g('chExportV3PngBtn')) g('chExportV3PngBtn').addEventListener('click', () => openCharPngExport(state.activeCharId, false));
-  g('chExportSaucepanBtn').addEventListener('click', () => exportCharSaucepan(state.activeCharId));
+  if (g('chExportJanitorBtn')) g('chExportJanitorBtn').addEventListener('click', () => exportCharJsonV2(state.activeCharId, { janitor: true }));
+  if (g('chExportJanitorPngBtn')) g('chExportJanitorPngBtn').addEventListener('click', () => openCharPngExport(state.activeCharId, true, { janitor: true }));
   if (g('chExportCharxBtn')) g('chExportCharxBtn').addEventListener('click', () => exportCharCharx(state.activeCharId));
   // Wire the char export dropdown
   const ddCharExport = document.getElementById('dd-char-export');

@@ -4,7 +4,7 @@
 
 import { openAttachLbModal } from './attach_lb.js';
 import { createChar, openCharLibrary, saveChar } from './character.js';
-import { exportCharCharx, exportCharJson, exportCharJsonV2, exportCharSaucepan, handleCharCompanionImport, handleCharImport, handleCharxImport, openCharPngExport } from './character_io.js';
+import { exportCharCharx, exportCharJson, exportCharJsonV2, handleCharCompanionImport, handleCharImport, handleCharxImport, openCharPngExport } from './character_io.js';
 import { wireFullscreen } from './fullscreen.js';
 import { libSaveCurrent, openLibrary } from './library.js';
 import { applyLoreSettings, changeZoom, clearEditor, clearSelection, closeTab, createEntry, handleSbSearch, openLoreSettings, renderEditor, renderTabs, saveEntry, toggleView } from './lorebook.js';
@@ -17,6 +17,7 @@ import { initRouter } from './router.js';
 import { doReplaceAll, doReplaceOne, doSearch } from './search.js';
 import { applyAllCustomisations, applyFonts, toggleTheme, wireFonts, wireSettings } from './settings.js';
 import { state } from './state.js';
+import { wireHeaderFit } from './header_fit.js';
 import { loadFromStorage, loadPrefs, sanitizeStorage } from './storage.js';
 import { openEntryPicker, openTemplateLibrary, wireTplLibrary } from './templates.js';
 import { closeAllDropdowns, closeModal, g, injectMarkup, openModal, toast } from './util.js';
@@ -94,6 +95,7 @@ function startApp() {
   initStep('mobile',       wireMobile);
   initStep('storage',      loadFromStorage);
   initStep('mode',         () => switchMode('lore'));
+  initStep('header fit',   wireHeaderFit);
   initStep('router',       initRouter);
   initStep('workshop tabs', wsRestoreTabs);
   initStep('pronoun tool', wirePronounTool);
@@ -179,7 +181,8 @@ export function wireEvents() {
   if (g('charHdrExportV2JsonBtn')) g('charHdrExportV2JsonBtn').onclick = () => exportCharJsonV2(state.activeCharId);
   if (g('charHdrExportV3PngBtn')) g('charHdrExportV3PngBtn').onclick = () => openCharPngExport(state.activeCharId, false);
   if (g('charHdrExportPngBtn')) g('charHdrExportPngBtn').onclick = () => openCharPngExport(state.activeCharId, true);
-  if (g('charHdrExportSaucepanBtn')) g('charHdrExportSaucepanBtn').onclick = () => exportCharSaucepan(state.activeCharId);
+  if (g('charHdrExportJanitorBtn')) g('charHdrExportJanitorBtn').onclick = () => exportCharJsonV2(state.activeCharId, { janitor: true });
+  if (g('charHdrExportJanitorPngBtn')) g('charHdrExportJanitorPngBtn').onclick = () => openCharPngExport(state.activeCharId, true, { janitor: true });
   if (g('charHdrExportCharxBtn')) g('charHdrExportCharxBtn').onclick = () => exportCharCharx(state.activeCharId);
   // Header export button (preset)
   if (g('presetHdrExportBtn')) g('presetHdrExportBtn').onclick = () => exportPreset();

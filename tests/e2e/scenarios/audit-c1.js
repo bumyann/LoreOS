@@ -24,7 +24,6 @@
  exportCharJsonV2(id); const j2=JSON.parse((await dl()).text);
  chk('V2 json clean', j2.spec==='chara_card_v2'&&j2.spec_version==='2.0'&&j2.data.alternate_greetings.join()==='A1,A2'&&!('group_only_greetings' in j2.data)&&!('nickname' in j2.data), Object.keys(j2.data));
  chk('V2 keeps extensions + character_book', j2.data.extensions.depth_prompt.depth===4&&!!j2.data.character_book);
- exportCharSaucepan(id); const sp=JSON.parse((await dl()).text); chk('saucepan export has titles', JSON.stringify(sp.starting_scenarios||[]).includes('Warm welcome'), sp.starting_scenarios);
  // re-import exported V3 json -> same name/desc
  importCharCard(j,'again.json'); await w(400); const again=charLibrary[activeCharId].card.data; chk('re-import round trip', again.name==='Rin'&&again.description==='D'&&again.first_mes==='Hi'&&again.tags.join()==='x,y', again.name);
  return out;
