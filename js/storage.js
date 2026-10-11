@@ -112,7 +112,7 @@ const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
 const STORAGE_SHAPES = {
   aet_lorebook:      v => isObj(v) && (v.entries === undefined || isObj(v.entries)),
   aet_tabs:          v => Array.isArray(v),
-  aet_wsTabs:        v => Array.isArray(v),
+  aet_wsTabs:        v => isObj(v) && (v.items === undefined || Array.isArray(v.items)), // { items: [...], active }
   aet_charLibrary:   v => isObj(v),
   aet_presetLibrary: v => isObj(v),
   aet_library:       v => isObj(v),
@@ -129,6 +129,8 @@ const ENTRY_NEEDS = { aet_charLibrary: 'card', aet_presetLibrary: 'preset' };
 
 export function sanitizeStorage() {
   const fixed = [];
+  // Copy left by an earlier version that wrongly flagged the (valid) open-tabs record
+  try { localStorage.removeItem('aet_corrupt_aet_wsTabs'); } catch (e) {}
   Object.keys(STORAGE_SHAPES).forEach(key => {
     let raw = null;
     try { raw = localStorage.getItem(key); } catch (e) { return; }
