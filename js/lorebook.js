@@ -257,6 +257,8 @@ function reorderEntry(oldUid, newUid) {
 // MODE SWITCHING
 // ═══════════════════════════════════════════════════════
 function switchMode(newMode) {
+  // Save what's typed in the editor we're about to replace
+  if (typeof commitActiveEditor === 'function') commitActiveEditor();
   // Stub modes — navigate to editor and show coming soon
   const STUB_MODES = ['persona', 'prompt', 'regex'];
   const isStub = STUB_MODES.includes(newMode);
@@ -847,7 +849,7 @@ function captureState(uid, container) {
   formState[uid] = s;
 }
 
-function saveEntry(uid) {
+function saveEntry(uid, opts = {}) {
   const en = lorebook.entries[uid]; if (!en) return;
   const gid = id => g(`${id}-${uid}`);
   const num = id => parseInt(gid(id)?.value) || 0;
@@ -886,7 +888,8 @@ function saveEntry(uid) {
 
   unsaved.delete(uid); delete formState[uid];
   renderList(); renderTabs(); saveToStorage();
-  if (typeof loreSnapshotSoon === 'function') loreSnapshotSoon();
+  // Autosaves skip the version-history snapshot (see commitActiveEditor)
+  if (!opts.noSnapshot && typeof loreSnapshotSoon === 'function') loreSnapshotSoon();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1125,7 +1128,11 @@ function doExportPublic() {
 // LIBRARY
 // ═══════════════════════════════════════════════════════
 function libGet() { try { return JSON.parse(localStorage.getItem('aet_library') || '{}'); } catch(e) { return {}; } }
-function libSet(d) { return safeSet('aet_library', JSON.stringify(d)); }
+function libSet(d) {
+  const ok = safeSet('aet_library', JSON.stringify(d));
+  if (ok && typeof syncAutoPush === 'function') syncAutoPush(); // library edits should reach Drive too
+  return ok;
+}
 
 function openLibrary() {
   g('libModalTitle').textContent = 'Lorebook Library';
@@ -1177,6 +1184,8 @@ async function libSaveCurrent() {
   libSet(lib);
   // From now on, edits to this lorebook write through to this library entry
   if (typeof loreLinkToLib === 'function') loreLinkToLib(name);
+  // ...and it gets a workshop tab (a saved lorebook is what a tab points at)
+  if (typeof wsShowItem === 'function') wsShowItem('lore', name);
   // Snapshot on every explicit save to library
   if (typeof itemHistoryPush === 'function') itemHistoryPush('lore', name, lib[name]);
   g('libNewName').value = '';

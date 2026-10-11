@@ -10,6 +10,17 @@
 //   https://loreos.pages.dev
 //   https://bumyann.github.io
 //   http://localhost:8080
+//
+// HOW CONFLICTS ARE DETECTED (Pass 2)
+// Drive gives every file a server-side `version` that goes up on every
+// change, from any device. This device remembers the version it last synced
+// with (GDRIVE_BASE_KEY) and whether it has edited anything since
+// (GDRIVE_DIRTY_KEY, set by syncAutoPush in sync.js). Before writing, we ask
+// Drive for the current version:
+//   same as our base    -> nobody else touched it, safe to push
+//   different, we're clean  -> another device pushed: "behind", offer Pull
+//   different, we're dirty  -> both changed: "conflict", never auto-overwrite
+// No clocks are compared, so a device with a wrong date can't break it.
 // ═══════════════════════════════════════════════════════
 
 const GDRIVE_CLIENT_ID = '218324898243-cm0as5dqcsl9g7tgj1lf6lk83pc1qti3.apps.googleusercontent.com';
@@ -17,14 +28,25 @@ const GDRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.appdata';
 const GDRIVE_FILE_NAME = 'LoreOS-sync.json';
 const GDRIVE_PUSH_DELAY = 5000; // ms debounce for auto-push
 const GDRIVE_LINK_FLAG = 'loreos_gdrive_linked'; // non-sensitive: just "was connected", never the token itself
+const GDRIVE_BASE_KEY  = 'aet_gdrive_base';      // Drive file version this device last pushed/pulled
+const GDRIVE_DIRTY_KEY = 'aet_gdrive_dirty';     // '1' = edited since the last successful sync
+const GDRIVE_RECHECK_MS = 60000;                 // min gap between "did another device push?" checks
 
 // ── Runtime state (memory-only — cleared on reload) ──
 let gdriveToken      = null;  // access token
+let gdriveTokenExpiry = 0;    // ms epoch when the token stops working
 let gdriveFileId     = null;  // Drive file ID once located/created
 let gdriveEmail      = null;  // connected account email
 let gdriveLastSync   = null;  // ISO timestamp of last successful sync
 let gdrivePushTimer  = null;  // debounce handle
 let gdriveAvailable  = false; // false on file:// protocol
+let gdrivePushing    = false; // a push is in flight
+let gdriveEditSeq    = 0;     // bumped on every edit; lets a push tell if you edited while it ran
+let gdriveLastCheck  = 0;     // when we last compared versions with Drive
+let gdriveLastError  = '';    // message behind state === 'error'
+// 'idle' | 'ok' | 'behind' (Drive has newer data) | 'conflict' (both changed)
+//        | 'error' (last request failed) | 'expired' (needs reconnect)
+let gdriveState      = 'idle';
 
 // ═══════════════════════════════════════════════════════
 // INIT — hide section if on file:// (unsupported by OAuth)
@@ -36,42 +58,156 @@ function gdriveInit() {
 }
 
 // ═══════════════════════════════════════════════════════
-// AUTH — connect / disconnect
+// LOCAL SYNC MARKERS
+// ═══════════════════════════════════════════════════════
+function gdriveGetBase() {
+  try { return localStorage.getItem(GDRIVE_BASE_KEY); } catch (e) { return null; }
+}
+
+// Has this device got edits Drive hasn't seen? A device that has data but has
+// never synced with this Drive file counts as dirty: we can't prove it matches.
+function gdriveIsDirty() {
+  try {
+    if (localStorage.getItem(GDRIVE_DIRTY_KEY) === '1') return true;
+    if (gdriveGetBase() === null && typeof syncLocalHasData === 'function') return syncLocalHasData();
+  } catch (e) {}
+  return false;
+}
+
+function gdriveMarkSynced(version) {
+  try {
+    if (version !== undefined && version !== null) localStorage.setItem(GDRIVE_BASE_KEY, String(version));
+    localStorage.removeItem(GDRIVE_DIRTY_KEY);
+  } catch (e) {}
+  gdriveLastSync = new Date().toISOString();
+}
+
+// ═══════════════════════════════════════════════════════
+// AUTH — token handling
+// ═══════════════════════════════════════════════════════
+function gdriveGsiReady() {
+  return typeof google !== 'undefined' && !!google.accounts?.oauth2;
+}
+
+// Promise wrapper around the GSI token client.
+//   prompt 'consent' = interactive popup (must be called straight from a click)
+//   prompt ''        = silent, no popup
+// Always resolves (never rejects): { access_token, expires_in } on success,
+// { error } if Google refused, or null on timeout / library missing.
+function gdriveRequestToken(prompt) {
+  return new Promise(resolve => {
+    if (!gdriveGsiReady()) { resolve(null); return; }
+    let done = false;
+    let timer = null;
+    const finish = v => { if (done) return; done = true; clearTimeout(timer); resolve(v); };
+    timer = setTimeout(() => finish(null), prompt === '' ? 10000 : 180000);
+    try {
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: GDRIVE_CLIENT_ID,
+        scope: GDRIVE_SCOPE,
+        callback: resp => finish(resp || null),
+        // popup blocked / closed, or silent auth needs interaction
+        error_callback: err => finish({ error: (err && err.type) || 'popup_failed' }),
+      });
+      client.requestAccessToken({ prompt });
+    } catch (e) {
+      finish(null);
+    }
+  });
+}
+
+function gdriveSetToken(resp) {
+  gdriveToken = resp.access_token;
+  // Google access tokens last ~1h. Remember when, so we refresh BEFORE a
+  // request fails instead of after (the old code only found out via a 401).
+  gdriveTokenExpiry = Date.now() + (Number(resp.expires_in) || 3600) * 1000;
+}
+
+// Flip to the "session expired" state: pill says so, Connect button comes
+// back, and nothing pretends to be syncing. Local edits stay flagged dirty
+// and get pushed once the user reconnects.
+function gdriveExpire() {
+  const wasConnected = !!gdriveToken;
+  gdriveToken = null;
+  gdriveTokenExpiry = 0;
+  clearTimeout(gdrivePushTimer);
+  gdriveState = 'expired';
+  gdriveUpdateUI();
+  return wasConnected;
+}
+
+function gdriveAuthError() {
+  const e = new Error('Drive session expired');
+  e.auth = true;
+  return e;
+}
+
+// Make sure we hold a token with a bit of life left, refreshing silently if
+// we can. Returns false (and flips to "expired") if we can't.
+let gdriveRefreshing = null; // one silent refresh at a time, shared by concurrent callers
+async function gdriveEnsureToken() {
+  if (gdriveToken && Date.now() < gdriveTokenExpiry - 60000) return true;
+  if (!gdriveToken && localStorage.getItem(GDRIVE_LINK_FLAG) !== '1') return false;
+  if (!gdriveRefreshing) {
+    gdriveRefreshing = gdriveRequestToken('').then(resp => {
+      if (resp && resp.access_token) { gdriveSetToken(resp); return true; }
+      gdriveExpire();
+      return false;
+    }).finally(() => { gdriveRefreshing = null; });
+  }
+  return gdriveRefreshing;
+}
+
+// fetch() with auth: refreshes an about-to-expire token first, and if Drive
+// still answers 401 refreshes once and retries before giving up.
+async function gdriveFetch(url, opts = {}) {
+  const send = () => fetch(url, {
+    ...opts,
+    headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + gdriveToken },
+  });
+  if (!(await gdriveEnsureToken())) throw gdriveAuthError();
+  let res = await send();
+  if (res.status === 401) {
+    gdriveTokenExpiry = 0; // force a refresh
+    if (!(await gdriveEnsureToken())) throw gdriveAuthError();
+    res = await send();
+    if (res.status === 401) { gdriveExpire(); throw gdriveAuthError(); }
+  }
+  return res;
+}
+
+async function gdriveFetchEmail() {
+  try {
+    const info = await gdriveFetch('https://www.googleapis.com/oauth2/v3/userinfo').then(r => r.json());
+    gdriveEmail = info.email || 'connected';
+  } catch (e) {
+    gdriveEmail = gdriveEmail || 'connected';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// CONNECT / DISCONNECT
 // ═══════════════════════════════════════════════════════
 function gdriveConnect() {
   if (!gdriveAvailable) return;
-  if (typeof google === 'undefined' || !google.accounts?.oauth2) {
+  if (!gdriveGsiReady()) {
     toast('Google Sign-In library not loaded yet — try again.', 'warn');
     return;
   }
-
-  const client = google.accounts.oauth2.initTokenClient({
-    client_id: GDRIVE_CLIENT_ID,
-    scope: GDRIVE_SCOPE,
-    callback: async (resp) => {
-      if (resp.error) {
-        toast('Google auth failed: ' + resp.error, 'err');
-        return;
-      }
-      gdriveToken = resp.access_token;
-      localStorage.setItem(GDRIVE_LINK_FLAG, '1');
-      // Fetch user info for display
-      try {
-        const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: 'Bearer ' + gdriveToken }
-        }).then(r => r.json());
-        gdriveEmail = info.email || 'connected';
-      } catch(e) {
-        gdriveEmail = 'connected';
-      }
-      toast('Connected to Google Drive ✓', 'ok');
-      gdriveUpdateUI();
-      // Locate or create the sync file
-      await gdriveFindOrCreateFile();
-    },
+  // No `await` before this call: the popup has to open from the click itself
+  gdriveRequestToken('consent').then(async resp => {
+    if (!resp || resp.error || !resp.access_token) {
+      toast('Google auth failed' + (resp && resp.error ? ': ' + resp.error : ' (no response).'), 'err');
+      return;
+    }
+    gdriveSetToken(resp);
+    localStorage.setItem(GDRIVE_LINK_FLAG, '1');
+    gdriveState = 'idle';
+    await gdriveFetchEmail();
+    toast('Connected to Google Drive ✓', 'ok');
+    gdriveUpdateUI();
+    await gdriveReconcile({ onConnect: true });
   });
-
-  client.requestAccessToken({ prompt: 'consent' });
 }
 
 // ═══════════════════════════════════════════════════════
@@ -81,53 +217,46 @@ function gdriveConnect() {
 // Falls back to showing the normal Connect button if this fails
 // (expired browser session, revoked consent, etc.) — no error toast.
 // ═══════════════════════════════════════════════════════
-function gdriveTrySilentReconnect(retriesLeft = 10) {
+async function gdriveTrySilentReconnect(retriesLeft = 10) {
   if (!gdriveAvailable) return;
   if (localStorage.getItem(GDRIVE_LINK_FLAG) !== '1') return;
 
-  if (typeof google === 'undefined' || !google.accounts?.oauth2) {
+  if (!gdriveGsiReady()) {
     // GSI script loads async/defer — it may not be ready yet on first call
     if (retriesLeft > 0) setTimeout(() => gdriveTrySilentReconnect(retriesLeft - 1), 300);
     return;
   }
 
-  const client = google.accounts.oauth2.initTokenClient({
-    client_id: GDRIVE_CLIENT_ID,
-    scope: GDRIVE_SCOPE,
-    callback: async (resp) => {
-      if (resp.error) {
-        // Silent auth failed (session expired / consent revoked elsewhere) —
-        // just fall back to manual connect, no toast needed on a background attempt.
-        localStorage.removeItem(GDRIVE_LINK_FLAG);
-        return;
-      }
-      gdriveToken = resp.access_token;
-      try {
-        const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: 'Bearer ' + gdriveToken }
-        }).then(r => r.json());
-        gdriveEmail = info.email || 'connected';
-      } catch(e) {
-        gdriveEmail = 'connected';
-      }
-      gdriveUpdateUI();
-      await gdriveFindOrCreateFile();
-    },
-  });
-
-  client.requestAccessToken({ prompt: '' }); // '' = try silently, no popup
+  const resp = await gdriveRequestToken('');
+  if (!resp || !resp.access_token) {
+    // Google said no (session expired / consent revoked elsewhere): forget the
+    // link so we show a plain Connect button. A timeout (resp === null) might
+    // just be a bad connection, so keep the link and let the next try work.
+    if (resp && resp.error) localStorage.removeItem(GDRIVE_LINK_FLAG);
+    return;
+  }
+  gdriveSetToken(resp);
+  await gdriveFetchEmail();
+  gdriveUpdateUI();
+  await gdriveReconcile({ onConnect: true });
 }
 
 function gdriveDisconnect() {
-  if (gdriveToken && typeof google !== 'undefined') {
+  if (gdriveToken && gdriveGsiReady()) {
     google.accounts.oauth2.revoke(gdriveToken, () => {});
   }
   gdriveToken    = null;
+  gdriveTokenExpiry = 0;
   gdriveFileId   = null;
   gdriveEmail    = null;
   gdriveLastSync = null;
+  gdriveState    = 'idle';
+  gdriveLastError = '';
   clearTimeout(gdrivePushTimer);
   localStorage.removeItem(GDRIVE_LINK_FLAG);
+  // Forget which Drive version we were synced with: a different account's
+  // file isn't comparable, so the next connect re-checks from scratch
+  try { localStorage.removeItem(GDRIVE_BASE_KEY); } catch (e) {}
   toast('Disconnected from Google Drive.', 'ok');
   gdriveUpdateUI();
 }
@@ -135,112 +264,250 @@ function gdriveDisconnect() {
 // ═══════════════════════════════════════════════════════
 // FILE MANAGEMENT
 // ═══════════════════════════════════════════════════════
+
+// Find the sync file in the hidden app folder; create it only if the search
+// genuinely worked and found nothing. Resolves { id, version, created }.
+// THROWS if Drive couldn't be asked: the old version treated a failed search
+// as "no file" and created a fresh sync file every time, which is where the
+// duplicate / stale files came from.
+async function gdriveLocateFile({ create = true } = {}) {
+  // Drive query strings use SINGLE quotes around literals (double quotes were
+  // what the old query used). The name has no quotes in it, but escape anyway.
+  const safeName = GDRIVE_FILE_NAME.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const params = new URLSearchParams({
+    q: `name = '${safeName}' and trashed = false`,
+    spaces: 'appDataFolder',
+    orderBy: 'modifiedTime desc',
+    fields: 'files(id,name,modifiedTime,version)',
+  });
+  const res = await gdriveFetch('https://www.googleapis.com/drive/v3/files?' + params.toString());
+  if (!res.ok) throw new Error('Drive search failed (HTTP ' + res.status + ')');
+  const search = await res.json();
+  if (!search || search.error || !Array.isArray(search.files)) {
+    throw new Error('Drive search returned something unexpected');
+  }
+
+  if (search.files.length > 0) {
+    // appDataFolder doesn't enforce unique filenames — if more than one
+    // sync file exists (left over from the old failed-search bug), use the
+    // most recently modified one. The older ones are left alone: they're
+    // invisible and harmless, and deleting data automatically isn't worth it.
+    const latest = search.files[0];
+    if (search.files.length > 1) {
+      console.warn('[GDrive] found', search.files.length, 'sync files — using the most recently modified (' + latest.id + ').');
+    }
+    gdriveFileId = latest.id;
+    return { id: latest.id, version: latest.version, created: false };
+  }
+
+  if (!create) return null;
+
+  // Genuinely no file yet — first device to sync. Create it from local data.
+  const bundle = typeof syncBundleData === 'function' ? syncBundleData() : { _version: '1', _note: 'LoreOS sync file' };
+  const meta = { name: GDRIVE_FILE_NAME, mimeType: 'application/json', parents: ['appDataFolder'] };
+  const body = new FormData();
+  body.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+  body.append('media', new Blob([JSON.stringify(bundle)], { type: 'application/json' }));
+  const cres = await gdriveFetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,version',
+    { method: 'POST', body }
+  );
+  if (!cres.ok) throw new Error('Could not create the Drive sync file (HTTP ' + cres.status + ')');
+  const created = await cres.json();
+  if (!created || !created.id) throw new Error('Drive did not return a file id');
+  gdriveFileId = created.id;
+  return { id: created.id, version: created.version, created: true };
+}
+
+// Kept for any older callers: resolves the file id, or null on failure
 async function gdriveFindOrCreateFile() {
-  if (!gdriveToken) return null;
+  try { return (await gdriveLocateFile()).id; }
+  catch (e) { gdriveHandleError(e, { quiet: true }); return null; }
+}
 
-  // Search for existing LoreOS-sync.json
+// Current server-side version of the sync file (string), or null if the file
+// we had cached is gone
+async function gdriveGetRemoteVersion() {
+  const res = await gdriveFetch(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(gdriveFileId)}?fields=version`
+  );
+  if (res.status === 404) { gdriveFileId = null; return null; }
+  if (!res.ok) throw new Error('Drive version check failed (HTTP ' + res.status + ')');
+  const info = await res.json();
+  return info && info.version !== undefined ? String(info.version) : null;
+}
+
+// ═══════════════════════════════════════════════════════
+// RECONCILE — compare this device with Drive, decide what's safe
+// Called on connect and when you come back to the tab.
+// ═══════════════════════════════════════════════════════
+async function gdriveReconcile({ onConnect = false } = {}) {
+  if (!gdriveToken || !gdriveAvailable) return;
+  if (gdrivePushing) return;
+  gdriveLastCheck = Date.now();
   try {
-    const search = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=name%3D%22${GDRIVE_FILE_NAME}%22+and+trashed%3Dfalse&fields=files(id,name,modifiedTime)&spaces=appDataFolder&orderBy=modifiedTime+desc`,
-      { headers: { Authorization: 'Bearer ' + gdriveToken } }
-    ).then(r => r.json());
+    const loc = await gdriveLocateFile({ create: true });
 
-    if (search.files && search.files.length > 0) {
-      // appDataFolder doesn't enforce unique filenames — if more than one
-      // sync file exists (e.g. from a session that lost its cached file ID
-      // and re-created one), always use the most recently modified, and
-      // quietly trash the older duplicates so push/pull can't disagree
-      // about which file is current.
-      gdriveFileId = search.files[0].id;
-      if (search.files.length > 1) {
-        console.warn('[GDrive] found', search.files.length, 'duplicate sync files — keeping the most recent, trashing the rest.');
-        search.files.slice(1).forEach(f => {
-          fetch(`https://www.googleapis.com/drive/v3/files/${f.id}`, {
-            method: 'PATCH',
-            headers: { Authorization: 'Bearer ' + gdriveToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ trashed: true }),
-          }).catch(e => console.error('[GDrive] failed to trash duplicate:', e));
-        });
-      }
-      return gdriveFileId;
+    if (loc.created) {
+      // First device ever: the file was just created from our data
+      gdriveMarkSynced(loc.version);
+      gdriveState = 'ok';
+      gdriveUpdateUI();
+      return;
     }
 
-    // Not found — create it in appDataFolder
-    const bundle = typeof syncBundleData === 'function' ? syncBundleData() : { _version: '1', _note: 'LoreOS sync file' };
-    const meta = { name: GDRIVE_FILE_NAME, mimeType: 'application/json', parents: ['appDataFolder'] };
-    const body = new FormData();
-    body.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
-    body.append('media', new Blob([JSON.stringify(bundle)], { type: 'application/json' }));
+    const base = gdriveGetBase();
+    if (String(loc.version) === base) {
+      // Nobody else has pushed since we last synced
+      gdriveState = 'ok';
+      gdriveUpdateUI();
+      if (gdriveIsDirty()) await gdrivePush(); // unsynced edits (e.g. made offline): safe to send
+      return;
+    }
 
-    const created = await fetch(
-      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
-      { method: 'POST', headers: { Authorization: 'Bearer ' + gdriveToken }, body }
-    ).then(r => r.json());
-
-    gdriveFileId = created.id;
-    return gdriveFileId;
-  } catch(e) {
-    console.error('[GDrive] file find/create error:', e);
-    return null;
+    // Drive has changed since this device last synced (or this device has
+    // never synced with it)
+    const hasLocal = typeof syncLocalHasData === 'function' ? syncLocalHasData() : true;
+    if (!hasLocal) {
+      // Brand-new device with nothing to lose: go straight to the import prompt
+      gdriveState = 'ok';
+      gdriveUpdateUI();
+      toast('Found your data on Drive — pick what to bring in.', 'ok');
+      await gdrivePull();
+      return;
+    }
+    if (gdriveIsDirty()) {
+      gdriveState = 'conflict';
+      toast('Drive and this device both have changes. Auto-sync is paused so nothing gets overwritten — use Pull to see Drive\'s version, or Push Now to overwrite it.', 'warn');
+    } else {
+      gdriveState = 'behind';
+      toast('Another device pushed newer data to Drive. Use Pull to bring it in.', 'warn');
+    }
+    gdriveUpdateUI();
+  } catch (e) {
+    gdriveHandleError(e, { quiet: !onConnect });
   }
+}
+
+// Shared error handling: expired sessions get their own state, everything
+// else lands in 'error' with the message visible in the status pill
+function gdriveHandleError(e, { quiet = false } = {}) {
+  console.error('[GDrive]', e);
+  if (e && e.auth) {
+    if (!quiet) toast('Drive session expired — press Connect to resume syncing. Your changes are safe on this device.', 'warn');
+    return;
+  }
+  gdriveState = 'error';
+  gdriveLastError = (e && e.message) || 'unknown error';
+  gdriveUpdateUI();
+  if (!quiet) toast('Drive sync problem: ' + gdriveLastError, 'err');
 }
 
 // ═══════════════════════════════════════════════════════
 // PUSH — write current data to Drive
+// Resolves { ok, reason?, message? }. reason is one of
+// 'conflict' | 'behind' | 'auth' | 'busy' | 'error' | 'unavailable'.
 // ═══════════════════════════════════════════════════════
-async function gdrivePush() {
-  if (!gdriveToken || !gdriveAvailable) return;
-  if (!gdriveFileId) { await gdriveFindOrCreateFile(); }
-  if (!gdriveFileId) { toast('Could not locate Drive sync file.', 'err'); return; }
-
+async function gdrivePush({ force = false } = {}) {
+  if (!gdriveToken || !gdriveAvailable) return { ok: false, reason: 'unavailable' };
+  if (gdrivePushing) return { ok: false, reason: 'busy' };
+  gdrivePushing = true;
+  const seqAtStart = gdriveEditSeq;
   try {
-    const bundle = typeof syncBundleData === 'function' ? syncBundleData() : {};
-    const json   = JSON.stringify(bundle);
-
-    const res = await fetch(
-      `https://www.googleapis.com/upload/drive/v3/files/${gdriveFileId}?uploadType=media`,
-      {
-        method: 'PATCH',
-        headers: {
-          Authorization: 'Bearer ' + gdriveToken,
-          'Content-Type': 'application/json',
-        },
-        body: json,
-      }
-    );
-
-    if (!res.ok) {
-      // Token may have expired — clear and prompt reconnect
-      if (res.status === 401) {
-        gdriveToken = null;
+    // 1. Find the file (and create it if this is the very first sync)
+    if (!gdriveFileId) {
+      const loc = await gdriveLocateFile({ create: true });
+      if (loc.created) {
+        gdriveMarkSynced(loc.version);
+        gdriveState = 'ok';
         gdriveUpdateUI();
-        toast('Drive session expired — please reconnect.', 'warn');
-        return;
+        return { ok: true };
       }
-      throw new Error('HTTP ' + res.status);
     }
 
-    gdriveLastSync = new Date().toISOString();
+    // 2. Make sure nobody else changed it since we last synced
+    if (!force) {
+      let remote = await gdriveGetRemoteVersion();
+      if (remote === null) { // cached id was stale: look again
+        const loc = await gdriveLocateFile({ create: true });
+        if (loc.created) {
+          gdriveMarkSynced(loc.version);
+          gdriveState = 'ok';
+          gdriveUpdateUI();
+          return { ok: true };
+        }
+        remote = String(loc.version);
+      }
+      if (remote !== gdriveGetBase()) {
+        const reason = gdriveIsDirty() ? 'conflict' : 'behind';
+        gdriveState = reason;
+        gdriveUpdateUI();
+        return { ok: false, reason };
+      }
+    }
+
+    // 3. Write it
+    const json = JSON.stringify(typeof syncBundleData === 'function' ? syncBundleData() : {});
+    const res = await gdriveFetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(gdriveFileId)}?uploadType=media&fields=version`,
+      { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: json }
+    );
+    if (res.status === 404) { gdriveFileId = null; throw new Error('The Drive sync file disappeared — try again.'); }
+    if (!res.ok) throw new Error('Drive rejected the upload (HTTP ' + res.status + ')');
+    const info = await res.json().catch(() => ({}));
+
+    // Only now do we claim to be in sync. If you kept editing while the upload
+    // ran, stay dirty (the base moves forward, the edits still need sending).
+    if (gdriveEditSeq === seqAtStart) {
+      gdriveMarkSynced(info.version);
+    } else {
+      try { if (info.version !== undefined) localStorage.setItem(GDRIVE_BASE_KEY, String(info.version)); } catch (e) {}
+      gdriveLastSync = new Date().toISOString();
+    }
+    gdriveState = 'ok';
+    gdriveLastError = '';
     gdriveUpdateUI();
-  } catch(e) {
-    console.error('[GDrive] push error:', e);
-    // Silent fail on auto-push — don't spam toasts
+    return { ok: true };
+  } catch (e) {
+    if (e && e.auth) return { ok: false, reason: 'auth' };
+    gdriveHandleError(e, { quiet: true }); // auto-push stays quiet; the status pill shows it
+    return { ok: false, reason: 'error', message: e && e.message };
+  } finally {
+    gdrivePushing = false;
+    // Edits landed while we were uploading: send them too
+    if (gdriveEditSeq !== seqAtStart && gdriveToken && gdriveState === 'ok') gdriveAutoPush();
   }
 }
 
-// Manual push (with toast feedback)
+// Manual push (with honest feedback)
 async function gdrivePushManual() {
   if (!gdriveToken) { toast('Not connected to Google Drive.', 'warn'); return; }
   toast('Pushing to Drive...', 'ok');
-  await gdrivePush();
-  toast('Synced to Drive ✓', 'ok');
+  let r = await gdrivePush();
+
+  if (!r.ok && (r.reason === 'conflict' || r.reason === 'behind')) {
+    const msg = r.reason === 'conflict'
+      ? 'Drive has newer changes from another device AND this device has changes too. Overwrite Drive with THIS device\'s version? (Cancel, then use Pull to look at Drive\'s version first.)'
+      : 'Drive has newer data than this device. Pushing now would replace it with older data. Overwrite Drive anyway?';
+    if (!(await askConfirm(msg))) { toast('Push cancelled — nothing was overwritten.', 'info'); return; }
+    r = await gdrivePush({ force: true });
+  }
+
+  if (r.ok) toast('Synced to Drive ✓', 'ok');
+  else if (r.reason === 'auth') toast('Drive session expired — press Connect to resume syncing.', 'warn');
+  else if (r.reason === 'busy') toast('A sync is already running — give it a second.', 'info');
+  else toast('Drive push failed: ' + (r.message || r.reason || 'unknown error'), 'err');
 }
 
 // Auto-push debounced — called from syncAutoPush()
 function gdriveAutoPush() {
+  gdriveEditSeq++;
   if (!gdriveToken || !gdriveAvailable) return;
+  // Paused states: pushing now could overwrite another device's newer data.
+  // The user resolves it with Pull / Push Now.
+  if (gdriveState === 'conflict' || gdriveState === 'behind') return;
   clearTimeout(gdrivePushTimer);
-  gdrivePushTimer = setTimeout(gdrivePush, GDRIVE_PUSH_DELAY);
+  gdrivePushTimer = setTimeout(() => { gdrivePush(); }, GDRIVE_PUSH_DELAY);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -248,34 +515,30 @@ function gdriveAutoPush() {
 // ═══════════════════════════════════════════════════════
 async function gdrivePull() {
   if (!gdriveToken) { toast('Not connected to Google Drive.', 'warn'); return; }
-  if (!gdriveFileId) { await gdriveFindOrCreateFile(); }
-  if (!gdriveFileId) { toast('No sync file found in Drive.', 'warn'); return; }
 
   try {
     toast('Fetching from Drive...', 'ok');
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${gdriveFileId}?alt=media`,
-      { headers: { Authorization: 'Bearer ' + gdriveToken } }
-    );
+    const loc = await gdriveLocateFile({ create: false });
+    if (!loc) { toast('No sync file found in Drive yet — push from your other device first.', 'warn'); return; }
 
-    if (!res.ok) {
-      if (res.status === 401) {
-        gdriveToken = null;
-        gdriveUpdateUI();
-        toast('Drive session expired — please reconnect.', 'warn');
-        return;
-      }
-      throw new Error('HTTP ' + res.status);
-    }
+    const res = await gdriveFetch(
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(loc.id)}?alt=media`
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status);
 
     const bundle = await res.json();
-    if (!bundle._version) throw new Error('Not a valid LoreOS backup.');
+    if (!bundle || !bundle._version) throw new Error('Not a valid LoreOS backup.');
+
+    // Remember which Drive version this is. If the user confirms the import,
+    // syncImportConfirm() records it as the version we're now in sync with.
+    bundle._gdriveVersion = loc.version;
 
     // Use existing import modal from sync.js
     if (typeof openImportModal === 'function') {
       openImportModal(bundle, 'Import from Google Drive');
     }
-  } catch(e) {
+  } catch (e) {
+    if (e && e.auth) { toast('Drive session expired — press Connect to resume syncing.', 'warn'); return; }
     console.error('[GDrive] pull error:', e);
     toast('Pull failed: ' + e.message, 'err');
   }
@@ -295,16 +558,38 @@ function gdriveUpdateUI() {
   if (disconnBtn)  disconnBtn.style.display  = connected ? '' : 'none';
   if (actions)     actions.style.display     = connected ? 'flex' : 'none';
 
-  if (status) {
-    if (connected) {
-      const ts = gdriveLastSync
-        ? 'Last synced: ' + new Date(gdriveLastSync).toLocaleString()
-        : 'Connected — not yet synced';
-      status.innerHTML = `<span class="gdrive-pill connected">● ${gdriveEmail}</span> <span class="gdrive-ts">${ts}</span>`;
+  if (!status) return;
+
+  if (!connected) {
+    if (gdriveState === 'expired') {
+      status.innerHTML = `<span class="gdrive-pill" style="color:var(--warn)">● session expired</span> ` +
+        `<span class="gdrive-ts">Your changes are safe on this device. Press Connect to resume syncing.</span>`;
     } else {
       status.innerHTML = '';
     }
+    return;
   }
+
+  const who = esc(gdriveEmail || 'connected');
+  const ts = gdriveLastSync
+    ? 'Last synced: ' + new Date(gdriveLastSync).toLocaleString()
+    : 'Connected — not yet synced';
+  const pill = (cls, style, text) => `<span class="gdrive-pill ${cls}"${style ? ` style="${style}"` : ''}>${text}</span>`;
+
+  let html;
+  if (gdriveState === 'conflict') {
+    html = pill('', 'color:var(--err)', `⚠ ${who} — sync paused`) +
+      ` <span class="gdrive-ts">Drive and this device both changed. Pull to see Drive's version, or Push Now to overwrite it.</span>`;
+  } else if (gdriveState === 'behind') {
+    html = pill('', 'color:var(--warn)', `⬇ ${who} — Drive is newer`) +
+      ` <span class="gdrive-ts">Another device pushed newer data. Press Pull to bring it in.</span>`;
+  } else if (gdriveState === 'error') {
+    html = pill('', 'color:var(--err)', `⚠ ${who} — last sync failed`) +
+      ` <span class="gdrive-ts">${esc(gdriveLastError)} (will retry on your next save)</span>`;
+  } else {
+    html = pill('connected', '', `● ${who}`) + ` <span class="gdrive-ts">${esc(ts)}</span>`;
+  }
+  status.innerHTML = html;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -317,4 +602,13 @@ function wireGdrive() {
   g('gdriveDisconnectBtn')?.addEventListener('click', gdriveDisconnect);
   g('gdrivePushBtn')?.addEventListener('click', gdrivePushManual);
   g('gdrivePullBtn')?.addEventListener('click', gdrivePull);
+
+  // Coming back to the tab (after a while, or from another device's session):
+  // quietly check whether another device pushed in the meantime
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !gdriveToken || gdrivePushing) return;
+    if (gdriveState === 'conflict' || gdriveState === 'behind') return; // already known, don't nag
+    if (Date.now() - gdriveLastCheck < GDRIVE_RECHECK_MS) return;
+    gdriveReconcile();
+  });
 }

@@ -66,6 +66,7 @@ function normalizeCharCard(card) {
   if (!d.extensions) d.extensions = {};
   if (!card.spec) card.spec = 'chara_card_v2';
   if (!card.spec_version) { card.spec = 'chara_card_v3'; card.spec_version = '3.0'; } // default new cards to V3
+  if (typeof migrateCharacterBook === 'function') migrateCharacterBook(card); // old object-shaped character_book -> spec array
   return card;
 }
 
@@ -76,10 +77,14 @@ function createChar() {
   charLibrary[card.id] = { id: card.id, name: card.data.name, card, savedAt: new Date().toISOString() };
   saveCharLibrary();
   renderCharSidebar();
-  openChar(card.id);
+  // New characters get their own workshop tab (falls back to no tab if full)
+  if (!(typeof wsShowItem === 'function' && wsShowItem('char', card.id))) openChar(card.id);
 }
 
 function openChar(id) {
+  // Moving to a different character: save what's typed in the current one first
+  if (activeCharId && activeCharId !== id && typeof commitActiveEditor === 'function') commitActiveEditor();
+  charUnsaved = false;
   activeCharId = id;
   charFormState = {}; // clear stale state from previous character
   charActiveFormat = 'st'; // reset format picker
@@ -105,7 +110,7 @@ function duplicateChar(id) {
   charLibrary[newId] = { id: newId, name: card.data.name, card, savedAt: new Date().toISOString() };
   saveCharLibrary();
   renderCharSidebar();
-  openChar(newId);
+  if (!(typeof wsShowItem === 'function' && wsShowItem('char', newId))) openChar(newId);
 }
 
 function renderCharSidebar() {
@@ -856,7 +861,8 @@ function saveChar(opts = {}) {
   // snapshot carried a full copy of the image, which meant the write
   // blew the storage quota and silently failed, which is why history
   // has never actually persisted.
-  if (typeof itemHistoryPush === 'function') itemHistoryPush('char', activeCharId, entry);
+  // Autosaves pass noHistory so they don't use up the 10 snapshot slots.
+  if (!opts.noHistory && typeof itemHistoryPush === 'function') itemHistoryPush('char', activeCharId, entry);
 
   const ok = saveCharLibrary();
   renderCharSidebar();
@@ -984,7 +990,7 @@ function importCharCard(data, filename, imageData = null) {
     if (small !== imageData) charLibrary[card.id].imageData = small;
     saveCharLibrary();
     renderCharSidebar();
-    openChar(card.id);
+    if (!(typeof wsShowItem === 'function' && wsShowItem('char', card.id))) openChar(card.id);
     const saving = before && after < before
       ? ` (avatar ${Math.round(before/1024)}KB → ${Math.round(after/1024)}KB)` : '';
     toast('Imported: ' + card.data.name + saving, 'ok');

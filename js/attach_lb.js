@@ -28,20 +28,85 @@ function updateLbStatus(entry) {
 function rebuildCharacterBook(entry) {
   const sources = entry.attachedLbSources || [];
   if (!sources.length) { entry.card.data.character_book = null; return; }
-  const merged = {};
-  let nextUid = 0;
+  // character_book.entries must be an ARRAY of spec entries. This used to be
+  // an object keyed by uid (SillyTavern's world-info file format), which
+  // SillyTavern's card importer can't read (`entries.forEach is not a function`).
+  const merged = [];
   sources.forEach(src => {
     Object.values(src.lb.entries || {}).forEach(en => {
-      const clone = JSON.parse(JSON.stringify(en));
-      clone.uid = nextUid;
-      clone.displayIndex = nextUid;
-      if ('order' in clone) clone.order = nextUid;
-      merged[nextUid] = clone;
-      nextUid++;
+      const id = merged.length;
+      merged.push(worldInfoEntryToSpec(en, id, id));
     });
   });
   const name = sources.length === 1 ? (sources[0].name || 'Attached Lorebook') : `${sources.length} lorebooks merged`;
-  entry.card.data.character_book = { name, entries: merged };
+  entry.card.data.character_book = { name, description: '', extensions: {}, entries: merged };
+}
+
+// One ST world-info entry (what LoreOS lorebooks use internally) -> one
+// chara_card_v2 character_book entry. Mirrors SillyTavern's own
+// world-info -> character_book conversion: spec fields at the top level,
+// everything ST-specific under `extensions` so it survives the round trip.
+function worldInfoEntryToSpec(en, id, order) {
+  const pos = Number(en.position) || 0;
+  const num = (v, fb) => { const n = Number(v); return Number.isFinite(n) ? n : fb; };
+  return {
+    id,
+    keys: Array.isArray(en.key) ? en.key.slice() : [],
+    secondary_keys: Array.isArray(en.keysecondary) ? en.keysecondary.slice() : [],
+    comment: en.comment || '',
+    content: en.content || '',
+    constant: !!en.constant,
+    selective: !!en.selective,
+    insertion_order: num(order, num(en.order, id)),
+    enabled: !en.disable,
+    position: pos === 0 ? 'before_char' : 'after_char',
+    use_regex: true, // ST treats keys as regex-capable
+    extensions: {
+      position: pos,
+      exclude_recursion: !!en.excludeRecursion,
+      display_index: id,
+      probability: en.probability ?? null,
+      useProbability: en.useProbability ?? false,
+      depth: en.depth ?? 4,
+      selectiveLogic: en.selectiveLogic ?? 0,
+      outlet_name: en.outletName ?? '',
+      group: en.group ?? '',
+      group_override: en.groupOverride ?? false,
+      group_weight: en.groupWeight ?? null,
+      prevent_recursion: !!en.preventRecursion,
+      delay_until_recursion: !!en.delayUntilRecursion,
+      scan_depth: en.scanDepth ?? null,
+      match_whole_words: en.matchWholeWords ?? null,
+      use_group_scoring: en.useGroupScoring ?? false,
+      case_sensitive: en.caseSensitive ?? null,
+      automation_id: en.automationId ?? '',
+      role: en.role ?? 0,
+      vectorized: !!en.vectorized,
+      sticky: en.sticky ?? null,
+      cooldown: en.cooldown ?? null,
+      delay: en.delay ?? null,
+      match_persona_description: !!en.matchPersonaDescription,
+      match_character_description: !!en.matchCharacterDescription,
+      match_character_personality: !!en.matchCharacterPersonality,
+      match_character_depth_prompt: !!en.matchCharacterDepthPrompt,
+      match_scenario: !!en.matchScenario,
+      match_creator_notes: !!en.matchCreatorNotes,
+      ignore_budget: !!en.ignoreBudget,
+    },
+  };
+}
+
+// Cards saved before this fix hold the old object-shaped character_book.
+// Convert them in place (called when the library loads and on every card
+// normalise). Cards that already have an array, or no book, are untouched.
+function migrateCharacterBook(card) {
+  const d = card && card.data;
+  const cb = d && d.character_book;
+  if (!cb || !cb.entries || Array.isArray(cb.entries) || typeof cb.entries !== 'object') return false;
+  const list = Object.values(cb.entries).map((en, i) =>
+    (en && Array.isArray(en.keys)) ? en : worldInfoEntryToSpec(en || {}, i, i));
+  d.character_book = { ...cb, description: cb.description || '', extensions: cb.extensions || {}, entries: list };
+  return true;
 }
 
 function renderAttachLbList() {

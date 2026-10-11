@@ -169,6 +169,16 @@ function syncImportConfirm() {
   if (!selectedKeys.length) { toast('Nothing selected.', 'warn'); return; }
 
   syncRestoreKeys(bundle, selectedKeys);
+  // Importing from Drive: this device is now in step with that Drive version
+  if (bundle._gdriveVersion !== undefined && bundle._gdriveVersion !== null) {
+    try {
+      localStorage.setItem('aet_gdrive_base', String(bundle._gdriveVersion));
+      localStorage.removeItem('aet_gdrive_dirty');
+    } catch (e) {}
+  } else {
+    // Imported from a file or a local snapshot: this device now differs from Drive
+    try { localStorage.setItem('aet_gdrive_dirty', '1'); } catch (e) {}
+  }
   historySave();
   closeModal('syncImportModal');
   syncSetStatus('Imported ✓ — reloading...', 'ok');
@@ -270,7 +280,26 @@ function libImportSelective(file, type, onDone) {
 // AUTO-PUSH — triggers GDrive debounced push on any save
 // ═══════════════════════════════════════════════════════
 function syncAutoPush() {
+  // Remember there are edits Drive hasn't seen, even while disconnected or
+  // offline. gdrive.js uses this to tell "I changed things" from "someone
+  // else did" before it ever overwrites anything.
+  try { if (localStorage.getItem('aet_gdrive_dirty') !== '1') localStorage.setItem('aet_gdrive_dirty', '1'); } catch (e) {}
   if (typeof gdriveAutoPush === 'function') gdriveAutoPush();
+}
+
+// Does this device hold anything worth protecting from a Drive overwrite?
+// An empty fresh install doesn't, so it can pull straight away.
+function syncLocalHasData() {
+  const nonEmptyObj = k => {
+    try { const v = JSON.parse(localStorage.getItem(k) || '{}'); return !!v && Object.keys(v).length > 0; }
+    catch (e) { return false; }
+  };
+  if (['aet_library', 'aet_charLibrary', 'aet_presetLibrary', 'aet_tpl_lore', 'aet_tpl_char', 'aet_tpl_preset'].some(nonEmptyObj)) return true;
+  try {
+    const lb = JSON.parse(localStorage.getItem('aet_lorebook') || 'null');
+    if (lb && lb.entries && Object.keys(lb.entries).length > 0) return true;
+  } catch (e) {}
+  return (localStorage.getItem('loreos_notebook') || '').length > 2;
 }
 
 // ═══════════════════════════════════════════════════════

@@ -38,10 +38,14 @@ function createPreset() {
   presetLibrary[id] = { id, name: p.name, preset: p, savedAt: new Date().toISOString() };
   savePresetLibrary();
   renderPresetSidebar();
-  openPreset(id);
+  // New presets get their own workshop tab (falls back to no tab if full)
+  if (!(typeof wsShowItem === 'function' && wsShowItem('preset', id))) openPreset(id);
 }
 
 function openPreset(id) {
+  // Moving to a different preset: save what's typed in the current one first
+  if (activePresetId && activePresetId !== id && typeof commitActiveEditor === 'function') commitActiveEditor();
+  presetUnsaved = false;
   activePresetId = id;
   renderPresetSidebar();
   renderPresetEditor();
@@ -97,7 +101,8 @@ function duplicatePreset(id) {
   const p = JSON.parse(JSON.stringify(src.preset));
   p.name = (p.name || 'Untitled') + ' (Copy)';
   presetLibrary[newId] = { id: newId, name: p.name, preset: p, savedAt: new Date().toISOString() };
-  savePresetLibrary(); renderPresetSidebar(); openPreset(newId);
+  savePresetLibrary(); renderPresetSidebar();
+  if (!(typeof wsShowItem === 'function' && wsShowItem('preset', newId))) openPreset(newId);
 }
 
 async function deletePreset(id) {
@@ -715,7 +720,10 @@ function syncPromptOrder(preset) {
   }];
 }
 
-function savePreset() {
+// opts.silent: no toast; opts.noHistory: no version-history snapshot (both
+// used by autosave). When wired straight to a click this receives the click
+// event, which has neither property, so it behaves like a normal save.
+function savePreset(opts = {}) {
   const entry = presetLibrary[activePresetId]; if (!entry) return;
   const p = entry.preset;
   const gv = id => g(id)?.value;
@@ -764,10 +772,12 @@ function savePreset() {
   entry.name = p.name;
   entry.savedAt = new Date().toISOString();
   // Snapshot on every explicit save
-  if (typeof itemHistoryPush === 'function') itemHistoryPush('preset', activePresetId, JSON.parse(JSON.stringify(entry)));
+  if (!opts.noHistory && typeof itemHistoryPush === 'function') itemHistoryPush('preset', activePresetId, JSON.parse(JSON.stringify(entry)));
+  presetUnsaved = false;
   savePresetLibrary();
   renderPresetSidebar();
-  toast('Preset saved.', 'ok');
+  if (typeof wsMarkSaved === 'function') wsMarkSaved('preset', activePresetId);
+  if (!opts.silent) toast('Preset saved.', 'ok');
 }
 
 function exportPreset() {
@@ -788,7 +798,8 @@ function handlePresetImport(e) {
       if (!p.name) p.name = file.name.replace(/\.json$/i, '');
       const id = presetId();
       presetLibrary[id] = { id, name: p.name, preset: p, savedAt: new Date().toISOString() };
-      savePresetLibrary(); renderPresetSidebar(); openPreset(id);
+      savePresetLibrary(); renderPresetSidebar();
+      if (!(typeof wsShowItem === 'function' && wsShowItem('preset', id))) openPreset(id);
       toast('Imported: ' + p.name, 'ok');
     } catch(err) { toast('Import error: ' + err.message, 'err'); console.error(err); }
   };

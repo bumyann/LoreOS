@@ -27,7 +27,7 @@ let charUnsaved = false;
 let presetLibrary = {};
 let activePresetId = null;
 let presetFormState = {};
-let presetUnsaved = false;
+let presetUnsaved = false; // preset form edited since its last save
 
 // ── Workshop-level tabs ──
 // wsItems: array of { id, type: 'lore'|'char'|'preset', itemId, unsaved }
@@ -207,6 +207,7 @@ function initStep(name, fn) {
 document.addEventListener('DOMContentLoaded', () => {
   initStep('prefs',        loadPrefs);
   initStep('events',       wireEvents);
+  initStep('autosave',     wireAutosave);
   initStep('mobile',       wireMobile);
   initStep('storage',      loadFromStorage);
   initStep('mode',         () => switchMode('lore'));
@@ -266,6 +267,13 @@ function loadFromStorage() {
 
   loadPart('character library', () => {
     charLibrary = JSON.parse(localStorage.getItem('aet_charLibrary') || '{}');
+    // Cards with an attached lorebook saved before the character_book fix hold
+    // an object-shaped book that SillyTavern can't import; convert them once
+    let migrated = false;
+    Object.values(charLibrary).forEach(e => {
+      try { if (e && e.card && migrateCharacterBook(e.card)) migrated = true; } catch (err) {}
+    });
+    if (migrated) safeSet('aet_charLibrary', JSON.stringify(charLibrary));
   });
 
   loadPart('preset library', () => {
@@ -726,7 +734,23 @@ function wsOpenItem(type, itemId) {
   closeModal('wsPickerModal');
 }
 
+// Open a freshly created / imported / duplicated item in a workshop tab (or
+// focus its tab if it already has one). Returns false when the tab bar is
+// full, so the caller can still open the item without a tab.
+function wsShowItem(type, itemId) {
+  const has = wsItems.some(t => t.type === type && t.itemId === itemId);
+  if (!has && wsItems.length >= WS_MAX_TABS) {
+    toast(`Max ${WS_MAX_TABS} tabs open — close one to get a tab for this.`, 'warn');
+    return false;
+  }
+  wsOpenItem(type, itemId);
+  return true;
+}
+
 function wsActivate(tabId) {
+  // Whatever is typed in the editor we're leaving is saved first, so
+  // switching tabs can never roll a field back to the last explicit save
+  commitActiveEditor();
   wsActiveId = tabId;
   const tab = wsItems.find(t => t.id === tabId);
   if (!tab) return;
@@ -734,8 +758,14 @@ function wsActivate(tabId) {
   // Switch editor mode and load the item
   if (tab.type === 'lore') {
     if (typeof switchMode === 'function') switchMode('lore');
-    // lorebooks keyed by name
-    if (typeof libLoad === 'function') libLoad(tab.itemId);
+    // Already the open lorebook (its edits write through to the library), so
+    // don't reload it: that would close its open entry tabs for nothing
+    if (typeof loreActiveLibName === 'function' && loreActiveLibName() === tab.itemId) {
+      // nothing to load
+    } else if (typeof libLoad === 'function') {
+      // lorebooks keyed by name
+      libLoad(tab.itemId);
+    }
   } else if (tab.type === 'char') {
     if (typeof switchMode === 'function') switchMode('char');
     if (typeof openChar === 'function') openChar(tab.itemId);
@@ -749,7 +779,8 @@ function wsCloseTab(tabId) {
   const tab = wsItems.find(t => t.id === tabId);
   if (!tab) return;
 
-  // Autosave before closing
+  // Autosave before closing (the active tab is the one whose editor is on screen)
+  if (tab.id === wsActiveId) commitActiveEditor();
   if (tab.type === 'lore') {
     if (loreActiveLibName() === tab.itemId) loreSyncToLib();
     const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
@@ -772,14 +803,84 @@ function wsCloseTab(tabId) {
   }
 }
 
+// Only re-render on a real change: these run on every keystroke
 function wsMarkUnsaved(type, itemId) {
   const tab = wsItems.find(t => t.type === type && t.itemId === itemId);
-  if (tab) { tab.unsaved = true; renderWsTabs(); }
+  if (tab && !tab.unsaved) { tab.unsaved = true; renderWsTabs(); }
 }
 
 function wsMarkSaved(type, itemId) {
   const tab = wsItems.find(t => t.type === type && t.itemId === itemId);
-  if (tab) { tab.unsaved = false; renderWsTabs(); }
+  if (tab && tab.unsaved) { tab.unsaved = false; renderWsTabs(); }
+}
+
+// ═══════════════════════════════════════════════════════
+// AUTOSAVE
+// Typing used to live only in the form until you pressed Save, so clicking to
+// another workshop tab (or refreshing) rolled the field back to the last
+// explicit save. Now the active editor is committed shortly after you stop
+// typing, and always right before you leave it.
+// Autosaves do NOT add version-history snapshots (that would burn the 10 slots
+// in a few minutes): history still gets a snapshot on explicit Save and on
+// closing a tab.
+// ═══════════════════════════════════════════════════════
+const AUTOSAVE_MS = 1500;
+let autosaveTimer = null;
+
+function commitActiveEditor() {
+  clearTimeout(autosaveTimer); autosaveTimer = null;
+  try {
+    if (mode === 'char') {
+      // g('chName') = the character form is really what's on screen, so we
+      // never build a card from an editor that isn't there
+      if (charUnsaved && activeCharId && charLibrary[activeCharId] && g('chName')) {
+        saveChar({ silent: true, noHistory: true });
+      }
+    } else if (mode === 'preset') {
+      if (presetUnsaved && activePresetId && presetLibrary[activePresetId] && g('psName')) {
+        savePreset({ silent: true, noHistory: true });
+      }
+    } else if (mode === 'lore') {
+      let saved = false;
+      [...unsaved].forEach(uid => {
+        // only entries whose form is on screen (saveEntry reads the form)
+        if (lorebook.entries && lorebook.entries[uid] && g('eName-' + uid)) {
+          saveEntry(uid, { noSnapshot: true }); saved = true;
+        }
+      });
+      if (saved && unsaved.size === 0) {
+        const n = loreActiveLibName();
+        if (n) wsMarkSaved('lore', n);
+      }
+    }
+  } catch (e) {
+    console.error('[LoreOS] autosave failed:', e);
+    if (typeof toast === 'function') toast('Autosave hit a problem — press Save to be safe.', 'warn');
+  }
+}
+
+function wsMarkActiveUnsaved() {
+  if (mode === 'char' && activeCharId) wsMarkUnsaved('char', activeCharId);
+  else if (mode === 'preset' && activePresetId) wsMarkUnsaved('preset', activePresetId);
+  else if (mode === 'lore') { const n = loreActiveLibName(); if (n) wsMarkUnsaved('lore', n); }
+}
+
+function wireAutosave() {
+  const onEdit = e => {
+    const t = e.target;
+    if (!t || !t.closest || !t.closest('#editorContent')) return;
+    if (t.id === 'psPromptSearch') return; // search box, not content
+    if (mode === 'char') charUnsaved = true;
+    else if (mode === 'preset') presetUnsaved = true;
+    wsMarkActiveUnsaved();
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(commitActiveEditor, AUTOSAVE_MS);
+  };
+  document.addEventListener('input', onEdit, true);
+  document.addEventListener('change', onEdit, true);
+  // Last chance: tab hidden / page closing
+  document.addEventListener('visibilitychange', () => { if (document.hidden) commitActiveEditor(); });
+  window.addEventListener('pagehide', commitActiveEditor);
 }
 
 function renderWsTabs() {
