@@ -256,6 +256,16 @@ function renderPresetEditor() {
     </div>
   </div>`;
 
+  // Sampler sliders: the range, the number box and the label beside them stay in step
+  ec.querySelectorAll('[data-slider]').forEach(inp => {
+    const id = inp.dataset.slider;
+    inp.addEventListener('input', () => {
+      g(id + 'Val').textContent = inp.value;
+      const other = g(id + (inp.id === id + 'Range' ? 'Num' : 'Range'));
+      if (other) other.value = inp.value;
+    });
+  });
+
   // Render prompt list
   renderPromptList(p.prompts || []);
 
@@ -465,9 +475,9 @@ function presetSlider(id, label, val, min, max, step) {
     </label>
     <div style="display:flex;gap:.4rem;align-items:center">
       <input type="range" id="${id}Range" min="${min}" max="${max}" step="${step}" value="${esc(val)}"
-        style="flex:1;accent-color:var(--p)" oninput="g('${id}Val').textContent=this.value;g('${id}Num').value=this.value">
+        style="flex:1;accent-color:var(--p)" data-slider="${id}">
       <input type="number" id="${id}Num" class="fnum" style="width:60px" min="${min}" max="${max}" step="${step}" value="${esc(val)}"
-        oninput="g('${id}Val').textContent=this.value;g('${id}Range').value=this.value">
+        data-slider="${id}">
     </div>
   </div>`;
 }

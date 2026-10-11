@@ -130,6 +130,8 @@ function wireEvents() {
   if (g('presetHdrExportBtn')) g('presetHdrExportBtn').onclick = () => exportPreset();
   g('newEntryBtnAlt').onclick = openEntryPicker;
   g('helpBtn').onclick = () => openModal('helpModal');
+  g('mob-topbar-help').onclick = () => openModal('helpModal');
+  g('navThemeBtn').onclick = toggleTheme;
 
   // ── v1.0.0 new buttons ──
   // JanitorAI import/export (lorebook)

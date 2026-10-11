@@ -1,125 +1,117 @@
 // ═══════════════════════════════════════════════════════
 // MOBILE.JS — mobile nav, drawer, touch UX
 // ═══════════════════════════════════════════════════════
+const isMob = () => window.innerWidth <= 700;
+
+// ── Sidebar drawer ──
+function openSidebar() {
+  g('sidebar').classList.add('mob-open');
+  g('mob-backdrop').classList.add('visible');
+  document.body.style.overflow = 'hidden';
+}
+function closeSidebar() {
+  g('sidebar').classList.remove('mob-open');
+  g('mob-backdrop').classList.remove('visible');
+  document.body.style.overflow = '';
+}
+
+// Lets sidebar lists close the drawer after you pick something (phones only)
+function closeMobSidebar() { if (isMob()) closeSidebar(); }
+
+// ── updateMobNav: show/hide mode-specific action buttons ──
+function updateMobNav(m) {
+  ['lore','char','preset'].forEach(modeKey => {
+    document.querySelectorAll(`.mob-mode-btn.mob-${modeKey}`).forEach(btn => {
+      btn.style.display = (m === modeKey) ? '' : 'none';
+    });
+  });
+  // Every editor mode has a sidebar (entries / characters / presets)
+  const entriesBtn = g('mobEntries');
+  const sep = g('mob-nav-sep');
+  const hasSidebar = ['lore','char','preset'].includes(m);
+  if (entriesBtn) entriesBtn.style.display = hasSidebar ? '' : 'none';
+  if (sep) sep.style.display = hasSidebar ? '' : 'none';
+}
+
+// ── updateMobViewBtns: show/hide view-specific controls ──
+// When in editor: collapse view nav, show back button + sidebar + mode action buttons
+// When in other views: show view nav, hide editor-specific buttons
+function updateMobViewBtns(view) {
+  const isEditor = view === 'editor';
+
+  // View nav buttons (Home/Library/Notebook/Editor)
+  const viewNavBtns = ['mobGoHome','mobGoLibrary','mobGoNotebook','mobGoEditor','mobGoLaboratory'];
+  viewNavBtns.forEach(id => {
+    const btn = g(id);
+    if (btn) btn.style.display = isEditor ? 'none' : '';
+  });
+
+  // View nav separator
+  const viewSep = g('mob-nav-sep-views');
+  if (viewSep) viewSep.style.display = isEditor ? 'none' : '';
+
+  // Back button (only shown in editor)
+  let backBtn = g('mobBackBtn');
+  if (isEditor && !backBtn) {
+    // create it once
+    backBtn = document.createElement('button');
+    backBtn.className = 'mob-nav-btn';
+    backBtn.id = 'mobBackBtn';
+    backBtn.title = 'Back';
+    backBtn.innerHTML = '<span class="icon">◀</span><span class="mob-nav-lbl">Back</span>';
+    backBtn.addEventListener('click', () => { navigateTo('home'); });
+    const nav = document.getElementById('mob-nav');
+    if (nav) nav.insertBefore(backBtn, nav.firstChild);
+  }
+  if (backBtn) backBtn.style.display = isEditor ? '' : 'none';
+
+  // Back separator
+  let backSep = g('mobBackSep');
+  if (isEditor && !backSep) {
+    backSep = document.createElement('div');
+    backSep.id = 'mobBackSep';
+    backSep.style.cssText = 'width:1px;background:var(--bd);margin:.3rem .1rem;flex-shrink:0;align-self:stretch';
+    const backBtnEl = g('mobBackBtn');
+    if (backBtnEl && backBtnEl.nextSibling) {
+      backBtnEl.parentNode.insertBefore(backSep, backBtnEl.nextSibling);
+    }
+  }
+  if (backSep) backSep.style.display = isEditor ? '' : 'none';
+
+  // Sidebar toggle + sep — only in the editor (all three modes have a sidebar)
+  const entriesBtn = g('mobEntries');
+  const sep = g('mob-nav-sep');
+  const sidebarMode = (typeof mode !== 'undefined') ? mode : 'lore';
+  const showSidebar = isEditor && ['lore','char','preset'].includes(sidebarMode);
+  if (entriesBtn) entriesBtn.style.display = showSidebar ? '' : 'none';
+  if (sep) sep.style.display = showSidebar ? '' : 'none';
+
+  // Mode action buttons
+  if (!isEditor) {
+    document.querySelectorAll('.mob-mode-btn').forEach(b => { b.style.display = 'none'; });
+  } else {
+    updateMobNav(mode || 'lore');
+  }
+
+  // Active state on view nav buttons
+  const viewKey = view ? view.charAt(0).toUpperCase() + view.slice(1) : 'Home';
+  viewNavBtns.forEach(id => {
+    const btn = g(id);
+    if (btn) btn.classList.toggle('active', id === 'mobGo' + viewKey);
+  });
+}
+
+// Called by switchMode after every mode change so the phone nav follows it
+function mobileAfterModeSwitch(newMode) {
+  if (!isMob()) return;
+  updateMobNav(newMode);
+  // if we're in editor view, keep mode buttons visible for new mode
+  if (currentView === 'editor') updateMobViewBtns('editor');
+}
+
 function wireMobile() {
-  const isMob = () => window.innerWidth <= 700;
-
-  // ── Sidebar drawer ──
-  const sidebar = g('sidebar');
-  const backdrop = g('mob-backdrop');
-
-  function openSidebar() {
-    sidebar.classList.add('mob-open');
-    backdrop.classList.add('visible');
-    document.body.style.overflow = 'hidden';
-  }
-  function closeSidebar() {
-    sidebar.classList.remove('mob-open');
-    backdrop.classList.remove('visible');
-    document.body.style.overflow = '';
-  }
-
-  // Lets sidebar lists close the drawer after you pick something (phones only)
-  window.closeMobSidebar = () => { if (isMob()) closeSidebar(); };
-
-  backdrop.addEventListener('click', closeSidebar);
+  g('mob-backdrop').addEventListener('click', closeSidebar);
   g('mob-sb-close').addEventListener('click', closeSidebar);
-
-  // ── updateMobNav: show/hide mode-specific action buttons ──
-  function updateMobNav(m) {
-    ['lore','char','preset'].forEach(modeKey => {
-      document.querySelectorAll(`.mob-mode-btn.mob-${modeKey}`).forEach(btn => {
-        btn.style.display = (m === modeKey) ? '' : 'none';
-      });
-    });
-    // Every editor mode has a sidebar (entries / characters / presets)
-    const entriesBtn = g('mobEntries');
-    const sep = g('mob-nav-sep');
-    const hasSidebar = ['lore','char','preset'].includes(m);
-    if (entriesBtn) entriesBtn.style.display = hasSidebar ? '' : 'none';
-    if (sep) sep.style.display = hasSidebar ? '' : 'none';
-  }
-
-  // ── updateMobViewBtns: show/hide view-specific controls ──
-  // When in editor: collapse view nav, show back button + sidebar + mode action buttons
-  // When in other views: show view nav, hide editor-specific buttons
-  function updateMobViewBtns(view) {
-    const isEditor = view === 'editor';
-
-    // View nav buttons (Home/Library/Notebook/Editor)
-    const viewNavBtns = ['mobGoHome','mobGoLibrary','mobGoNotebook','mobGoEditor','mobGoLaboratory'];
-    viewNavBtns.forEach(id => {
-      const btn = g(id);
-      if (btn) btn.style.display = isEditor ? 'none' : '';
-    });
-
-    // View nav separator
-    const viewSep = g('mob-nav-sep-views');
-    if (viewSep) viewSep.style.display = isEditor ? 'none' : '';
-
-    // Back button (only shown in editor)
-    let backBtn = g('mobBackBtn');
-    if (isEditor && !backBtn) {
-      // create it once
-      backBtn = document.createElement('button');
-      backBtn.className = 'mob-nav-btn';
-      backBtn.id = 'mobBackBtn';
-      backBtn.title = 'Back';
-      backBtn.innerHTML = '<span class="icon">◀</span><span class="mob-nav-lbl">Back</span>';
-      backBtn.addEventListener('click', () => { navigateTo('home'); });
-      const nav = document.getElementById('mob-nav');
-      if (nav) nav.insertBefore(backBtn, nav.firstChild);
-    }
-    if (backBtn) backBtn.style.display = isEditor ? '' : 'none';
-
-    // Back separator
-    let backSep = g('mobBackSep');
-    if (isEditor && !backSep) {
-      backSep = document.createElement('div');
-      backSep.id = 'mobBackSep';
-      backSep.style.cssText = 'width:1px;background:var(--bd);margin:.3rem .1rem;flex-shrink:0;align-self:stretch';
-      const backBtnEl = g('mobBackBtn');
-      if (backBtnEl && backBtnEl.nextSibling) {
-        backBtnEl.parentNode.insertBefore(backSep, backBtnEl.nextSibling);
-      }
-    }
-    if (backSep) backSep.style.display = isEditor ? '' : 'none';
-
-    // Sidebar toggle + sep — only in the editor (all three modes have a sidebar)
-    const entriesBtn = g('mobEntries');
-    const sep = g('mob-nav-sep');
-    const sidebarMode = (typeof mode !== 'undefined') ? mode : 'lore';
-    const showSidebar = isEditor && ['lore','char','preset'].includes(sidebarMode);
-    if (entriesBtn) entriesBtn.style.display = showSidebar ? '' : 'none';
-    if (sep) sep.style.display = showSidebar ? '' : 'none';
-
-    // Mode action buttons
-    if (!isEditor) {
-      document.querySelectorAll('.mob-mode-btn').forEach(b => { b.style.display = 'none'; });
-    } else {
-      updateMobNav(mode || 'lore');
-    }
-
-    // Active state on view nav buttons
-    const viewKey = view ? view.charAt(0).toUpperCase() + view.slice(1) : 'Home';
-    viewNavBtns.forEach(id => {
-      const btn = g(id);
-      if (btn) btn.classList.toggle('active', id === 'mobGo' + viewKey);
-    });
-  }
-
-  // ── Patch switchMode to sync mobile nav ──
-  const origSwitchMode = switchMode;
-  window.switchMode = function(newMode) {
-    origSwitchMode(newMode);
-    if (isMob()) {
-      updateMobNav(newMode);
-      // if we're in editor view, keep mode buttons visible for new mode
-      if (typeof currentView !== 'undefined' && currentView === 'editor') {
-        updateMobViewBtns('editor');
-      }
-    }
-  };
 
   // ── Init state ──
   updateMobNav(mode || 'lore');
@@ -200,6 +192,4 @@ function wireMobile() {
     g('editorContent').scrollTop = 0;
   });
 
-  // expose for router to call after navigateTo
-  window.updateMobViewBtns = updateMobViewBtns;
 }

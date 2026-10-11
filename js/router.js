@@ -90,9 +90,9 @@ function renderGetStarted(el) {
       <div class="home-hero-title">LoreOS</div>
       <div class="home-hero-tagline">// lorebooks. characters. presets. all in one place.</div>
       <div class="home-hero-actions">
-        <button class="btn btn-ok home-cta" onclick="navigateTo('editor'); setTimeout(()=>{ switchMode('lore'); createEntry(); },80)">✦ New Lorebook Entry</button>
-        <button class="btn btn-p home-cta" onclick="navigateTo('editor'); setTimeout(()=>{ switchMode('char'); createChar(); },80)">+ New Character</button>
-        <button class="btn btn-s home-cta" onclick="navigateTo('editor'); setTimeout(()=>{ switchMode('preset'); createPreset(); },80)">⚙ New Preset</button>
+        <button class="btn btn-ok home-cta" data-new="lore">✦ New Lorebook Entry</button>
+        <button class="btn btn-p home-cta" data-new="char">+ New Character</button>
+        <button class="btn btn-s home-cta" data-new="preset">⚙ New Preset</button>
       </div>
       <div class="home-cards">
         <div class="home-card">
@@ -159,10 +159,10 @@ function renderDashboard(el) {
       <div class="dash-section">
         <div class="dash-section-title">Quick Actions</div>
         <div class="dash-actions">
-          <button class="btn btn-ok dash-act" onclick="navigateTo('editor'); setTimeout(()=>{ switchMode('lore'); createEntry(); },80)">✦ New Entry</button>
-          <button class="btn btn-p dash-act" onclick="navigateTo('editor'); setTimeout(()=>{ switchMode('char'); createChar(); },80)">+ New Character</button>
-          <button class="btn btn-s dash-act" onclick="navigateTo('editor'); setTimeout(()=>{ switchMode('preset'); createPreset(); },80)">⚙ New Preset</button>
-          <button class="btn btn-s dash-act" onclick="navigateTo('library')">📚 Library</button>
+          <button class="btn btn-ok dash-act" data-new="lore">✦ New Entry</button>
+          <button class="btn btn-p dash-act" data-new="char">+ New Character</button>
+          <button class="btn btn-s dash-act" data-new="preset">⚙ New Preset</button>
+          <button class="btn btn-s dash-act" data-go="library">📚 Library</button>
         </div>
       </div>
       <div class="dash-section">
@@ -302,6 +302,23 @@ function initNavSidebar() {
 // ─── INIT ────────────────────────────────────────────
 function initRouter() {
   initNavSidebar();
+  // Home screen buttons ("new ...", "library") are built as HTML strings, so one
+  // delegated listener handles them instead of inline onclick attributes
+  const homeEl = document.getElementById('home-content');
+  if (homeEl) homeEl.addEventListener('click', e => {
+    const mk = e.target.closest('[data-new]');
+    if (mk) {
+      const kind = mk.dataset.new;
+      navigateTo('editor');
+      setTimeout(() => {
+        switchMode(kind);
+        if (kind === 'lore') createEntry(); else if (kind === 'char') createChar(); else if (kind === 'preset') createPreset();
+      }, 80);
+      return;
+    }
+    const go = e.target.closest('[data-go]');
+    if (go) navigateTo(go.dataset.go);
+  });
   const last = getLastView();
   navigateTo(last);
 }

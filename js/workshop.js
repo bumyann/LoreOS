@@ -348,7 +348,14 @@ function renderWsPickerList(type) {
 // ═══════════════════════════════════════════════════════
 // MODE SWITCHING
 // ═══════════════════════════════════════════════════════
+// Switch the editor to lorebook / character / preset (or a "coming soon" stub).
+// The phone nav follows along through mobileAfterModeSwitch.
 function switchMode(newMode) {
+  applyMode(newMode);
+  if (typeof mobileAfterModeSwitch === 'function') mobileAfterModeSwitch(newMode);
+}
+
+function applyMode(newMode) {
   // Save what's typed in the editor we're about to replace
   if (typeof commitActiveEditor === 'function') commitActiveEditor();
   // Stub modes — navigate to editor and show coming soon
