@@ -16,7 +16,7 @@ function updateLbStatus(entry) {
       statusEl.innerHTML = `🌐 <strong>${sources.length} lorebooks merged</strong> — ${count} ${count === 1 ? 'entry' : 'entries'} total`;
     } else {
       const name = sources.length === 1 ? sources[0].name : (cb.name || 'Unnamed lorebook');
-      statusEl.innerHTML = `🌐 <strong>${name}</strong> — ${count} ${count === 1 ? 'entry' : 'entries'} attached`;
+      statusEl.innerHTML = `🌐 <strong>${esc(name)}</strong> — ${count} ${count === 1 ? 'entry' : 'entries'} attached`;
     }
   } else {
     statusEl.textContent = '🌐 No lorebook attached';
@@ -129,7 +129,7 @@ function renderAttachLbList() {
     const item = document.createElement('div');
     item.className = 'lib-item' + (isAttached ? ' active' : '');
     item.innerHTML = `
-      <span class="lib-name">${book.name}${isAttached ? ' ✓' : ''}</span>
+      <span class="lib-name">${esc(book.name)}${isAttached ? ' ✓' : ''}</span>
       <span class="lib-meta">${count} entries · ${date}</span>
       <button class="btn ${isAttached ? 'btn-err' : 'btn-p'} btn-sm">${isAttached ? 'Detach' : 'Attach'}</button>`;
     item.querySelector('.btn').addEventListener('click', () => {

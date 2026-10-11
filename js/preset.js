@@ -54,7 +54,7 @@ function openPreset(id) {
 function renderPresetSidebar() {
   const list = g('entryList');
   const count = g('entryCount');
-  const presets = Object.values(presetLibrary).sort((a,b) => b.savedAt.localeCompare(a.savedAt));
+  const presets = Object.values(presetLibrary).sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
   count.textContent = `${presets.length} ${presets.length === 1 ? 'preset' : 'presets'}`;
   list.innerHTML = '';
 
@@ -108,6 +108,7 @@ function duplicatePreset(id) {
 async function deletePreset(id) {
   if (!await askConfirm('Delete this preset?')) return;
   delete presetLibrary[id];
+  if (typeof wsDropItem === 'function') wsDropItem('preset', id);
   if (activePresetId === id) activePresetId = null;
   savePresetLibrary(); renderPresetSidebar(); renderPresetEditor();
 }
@@ -740,7 +741,8 @@ function savePreset(opts = {}) {
   p.presence_penalty    = parseFloat(gv('psPresPenNum')) || 0;
   p.openai_max_context  = parseInt(gv('psMaxCtx'))  || 16384;
   p.openai_max_tokens   = parseInt(gv('psMaxTok'))  || 4096;
-  p.seed           = parseInt(gv('psSeed'))         ?? -1;
+  const seedN      = parseInt(gv('psSeed'));
+  p.seed           = isNaN(seedN) ? -1 : seedN;
   p.max_context_unlocked = gc('psMaxCtxUnlocked');
   p.stream_openai  = gc('psStream');
   p.use_sysprompt  = gc('psUseSys');
@@ -794,7 +796,7 @@ function handlePresetImport(e) {
   r.onload = ev => {
     try {
       const p = JSON.parse(ev.target.result);
-      if (!p.prompts && !p.temperature === undefined) { toast('Doesn\'t look like an ST preset.', 'err'); return; }
+      if (!p || typeof p !== 'object' || Array.isArray(p) || (!Array.isArray(p.prompts) && p.temperature === undefined)) { toast('Doesn\'t look like an ST preset.', 'err'); return; }
       if (!p.name) p.name = file.name.replace(/\.json$/i, '');
       const id = presetId();
       presetLibrary[id] = { id, name: p.name, preset: p, savedAt: new Date().toISOString() };
@@ -811,7 +813,7 @@ function openPresetLibrary() {
   g('libModalTitle').textContent = 'Preset Library';
   const list = g('libList');
   list.innerHTML = '';
-  const presets = Object.values(presetLibrary).sort((a,b) => b.savedAt.localeCompare(a.savedAt));
+  const presets = Object.values(presetLibrary).sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
 
   if (!presets.length) {
     list.innerHTML = '<div class="lib-empty">// no presets yet</div>';
@@ -821,7 +823,7 @@ function openPresetLibrary() {
       item.className = 'lib-item' + (entry.id === activePresetId ? ' active' : '');
       const date = new Date(entry.savedAt).toLocaleDateString();
       item.innerHTML = `
-        <span class="lib-name">${entry.name || 'Unnamed'}</span>
+        <span class="lib-name">${esc(entry.name || 'Unnamed')}</span>
         <span class="lib-meta">${(entry.preset.prompts||[]).length} prompts · ${date}</span>
         <div class="lib-acts">
           <button class="btn btn-p btn-sm lib-load">Load</button>

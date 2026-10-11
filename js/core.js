@@ -804,6 +804,18 @@ function wsCloseTab(tabId) {
 }
 
 // Only re-render on a real change: these run on every keystroke
+// An item was deleted from its library: close its tab without trying to save it
+function wsDropItem(type, itemId) {
+  const tab = wsItems.find(t => t.type === type && t.itemId === itemId);
+  if (!tab) return;
+  wsItems = wsItems.filter(t => t !== tab);
+  if (wsActiveId === tab.id) {
+    wsActiveId = wsItems.length ? wsItems[wsItems.length - 1].id : null;
+    if (wsActiveId) { renderWsTabs(); wsActivate(wsActiveId); return; }
+  }
+  renderWsTabs();
+}
+
 function wsMarkUnsaved(type, itemId) {
   const tab = wsItems.find(t => t.type === type && t.itemId === itemId);
   if (tab && !tab.unsaved) { tab.unsaved = true; renderWsTabs(); }
@@ -1005,12 +1017,12 @@ function renderWsPickerList(type) {
   if (type === 'lore') {
     const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
     // Lorebook lib: { [name]: { name, lb, savedAt } } — add name as id for consistency
-    items = Object.values(lib).map(b => ({ id: b.name, name: b.name, savedAt: b.savedAt }))
+    items = Object.values(lib).map(b => ({ id: b.name, name: b.name, savedAt: b.savedAt || '' }))
       .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
   } else if (type === 'char') {
-    items = Object.values(charLibrary).sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+    items = Object.values(charLibrary).sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
   } else if (type === 'preset') {
-    items = Object.values(presetLibrary).sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+    items = Object.values(presetLibrary).sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
   }
 
   if (!items.length) {
@@ -1026,7 +1038,7 @@ function renderWsPickerList(type) {
     const item = document.createElement('div');
     item.className = 'lib-item' + (isOpen ? ' active' : '');
     item.innerHTML = `
-      <span class="lib-name">${entry.name || 'Unnamed'}</span>
+      <span class="lib-name">${esc(entry.name || 'Unnamed')}</span>
       <span class="lib-meta">${isOpen ? 'open' : date}</span>
       <div class="lib-acts">
         <button class="btn btn-s btn-sm" ${isOpen ? 'disabled' : ''}>${isOpen ? 'Open' : 'Open'}</button>
@@ -1160,7 +1172,7 @@ function openItemHistory(type, itemId) {
   modal.innerHTML = `
     <div class="modal-box lg">
       <div class="modal-head">
-        <h2>Version History — ${entry.name || 'Untitled'}</h2>
+        <h2>Version History — ${esc(entry.name || 'Untitled')}</h2>
         <button class="modal-x" data-close="itemHistoryModal">×</button>
       </div>
       <div class="modal-body">
@@ -1202,7 +1214,7 @@ function openItemHistory(type, itemId) {
     item.className = 'hist-item' + (isCheckpoint ? ' checkpoint' : '');
     item.innerHTML = `
       <span class="hist-ts">${ts} ${i === 0 ? '<span style="color:var(--ok);font-size:.6rem">● latest</span>' : ''}</span>
-      ${isCheckpoint ? `<span class="hist-label">${snap.label}</span>` : '<span class="hist-auto">auto</span>'}
+      ${isCheckpoint ? `<span class="hist-label">${esc(snap.label)}</span>` : '<span class="hist-auto">auto</span>'}
       <div class="hist-acts">
         <button class="btn btn-s btn-sm hist-restore">Restore</button>
         <button class="btn btn-s btn-sm hist-export">Export</button>
