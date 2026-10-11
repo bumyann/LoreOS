@@ -89,10 +89,17 @@ const NOUN_TABLE = [
   ['landlord','landlady','landlord'],
 ];
 const NOUN_MAP = {};
+// A word can belong to more than one row (e.g. "person" is the neutral of both
+// man/woman and gentleman/lady; "parent" of father/mother and dad/mom). The
+// first row listed wins, so every word converts to its closest counterpart
+// instead of whichever row happened to be registered last.
 NOUN_TABLE.forEach(([m, f, n]) => {
-  if (m) NOUN_MAP[m.toLowerCase()] = { masc: m, fem: f, neutral: n, src: 0 };
-  if (f) NOUN_MAP[f.toLowerCase()] = { masc: m, fem: f, neutral: n, src: 1 };
-  if (n) NOUN_MAP[n.toLowerCase()] = { masc: m, fem: f, neutral: n, src: 2 };
+  const add = (word, src) => {
+    if (!word) return;
+    const key = word.toLowerCase();
+    if (!NOUN_MAP[key]) NOUN_MAP[key] = { masc: m, fem: f, neutral: n, src };
+  };
+  add(m, 0); add(f, 1); add(n, 2);
 });
 let PT_nounTgt = 'masc';
 let PT_nounTokens = [];

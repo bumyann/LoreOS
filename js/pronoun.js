@@ -23,7 +23,7 @@ function getPatterns(src) {
     { re: /\bhe'll\b/gi,      macro: 'sub',   verb: "'ll",  contractVerb: true, contractKey: 'sub_ll' },
     { re: /\bhimself\b/gi,    macro: 'ref'   },
     { re: /\bhim\b/gi,        macro: 'obj'   },
-    { re: /\bhis\b/gi,        macro: 'poss',  ambig: 'poss_p' },
+    { re: /\bhis\b/gi,        macro: 'poss_p', ambig: 'poss' },
     { re: /\bhe\b/gi,         macro: 'sub'   },
   ];
   if (src === 'she') return [
@@ -81,6 +81,8 @@ function tokenizeForManual(text, src) {
       contractKey: pat?.contractKey || null,
       verb: pat?.verb || '',
       needsVerbFix: pat?.needsVerbFix || false,
+      // he/she as a bare subject: its verb turns plural when converted to they
+      singularSub: !!pat && src !== 'they' && pat.macro === 'sub' && !pat.contractVerb,
       converted: false,
     });
     last = m.index + raw.length;
@@ -124,22 +126,22 @@ function renderManualDisplay(tokens) {
         tok.converted = true;
       }
       // verb agreement for they/them source (needsVerbFix = "they are/were/have...")
-      if (tok.converted && tok.needsVerbFix) {
+      if (tok.converted && (tok.needsVerbFix || tok.singularSub)) {
         const isSingularTgt = tgt === 'he' || tgt === 'she';
         const isPluralTgt = tgt === 'they';
         const nextTok = tokens[i+1];
         const prevTok = tokens[i-1];
-        if (isSingularTgt) {
+        if (isSingularTgt && tok.needsVerbFix) {
           if (nextTok?.type === 'text') nextTok.text = nextTok.text.replace(/^\s+(are|were|have|do|don't|haven't|weren't)\b/i, (_, v) => ' ' + (SINGULAR_VERB_FIX[v.toLowerCase()] || v));
           if (prevTok?.type === 'text') prevTok.text = prevTok.text.replace(/(are|were|have|do|don't|haven't|weren't)\s*$/i, (_, v) => (SINGULAR_VERB_FIX[v.toLowerCase()] || v) + ' ');
         }
         // src=he/she → they: fix singular verbs to plural
-        if (isPluralTgt) {
+        if (isPluralTgt && tok.singularSub) {
           if (nextTok?.type === 'text') nextTok.text = nextTok.text.replace(/^\s+(is|was|has|does|doesn't|hasn't|wasn't)\b/i, (_, v) => ' ' + (THEY_VERB_FIX[v.toLowerCase()] || v));
           if (prevTok?.type === 'text') prevTok.text = prevTok.text.replace(/(is|was|has|does|doesn't|hasn't|wasn't)\s*$/i, (_, v) => (THEY_VERB_FIX[v.toLowerCase()] || v) + ' ');
         }
         // macro mode uses existing singular fix
-        if (tgt === 'macro') {
+        if (tgt === 'macro' && tok.needsVerbFix) {
           if (nextTok?.type === 'text') nextTok.text = nextTok.text.replace(/^\s+(are|were|have|do|don't|haven't|weren't)\b/i, (_, v) => ' ' + (SINGULAR_VERB_FIX[v.toLowerCase()] || v));
           if (prevTok?.type === 'text') prevTok.text = prevTok.text.replace(/(are|were|have|do|don't|haven't|weren't)\s*$/i, (_, v) => (SINGULAR_VERB_FIX[v.toLowerCase()] || v) + ' ');
         }
