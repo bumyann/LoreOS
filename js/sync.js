@@ -266,7 +266,14 @@ function libImportSelective(file, type, onDone) {
       const existing = JSON.parse(localStorage.getItem(mod.storageKey) || '{}');
       const incoming = JSON.parse(bundle[mod.storageKey]);
       const merged = { ...existing, ...incoming };
-      localStorage.setItem(mod.storageKey, JSON.stringify(merged));
+      // Through safeSet so a full disk is reported, not swallowed as "Import error"
+      if (!safeSet(mod.storageKey, JSON.stringify(merged))) return;
+      // The editors work on in-memory copies and write them back on every save,
+      // so refresh them or the next save would wipe what was just imported
+      if (type === 'char') charLibrary = merged;
+      else if (type === 'preset') presetLibrary = merged;
+      if (typeof renderWsTabs === 'function') renderWsTabs();
+      syncAutoPush();
       toast(`Imported ${mod.label} ✓ (${Object.keys(incoming).length} items)`, 'ok');
       if (onDone) onDone();
     } catch(e) {

@@ -12,6 +12,10 @@ const VIEWS = ['home', 'library', 'notebook', 'editor', 'laboratory'];
 
 function navigateTo(viewId) {
   if (!VIEWS.includes(viewId)) return;
+  // Leaving the journal: bank anything still inside the 2s autosave window
+  if (currentView === 'notebook' && viewId !== 'notebook') {
+    try { clearTimeout(_nbAutoSaveTimer); nbSaveActive(); } catch (e) {}
+  }
   currentView = viewId;
 
   // Update nav rail active state
@@ -313,6 +317,7 @@ function initRouter() {
 let _nbEditor = null;  // active tiptap instance
 let _nbActiveId = null;
 let _nbAutoSaveTimer = null;
+let _nbDirty = false;   // typed since the last save (so just visiting a page doesn't bump its date)
 
 function nbGet() {
   try { return JSON.parse(localStorage.getItem('loreos_notebook') || '{"pages":{},"activePageId":null}'); }
@@ -327,8 +332,13 @@ function renderNotebookView() {
   const el = document.getElementById('notebook-content');
   if (!el) return;
 
-  // Destroy any existing tiptap instance
-  if (_nbEditor) { try { _nbEditor.destroy(); } catch(e) {} _nbEditor = null; }
+  // Destroy any existing tiptap instance (saving it first: this runs every time
+  // you come back to the journal, and used to throw away unsaved typing)
+  if (_nbEditor) {
+    try { clearTimeout(_nbAutoSaveTimer); nbSaveActive(); } catch(e) {}
+    try { _nbEditor.destroy(); } catch(e) {}
+    _nbEditor = null;
+  }
 
   const data = nbGet();
   const pages = Object.values(data.pages).sort((a,b) => (b.updatedAt||"").localeCompare(a.updatedAt||""));
@@ -389,9 +399,11 @@ function nbOpenPage(id) {
   if (!page) return;
 
   // Destroy existing tiptap instance before re-rendering
+  clearTimeout(_nbAutoSaveTimer);
   if (_nbEditor) { try { _nbEditor.destroy(); } catch(e) {} _nbEditor = null; }
 
   _nbActiveId = id;
+  _nbDirty = false;
   data.activePageId = id;
   nbSet(data);
 
@@ -422,6 +434,7 @@ function nbOpenPage(id) {
   const saveStatus = document.getElementById('nbSaveStatus');
 
   function markUnsaved() {
+    _nbDirty = true;
     saveStatus.textContent = 'unsaved';
     saveStatus.style.color = 'var(--warn)';
     clearTimeout(_nbAutoSaveTimer);
@@ -471,7 +484,7 @@ function nbOpenPage(id) {
 }
 
 function nbSaveActive() {
-  if (!_nbActiveId) return;
+  if (!_nbActiveId || !_nbDirty) return;
   const titleIn = document.getElementById('nbTitleInput');
   if (!titleIn) return;
   const data = nbGet();
@@ -483,6 +496,7 @@ function nbSaveActive() {
   }
   data.pages[_nbActiveId].updatedAt = new Date().toISOString();
   const ok = nbSet(data);
+  if (ok) _nbDirty = false;
   const st = document.getElementById('nbSaveStatus');
   if (!ok) {
     if (st) { st.textContent = 'NOT SAVED'; st.style.color = 'var(--err)'; }
