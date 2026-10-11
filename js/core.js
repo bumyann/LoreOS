@@ -115,6 +115,12 @@ let PT_nounTokens = [];
 
 let _quotaWarned = false;
 
+// Set while a backup / Drive restore is being applied (the page reloads right
+// after). The editors keep in-memory copies and write them back on pagehide,
+// autosave and snapshot timers; without this guard those writes land after the
+// restore and silently replace the restored data with the old in-memory data.
+let restoringBackup = false;
+
 function isQuotaError(e) {
   return e && (
     e.name === 'QuotaExceededError' ||
@@ -125,6 +131,7 @@ function isQuotaError(e) {
 
 // Returns true on success, false on failure. Never throws.
 function safeSet(key, value) {
+  if (restoringBackup) return false; // a restore is in progress: nothing may overwrite it
   try {
     localStorage.setItem(key, value);
     return true;
@@ -312,6 +319,7 @@ let loreLibRef = null;
 function loreLinkToLib(name) {
   loreLibName = name || null;
   loreLibRef = name ? lorebook : null;
+  if (restoringBackup) return;
   try { localStorage.setItem('aet_lorebookLibName', name || ''); } catch (e) {}
 }
 
@@ -344,6 +352,7 @@ function loreSnapshotSoon() {
 }
 function loreSnapshotNow() {
   clearTimeout(loreSnapTimer); loreSnapTimer = null;
+  if (restoringBackup) return;
   const name = loreActiveLibName();
   if (!name) return;
   loreSyncToLib();
@@ -848,6 +857,7 @@ let autosaveTimer = null;
 
 function commitActiveEditor() {
   clearTimeout(autosaveTimer); autosaveTimer = null;
+  if (restoringBackup) return;
   try {
     if (mode === 'char') {
       // g('chName') = the character form is really what's on screen, so we
@@ -949,7 +959,7 @@ function renderWsTabs() {
 function wsSaveTabs() {
   // Don't persist anything until the saved tabs have been restored, or the
   // empty tab bar rendered during startup would overwrite them
-  if (wsRestoring || !wsTabsRestored) return;
+  if (wsRestoring || !wsTabsRestored || restoringBackup) return;
   try {
     const active = wsItems.findIndex(t => t.id === wsActiveId);
     localStorage.setItem('aet_wsTabs', JSON.stringify({

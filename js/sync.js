@@ -168,7 +168,29 @@ function syncImportConfirm() {
   });
   if (!selectedKeys.length) { toast('Nothing selected.', 'warn'); return; }
 
-  syncRestoreKeys(bundle, selectedKeys);
+  // Freeze every editor write path first: pagehide / autosave / snapshot timers
+  // would otherwise write the old in-memory data back over what we restore
+  restoringBackup = true;
+  clearTimeout(autosaveTimer); autosaveTimer = null;
+  clearTimeout(loreSnapTimer); loreSnapTimer = null;
+  if (typeof _nbAutoSaveTimer !== 'undefined') clearTimeout(_nbAutoSaveTimer);
+  if (typeof gdrivePushTimer !== 'undefined') clearTimeout(gdrivePushTimer);
+
+  // Restore all-or-nothing: if the browser refuses part way (storage full),
+  // put every key back as it was instead of leaving a half-restored mix
+  const previous = {};
+  selectedKeys.forEach(k => { previous[k] = localStorage.getItem(k); });
+  try {
+    syncRestoreKeys(bundle, selectedKeys);
+  } catch (e) {
+    selectedKeys.forEach(k => {
+      try { previous[k] === null ? localStorage.removeItem(k) : localStorage.setItem(k, previous[k]); } catch (e2) {}
+    });
+    restoringBackup = false;
+    console.error('[LoreOS] restore failed, rolled back:', e);
+    toast('Restore failed (storage full?) — nothing was changed.', 'err');
+    return;
+  }
   // Importing from Drive: this device is now in step with that Drive version
   if (bundle._gdriveVersion !== undefined && bundle._gdriveVersion !== null) {
     try {
