@@ -141,14 +141,31 @@ ${fence}
  // ── targets: two prompt boxes ──
  document.querySelector('[data-prtab=targets]').click(); await w(100);
  document.getElementById('prAddSauce').click(); await w(100);
- chk('Saucepan layout puts game/status groups in the second box', pack.targets.length===2 && pack.targets[1].fields.length===2, pack.targets[1] && pack.targets[1].fields.map(f=>f.label+':'+f.groupIds.length));
+ const sp=pack.targets[1];
+ chk('Saucepan layout has its four boxes with where-reminders', sp.fields.map(f=>f.label).join('|')==='Provider Pre-Content|Provider Post-Content|Advanced Prompt|Formatting Instructions' && /LLM settings/.test(sp.fields[0].where) && /advanced chat settings/.test(sp.fields[2].where), sp.fields.map(f=>f.label+':'+f.where));
+ chk('boxes with nothing obvious to hold stay empty (not "everything")', !sp.fields[1].all && sp.fields[1].groupIds.length===0 && !sp.fields[3].all && sp.fields[3].groupIds.length===0);
+ chk('game and status groups go to Advanced Prompt, the rest to Pre-Content', sp.fields[2].groupIds.length===2 && sp.fields[0].groupIds.length===2, sp.fields.map(f=>f.groupIds.length));
+ document.getElementById('prAddJanitor').click(); await w(100);
+ const jn=pack.targets[2];
+ chk('JanitorAI layout: Global Prompt, Chat Memory, Prefill', jn.fields.map(f=>f.label).join('|')==='Global Prompt|Chat Memory|Prefill', jn.fields.map(f=>f.label));
  document.querySelector('[data-prtab=build]').click(); await w(100);
  click('SFW'); await w(60); click('CYOA'); await w(60);
- const sel=document.getElementById('prTarget'); sel.value=pack.targets[1].id; sel.dispatchEvent(new Event('change',{bubbles:true})); await w(100);
+ const sel=document.getElementById('prTarget'); sel.value=sp.id; sel.dispatchEvent(new Event('change',{bubbles:true})); await w(100);
  const tas=[...document.querySelectorAll('.pr-out-ta')].map(t=>t.value);
- chk('two boxes shown for that platform', tas.length===2, tas.length);
- chk('box 1 has the base + intimacy, box 2 the status + game', /BASE STANDARD/.test(tas[0]) && !/CYOA/.test(tas[0]) && /STATUS REPORT/.test(tas[1]) && /CYOA/.test(tas[1]) && !/BASE/.test(tas[1]), tas.map(t=>t.slice(0,30)));
- chk('copy buttons per box', document.querySelectorAll('.pr-copy').length===2);
+ chk('four boxes shown for that platform', tas.length===4, tas.length);
+ chk('box 1 has the base + intimacy, Advanced Prompt the status + game', /BASE STANDARD/.test(tas[0]) && !/CYOA/.test(tas[0]) && /STATUS REPORT/.test(tas[2]) && /CYOA/.test(tas[2]) && !/BASE/.test(tas[2]), tas.map(t=>t.slice(0,30)));
+ chk('empty boxes are empty and say why', tas[1]==='' && tas[3]==='' && /Nothing is assigned/.test(document.querySelectorAll('.pr-out-ta')[1].placeholder));
+ chk('where-reminders are shown next to the box names', /LLM settings/.test(document.querySelector('.pr-field-label').textContent));
+ document.querySelectorAll('.pr-copy')[1].click(); await w(80);
+ chk('copying an empty box warns instead of copying nothing', /is empty/.test([...document.querySelectorAll('#notifs .notif')].map(n=>n.textContent).join(' ')));
+ chk('copy buttons per box', document.querySelectorAll('.pr-copy').length===4);
+ // old packs: a box with an empty group list used to mean everything; it still does
+ const legacy=normalizePack({groups:[{id:'g1',name:'G',pick:'any'}],modules:[{id:'m1',groupId:'g1',name:'M',text:'x'}],targets:[{id:'t',name:'Old',fields:[{id:'f',label:'Prompt',groupIds:[]}]}]});
+ chk('older packs keep "everything" for an empty list', legacy.targets[0].fields[0].all===true);
+ // the switch on the editor: Takes everything
+ document.querySelector('[data-prtab=targets]').click(); await w(100);
+ const allBox=document.querySelector('[data-all-box="'+sp.fields[1].id+'"]'); allBox.click(); await w(100);
+ chk('"Takes everything" turns a box into the full stack', sp.fields[1].all===true);
  // ── edit modules ──
  document.querySelector('[data-prtab=modules]').click(); await w(100);
  const first=document.querySelector('.pr-module'); first.open=true;

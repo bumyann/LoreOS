@@ -244,14 +244,15 @@ function renderOutputs(box, pack) {
   const total = outs.reduce((n, o) => n + o.tokens, 0);
   box.append(h('div', { class: 'pr-total', id: 'prTotal' }, `Stack: ${pack.selection.length} module${pack.selection.length === 1 ? '' : 's'}, ${fmtTokens(total)} (a rough estimate; real counts vary by model)`));
   outs.forEach((o, i) => {
-    const ta = h('textarea', { class: 'ftextarea pr-out-ta', readonly: true, rows: 10, 'data-field': String(i) });
+    const f = target.fields[i];
+    const ta = h('textarea', { class: 'ftextarea pr-out-ta', readonly: true, rows: 10, 'data-field': String(i), placeholder: f && !f.all && !f.groupIds.length ? 'Nothing is assigned to this box. Tick groups for it on the "Where it goes" tab.' : 'Nothing picked for this box yet.' });
     ta.value = o.text;
     box.append(h('div', { class: 'pr-field' },
       h('div', { class: 'pr-field-head' },
-        h('span', { class: 'pr-field-label' }, o.label),
+        h('span', { class: 'pr-field-label' }, o.label, f && f.where ? h('span', { class: 'pr-where' }, ' (' + f.where + ')') : null),
         h('span', { class: 'pr-tok' }, fmtTokens(o.tokens)),
         h('button', { class: 'btn btn-ok btn-sm pr-copy', 'data-field': String(i), onclick: async () => {
-          if (!o.text) { toast('Nothing to copy yet. Pick a base prompt first.', 'warn'); return; }
+          if (!o.text) { toast('"' + o.label + '" is empty. Pick modules for it first.', 'warn'); return; }
           await copyToClipboard(o.text); toast(`Copied "${o.label}" (${fmtTokens(o.tokens)}).`, 'ok');
         } }, 'Copy')),
       ta));
@@ -366,7 +367,7 @@ function setsTab(body, entry, pack) {
 
 // ── Where it goes ──
 function targetsTab(body, entry, pack) {
-  body.append(h('p', { class: 'pr-help' }, 'Some platforms have more than one prompt box. A target says which groups go in which box, so Copy gives you one block per box. If no group is ticked for a box, it takes everything.'));
+  body.append(h('p', { class: 'pr-help' }, 'Some platforms have several prompt boxes. A platform here lists its boxes and which groups go in each, so Copy gives you one block per box. SaucepanAI has Provider Pre-Content and Provider Post-Content (LLM settings) plus Advanced Prompt and Formatting Instructions (advanced chat settings). JanitorAI has Global Prompt and Prefill. A box with nothing ticked stays empty.'));
   pack.targets.forEach((t, ti) => {
     const card = h('div', { class: 'pr-group pr-target' },
       h('div', { class: 'pr-row' },
@@ -375,27 +376,32 @@ function targetsTab(body, entry, pack) {
           pack.targets.splice(ti, 1); if (pack.activeTarget === t.id) pack.activeTarget = pack.targets[0].id; touch(); renderPromptEditor();
         } }, '✕')));
     t.fields.forEach((f, fi) => {
-      const chips = h('div', { class: 'pr-chips' });
+      const chips = h('div', { class: 'pr-chips' + (f.all ? ' pr-chips-off' : '') });
       pack.groups.forEach(gp => {
-        const on = f.groupIds.includes(gp.id);
+        const on = f.all || f.groupIds.includes(gp.id);
         chips.append(h('label', { class: 'pr-chip' + (on ? ' on' : '') },
-          h('input', { type: 'checkbox', checked: on, onchange: e => {
+          h('input', { type: 'checkbox', checked: on, disabled: f.all, onchange: e => {
             f.groupIds = e.target.checked ? [...f.groupIds, gp.id] : f.groupIds.filter(x => x !== gp.id); touch(); renderPromptEditor();
           } }), gp.name));
       });
       card.append(h('div', { class: 'pr-field-edit' },
         h('div', { class: 'pr-row' },
           h('input', { class: 'finput', value: f.label, placeholder: 'Prompt box name', oninput: e => { f.label = e.target.value; touch(); } }),
+          h('input', { class: 'finput', value: f.where, placeholder: 'Where it lives (a reminder, e.g. LLM settings)', oninput: e => { f.where = e.target.value; touch(); } }),
           h('button', { class: 'btn btn-s btn-sm', disabled: t.fields.length < 2, onclick: () => { t.fields.splice(fi, 1); touch(); renderPromptEditor(); } }, 'Remove box')),
-        chips));
+        h('label', { class: 'cb-row' },
+          h('input', { type: 'checkbox', checked: f.all, 'data-all-box': f.id, onchange: e => { f.all = e.target.checked; touch(); renderPromptEditor(); } }),
+          h('span', { class: 'flabel-sm' }, 'Takes everything')),
+        chips,
+        !f.all && !f.groupIds.length ? h('div', { class: 'pr-help' }, 'No groups ticked: this box stays empty.') : null));
     });
-    card.append(h('button', { class: 'btn btn-s btn-sm', onclick: () => { t.fields.push({ id: pid('f'), label: 'Another box', groupIds: [] }); touch(); renderPromptEditor(); } }, '+ Add a prompt box'));
+    card.append(h('button', { class: 'btn btn-s btn-sm', onclick: () => { t.fields.push({ id: pid('f'), label: 'Another box', where: '', all: false, groupIds: [] }); touch(); renderPromptEditor(); } }, '+ Add a prompt box'));
     body.append(card);
   });
   body.append(h('div', { class: 'pr-row' },
     h('button', { class: 'btn btn-ok btn-sm', onclick: () => { pack.targets.push({ ...defaultTarget(), name: 'New platform' }); touch(); renderPromptEditor(); } }, '+ Add a platform'),
-    h('button', { class: 'btn btn-s btn-sm', id: 'prAddSauce', title: 'Provider Pre-Content + Advanced Prompt', onclick: () => { pack.targets.push(suggestSplit(pack, 'saucepan')); touch(); renderPromptEditor(); } }, '+ SaucepanAI layout'),
-    h('button', { class: 'btn btn-s btn-sm', id: 'prAddJanitor', title: 'System prompt + Chat Memory', onclick: () => { pack.targets.push(suggestSplit(pack, 'janitor')); touch(); renderPromptEditor(); } }, '+ JanitorAI layout')));
+    h('button', { class: 'btn btn-s btn-sm', id: 'prAddSauce', title: 'Provider Pre-Content, Provider Post-Content, Advanced Prompt, Formatting Instructions', onclick: () => { pack.targets.push(suggestSplit(pack, 'saucepan')); touch(); renderPromptEditor(); } }, '+ SaucepanAI layout'),
+    h('button', { class: 'btn btn-s btn-sm', id: 'prAddJanitor', title: 'Global Prompt, Chat Memory (for game modules) and Prefill', onclick: () => { pack.targets.push(suggestSplit(pack, 'janitor')); touch(); renderPromptEditor(); } }, '+ JanitorAI layout')));
 }
 
 // ── Page text (what the exported page says around the modules) ──

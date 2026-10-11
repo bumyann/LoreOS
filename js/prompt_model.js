@@ -10,14 +10,14 @@
 //     groups:  [{ id, name, pick: 'one'|'any' }],            modules are grouped, a group is "pick one" or "any"
 //     modules: [{ id, groupId, name, text, notes }],
 //     sets:    [{ id, name, description, moduleIds, raw }],  ready-made combinations ("Maiden", ...)
-//     targets: [{ id, name, fields: [{ id, label, groupIds }] }],  where the stack goes on each platform
+//     targets: [{ id, name, fields: [{ id, label, where, all, groupIds }] }],  the platform's prompt boxes: which groups go in each
 //     selection: [moduleId],                    the stack currently built
 //     docSections: [{ title, markdown }],       written guidance kept verbatim (How To Use, settings tables, ...)
 //   }
 //
-// A target field lists the groups it takes (empty list = every group). That is how a
-// platform with two prompt boxes gets its stack split: base + intimacy in one, game
-// modules in the other.
+// A target field either takes everything (`all`) or the groups it lists (an empty list means an
+// empty box). That is how a platform with several prompt boxes gets its stack split: base +
+// intimacy in one, game modules in another. `where` is a reminder of where the box lives on the platform.
 // ═══════════════════════════════════════════════════════
 
 let idCounter = 0;
@@ -39,7 +39,7 @@ export function blankPack() {
 }
 
 export function defaultTarget() {
-  return { id: pid('t'), name: 'All in one', fields: [{ id: pid('f'), label: 'Prompt', groupIds: [] }] };
+  return { id: pid('t'), name: 'All in one', fields: [{ id: pid('f'), label: 'Prompt', where: '', all: true, groupIds: [] }] };
 }
 
 // Make sure a pack read from storage / a file has every field with the right shape
@@ -66,10 +66,12 @@ export function normalizePack(p) {
       moduleIds: (Array.isArray(s.moduleIds) ? s.moduleIds : []).filter(i => mids.has(i)) }));
   out.targets = (Array.isArray(out.targets) ? out.targets : []).filter(isObj).map(t => ({
     id: str(t.id) || pid('t'), name: str(t.name) || 'Target',
-    fields: (Array.isArray(t.fields) ? t.fields : []).filter(isObj).map(f => ({
-      id: str(f.id) || pid('f'), label: str(f.label) || 'Prompt',
-      groupIds: (Array.isArray(f.groupIds) ? f.groupIds : []).filter(i => gids.has(i) || out.groups.some(g => g.id === i)),
-    })),
+    fields: (Array.isArray(t.fields) ? t.fields : []).filter(isObj).map(f => {
+      const groupIds = (Array.isArray(f.groupIds) ? f.groupIds : []).filter(i => gids.has(i) || out.groups.some(g => g.id === i));
+      // Boxes saved before `all` existed treated an empty list as "everything"
+      const all = typeof f.all === 'boolean' ? f.all : groupIds.length === 0;
+      return { id: str(f.id) || pid('f'), label: str(f.label) || 'Prompt', where: str(f.where), all, groupIds };
+    }),
   })).filter(t => t.fields.length);
   if (!out.targets.length) out.targets = [defaultTarget()];
   out.selection = (Array.isArray(out.selection) ? out.selection : []).filter(i => mids.has(i));
@@ -137,7 +139,7 @@ export function buildOutputs(pack, selection, target, names = {}) {
   const mods = orderedModules(pack).filter(m => sel.has(m.id));
   const t = target || pack.targets[0] || defaultTarget();
   return t.fields.map(f => {
-    const take = f.groupIds && f.groupIds.length ? new Set(f.groupIds) : null;
+    const take = f.all ? null : new Set(f.groupIds || []);
     const mine = mods.filter(m => !take || take.has(m.groupId));
     const text = mine.map(m => substituteNames(m.text.replace(/\s+$/, ''), names)).filter(Boolean).join('\n\n');
     return { label: f.label, text, tokens: estimateTokens(text), moduleNames: mine.map(m => m.name) };
@@ -362,14 +364,33 @@ export function parsePackJson(text) {
   return { name: String(data.name || 'Imported prompt pack'), pack: normalizePack(data.pack) };
 }
 
-// Suggest a two-box layout for platforms like SaucepanAI (Provider Pre-Content + Advanced Prompt)
-// and JanitorAI (System prompt + Chat Memory): game / tracker / fun modules go in the second box.
+// Suggested layouts for the platforms' prompt boxes. Boxes with nothing obvious to hold stay empty
+// until you assign groups to them.
+//   SaucepanAI: Provider Pre-Content and Provider Post-Content live in the LLM settings;
+//               Advanced Prompt and Formatting Instructions in the advanced chat settings.
+//   JanitorAI:  Global Prompt and Prefill (Chat Memory is the usual workaround for game/tracker modules).
 export function suggestSplit(pack, platform) {
   const extra = g => /game|status|report|commentary|transmigration|cyoa|fun|tracker/i.test(g.name);
-  const core = pack.groups.filter(g => !extra(g)).map(g => g.id);
-  const more = pack.groups.filter(extra).map(g => g.id);
-  const labels = platform === 'janitor' ? ['System prompt', 'Chat Memory'] : ['Provider Pre-Content', 'Advanced Prompt'];
-  const fields = [{ id: pid('f'), label: labels[0], groupIds: core }];
-  if (more.length) fields.push({ id: pid('f'), label: labels[1], groupIds: more });
-  return { id: pid('t'), name: platform === 'janitor' ? 'JanitorAI' : 'SaucepanAI', fields };
+  const isPost = g => /post|reminder|jailbreak|ending/i.test(g.name);
+  const isFormat = g => /format/i.test(g.name);
+  const isPrefill = g => /prefill/i.test(g.name);
+  const taken = new Set();
+  const pick = test => pack.groups.filter(g => !taken.has(g.id) && test(g)).map(g => { taken.add(g.id); return g.id; });
+  const box = (label, where, groupIds) => ({ id: pid('f'), label, where, all: false, groupIds });
+  if (platform === 'janitor') {
+    const prefill = pick(isPrefill), memory = pick(extra);
+    const core = pack.groups.filter(g => !taken.has(g.id)).map(g => g.id);
+    const fields = [box('Global Prompt', '', core)];
+    if (memory.length) fields.push(box('Chat Memory', 'workaround for game and tracker modules', memory));
+    fields.push(box('Prefill', '', prefill));
+    return { id: pid('t'), name: 'JanitorAI', fields };
+  }
+  const post = pick(isPost), format = pick(isFormat), advanced = pick(extra);
+  const pre = pack.groups.filter(g => !taken.has(g.id)).map(g => g.id);
+  return { id: pid('t'), name: 'SaucepanAI', fields: [
+    box('Provider Pre-Content', 'LLM settings', pre),
+    box('Provider Post-Content', 'LLM settings', post),
+    box('Advanced Prompt', 'advanced chat settings', advanced),
+    box('Formatting Instructions', 'advanced chat settings', format),
+  ] };
 }

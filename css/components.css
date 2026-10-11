@@ -603,3 +603,5 @@ input[type=number].fnum::-webkit-inner-spin-button{-webkit-appearance:none;margi
   .pr-out{position:static}
   .pr-wrap{padding:.6rem}
 }
+.pr-where{font-weight:400;color:var(--txm);font-size:.64rem}
+.pr-chips-off{opacity:.55}
