@@ -8,7 +8,7 @@ import { openLibrary } from './library.js';
 import { openPresetLibrary } from './preset.js';
 import { cancelJournalAutosave } from './router.js';
 import { state } from './state.js';
-import { cancelLoreSnapshot, safeSet } from './storage.js';
+import { cancelLoreSnapshot, isQuotaError, safeSet, storageUsage } from './storage.js';
 import { renderTemplateList } from './templates.js';
 import { closeModal, dlFile, g, openModal, registerMarkup, toast } from './util.js';
 import { cancelAutosave, renderWsTabs } from './workshop.js';
@@ -50,6 +50,8 @@ export const LIB_MODULES = {
 
 export const HISTORY_KEY = 'aet_backup_history';
 export const MAX_HISTORY = 10;
+const fmtMB = n => (n / 1048576).toFixed(1) + ' MB';
+export const HISTORY_MAX_CHARS = 1000000; // the snapshots together may use at most this much of the ~5 MB browser budget
 
 // ── pending import bundle (set before opening checklist modal) ──
 export let _pendingImport = null;
@@ -105,11 +107,15 @@ export function historySave() {
   const history = historyGet();
   history.unshift(snapshot);
   if (history.length > MAX_HISTORY) history.splice(MAX_HISTORY);
+  // Every snapshot is a full copy of the workspace, so ten of them used to eat
+  // most of a phone or iPad's 5 MB and made restores fail. Keep them under a budget.
+  while (history.length && JSON.stringify(history).length > HISTORY_MAX_CHARS) history.pop();
+  if (!history.length) return; // even one snapshot is too big for the budget: skip it, the data itself is safe
   try {
     localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
   } catch(e) {
-    // localStorage full — drop oldest and retry
-    history.splice(MAX_HISTORY - 1);
+    // localStorage full: keep only the newest and retry
+    history.splice(1);
     try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch(e2) {}
   }
 }
@@ -191,17 +197,46 @@ export function syncImportConfirm() {
   // put every key back as it was instead of leaving a half-restored mix
   const previous = {};
   selectedKeys.forEach(k => { previous[k] = localStorage.getItem(k); });
-  try {
-    syncRestoreKeys(bundle, selectedKeys);
-  } catch (e) {
-    selectedKeys.forEach(k => {
-      try { previous[k] === null ? localStorage.removeItem(k) : localStorage.setItem(k, previous[k]); } catch (e2) {}
-    });
+  const attempt = () => {
+    try { syncRestoreKeys(bundle, selectedKeys); return null; }
+    catch (e) {
+      selectedKeys.forEach(k => {
+        try { previous[k] === null ? localStorage.removeItem(k) : localStorage.setItem(k, previous[k]); } catch (e2) {}
+      });
+      return e;
+    }
+  };
+  let err = attempt();
+  // Storage full: free the things that can be rebuilt (deleted-items bin, old local
+  // backup snapshots), a step at a time, trying again after each. The data being
+  // restored lives on Drive / the backup file, so those copies are the cheap ones to give up.
+  const freedSteps = [];
+  if (err && isQuotaError(err)) {
+    const steps = [
+      ['recently deleted items', () => { localStorage.removeItem('aet_trash'); Object.keys(localStorage).filter(k => k.startsWith('aet_corrupt_')).forEach(k => localStorage.removeItem(k)); }],
+      ['older local backup snapshots', () => { const h = historyGet(); if (h.length > 1) localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0, 1))); }],
+      ['local backup snapshots', () => localStorage.removeItem(HISTORY_KEY)],
+    ];
+    for (const [label, run] of steps) {
+      try { run(); } catch (e) {}
+      freedSteps.push(label);
+      err = attempt();
+      if (!err) break;
+    }
+  }
+  if (err) {
     state.restoringBackup = false;
-    console.error('[LoreOS] restore failed, rolled back:', e);
-    toast('Restore failed (storage full?) — nothing was changed.', 'err');
+    console.error('[LoreOS] restore failed, rolled back:', err);
+    if (isQuotaError(err)) {
+      const { total } = storageUsage();
+      const need = selectedKeys.reduce((n, k) => n + (bundle[k] === undefined ? 0 : String(bundle[k]).length) - (previous[k] ? previous[k].length : 0), 0);
+      toast(`Not enough room on this device (about ${fmtMB(total)} of 5 MB used, and this restore needs about ${fmtMB(need)} more). Nothing in your libraries was changed${freedSteps.length ? ' (LoreOS did clear ' + freedSteps.join(' and ') + ' while trying to make room)' : ''}. Try ticking fewer items (one library at a time), or free space in Settings > Storage.`, 'err');
+    } else {
+      toast('Restore failed: ' + (err.message || err) + ' Nothing was changed.', 'err');
+    }
     return;
   }
+  if (freedSteps.length) toast('Storage was tight, so LoreOS cleared ' + freedSteps.join(' and ') + ' to make room.', 'info');
   // Importing from Drive: this device is now in step with that Drive version
   if (bundle._gdriveVersion !== undefined && bundle._gdriveVersion !== null) {
     try {
