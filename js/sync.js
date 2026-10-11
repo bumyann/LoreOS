@@ -50,6 +50,7 @@ export const LIB_MODULES = {
 
 export const HISTORY_KEY = 'aet_backup_history';
 export const MAX_HISTORY = 10;
+export const NOTICE_KEY = 'aet_post_restore_notice';
 const fmtMB = n => (n / 1048576).toFixed(1) + ' MB';
 export const HISTORY_MAX_CHARS = 1000000; // the snapshots together may use at most this much of the ~5 MB browser budget
 
@@ -236,7 +237,14 @@ export function syncImportConfirm() {
     }
     return;
   }
-  if (freedSteps.length) toast('Storage was tight, so LoreOS cleared ' + freedSteps.join(' and ') + ' to make room.', 'info');
+  // The page reloads right after a restore, which would wipe a toast before it can be read.
+  // Keep the note and show it (for longer) once the page is back.
+  if (freedSteps.length) {
+    try {
+      localStorage.setItem(NOTICE_KEY, 'Restore done. This device is short on storage (about ' + fmtMB(storageUsage().total) + ' of 5 MB used), so LoreOS cleared ' +
+        freedSteps.join(' and ') + ' to make room. Your restored data is intact. Settings > Storage shows what is using the space.');
+    } catch (e) {}
+  }
   // Importing from Drive: this device is now in step with that Drive version
   if (bundle._gdriveVersion !== undefined && bundle._gdriveVersion !== null) {
     try {
@@ -495,3 +503,10 @@ registerMarkup(300, `<!-- IMPORT CHECKLIST MODAL -->
   </div>
 </div>`);
 
+
+// Shown once after the reload that follows a restore
+export function showPostRestoreNotice() {
+  let msg = null;
+  try { msg = localStorage.getItem(NOTICE_KEY); localStorage.removeItem(NOTICE_KEY); } catch (e) {}
+  if (msg) toast(msg, 'info', { ms: 15000 });
+}

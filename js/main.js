@@ -18,6 +18,7 @@ import { doReplaceAll, doReplaceOne, doSearch } from './search.js';
 import { applyAllCustomisations, applyFonts, toggleTheme, wireFonts, wireSettings } from './settings.js';
 import { state } from './state.js';
 import { wireHeaderFit } from './header_fit.js';
+import { showPostRestoreNotice } from './sync.js';
 import { wireDropImport } from './dropimport.js';
 import * as m_dropimport from './dropimport.js';
 import * as m_header_fit from './header_fit.js';
@@ -111,6 +112,7 @@ function startApp() {
   initStep('theme',        applyAllCustomisations);
   initStep('font apply',   applyFonts);
   initStep('offline',      setupOffline);
+  initStep('restore notice', showPostRestoreNotice);
 }
 
 // Module scripts run after the page is parsed, so this is usually already true

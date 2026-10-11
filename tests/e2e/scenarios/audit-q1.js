@@ -18,8 +18,6 @@
  await open(big); syncImportConfirm(); await w(150);
  chk('restore succeeded after making room', /"b"/.test(localStorage.getItem('aet_charLibrary')||''), (localStorage.getItem('aet_charLibrary')||'').length);
  chk('bin was cleared to make room', localStorage.getItem('aet_trash')===null);
- const msg2=[...document.querySelectorAll('#notifs .notif')].map(n=>n.textContent).join(' | ');
- chk('user is told what was cleared', /cleared .*to make room/.test(msg2), msg2);
  // (2) impossible restore: bigger than the whole budget -> rolled back, clear message, libraries untouched
  document.getElementById('notifs').innerHTML='';
  await open(huge); const before=localStorage.getItem('aet_charLibrary'); syncImportConfirm(); await w(200);
@@ -27,6 +25,10 @@
  chk('state unfrozen again', !state.restoringBackup);
  const msg=[...document.querySelectorAll('#notifs .notif')].map(n=>n.textContent).join(' | ');
  chk('message explains the storage problem with numbers', /Not enough room/.test(msg) && /MB/.test(msg) && /fewer items|Settings/.test(msg), msg);
+ // the note about what was cleared survives the reload that follows a restore
+ chk('note saved for after the reload', /short on storage/.test(localStorage.getItem(NOTICE_KEY)||''), localStorage.getItem(NOTICE_KEY));
+ document.getElementById('notifs').innerHTML=''; showPostRestoreNotice();
+ chk('note shown once, then cleared', !!document.querySelector('#notifs .notif') && localStorage.getItem(NOTICE_KEY)===null);
  // (3) the snapshot budget: saving a snapshot never lets the history exceed its cap
  Storage.prototype.setItem=realSet; localStorage.clear();
  localStorage.setItem('aet_charLibrary',JSON.stringify({a:{id:'a',name:'A',card:{data:{description:junk(400000)}},savedAt:'x'}}));
