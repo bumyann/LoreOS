@@ -92,7 +92,7 @@ function renderGetStarted(el) {
       <div class="home-hero-actions">
         <button class="btn btn-ok home-cta" onclick="navigateTo('editor'); setTimeout(()=>{ switchMode('lore'); createEntry(); },80)">✦ New Lorebook Entry</button>
         <button class="btn btn-p home-cta" onclick="navigateTo('editor'); setTimeout(()=>{ switchMode('char'); createChar(); },80)">+ New Character</button>
-        <button class="btn btn-s home-cta" onclick="navigateTo('editor'); setTimeout(()=>switchMode('preset'),80)">⚙ New Preset</button>
+        <button class="btn btn-s home-cta" onclick="navigateTo('editor'); setTimeout(()=>{ switchMode('preset'); createPreset(); },80)">⚙ New Preset</button>
       </div>
       <div class="home-cards">
         <div class="home-card">

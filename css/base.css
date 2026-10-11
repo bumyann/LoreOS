@@ -499,3 +499,19 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
   .lib-view-header{flex-direction:column;align-items:flex-start}
   .home-cards{grid-template-columns:1fr}
 }
+
+/* Dialog focus: the box takes focus when a dialog opens, no ring needed on it */
+.modal-box:focus{outline:none}
+
+/* Touch screens: the tiny close/add buttons were 8-26px wide, hard to hit with a
+   finger. Bigger hit areas only where the primary input is touch. */
+@media (pointer:coarse){
+  .ws-tab-x,.tab-x{display:inline-flex;align-items:center;justify-content:center;min-width:30px;min-height:30px;margin:-6px -6px -6px 0;font-size:1rem;opacity:.7}
+  .ws-tab{min-height:38px}
+  .ws-tab-add{min-width:38px;min-height:38px}
+  .mode-tab{min-height:40px}
+  .btn{min-height:36px}
+  .home-cta{min-height:44px}
+  .ei-act{min-width:34px;min-height:34px}
+  .ei-cb{width:20px;height:20px}
+}

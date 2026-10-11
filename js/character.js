@@ -1032,7 +1032,7 @@ function commitBeforeExport(id) {
 function exportCharJson(id) {
   const entry = charLibrary[id]; if (!entry) return;
   commitBeforeExport(id);
-  const fn = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi, '_') + '.json';
+  const fn = safeFileName(entry.card.data.name, 'character') + '.json';
   dlFile(JSON.stringify(toV3Card(entry.card), null, 2), fn, 'application/json');
   toast('Exported: ' + fn, 'ok');
 }
@@ -1093,7 +1093,7 @@ function exportCharJsonV2(id) {
   commitBeforeExport(id);
   const d = entry.card.data;
   const v2card = toV2Card(d);
-  const fn = (d.name || 'character').replace(/[^a-z0-9_-]/gi, '_') + '_v2.json';
+  const fn = safeFileName(d.name, 'character') + '_v2.json';
   dlFile(JSON.stringify(v2card, null, 2), fn, 'application/json');
   toast('Exported V2: ' + fn, 'ok');
 }
@@ -1168,7 +1168,7 @@ function exportCharSaucepan(id) {
     companion_profile_banner_very_sus: existingMeta.companion_profile_banner_very_sus ?? false,
   };
 
-  const fn = (d.name || 'companion').replace(/[^a-z0-9_-]/gi, '_') + '_saucepan.json';
+  const fn = safeFileName(d.name, 'companion') + '_saucepan.json';
   dlFile(JSON.stringify(companion, null, 2), fn, 'application/json');
   toast('Exported for SaucepanAI: ' + fn, 'ok');
 }
@@ -1228,7 +1228,7 @@ function exportCharCharx(id) {
   const zip = new JSZip();
   zip.file('card.json', JSON.stringify(toV3Card(entry.card), null, 2));
 
-  const name = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi, '_');
+  const name = safeFileName(entry.card.data.name, 'character');
 
   // Write lumiverse_modules.json if any alternate_fields exist
   const lumiAltFields = entry.card.data?.extensions?._lumiverse?.alternate_fields;
@@ -1377,7 +1377,7 @@ function openCharPngExport(id, forceV2 = true) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi,'_') + (forceV2 ? '_v2' : '_v3') + '.png';
+      a.download = safeFileName(entry.card.data.name, 'character') + (forceV2 ? '_v2' : '_v3') + '.png';
       document.body.append(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
       toast((forceV2 ? 'V2' : 'V3') + ' PNG card exported!', 'ok');

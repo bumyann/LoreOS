@@ -787,7 +787,7 @@ function savePreset(opts = {}) {
 function exportPreset() {
   const entry = presetLibrary[activePresetId]; if (!entry) return;
   savePreset(); // save first to capture any unsaved edits
-  const fn = (entry.preset.name || 'preset').replace(/[^a-z0-9_\- ]/gi, '_') + '.json';
+  const fn = safeFileName(entry.preset.name, 'preset') + '.json';
   dlFile(JSON.stringify(entry.preset, null, 4), fn, 'application/json');
   toast('Exported: ' + fn, 'ok');
 }

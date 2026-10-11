@@ -532,25 +532,63 @@ function wireEvents() {
     });
   });
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts. They act on whatever editor is on screen: before, Ctrl+N
+  // in the Character editor silently created a (hidden) lorebook entry.
   document.addEventListener('keydown', e => {
     const inInput = ['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName);
     const inSr = g('srModal').classList.contains('open');
-    if (inInput && !inSr) return;
-    if (!e.ctrlKey) {
-      if (e.key === 'F1' || (e.shiftKey && e.key === '?')) { e.preventDefault(); openModal('srModal'); }
+
+    // Escape closes the top-most dialog (the fullscreen field editor is exempt:
+    // it only closes from Apply / Cancel / X so a stray Escape can't drop edits)
+    if (e.key === 'Escape') {
+      const open = [...document.querySelectorAll('.modal.open')].filter(m => m.id !== 'fullscreenModal');
+      if (open.length) {
+        const top = open.sort((a, b) => (parseInt(getComputedStyle(a).zIndex) || 0) - (parseInt(getComputedStyle(b).zIndex) || 0)).pop();
+        // Prompts resolve a promise: go through their Cancel button
+        const cancel = top.id === 'confirmModal' ? g('confirmCancelBtn') : top.id === 'renameModal' ? g('renameCancelBtn') : null;
+        if (cancel) cancel.click();
+        else if (top.id === 'itemHistoryModal') top.remove();
+        else closeModal(top.id);
+        e.preventDefault();
+      }
       return;
     }
+
+    if (inInput && !inSr) return;
+    if (!e.ctrlKey) {
+      if (e.key === 'F1' || (e.shiftKey && e.key === '?')) { e.preventDefault(); openModal('helpModal'); }
+      return;
+    }
+    const m = mode;
     switch(e.key.toLowerCase()) {
-      case 'n': e.preventDefault(); createEntry(); break;
-      case 's': e.preventDefault(); if (activeTabId !== null) saveEntry(activeTabId); break;
-      case 'i': e.preventDefault(); g('fileInput').click(); break;
-      case 'e': e.preventDefault(); exportJson(); break;
-      case 'm': e.preventDefault(); g('fileMergeInput').click(); break;
-      case 'h': e.preventDefault(); openModal('srModal'); break;
-      case 'w': e.preventDefault(); if (activeTabId !== null) closeTab(activeTabId); break;
+      case 'n':
+        e.preventDefault();
+        if (m === 'lore') createEntry(); else if (m === 'char') createChar(); else if (m === 'preset') createPreset();
+        break;
+      case 's':
+        e.preventDefault();
+        if (m === 'lore') { if (activeTabId !== null) saveEntry(activeTabId); }
+        else if (m === 'char') saveChar();
+        else if (m === 'preset') savePreset();
+        break;
+      case 'i':
+        e.preventDefault();
+        if (m === 'lore') g('fileInput').click();
+        else if (m === 'char') { g('fileCharInput').accept = '.json,.png'; g('fileCharInput').click(); }
+        else if (m === 'preset') g('filePresetInput').click();
+        break;
+      case 'e':
+        e.preventDefault();
+        if (m === 'lore') exportJson();
+        else if (m === 'char') { if (activeCharId) exportCharJson(activeCharId); }
+        else if (m === 'preset') exportPreset();
+        break;
+      case 'm': if (m === 'lore') { e.preventDefault(); g('fileMergeInput').click(); } break;
+      case 'h': if (m === 'lore') { e.preventDefault(); openModal('srModal'); } break;
+      case 'w': if (m === 'lore') { e.preventDefault(); if (activeTabId !== null) closeTab(activeTabId); } break;
       case 'd': e.preventDefault(); toggleTheme(); break;
       case 'tab':
+        if (m !== 'lore') break;
         e.preventDefault();
         if (openTabs.length > 0) {
           const i = openTabs.indexOf(activeTabId);
@@ -558,13 +596,21 @@ function wireEvents() {
           renderTabs(); renderEditor();
         }
         break;
-      case '-': e.preventDefault(); changeZoom(-1); break;
-      case '=': case '+': e.preventDefault(); changeZoom(1); break;
+      case '-': if (m === 'lore') { e.preventDefault(); changeZoom(-1); } break;
+      case '=': case '+': if (m === 'lore') { e.preventDefault(); changeZoom(1); } break;
     }
   });
 }
 
 function g(id) { return document.getElementById(id); }
+
+// File name from a user-facing name. Keeps letters from any language and emoji
+// (the old [^a-z0-9] rule turned a Japanese name into "______.json" and made
+// different characters collide), drops only what file systems reject.
+function safeFileName(name, fallback = 'untitled') {
+  const clean = String(name || '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/\s+/g, ' ').trim().replace(/^\.+/, '').slice(0, 80);
+  return clean || fallback;
+}
 
 // Escape a value for safe interpolation into an HTML string, in text AND in
 // attribute values (value="..."). Anything that came from an imported file is
@@ -584,8 +630,24 @@ function closeAllDropdowns() {
 
 // Null-guarded: dynamically built modals (version history) remove themselves,
 // and the delegated close handler used to then crash on the missing element.
-function openModal(id) { const el = g(id); if (el) el.classList.add('open'); }
-function closeModal(id) { const el = g(id); if (el) el.classList.remove('open'); }
+const _modalReturnFocus = {};
+function openModal(id) {
+  const el = g(id); if (!el) return;
+  // Dialog semantics for screen readers, and keyboard focus moves into the
+  // dialog (onto its box, not an input, so phones don't pop the keyboard)
+  if (!el.getAttribute('role')) { el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); }
+  if (!el.classList.contains('open')) _modalReturnFocus[id] = document.activeElement;
+  el.classList.add('open');
+  const box = el.querySelector('.modal-box') || el;
+  if (!box.hasAttribute('tabindex')) box.setAttribute('tabindex', '-1');
+  try { box.focus({ preventScroll: true }); } catch (e) {}
+}
+function closeModal(id) {
+  const el = g(id); if (!el) return;
+  el.classList.remove('open');
+  const back = _modalReturnFocus[id]; delete _modalReturnFocus[id];
+  if (back && back.focus && document.contains(back)) { try { back.focus({ preventScroll: true }); } catch (e) {} }
+}
 
 // ═══════════════════════════════════════════════════════
 // FIELD-LEVEL UNDO/REDO
