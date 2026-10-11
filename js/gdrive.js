@@ -404,7 +404,7 @@ export async function gdriveReconcile({ onConnect = false } = {}) {
 export function gdriveHandleError(e, { quiet = false } = {}) {
   console.error('[GDrive]', e);
   if (e && e.auth) {
-    if (!quiet) toast('Drive session expired — press Connect to resume syncing. Your changes are safe on this device.', 'warn');
+    if (!quiet) toast('Drive session expired — tap Reconnect to resume syncing. Your changes are safe on this device.', 'warn');
     return;
   }
   gdriveState = 'error';
@@ -504,7 +504,7 @@ export async function gdrivePushManual() {
   }
 
   if (r.ok) toast('Synced to Drive ✓', 'ok');
-  else if (r.reason === 'auth') toast('Drive session expired — press Connect to resume syncing.', 'warn');
+  else if (r.reason === 'auth') toast('Drive session expired — tap Reconnect to resume syncing.', 'warn');
   else if (r.reason === 'busy') toast('A sync is already running — give it a second.', 'info');
   else toast('Drive push failed: ' + (r.message || r.reason || 'unknown error'), 'err');
 }
@@ -549,7 +549,7 @@ export async function gdrivePull() {
     // Use existing import modal from sync.js
     openImportModal(bundle, 'Import from Google Drive');
   } catch (e) {
-    if (e && e.auth) { toast('Drive session expired — press Connect to resume syncing.', 'warn'); return; }
+    if (e && e.auth) { toast('Drive session expired — tap Reconnect to resume syncing.', 'warn'); return; }
     console.error('[GDrive] pull error:', e);
     toast('Pull failed: ' + e.message, 'err');
   }
