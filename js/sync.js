@@ -2,7 +2,18 @@
 // SYNC — Manual backup/restore + backup history
 // ═══════════════════════════════════════════════════════
 
-const SYNC_KEYS = [
+import { openCharLibrary } from './character.js';
+import { cancelDrivePush, gdriveAutoPush, wireGdrive } from './gdrive.js';
+import { openLibrary } from './library.js';
+import { openPresetLibrary } from './preset.js';
+import { cancelJournalAutosave } from './router.js';
+import { state } from './state.js';
+import { cancelLoreSnapshot, safeSet } from './storage.js';
+import { renderTemplateList } from './templates.js';
+import { closeModal, dlFile, g, openModal, toast } from './util.js';
+import { cancelAutosave, renderWsTabs } from './workshop.js';
+
+export const SYNC_KEYS = [
   'aet_lorebook','aet_tabs','aet_activeTab','aet_nextUid',
   'aet_charLibrary','aet_presetLibrary',
   'aet_library',
@@ -15,7 +26,7 @@ const SYNC_KEYS = [
 ];
 
 // Human-readable module labels for the import checklist
-const SYNC_MODULES = [
+export const SYNC_MODULES = [
   { key: 'lorebook',   label: 'Active Lorebook',    keys: ['aet_lorebook','aet_tabs','aet_activeTab','aet_nextUid'] },
   { key: 'lorelib',   label: 'Lorebook Library',    keys: ['aet_library'] },
   { key: 'chars',     label: 'Character Library',   keys: ['aet_charLibrary'] },
@@ -28,7 +39,7 @@ const SYNC_MODULES = [
 ];
 
 // Selective library module map (used by per-library export/import)
-const LIB_MODULES = {
+export const LIB_MODULES = {
   lore:   { label: 'Lorebook Library',    key: 'aet_library',      storageKey: 'aet_library' },
   char:   { label: 'Character Library',   key: 'aet_charLibrary',  storageKey: 'aet_charLibrary' },
   preset: { label: 'Preset Library',      key: 'aet_presetLibrary',storageKey: 'aet_presetLibrary' },
@@ -37,16 +48,16 @@ const LIB_MODULES = {
   tpl_preset: { label: 'Prompt Library',      key: 'aet_tpl_preset',   storageKey: 'aet_tpl_preset' },
 };
 
-const HISTORY_KEY = 'aet_backup_history';
-const MAX_HISTORY = 10;
+export const HISTORY_KEY = 'aet_backup_history';
+export const MAX_HISTORY = 10;
 
 // ── pending import bundle (set before opening checklist modal) ──
-let _pendingImport = null;
+export let _pendingImport = null;
 
 // ═══════════════════════════════════════════════════════
 // STATUS
 // ═══════════════════════════════════════════════════════
-function syncSetStatus(msg, type = 'info') {
+export function syncSetStatus(msg, type = 'info') {
   const el = g('syncStatus');
   if (!el) return;
   el.textContent = msg;
@@ -56,7 +67,7 @@ function syncSetStatus(msg, type = 'info') {
 // ═══════════════════════════════════════════════════════
 // BUNDLE
 // ═══════════════════════════════════════════════════════
-function syncBundleData() {
+export function syncBundleData() {
   const bundle = { _version: '1', _synced_at: new Date().toISOString() };
   SYNC_KEYS.forEach(k => {
     const v = localStorage.getItem(k);
@@ -65,7 +76,7 @@ function syncBundleData() {
   return bundle;
 }
 
-function syncRestoreKeys(bundle, keys) {
+export function syncRestoreKeys(bundle, keys) {
   keys.forEach(k => {
     if (bundle[k] !== undefined) localStorage.setItem(k, bundle[k]);
   });
@@ -74,7 +85,7 @@ function syncRestoreKeys(bundle, keys) {
 // ═══════════════════════════════════════════════════════
 // BACKUP HISTORY (LZ-string compressed, rolling 10)
 // ═══════════════════════════════════════════════════════
-function historyGet() {
+export function historyGet() {
   try {
     const raw = localStorage.getItem(HISTORY_KEY);
     if (!raw) return [];
@@ -82,7 +93,7 @@ function historyGet() {
   } catch(e) { return []; }
 }
 
-function historySave() {
+export function historySave() {
   const bundle = syncBundleData();
   const snapshot = {
     ts: bundle._synced_at,
@@ -100,7 +111,7 @@ function historySave() {
   }
 }
 
-function historyDecompress(snapshot) {
+export function historyDecompress(snapshot) {
   const json = LZString.decompress(snapshot.data);
   return JSON.parse(json);
 }
@@ -108,7 +119,7 @@ function historyDecompress(snapshot) {
 // ═══════════════════════════════════════════════════════
 // EXPORT (bulk)
 // ═══════════════════════════════════════════════════════
-function syncExport() {
+export function syncExport() {
   historySave();
   const bundle = syncBundleData();
   const json = JSON.stringify(bundle, null, 2);
@@ -121,7 +132,7 @@ function syncExport() {
 // ═══════════════════════════════════════════════════════
 // IMPORT (bulk) — opens checklist modal
 // ═══════════════════════════════════════════════════════
-function syncImportFile(file) {
+export function syncImportFile(file) {
   if (!file) return;
   const r = new FileReader();
   r.onload = ev => {
@@ -136,7 +147,7 @@ function syncImportFile(file) {
   r.readAsText(file);
 }
 
-function openImportModal(bundle, title = 'Import Backup') {
+export function openImportModal(bundle, title = 'Import Backup') {
   _pendingImport = bundle;
   g('syncImportTitle').textContent = '' + title;
   const ts = bundle._synced_at ? new Date(bundle._synced_at).toLocaleString() : 'unknown';
@@ -157,7 +168,7 @@ function openImportModal(bundle, title = 'Import Backup') {
   openModal('syncImportModal');
 }
 
-function syncImportConfirm() {
+export function syncImportConfirm() {
   if (!_pendingImport) return;
   const bundle = _pendingImport;
   const checks = g('syncImportChecks').querySelectorAll('input[type=checkbox]:checked');
@@ -170,11 +181,8 @@ function syncImportConfirm() {
 
   // Freeze every editor write path first: pagehide / autosave / snapshot timers
   // would otherwise write the old in-memory data back over what we restore
-  restoringBackup = true;
-  clearTimeout(autosaveTimer); autosaveTimer = null;
-  clearTimeout(loreSnapTimer); loreSnapTimer = null;
-  if (typeof _nbAutoSaveTimer !== 'undefined') clearTimeout(_nbAutoSaveTimer);
-  if (typeof gdrivePushTimer !== 'undefined') clearTimeout(gdrivePushTimer);
+  state.restoringBackup = true;
+  cancelAutosave(); cancelLoreSnapshot(); cancelJournalAutosave(); cancelDrivePush();
 
   // Restore all-or-nothing: if the browser refuses part way (storage full),
   // put every key back as it was instead of leaving a half-restored mix
@@ -186,7 +194,7 @@ function syncImportConfirm() {
     selectedKeys.forEach(k => {
       try { previous[k] === null ? localStorage.removeItem(k) : localStorage.setItem(k, previous[k]); } catch (e2) {}
     });
-    restoringBackup = false;
+    state.restoringBackup = false;
     console.error('[LoreOS] restore failed, rolled back:', e);
     toast('Restore failed (storage full?) — nothing was changed.', 'err');
     return;
@@ -210,7 +218,7 @@ function syncImportConfirm() {
 // ═══════════════════════════════════════════════════════
 // BACKUP HISTORY MODAL
 // ═══════════════════════════════════════════════════════
-function openSyncHistory() {
+export function openSyncHistory() {
   const list = g('syncHistoryList');
   list.innerHTML = '';
   const history = historyGet();
@@ -256,7 +264,7 @@ function openSyncHistory() {
 // ═══════════════════════════════════════════════════════
 // SELECTIVE LIBRARY EXPORT / IMPORT
 // ═══════════════════════════════════════════════════════
-function libExportSelective(type) {
+export function libExportSelective(type) {
   const mod = LIB_MODULES[type];
   if (!mod) return;
   const raw = localStorage.getItem(mod.storageKey);
@@ -274,7 +282,7 @@ function libExportSelective(type) {
   toast(`Exported ${mod.label} ✓`, 'ok');
 }
 
-function libImportSelective(file, type, onDone) {
+export function libImportSelective(file, type, onDone) {
   if (!file) return;
   const mod = LIB_MODULES[type];
   if (!mod) return;
@@ -292,9 +300,9 @@ function libImportSelective(file, type, onDone) {
       if (!safeSet(mod.storageKey, JSON.stringify(merged))) return;
       // The editors work on in-memory copies and write them back on every save,
       // so refresh them or the next save would wipe what was just imported
-      if (type === 'char') charLibrary = merged;
-      else if (type === 'preset') presetLibrary = merged;
-      if (typeof renderWsTabs === 'function') renderWsTabs();
+      if (type === 'char') state.charLibrary = merged;
+      else if (type === 'preset') state.presetLibrary = merged;
+      renderWsTabs();
       syncAutoPush();
       toast(`Imported ${mod.label} ✓ (${Object.keys(incoming).length} items)`, 'ok');
       if (onDone) onDone();
@@ -308,17 +316,17 @@ function libImportSelective(file, type, onDone) {
 // ═══════════════════════════════════════════════════════
 // AUTO-PUSH — triggers GDrive debounced push on any save
 // ═══════════════════════════════════════════════════════
-function syncAutoPush() {
+export function syncAutoPush() {
   // Remember there are edits Drive hasn't seen, even while disconnected or
   // offline. gdrive.js uses this to tell "I changed things" from "someone
   // else did" before it ever overwrites anything.
   try { if (localStorage.getItem('aet_gdrive_dirty') !== '1') localStorage.setItem('aet_gdrive_dirty', '1'); } catch (e) {}
-  if (typeof gdriveAutoPush === 'function') gdriveAutoPush();
+  gdriveAutoPush();
 }
 
 // Does this device hold anything worth protecting from a Drive overwrite?
 // An empty fresh install doesn't, so it can pull straight away.
-function syncLocalHasData() {
+export function syncLocalHasData() {
   const nonEmptyObj = k => {
     try { const v = JSON.parse(localStorage.getItem(k) || '{}'); return !!v && Object.keys(v).length > 0; }
     catch (e) { return false; }
@@ -334,7 +342,7 @@ function syncLocalHasData() {
 // ═══════════════════════════════════════════════════════
 // WIRE
 // ═══════════════════════════════════════════════════════
-function wireSync() {
+export function wireSync() {
   // Bulk export
   g('syncExportBtn')?.addEventListener('click', syncExport);
 
@@ -388,11 +396,11 @@ function wireSync() {
   });
 
   // Google Drive
-  if (typeof wireGdrive === 'function') wireGdrive();
+  wireGdrive();
 }
 
 // Helper: figure out which library is currently open in the lib modal
-function currentLibMode() {
+export function currentLibMode() {
   const title = g('libModalTitle')?.textContent || '';
   if (title.includes('Character')) return 'char';
   if (title.includes('Preset')) return 'preset';
@@ -401,7 +409,7 @@ function currentLibMode() {
 }
 
 // Helper: figure out which template type is currently open in the tpl modal
-function currentTplMode() {
+export function currentTplMode() {
   const title = g('tplModalTitle')?.textContent || '';
   if (title.includes('Character')) return 'tpl_char';
   if (title.includes('Prompt')) return 'tpl_preset';

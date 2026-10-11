@@ -2,16 +2,24 @@
 // HISTORY — field-level undo/redo, item-level undo/redo, and per-item version history.
 // ═══════════════════════════════════════════════════════
 
+import { openChar } from './character.js';
+import { renderEditor, renderList, renderTabs } from './lorebook.js';
+import { rebuildEntries } from './lorebook_model.js';
+import { openPreset } from './preset.js';
+import { state } from './state.js';
+import { loreActiveLibName, loreLinkToLib, loreSyncToLib, lzPack, lzUnpack, safeSet, saveCharLibrary, savePresetLibrary, saveToStorage } from './storage.js';
+import { askConfirm, dlFile, esc, g, toast } from './util.js';
+
 // ═══════════════════════════════════════════════════════
 // FIELD-LEVEL UNDO/REDO
 // Attaches native undo/redo button pair to any textarea.
 // Per-field history stack, debounced push on input.
 // ═══════════════════════════════════════════════════════
 
-const FIELD_HIST_MAX = 80;
-const FIELD_HIST_DEBOUNCE = 400; // ms
+export const FIELD_HIST_MAX = 80;
+export const FIELD_HIST_DEBOUNCE = 400; // ms
 
-function attachFieldUndoRedo(ta) {
+export function attachFieldUndoRedo(ta) {
   if (!ta || ta._undoAttached) return;
   ta._undoAttached = true;
 
@@ -80,7 +88,7 @@ function attachFieldUndoRedo(ta) {
 }
 
 // Call this after any editor renders to wire all textareas in a container
-function wireFieldUndoRedo(container) {
+export function wireFieldUndoRedo(container) {
   (container || document).querySelectorAll('textarea.ftextarea').forEach(ta => {
     attachFieldUndoRedo(ta);
   });
@@ -93,12 +101,12 @@ function wireFieldUndoRedo(container) {
 
 // itemUndoStacks: { key: { stack: [...snapshots], ptr } }
 // key = 'lore:{uid}' | 'char:{id}' | 'preset:{id}'
-const itemUndoStacks = {};
-const ITEM_UNDO_MAX = 30;
+export const itemUndoStacks = {};
+export const ITEM_UNDO_MAX = 30;
 
-function itemUndoKey(type, id) { return `${type}:${id}`; }
+export function itemUndoKey(type, id) { return `${type}:${id}`; }
 
-function itemUndoPush(type, id, snapshot) {
+export function itemUndoPush(type, id, snapshot) {
   const key = itemUndoKey(type, id);
   if (!itemUndoStacks[key]) itemUndoStacks[key] = { stack: [], ptr: -1 };
   const s = itemUndoStacks[key];
@@ -109,17 +117,17 @@ function itemUndoPush(type, id, snapshot) {
   s.ptr = s.stack.length - 1;
 }
 
-function itemUndoCanUndo(type, id) {
+export function itemUndoCanUndo(type, id) {
   const s = itemUndoStacks[itemUndoKey(type, id)];
   return s && s.ptr > 0;
 }
 
-function itemUndoCanRedo(type, id) {
+export function itemUndoCanRedo(type, id) {
   const s = itemUndoStacks[itemUndoKey(type, id)];
   return s && s.ptr < s.stack.length - 1;
 }
 
-function itemUndoGet(type, id, direction) {
+export function itemUndoGet(type, id, direction) {
   const key = itemUndoKey(type, id);
   const s = itemUndoStacks[key];
   if (!s) return null;
@@ -129,7 +137,7 @@ function itemUndoGet(type, id, direction) {
   return JSON.parse(s.stack[s.ptr]);
 }
 
-function syncItemUndoButtons(type, id) {
+export function syncItemUndoButtons(type, id) {
   const undoBtn = g('itemUndoBtn');
   const redoBtn = g('itemRedoBtn');
   if (undoBtn) undoBtn.disabled = !itemUndoCanUndo(type, id);
@@ -140,12 +148,12 @@ function syncItemUndoButtons(type, id) {
 // VERSION HISTORY (per-item, stored inside library entries)
 // ═══════════════════════════════════════════════════════
 
-const ITEM_HIST_MAX = 10;
+export const ITEM_HIST_MAX = 10;
 
 // Push an autosave snapshot into an item's history.
 // For lorebooks, pass the raw entry object (has a .lb field).
 // For char/preset, pass the library entry directly.
-function itemHistoryPush(type, itemId, entryOrData, label = null) {
+export function itemHistoryPush(type, itemId, entryOrData, label = null) {
   // Determine what to compress: lorebooks store the lorebook under .lb
   let payload = (type === 'lore' && entryOrData?.lb) ? entryOrData.lb : entryOrData;
 
@@ -169,7 +177,7 @@ function itemHistoryPush(type, itemId, entryOrData, label = null) {
   // right after saving), so real versions don't get pushed out of the 10 slots
   const histOf = type === 'lore'
     ? (JSON.parse(localStorage.getItem('aet_library') || '{}')[itemId] || {}).history
-    : type === 'char' ? charLibrary[itemId]?.history : presetLibrary[itemId]?.history;
+    : type === 'char' ? state.charLibrary[itemId]?.history : state.presetLibrary[itemId]?.history;
   if (!label && histOf && histOf[0] && histOf[0].data === snapshot.data) return;
 
   if (type === 'lore') {
@@ -180,22 +188,22 @@ function itemHistoryPush(type, itemId, entryOrData, label = null) {
     if (lib[itemId].history.length > ITEM_HIST_MAX) lib[itemId].history.splice(ITEM_HIST_MAX);
     safeSet('aet_library', JSON.stringify(lib));
   } else if (type === 'char') {
-    if (!charLibrary[itemId]) return;
-    if (!charLibrary[itemId].history) charLibrary[itemId].history = [];
-    charLibrary[itemId].history.unshift(snapshot);
-    if (charLibrary[itemId].history.length > ITEM_HIST_MAX) charLibrary[itemId].history.splice(ITEM_HIST_MAX);
+    if (!state.charLibrary[itemId]) return;
+    if (!state.charLibrary[itemId].history) state.charLibrary[itemId].history = [];
+    state.charLibrary[itemId].history.unshift(snapshot);
+    if (state.charLibrary[itemId].history.length > ITEM_HIST_MAX) state.charLibrary[itemId].history.splice(ITEM_HIST_MAX);
     saveCharLibrary();
   } else if (type === 'preset') {
-    if (!presetLibrary[itemId]) return;
-    if (!presetLibrary[itemId].history) presetLibrary[itemId].history = [];
-    presetLibrary[itemId].history.unshift(snapshot);
-    if (presetLibrary[itemId].history.length > ITEM_HIST_MAX) presetLibrary[itemId].history.splice(ITEM_HIST_MAX);
+    if (!state.presetLibrary[itemId]) return;
+    if (!state.presetLibrary[itemId].history) state.presetLibrary[itemId].history = [];
+    state.presetLibrary[itemId].history.unshift(snapshot);
+    if (state.presetLibrary[itemId].history.length > ITEM_HIST_MAX) state.presetLibrary[itemId].history.splice(ITEM_HIST_MAX);
     savePresetLibrary();
   }
 }
 
 // Save a named checkpoint
-function itemHistorySaveCheckpoint(type, itemId, label) {
+export function itemHistorySaveCheckpoint(type, itemId, label) {
   if (!label || !label.trim()) { toast('Enter a checkpoint name.', 'warn'); return; }
   if (type === 'lore') {
     // Checkpoint the lorebook as it is on screen, not the last library save
@@ -203,45 +211,45 @@ function itemHistorySaveCheckpoint(type, itemId, label) {
     const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
     if (lib[itemId]) itemHistoryPush(type, itemId, lib[itemId], label.trim());
   } else if (type === 'char') {
-    itemHistoryPush(type, itemId, charLibrary[itemId], label.trim());
+    itemHistoryPush(type, itemId, state.charLibrary[itemId], label.trim());
   } else if (type === 'preset') {
-    itemHistoryPush(type, itemId, presetLibrary[itemId], label.trim());
+    itemHistoryPush(type, itemId, state.presetLibrary[itemId], label.trim());
   }
   toast('Checkpoint saved.', 'ok');
 }
 
 // Open the version history modal for an item
 // After a restore, reload the item into its editor if it's the one on screen
-function itemHistoryRefreshOpen(type, itemId) {
+export function itemHistoryRefreshOpen(type, itemId) {
   if (type === 'lore') {
     if (loreActiveLibName() !== itemId) return;
     const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
     if (!lib[itemId]) return;
-    lorebook = JSON.parse(JSON.stringify(lib[itemId].lb));
-    lorebook.entries = rebuildEntries(lorebook.entries || {});
-    openTabs = []; activeTabId = null; unsaved = new Set(); formState = {};
-    nextUid = Object.keys(lorebook.entries).length
-      ? Math.max(...Object.keys(lorebook.entries).map(Number)) + 1 : 0;
+    state.lorebook = JSON.parse(JSON.stringify(lib[itemId].lb));
+    state.lorebook.entries = rebuildEntries(state.lorebook.entries || {});
+    state.openTabs = []; state.activeTabId = null; state.unsaved = new Set(); state.formState = {};
+    state.nextUid = Object.keys(state.lorebook.entries).length
+      ? Math.max(...Object.keys(state.lorebook.entries).map(Number)) + 1 : 0;
     loreLinkToLib(itemId);
-    g('lorebookName').value = lorebook.name || itemId;
-    if (mode === 'lore') { renderList(); renderTabs(); renderEditor(); }
+    g('lorebookName').value = state.lorebook.name || itemId;
+    if (state.mode === 'lore') { renderList(); renderTabs(); renderEditor(); }
     saveToStorage();
   } else if (type === 'char') {
-    if (activeCharId === itemId && mode === 'char' && typeof openChar === 'function') openChar(itemId);
+    if (state.activeCharId === itemId && state.mode === 'char') openChar(itemId);
   } else if (type === 'preset') {
-    if (activePresetId === itemId && mode === 'preset' && typeof openPreset === 'function') openPreset(itemId);
+    if (state.activePresetId === itemId && state.mode === 'preset') openPreset(itemId);
   }
 }
 
-function openItemHistory(type, itemId) {
+export function openItemHistory(type, itemId) {
   let entry, history;
   if (type === 'lore') {
     const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
     entry = lib[itemId];
   } else if (type === 'char') {
-    entry = charLibrary[itemId];
+    entry = state.charLibrary[itemId];
   } else if (type === 'preset') {
-    entry = presetLibrary[itemId];
+    entry = state.presetLibrary[itemId];
   }
 
   if (!entry) { toast('Item not found.', 'err'); return; }
@@ -320,9 +328,9 @@ function openItemHistory(type, itemId) {
           const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
           if (lib[itemId]) { lib[itemId].lb = data; ok = safeSet('aet_library', JSON.stringify(lib)); }
         } else if (type === 'char') {
-          if (charLibrary[itemId]) { Object.assign(charLibrary[itemId], data); ok = saveCharLibrary(); }
+          if (state.charLibrary[itemId]) { Object.assign(state.charLibrary[itemId], data); ok = saveCharLibrary(); }
         } else if (type === 'preset') {
-          if (presetLibrary[itemId]) { Object.assign(presetLibrary[itemId], data); ok = savePresetLibrary(); }
+          if (state.presetLibrary[itemId]) { Object.assign(state.presetLibrary[itemId], data); ok = savePresetLibrary(); }
         }
         if (!ok) return; // safeSet already told the user why
         modal.remove();

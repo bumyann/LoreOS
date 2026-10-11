@@ -2,10 +2,17 @@
 // LOREBOOK I/O — importing, merging and exporting lorebooks: SillyTavern JSON, plain
 // text and public markdown, JanitorAI and SaucepanAI.
 // ═══════════════════════════════════════════════════════
+
+import { renderEditor, renderList, renderTabs } from './lorebook.js';
+import { rebuildEntries, reportRebuild } from './lorebook_model.js';
+import { state } from './state.js';
+import { saveToStorage } from './storage.js';
+import { closeModal, dlFile, g, openModal, safeFileName, toast } from './util.js';
+
 // ═══════════════════════════════════════════════════════
 // IMPORT / EXPORT
 // ═══════════════════════════════════════════════════════
-function handleImport(e) {
+export function handleImport(e) {
   const file = e.target.files[0]; if (!file) return;
   const r = new FileReader();
   r.onload = ev => {
@@ -38,23 +45,23 @@ function handleImport(e) {
     }
 
     // Validated — now it's safe to swap in.
-    lorebook = staged;
-    g('lorebookName').value = lorebook.name;
-    nextUid = Object.keys(lorebook.entries).length
-      ? Math.max(...Object.keys(lorebook.entries).map(Number)) + 1
+    state.lorebook = staged;
+    g('lorebookName').value = state.lorebook.name;
+    state.nextUid = Object.keys(state.lorebook.entries).length
+      ? Math.max(...Object.keys(state.lorebook.entries).map(Number)) + 1
       : 0;
 
-    openTabs = []; activeTabId = null; unsaved = new Set(); formState = {};
+    state.openTabs = []; state.activeTabId = null; state.unsaved = new Set(); state.formState = {};
     renderList(); renderTabs(); renderEditor();
     saveToStorage();
-    toast('Imported: ' + lorebook.name, 'ok');
+    toast('Imported: ' + state.lorebook.name, 'ok');
     reportRebuild(rebuildReport);
   };
   r.readAsText(file);
   e.target.value = '';
 }
 
-function handleMergeImport(e) {
+export function handleMergeImport(e) {
   const file = e.target.files[0]; if (!file) return;
   const r = new FileReader();
   r.onload = ev => {
@@ -62,13 +69,13 @@ function handleMergeImport(e) {
       const incoming = JSON.parse(ev.target.result);
       if (Array.isArray(incoming)) throw new Error('That looks like a JanitorAI lorebook — use Import → JanitorAI.');
       if (!incoming || incoming.entries === undefined) throw new Error("No 'entries' found in this file.");
-      mergeStaging = incoming;
-      if (!mergeStaging.name) mergeStaging.name = file.name.replace(/\.json$/i, '');
-      mergeStaging.entries = rebuildEntries(mergeStaging.entries);
+      state.mergeStaging = incoming;
+      if (!state.mergeStaging.name) state.mergeStaging.name = file.name.replace(/\.json$/i, '');
+      state.mergeStaging.entries = rebuildEntries(state.mergeStaging.entries);
       const mergeReport = rebuildEntries.lastReport;
-      mergeSelected = [];
-      g('mergeCurrent').textContent = lorebook.name || 'Untitled';
-      g('mergeFrom').textContent = mergeStaging.name;
+      state.mergeSelected = [];
+      g('mergeCurrent').textContent = state.lorebook.name || 'Untitled';
+      g('mergeFrom').textContent = state.mergeStaging.name;
       renderMergeList();
       openModal('mergeModal');
       reportRebuild(mergeReport);
@@ -78,27 +85,28 @@ function handleMergeImport(e) {
   e.target.value = '';
 }
 
-function exportJson() {
-  lorebook.name = g('lorebookName').value.trim() || 'lorebook';
-  const fn = safeFileName(lorebook.name, 'lorebook') + '.json';
-  dlFile(JSON.stringify(lorebook, null, 2), fn, 'application/json');
+export function exportJson() {
+  state.lorebook.name = g('lorebookName').value.trim() || 'lorebook';
+  const fn = safeFileName(state.lorebook.name, 'lorebook') + '.json';
+  dlFile(JSON.stringify(state.lorebook, null, 2), fn, 'application/json');
   toast('Exported: ' + fn, 'ok');
 }
 
 // ═══════════════════════════════════════════════════════
 // MERGE
 // ═══════════════════════════════════════════════════════
-function renderMergeList() {
+export function renderMergeList() {
   const list = g('mergeList');
   list.innerHTML = '';
-  Object.values(mergeStaging.entries).sort((a,b)=>a.uid-b.uid).forEach(en => {
+  if (!state.mergeStaging) return; // dialog opened with no file chosen yet
+  Object.values(state.mergeStaging.entries).sort((a,b)=>a.uid-b.uid).forEach(en => {
     const div = document.createElement('div');
-    div.className = 'mi' + (mergeSelected.includes(en.uid) ? ' sel' : '');
+    div.className = 'mi' + (state.mergeSelected.includes(en.uid) ? ' sel' : '');
     const head = document.createElement('div'); head.className = 'mi-head';
-    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'mi-cb'; cb.checked = mergeSelected.includes(en.uid);
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'mi-cb'; cb.checked = state.mergeSelected.includes(en.uid);
     cb.addEventListener('change', () => {
-      const i = mergeSelected.indexOf(en.uid);
-      if (i > -1) mergeSelected.splice(i,1); else mergeSelected.push(en.uid);
+      const i = state.mergeSelected.indexOf(en.uid);
+      if (i > -1) state.mergeSelected.splice(i,1); else state.mergeSelected.push(en.uid);
       renderMergeList();
     });
     const uid = document.createElement('div'); uid.className = 'mi-uid'; uid.textContent = '#' + en.uid;
@@ -113,31 +121,31 @@ function renderMergeList() {
     }
     list.append(div);
   });
-  g('mergeCountLbl').textContent = `${mergeSelected.length} selected`;
+  g('mergeCountLbl').textContent = `${state.mergeSelected.length} selected`;
 }
 
-function executeMerge() {
-  if (!mergeSelected.length) { toast('Select at least one entry.', 'warn'); return; }
-  let maxUid = Math.max(-1, ...Object.values(lorebook.entries).map(e=>e.uid));
+export function executeMerge() {
+  if (!state.mergeSelected.length) { toast('Select at least one entry.', 'warn'); return; }
+  let maxUid = Math.max(-1, ...Object.values(state.lorebook.entries).map(e=>e.uid));
   let added = 0;
-  mergeSelected.forEach(oldUid => {
-    const src = mergeStaging.entries[oldUid]; if (!src) return;
+  state.mergeSelected.forEach(oldUid => {
+    const src = state.mergeStaging.entries[oldUid]; if (!src) return;
     const ne = JSON.parse(JSON.stringify(src));
     const nu = maxUid + 1 + added;
     ne.uid = nu; ne.order = nu; ne.displayIndex = nu;
-    lorebook.entries[nu] = ne; added++;
+    state.lorebook.entries[nu] = ne; added++;
   });
-  nextUid = maxUid + 1 + added;
+  state.nextUid = maxUid + 1 + added;
   renderList(); closeModal('mergeModal'); saveToStorage();
   toast(`Merged ${added} entries.`, 'ok');
-  mergeStaging = null; mergeSelected = [];
+  state.mergeStaging = null; state.mergeSelected = [];
 }
 
 // ═══════════════════════════════════════════════════════
 // EXPORT TEXT
 // ═══════════════════════════════════════════════════════
 // Strip XML/HTML tags and code blocks from content for clean text exports
-function stripMarkup(text) {
+export function stripMarkup(text) {
   if (!text) return '';
   return text
     .replace(/```[\s\S]*?```/g, '')        // fenced code blocks
@@ -147,18 +155,18 @@ function stripMarkup(text) {
     .trim();
 }
 
-function doExportTxt() {
+export function doExportTxt() {
   const opts = {
     titles: g('etTitles').checked, content: g('etContent').checked,
     primary: g('etPrimary').checked, secondary: g('etSecondary').checked,
     constants: g('etConstants').checked, comments: g('etComments').checked,
     order: g('etOrder').checked
   };
-  const fn = g('etFilename').value || lorebook.name || 'lorebook';
+  const fn = g('etFilename').value || state.lorebook.name || 'lorebook';
   const name = g('lorebookName').value || 'Lorebook';
   const logicMap = {0:'AND ANY',1:'NOT ALL',2:'NOT ANY',3:'AND ALL'};
   let md = `# ${name}\n\n`;
-  Object.values(lorebook.entries).sort((a,b)=>(a.order||999)-(b.order||999)).forEach((en,i) => {
+  Object.values(state.lorebook.entries).sort((a,b)=>(a.order||999)-(b.order||999)).forEach((en,i) => {
     let h = `## ${i+1}. ${en.comment || 'Untitled Entry'}`;
     if (opts.constants) {
       const ind = [en.constant?'🔵':'', en.vectorized?'🔗':'', (en.selective&&en.keysecondary?.length)?'🟢':''].filter(Boolean);
@@ -181,19 +189,19 @@ function doExportTxt() {
 // ═══════════════════════════════════════════════════════
 // EXPORT PUBLIC
 // ═══════════════════════════════════════════════════════
-function openPublicExport() {
+export function openPublicExport() {
   g('epFilename').value = (g('lorebookName').value || 'lorebook') + '-public';
   g('epPreview').style.display = 'none';
   openModal('expPubModal');
 }
 
-function genPublicMd() {
+export function genPublicMd() {
   const inclDis = g('epDisabled').checked;
   const inclKw = g('epKeywords').checked;
   const inclStatus = g('epStatus').checked;
   const name = g('lorebookName').value || 'Lorebook';
   let md = `# ${name}\n\n`;
-  Object.values(lorebook.entries).sort((a,b)=>a.uid-b.uid)
+  Object.values(state.lorebook.entries).sort((a,b)=>a.uid-b.uid)
     .filter(en => inclDis || !en.disable)
     .forEach(en => {
       let badge = '';
@@ -207,16 +215,16 @@ function genPublicMd() {
   return md;
 }
 
-function previewPublic() {
+export function previewPublic() {
   const md = genPublicMd();
   const prev = g('epPreview');
   prev.textContent = md.substring(0, 1500) + (md.length > 1500 ? '\n…[truncated]' : '');
   prev.style.display = 'block';
 }
 
-function doExportPublic() {
+export function doExportPublic() {
   const md = genPublicMd();
-  const fn = g('epFilename').value || lorebook.name || 'lorebook';
+  const fn = g('epFilename').value || state.lorebook.name || 'lorebook';
   dlFile(md, fn + '.md', 'text/plain');
   closeModal('expPubModal');
   toast('Exported for public pages.', 'ok');
@@ -241,7 +249,7 @@ function doExportPublic() {
 // file upload and paste-from-clipboard via a modal.
 // ═══════════════════════════════════════════════════════
 
-function parseJanitorEntries(raw, sourceName) {
+export function parseJanitorEntries(raw, sourceName) {
   // Accept: flat array, { entries: [...] }, or { data: { entries: [...] } }
   if (raw && raw.data) raw = raw.data;
   const entries = Array.isArray(raw) ? raw
@@ -249,8 +257,8 @@ function parseJanitorEntries(raw, sourceName) {
     : null;
   if (!entries) return null;
 
-  lorebook = { name: (raw && raw.name) || sourceName || 'janitor-import', entries: {} };
-  nextUid = 0;
+  state.lorebook = { name: (raw && raw.name) || sourceName || 'janitor-import', entries: {} };
+  state.nextUid = 0;
 
   entries.forEach((je, i) => {
     const uid = i;
@@ -266,7 +274,7 @@ function parseJanitorEntries(raw, sourceName) {
       if (je[f] !== undefined) janitorExt[f] = je[f];
     });
 
-    lorebook.entries[uid] = {
+    state.lorebook.entries[uid] = {
       uid,
       key:           keyArr,       // array — matches ST internal format
       keysecondary:  keysecArr,    // array — matches ST internal format
@@ -287,20 +295,20 @@ function parseJanitorEntries(raw, sourceName) {
       role:          je.role ?? null,
       extensions:    Object.assign({}, je.extensions || {}, { janitor: janitorExt }),
     };
-    nextUid = Math.max(nextUid, uid + 1);
+    state.nextUid = Math.max(state.nextUid, uid + 1);
   });
 
   const lbName = (raw && raw.name) || sourceName || '';
   const nameEl = g('lorebookName');
   if (nameEl && lbName) nameEl.value = lbName;
-  lorebook.name = lbName;
+  state.lorebook.name = lbName;
 
-  openTabs = []; activeTabId = null; selectedEntries = [];
+  state.openTabs = []; state.activeTabId = null; state.selectedEntries = [];
   renderList(); renderTabs(); renderEditor();
   return entries.length;
 }
 
-function handleJanitorImport(e) {
+export function handleJanitorImport(e) {
   const file = e.target.files[0];
   if (!file) return;
   const r = new FileReader();
@@ -318,13 +326,13 @@ function handleJanitorImport(e) {
   e.target.value = '';
 }
 
-function openJanitorPasteModal() {
+export function openJanitorPasteModal() {
   openModal('janitorPasteModal');
   const ta = g('janitorPasteTA');
   if (ta) { ta.value = ''; ta.focus(); }
 }
 
-function handleJanitorPaste() {
+export function handleJanitorPaste() {
   const ta = g('janitorPasteTA');
   if (!ta || !ta.value.trim()) { toast('Nothing pasted.', 'warn'); return; }
   try {
@@ -338,10 +346,10 @@ function handleJanitorPaste() {
   }
 }
 
-function exportJanitorJson() {
-  const name = g('lorebookName')?.value?.trim() || lorebook.name || 'lorebook';
+export function exportJanitorJson() {
+  const name = g('lorebookName')?.value?.trim() || state.lorebook.name || 'lorebook';
   // Export as flat array matching real JanitorAI format
-  const entries = Object.values(lorebook.entries)
+  const entries = Object.values(state.lorebook.entries)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     .map((e, i) => {
       // Restore any saved JanitorAI-specific fields
@@ -399,7 +407,7 @@ function exportJanitorJson() {
 // Export maps: comment→title, content→text, generates UUIDs
 // ═══════════════════════════════════════════════════════
 
-function handleSaucepanImport(e) {
+export function handleSaucepanImport(e) {
   const file = e.target.files[0];
   if (!file) return;
   const r = new FileReader();
@@ -417,11 +425,11 @@ function handleSaucepanImport(e) {
   e.target.value = '';
 }
 
-function parseSaucepanData(raw, sourceName) {
+export function parseSaucepanData(raw, sourceName) {
   if (!raw || !Array.isArray(raw.content)) return null;
 
   const lbName = raw.name || sourceName || 'saucepan-import';
-  lorebook = { name: lbName, entries: {}, saucepanMeta: {
+  state.lorebook = { name: lbName, entries: {}, saucepanMeta: {
     id:                raw.id               || '',
     author_id:         raw.author_id        || '',
     short_description: raw.short_description|| '',
@@ -432,10 +440,10 @@ function parseSaucepanData(raw, sourceName) {
     very_nsfw:         raw.very_nsfw        || false,
     fandom_tags:       raw.fandom_tags      || [],
   }};
-  nextUid = 0;
+  state.nextUid = 0;
 
   raw.content.forEach((ch, i) => {
-    lorebook.entries[i] = {
+    state.lorebook.entries[i] = {
       uid:           i,
       key:           [],          // no keywords in saucepan
       keysecondary:  [],
@@ -453,21 +461,21 @@ function parseSaucepanData(raw, sourceName) {
       role:          null,
       extensions:    { saucepan: { originalId: ch.id || '' } },
     };
-    nextUid = i + 1;
+    state.nextUid = i + 1;
   });
 
   const nameEl = g('lorebookName');
   if (nameEl) nameEl.value = lbName;
-  lorebook.name = lbName;
+  state.lorebook.name = lbName;
 
-  openTabs = []; activeTabId = null; selectedEntries = [];
+  state.openTabs = []; state.activeTabId = null; state.selectedEntries = [];
   renderList(); renderTabs(); renderEditor();
   return raw.content.length;
 }
 
-function exportSaucepanJson() {
-  const name = g('lorebookName')?.value?.trim() || lorebook.name || 'lorebook';
-  const meta = lorebook.saucepanMeta || {};
+export function exportSaucepanJson() {
+  const name = g('lorebookName')?.value?.trim() || state.lorebook.name || 'lorebook';
+  const meta = state.lorebook.saucepanMeta || {};
 
   // Helper: generate a simple UUID-like string
   function uuid() {
@@ -477,7 +485,7 @@ function exportSaucepanJson() {
     });
   }
 
-  const content = Object.values(lorebook.entries)
+  const content = Object.values(state.lorebook.entries)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     .map((e, i) => ({
       title: e.comment || `Entry ${i + 1}`,

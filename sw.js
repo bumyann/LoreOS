@@ -50,6 +50,7 @@ const ASSETS = [
   'js/gdrive.js',
   'js/mobile.js',
   'js/router.js',
+  'js/pwa.js',
   'js/main.js',
   'vendor/lz-string.min.js',
   'vendor/jszip.min.js',

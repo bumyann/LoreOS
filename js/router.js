@@ -3,14 +3,25 @@
 // Views: home | library | notebook | editor | laboratory
 // ═══════════════════════════════════════════════════════
 
-let currentView = null;
+import { createChar, openChar } from './character.js';
+import { libLoad } from './library.js';
+import { createEntry } from './lorebook.js';
+import { updateMobViewBtns } from './mobile.js';
+import { createPreset, openPreset } from './preset.js';
+import { openSettings } from './settings.js';
+import { state } from './state.js';
+import { libGet, safeSet } from './storage.js';
+import { askConfirm, esc } from './util.js';
+import { switchMode } from './workshop.js';
+
+export let currentView = null;
 
 // HTML escape helper used throughout router/notebook
-function routerEsc(s) { return esc(s); }
+export function routerEsc(s) { return esc(s); }
 
-const VIEWS = ['home', 'library', 'notebook', 'editor', 'laboratory'];
+export const VIEWS = ['home', 'library', 'notebook', 'editor', 'laboratory'];
 
-function navigateTo(viewId) {
+export function navigateTo(viewId) {
   if (!VIEWS.includes(viewId)) return;
   // Leaving the journal: bank anything still inside the 2s autosave window
   if (currentView === 'notebook' && viewId !== 'notebook') {
@@ -54,10 +65,10 @@ function navigateTo(viewId) {
   try { localStorage.setItem('loreos_lastView', viewId); } catch(e) {}
 
   // Sync mobile nav state
-  if (typeof updateMobViewBtns === 'function') updateMobViewBtns(viewId);
+  updateMobViewBtns(viewId);
 }
 
-function getLastView() {
+export function getLastView() {
   try {
     const v = localStorage.getItem('loreos_lastView') || 'home';
     // never restore directly into editor on cold load — always start at home
@@ -66,15 +77,15 @@ function getLastView() {
 }
 
 // ─── HOME VIEW ───────────────────────────────────────
-function renderHomeView() {
+export function renderHomeView() {
   const el = document.getElementById('home-content');
   if (!el) return;
 
   // Check if returning user (has any data)
-  const lb_data = (typeof libGet === 'function') ? libGet() : {};
+  const lb_data = libGet();
   const hasLorebooks = Object.keys(lb_data).length > 0;
-  const hasChars = Object.keys(typeof charLibrary !== 'undefined' ? charLibrary : {}).length > 0;
-  const hasPresets = Object.keys(typeof presetLibrary !== 'undefined' ? presetLibrary : {}).length > 0;
+  const hasChars = Object.keys(typeof state.charLibrary !== 'undefined' ? state.charLibrary : {}).length > 0;
+  const hasPresets = Object.keys(typeof state.presetLibrary !== 'undefined' ? state.presetLibrary : {}).length > 0;
   const isReturning = hasLorebooks || hasChars || hasPresets;
 
   if (isReturning) {
@@ -84,7 +95,7 @@ function renderHomeView() {
   }
 }
 
-function renderGetStarted(el) {
+export function renderGetStarted(el) {
   el.innerHTML = `
     <div class="home-hero">
       <div class="home-hero-title">LoreOS</div>
@@ -121,22 +132,22 @@ function renderGetStarted(el) {
   `;
 }
 
-function renderDashboard(el) {
+export function renderDashboard(el) {
   // Gather recent items across all libraries
   const recentItems = [];
 
   // Lorebooks
-  const lb = (typeof libGet === 'function') ? libGet() : {};
+  const lb = libGet();
   Object.values(lb).forEach(s => {
     recentItems.push({ type: 'lorebook', icon: '📖', name: s.name || 'Untitled Lorebook', savedAt: s.savedAt, action: () => { navigateTo('editor'); setTimeout(() => { switchMode('lore'); libLoad(s.name); }, 80); } });
   });
   // Characters
-  const ch = typeof charLibrary !== 'undefined' ? charLibrary : {};
+  const ch = typeof state.charLibrary !== 'undefined' ? state.charLibrary : {};
   Object.values(ch).forEach(s => {
     recentItems.push({ type: 'character', icon: '🎭', name: s.name || 'Unnamed Character', savedAt: s.savedAt, action: () => { navigateTo('editor'); setTimeout(() => { switchMode('char'); openChar(s.id); }, 80); } });
   });
   // Presets
-  const pr = typeof presetLibrary !== 'undefined' ? presetLibrary : {};
+  const pr = typeof state.presetLibrary !== 'undefined' ? state.presetLibrary : {};
   Object.values(pr).forEach(s => {
     recentItems.push({ type: 'preset', icon: '⚙', name: s.name || 'Untitled Preset', savedAt: s.savedAt, action: () => { navigateTo('editor'); setTimeout(() => { switchMode('preset'); openPreset(s.id); }, 80); } });
   });
@@ -186,13 +197,13 @@ function renderDashboard(el) {
 }
 
 // ─── LIBRARY VIEW ────────────────────────────────────
-function renderLibraryView() {
+export function renderLibraryView() {
   const el = document.getElementById('library-content');
   if (!el) return;
 
-  const lb = (typeof libGet === 'function') ? libGet() : {};
-  const ch = typeof charLibrary !== 'undefined' ? charLibrary : {};
-  const pr = typeof presetLibrary !== 'undefined' ? presetLibrary : {};
+  const lb = libGet();
+  const ch = typeof state.charLibrary !== 'undefined' ? state.charLibrary : {};
+  const pr = typeof state.presetLibrary !== 'undefined' ? state.presetLibrary : {};
 
   const allItems = [];
   Object.values(lb).forEach(s => allItems.push({ type: 'lorebook', icon: '📖', typeLabel: 'Lorebook', name: s.name || 'Untitled', savedAt: s.savedAt, id: s.id, mode: 'lore', openFn: () => libLoad(s.name) }));
@@ -254,7 +265,7 @@ function renderLibraryView() {
 }
 
 // ─── LABORATORY VIEW ─────────────────────────────────
-function renderLaboratoryView() {
+export function renderLaboratoryView() {
   const el = document.getElementById('laboratory-content');
   if (!el) return;
   el.innerHTML = `
@@ -270,7 +281,7 @@ function renderLaboratoryView() {
 
 
 // ─── SIDEBAR NAV TOGGLE ──────────────────────────────
-function initNavSidebar() {
+export function initNavSidebar() {
   const nav = document.getElementById('nav-sidebar');
   const toggle = document.getElementById('nav-toggle');
   const collapsed = (() => { try { return localStorage.getItem('loreos_navCollapsed') === '1'; } catch(e) { return false; } })();
@@ -290,8 +301,7 @@ function initNavSidebar() {
         // saved themes, font fields, storage meter. Opening the modal
         // directly (as this used to) left every field blank, and then
         // hitting Apply wrote those blanks back over your saved theme.
-        if (typeof openSettings === 'function') openSettings();
-        else openModal('settingsModal');
+        openSettings();
       } else {
         navigateTo(view);
       }
@@ -300,7 +310,7 @@ function initNavSidebar() {
 }
 
 // ─── INIT ────────────────────────────────────────────
-function initRouter() {
+export function initRouter() {
   initNavSidebar();
   // Home screen buttons ("new ...", "library") are built as HTML strings, so one
   // delegated listener handles them instead of inline onclick attributes
@@ -331,21 +341,21 @@ function initRouter() {
 // content stored as markdown string via tiptap-markdown
 // ═══════════════════════════════════════════════════════
 
-let _nbEditor = null;  // active tiptap instance
-let _nbActiveId = null;
-let _nbAutoSaveTimer = null;
-let _nbDirty = false;   // typed since the last save (so just visiting a page doesn't bump its date)
+export let _nbEditor = null;  // active tiptap instance
+export let _nbActiveId = null;
+export let _nbAutoSaveTimer = null;
+export let _nbDirty = false;   // typed since the last save (so just visiting a page doesn't bump its date)
 
-function nbGet() {
+export function nbGet() {
   try { return JSON.parse(localStorage.getItem('loreos_notebook') || '{"pages":{},"activePageId":null}'); }
   catch(e) { return { pages: {}, activePageId: null }; }
 }
-function nbSet(data) {
+export function nbSet(data) {
   return safeSet('loreos_notebook', JSON.stringify(data));
 }
-function nbId() { return 'nb_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+export function nbId() { return 'nb_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
 
-function renderNotebookView() {
+export function renderNotebookView() {
   const el = document.getElementById('notebook-content');
   if (!el) return;
 
@@ -389,7 +399,7 @@ function renderNotebookView() {
   if (_nbActiveId && data.pages[_nbActiveId]) nbOpenPage(_nbActiveId);
 }
 
-function nbRenderPageList() {
+export function nbRenderPageList() {
   const list = document.getElementById('nb-page-list');
   if (!list) return;
   const data = nbGet();
@@ -410,7 +420,7 @@ function nbRenderPageList() {
   });
 }
 
-function nbOpenPage(id) {
+export function nbOpenPage(id) {
   const data = nbGet();
   const page = data.pages[id];
   if (!page) return;
@@ -500,7 +510,10 @@ function nbOpenPage(id) {
   });
 }
 
-function nbSaveActive() {
+// Drop the journal's pending autosave
+export function cancelJournalAutosave() { clearTimeout(_nbAutoSaveTimer); }
+
+export function nbSaveActive() {
   if (!_nbActiveId || !_nbDirty) return;
   const titleIn = document.getElementById('nbTitleInput');
   if (!titleIn) return;
@@ -531,7 +544,7 @@ window.addEventListener('beforeunload', () => {
   try { if (_nbActiveId) nbSaveActive(); } catch(e) {}
 });
 
-function nbNewPage() {
+export function nbNewPage() {
   nbSaveActive();
   const data = nbGet();
   const id = nbId();

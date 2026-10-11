@@ -2,24 +2,35 @@
 // WORKSHOP — the tab bar (up to 5 open items), autosave, mode switching and tab restore.
 // ═══════════════════════════════════════════════════════
 
+import { openChar, renderCharEditor, renderCharSidebar, saveChar } from './character.js';
+import { itemHistoryPush } from './history.js';
+import { libLoad } from './library.js';
+import { renderEditor, renderList, renderTabs, saveEntry } from './lorebook.js';
+import { mobileAfterModeSwitch } from './mobile.js';
+import { openPreset, renderPresetEditor, renderPresetSidebar, savePreset } from './preset.js';
+import { currentView, navigateTo } from './router.js';
+import { state, WS_MAX_TABS } from './state.js';
+import { loreActiveLibName, loreSyncToLib } from './storage.js';
+import { closeModal, esc, g, openModal, toast } from './util.js';
+
 // ═══════════════════════════════════════════════════════
 // WORKSHOP TABS
 // ═══════════════════════════════════════════════════════
 
-function wsTabId() { return wsNextId++; }
+export function wsTabId() { return state.wsNextId++; }
 
-function wsOpenItem(type, itemId) {
+export function wsOpenItem(type, itemId) {
   // If already open, just focus it
-  const existing = wsItems.find(t => t.type === type && t.itemId === itemId);
+  const existing = state.wsItems.find(t => t.type === type && t.itemId === itemId);
   if (existing) { wsActivate(existing.id); return; }
 
-  if (wsItems.length >= WS_MAX_TABS) {
+  if (state.wsItems.length >= WS_MAX_TABS) {
     toast(`Max ${WS_MAX_TABS} tabs open — close one first.`, 'warn');
     return;
   }
 
   const tab = { id: wsTabId(), type, itemId, unsaved: false };
-  wsItems.push(tab);
+  state.wsItems.push(tab);
   wsActivate(tab.id);
   closeModal('wsPickerModal');
 }
@@ -27,9 +38,9 @@ function wsOpenItem(type, itemId) {
 // Open a freshly created / imported / duplicated item in a workshop tab (or
 // focus its tab if it already has one). Returns false when the tab bar is
 // full, so the caller can still open the item without a tab.
-function wsShowItem(type, itemId) {
-  const has = wsItems.some(t => t.type === type && t.itemId === itemId);
-  if (!has && wsItems.length >= WS_MAX_TABS) {
+export function wsShowItem(type, itemId) {
+  const has = state.wsItems.some(t => t.type === type && t.itemId === itemId);
+  if (!has && state.wsItems.length >= WS_MAX_TABS) {
     toast(`Max ${WS_MAX_TABS} tabs open — close one to get a tab for this.`, 'warn');
     return false;
   }
@@ -37,56 +48,56 @@ function wsShowItem(type, itemId) {
   return true;
 }
 
-function wsActivate(tabId) {
+export function wsActivate(tabId) {
   // Whatever is typed in the editor we're leaving is saved first, so
   // switching tabs can never roll a field back to the last explicit save
   commitActiveEditor();
-  wsActiveId = tabId;
-  const tab = wsItems.find(t => t.id === tabId);
+  state.wsActiveId = tabId;
+  const tab = state.wsItems.find(t => t.id === tabId);
   if (!tab) return;
   renderWsTabs();
   // Switch editor mode and load the item
   if (tab.type === 'lore') {
-    if (typeof switchMode === 'function') switchMode('lore');
+    switchMode('lore');
     // Already the open lorebook (its edits write through to the library), so
     // don't reload it: that would close its open entry tabs for nothing
-    if (typeof loreActiveLibName === 'function' && loreActiveLibName() === tab.itemId) {
+    if (loreActiveLibName() === tab.itemId) {
       // nothing to load
-    } else if (typeof libLoad === 'function') {
+    } else {
       // lorebooks keyed by name
       libLoad(tab.itemId);
     }
   } else if (tab.type === 'char') {
-    if (typeof switchMode === 'function') switchMode('char');
-    if (typeof openChar === 'function') openChar(tab.itemId);
+    switchMode('char');
+    openChar(tab.itemId);
   } else if (tab.type === 'preset') {
-    if (typeof switchMode === 'function') switchMode('preset');
-    if (typeof openPreset === 'function') openPreset(tab.itemId);
+    switchMode('preset');
+    openPreset(tab.itemId);
   }
 }
 
-function wsCloseTab(tabId) {
-  const tab = wsItems.find(t => t.id === tabId);
+export function wsCloseTab(tabId) {
+  const tab = state.wsItems.find(t => t.id === tabId);
   if (!tab) return;
 
   // Autosave before closing (the active tab is the one whose editor is on screen)
-  if (tab.id === wsActiveId) commitActiveEditor();
+  if (tab.id === state.wsActiveId) commitActiveEditor();
   if (tab.type === 'lore') {
     if (loreActiveLibName() === tab.itemId) loreSyncToLib();
     const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
     if (lib[tab.itemId]) itemHistoryPush('lore', tab.itemId, lib[tab.itemId]);
   } else if (tab.type === 'char') {
-    if (charLibrary[tab.itemId]) itemHistoryPush('char', tab.itemId, JSON.parse(JSON.stringify(charLibrary[tab.itemId])));
+    if (state.charLibrary[tab.itemId]) itemHistoryPush('char', tab.itemId, JSON.parse(JSON.stringify(state.charLibrary[tab.itemId])));
   } else if (tab.type === 'preset') {
-    if (presetLibrary[tab.itemId]) itemHistoryPush('preset', tab.itemId, JSON.parse(JSON.stringify(presetLibrary[tab.itemId])));
+    if (state.presetLibrary[tab.itemId]) itemHistoryPush('preset', tab.itemId, JSON.parse(JSON.stringify(state.presetLibrary[tab.itemId])));
   }
 
-  wsItems = wsItems.filter(t => t.id !== tabId);
+  state.wsItems = state.wsItems.filter(t => t.id !== tabId);
 
   // Focus adjacent tab if we closed the active one
-  if (wsActiveId === tabId) {
-    wsActiveId = wsItems.length ? wsItems[wsItems.length - 1].id : null;
-    if (wsActiveId) wsActivate(wsActiveId);
+  if (state.wsActiveId === tabId) {
+    state.wsActiveId = state.wsItems.length ? state.wsItems[state.wsItems.length - 1].id : null;
+    if (state.wsActiveId) wsActivate(state.wsActiveId);
     else renderWsTabs();
   } else {
     renderWsTabs();
@@ -95,24 +106,24 @@ function wsCloseTab(tabId) {
 
 // Only re-render on a real change: these run on every keystroke
 // An item was deleted from its library: close its tab without trying to save it
-function wsDropItem(type, itemId) {
-  const tab = wsItems.find(t => t.type === type && t.itemId === itemId);
+export function wsDropItem(type, itemId) {
+  const tab = state.wsItems.find(t => t.type === type && t.itemId === itemId);
   if (!tab) return;
-  wsItems = wsItems.filter(t => t !== tab);
-  if (wsActiveId === tab.id) {
-    wsActiveId = wsItems.length ? wsItems[wsItems.length - 1].id : null;
-    if (wsActiveId) { renderWsTabs(); wsActivate(wsActiveId); return; }
+  state.wsItems = state.wsItems.filter(t => t !== tab);
+  if (state.wsActiveId === tab.id) {
+    state.wsActiveId = state.wsItems.length ? state.wsItems[state.wsItems.length - 1].id : null;
+    if (state.wsActiveId) { renderWsTabs(); wsActivate(state.wsActiveId); return; }
   }
   renderWsTabs();
 }
 
-function wsMarkUnsaved(type, itemId) {
-  const tab = wsItems.find(t => t.type === type && t.itemId === itemId);
+export function wsMarkUnsaved(type, itemId) {
+  const tab = state.wsItems.find(t => t.type === type && t.itemId === itemId);
   if (tab && !tab.unsaved) { tab.unsaved = true; renderWsTabs(); }
 }
 
-function wsMarkSaved(type, itemId) {
-  const tab = wsItems.find(t => t.type === type && t.itemId === itemId);
+export function wsMarkSaved(type, itemId) {
+  const tab = state.wsItems.find(t => t.type === type && t.itemId === itemId);
   if (tab && tab.unsaved) { tab.unsaved = false; renderWsTabs(); }
 }
 
@@ -126,55 +137,58 @@ function wsMarkSaved(type, itemId) {
 // in a few minutes): history still gets a snapshot on explicit Save and on
 // closing a tab.
 // ═══════════════════════════════════════════════════════
-const AUTOSAVE_MS = 1500;
-let autosaveTimer = null;
+export const AUTOSAVE_MS = 1500;
+export let autosaveTimer = null;
 
-function commitActiveEditor() {
+// Drop a pending autosave (a restore is about to replace the data it would write)
+export function cancelAutosave() { clearTimeout(autosaveTimer); autosaveTimer = null; }
+
+export function commitActiveEditor() {
   clearTimeout(autosaveTimer); autosaveTimer = null;
-  if (restoringBackup) return;
+  if (state.restoringBackup) return;
   try {
-    if (mode === 'char') {
+    if (state.mode === 'char') {
       // g('chName') = the character form is really what's on screen, so we
       // never build a card from an editor that isn't there
-      if (charUnsaved && activeCharId && charLibrary[activeCharId] && g('chName')) {
+      if (state.charUnsaved && state.activeCharId && state.charLibrary[state.activeCharId] && g('chName')) {
         saveChar({ silent: true, noHistory: true });
       }
-    } else if (mode === 'preset') {
-      if (presetUnsaved && activePresetId && presetLibrary[activePresetId] && g('psName')) {
+    } else if (state.mode === 'preset') {
+      if (state.presetUnsaved && state.activePresetId && state.presetLibrary[state.activePresetId] && g('psName')) {
         savePreset({ silent: true, noHistory: true });
       }
-    } else if (mode === 'lore') {
+    } else if (state.mode === 'lore') {
       let saved = false;
-      [...unsaved].forEach(uid => {
+      [...state.unsaved].forEach(uid => {
         // only entries whose form is on screen (saveEntry reads the form)
-        if (lorebook.entries && lorebook.entries[uid] && g('eName-' + uid)) {
+        if (state.lorebook.entries && state.lorebook.entries[uid] && g('eName-' + uid)) {
           saveEntry(uid, { noSnapshot: true }); saved = true;
         }
       });
-      if (saved && unsaved.size === 0) {
+      if (saved && state.unsaved.size === 0) {
         const n = loreActiveLibName();
         if (n) wsMarkSaved('lore', n);
       }
     }
   } catch (e) {
     console.error('[LoreOS] autosave failed:', e);
-    if (typeof toast === 'function') toast('Autosave hit a problem — press Save to be safe.', 'warn');
+    toast('Autosave hit a problem — press Save to be safe.', 'warn');
   }
 }
 
-function wsMarkActiveUnsaved() {
-  if (mode === 'char' && activeCharId) wsMarkUnsaved('char', activeCharId);
-  else if (mode === 'preset' && activePresetId) wsMarkUnsaved('preset', activePresetId);
-  else if (mode === 'lore') { const n = loreActiveLibName(); if (n) wsMarkUnsaved('lore', n); }
+export function wsMarkActiveUnsaved() {
+  if (state.mode === 'char' && state.activeCharId) wsMarkUnsaved('char', state.activeCharId);
+  else if (state.mode === 'preset' && state.activePresetId) wsMarkUnsaved('preset', state.activePresetId);
+  else if (state.mode === 'lore') { const n = loreActiveLibName(); if (n) wsMarkUnsaved('lore', n); }
 }
 
-function wireAutosave() {
+export function wireAutosave() {
   const onEdit = e => {
     const t = e.target;
     if (!t || !t.closest || !t.closest('#editorContent')) return;
     if (t.id === 'psPromptSearch') return; // search box, not content
-    if (mode === 'char') charUnsaved = true;
-    else if (mode === 'preset') presetUnsaved = true;
+    if (state.mode === 'char') state.charUnsaved = true;
+    else if (state.mode === 'preset') state.presetUnsaved = true;
     wsMarkActiveUnsaved();
     clearTimeout(autosaveTimer);
     autosaveTimer = setTimeout(commitActiveEditor, AUTOSAVE_MS);
@@ -186,26 +200,26 @@ function wireAutosave() {
   window.addEventListener('pagehide', commitActiveEditor);
 }
 
-function renderWsTabs() {
+export function renderWsTabs() {
   const bar = g('workshopTabs');
   if (!bar) return;
   bar.innerHTML = '';
 
   const TYPE_LABEL = { lore: 'LB', char: 'CH', preset: 'PS' };
 
-  wsItems.forEach(tab => {
+  state.wsItems.forEach(tab => {
     let name = '...';
     if (tab.type === 'lore') {
       const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
       name = lib[tab.itemId]?.name || 'Untitled';
     } else if (tab.type === 'char') {
-      name = charLibrary[tab.itemId]?.name || 'Untitled';
+      name = state.charLibrary[tab.itemId]?.name || 'Untitled';
     } else if (tab.type === 'preset') {
-      name = presetLibrary[tab.itemId]?.name || 'Untitled';
+      name = state.presetLibrary[tab.itemId]?.name || 'Untitled';
     }
 
     const el = document.createElement('div');
-    el.className = 'ws-tab' + (tab.id === wsActiveId ? ' active' : '') + (tab.unsaved ? ' unsaved' : '');
+    el.className = 'ws-tab' + (tab.id === state.wsActiveId ? ' active' : '') + (tab.unsaved ? ' unsaved' : '');
     el.innerHTML = `
       <span class="ws-tab-type">${TYPE_LABEL[tab.type] || ''}</span>
       <span class="ws-tab-label" title="${esc(name)}">${esc(name)}</span>
@@ -220,7 +234,7 @@ function renderWsTabs() {
 
   // Show/hide the add button based on limit
   const addBtn = g('workshopTabAdd');
-  if (addBtn) addBtn.style.opacity = wsItems.length >= WS_MAX_TABS ? '.35' : '1';
+  if (addBtn) addBtn.style.opacity = state.wsItems.length >= WS_MAX_TABS ? '.35' : '1';
 
   // Every tab change goes through here, so this is where tabs get persisted
   wsSaveTabs();
@@ -230,25 +244,25 @@ function renderWsTabs() {
 // Tabs used to live only in memory, so a refresh closed every character and
 // preset tab. (Lorebooks only looked like they survived because the working
 // lorebook itself is saved in aet_lorebook.)
-function wsSaveTabs() {
+export function wsSaveTabs() {
   // Don't persist anything until the saved tabs have been restored, or the
   // empty tab bar rendered during startup would overwrite them
-  if (wsRestoring || !wsTabsRestored || restoringBackup) return;
+  if (wsRestoring || !wsTabsRestored || state.restoringBackup) return;
   try {
-    const active = wsItems.findIndex(t => t.id === wsActiveId);
+    const active = state.wsItems.findIndex(t => t.id === state.wsActiveId);
     localStorage.setItem('aet_wsTabs', JSON.stringify({
-      items: wsItems.map(t => ({ type: t.type, itemId: t.itemId })),
+      items: state.wsItems.map(t => ({ type: t.type, itemId: t.itemId })),
       active,
     }));
   } catch (e) {}
 }
 
-let wsRestoring = false;
-let wsTabsRestored = false;
-function wsRestoreTabs() {
+export let wsRestoring = false;
+export let wsTabsRestored = false;
+export function wsRestoreTabs() {
   try { wsRestoreTabsInner(); } finally { wsTabsRestored = true; wsSaveTabs(); }
 }
-function wsRestoreTabsInner() {
+export function wsRestoreTabsInner() {
   let saved;
   try { saved = JSON.parse(localStorage.getItem('aet_wsTabs') || 'null'); } catch (e) { saved = null; }
   if (!saved || !Array.isArray(saved.items) || !saved.items.length) return;
@@ -257,21 +271,21 @@ function wsRestoreTabsInner() {
   const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
   const exists = t =>
     t.type === 'lore'   ? !!lib[t.itemId] :
-    t.type === 'char'   ? !!charLibrary[t.itemId] :
-    t.type === 'preset' ? !!presetLibrary[t.itemId] : false;
+    t.type === 'char'   ? !!state.charLibrary[t.itemId] :
+    t.type === 'preset' ? !!state.presetLibrary[t.itemId] : false;
 
   const activeSaved = saved.items[saved.active];
-  wsItems = saved.items.filter(exists).slice(0, WS_MAX_TABS)
+  state.wsItems = saved.items.filter(exists).slice(0, WS_MAX_TABS)
     .map(t => ({ id: wsTabId(), type: t.type, itemId: t.itemId, unsaved: false }));
-  if (!wsItems.length) { wsActiveId = null; renderWsTabs(); return; }
+  if (!state.wsItems.length) { state.wsActiveId = null; renderWsTabs(); return; }
 
-  const activeTab = (activeSaved && wsItems.find(t => t.type === activeSaved.type && t.itemId === activeSaved.itemId)) || null;
-  wsActiveId = activeTab ? activeTab.id : null;
+  const activeTab = (activeSaved && state.wsItems.find(t => t.type === activeSaved.type && t.itemId === activeSaved.itemId)) || null;
+  state.wsActiveId = activeTab ? activeTab.id : null;
 
   // Load the active item into the editor, then put the view back where the
   // router left it (cold loads still start on Home; the tabs are waiting in
   // the Workshop). switchMode() always navigates to the editor.
-  const view = (typeof currentView !== 'undefined') ? currentView : null;
+  const view = currentView;
   wsRestoring = true;
   try {
     if (activeTab) {
@@ -279,7 +293,7 @@ function wsRestoreTabsInner() {
         // The working lorebook (aet_lorebook) is already loaded and is at
         // least as fresh as the library copy. Only switch modes, never
         // libLoad over it, or an unsaved import could be replaced.
-        if (typeof switchMode === 'function') switchMode('lore');
+        switchMode('lore');
       } else {
         wsActivate(activeTab.id);
       }
@@ -288,18 +302,18 @@ function wsRestoreTabsInner() {
     wsRestoring = false;
   }
   renderWsTabs();
-  if (view && typeof navigateTo === 'function' && view !== 'editor') navigateTo(view);
+  if (view && view !== 'editor') navigateTo(view);
 }
 
-function openWsPicker() {
-  if (wsItems.length >= WS_MAX_TABS) { toast(`Max ${WS_MAX_TABS} tabs open.`, 'warn'); return; }
+export function openWsPicker() {
+  if (state.wsItems.length >= WS_MAX_TABS) { toast(`Max ${WS_MAX_TABS} tabs open.`, 'warn'); return; }
   // Reset to lorebook tab
   document.querySelectorAll('.ws-picker-type').forEach(b => b.classList.toggle('active', b.dataset.type === 'lore'));
   renderWsPickerList('lore');
   openModal('wsPickerModal');
 }
 
-function renderWsPickerList(type) {
+export function renderWsPickerList(type) {
   const list = g('wsPickerList');
   if (!list) return;
   list.innerHTML = '';
@@ -311,9 +325,9 @@ function renderWsPickerList(type) {
     items = Object.values(lib).map(b => ({ id: b.name, name: b.name, savedAt: b.savedAt || '' }))
       .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
   } else if (type === 'char') {
-    items = Object.values(charLibrary).sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
+    items = Object.values(state.charLibrary).sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
   } else if (type === 'preset') {
-    items = Object.values(presetLibrary).sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
+    items = Object.values(state.presetLibrary).sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
   }
 
   if (!items.length) {
@@ -321,7 +335,7 @@ function renderWsPickerList(type) {
     return;
   }
 
-  const alreadyOpen = new Set(wsItems.filter(t => t.type === type).map(t => t.itemId));
+  const alreadyOpen = new Set(state.wsItems.filter(t => t.type === type).map(t => t.itemId));
 
   items.forEach(entry => {
     const date = new Date(entry.savedAt).toLocaleDateString();
@@ -350,27 +364,27 @@ function renderWsPickerList(type) {
 // ═══════════════════════════════════════════════════════
 // Switch the editor to lorebook / character / preset (or a "coming soon" stub).
 // The phone nav follows along through mobileAfterModeSwitch.
-function switchMode(newMode) {
+export function switchMode(newMode) {
   applyMode(newMode);
-  if (typeof mobileAfterModeSwitch === 'function') mobileAfterModeSwitch(newMode);
+  mobileAfterModeSwitch(newMode);
 }
 
-function applyMode(newMode) {
+export function applyMode(newMode) {
   // Save what's typed in the editor we're about to replace
-  if (typeof commitActiveEditor === 'function') commitActiveEditor();
+  commitActiveEditor();
   // Stub modes — navigate to editor and show coming soon
   const STUB_MODES = ['persona', 'prompt', 'regex'];
   const isStub = STUB_MODES.includes(newMode);
 
   // Navigate to editor view when switching modes
-  if (typeof navigateTo === 'function') navigateTo('editor');
+  navigateTo('editor');
 
-  mode = newMode;
+  state.mode = newMode;
   document.querySelectorAll('.mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === newMode));
 
   // View toggle only makes sense in lorebook mode
   g('viewToggle').style.display = newMode === 'lore' ? '' : 'none';
-  if (newMode !== 'lore') { sideBySide = false; }
+  if (newMode !== 'lore') { state.sideBySide = false; }
 
   // Show/hide mode headers (lore/char/preset have headers; stubs get empty placeholder)
   ['lore','char','preset','persona','prompt','regex'].forEach(m => {

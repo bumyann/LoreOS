@@ -1,7 +1,7 @@
 
-function createEntry() {
-  const uid = nextUid++;
-  lorebook.entries[uid] = blankEntry(uid);
+export function createEntry() {
+  const uid = state.nextUid++;
+  state.lorebook.entries[uid] = blankEntry(uid);
   renderList();
   openInTab(uid);
 }
@@ -10,33 +10,31 @@ function createEntry() {
 // remembers an entry by uid (open tabs, selection, unsaved marks, form
 // state, undo stacks) has to follow the renumbering, or a tab silently
 // ends up pointing at a different entry and edits save into the wrong one.
-function remapEntryUids(map) {
+export function remapEntryUids(map) {
   if (!map.size) return;
   const m = u => (map.has(u) ? map.get(u) : u);
-  openTabs = openTabs.map(m);
-  if (activeTabId !== null) activeTabId = m(activeTabId);
-  selectedEntries = selectedEntries.map(m);
-  unsaved = new Set([...unsaved].map(m));
+  state.openTabs = state.openTabs.map(m);
+  if (state.activeTabId !== null) state.activeTabId = m(state.activeTabId);
+  state.selectedEntries = state.selectedEntries.map(m);
+  state.unsaved = new Set([...state.unsaved].map(m));
   const fs = {};
-  Object.keys(formState).forEach(k => { fs[isNaN(k) ? k : m(Number(k))] = formState[k]; });
-  formState = fs;
-  if (typeof itemUndoStacks !== 'undefined') {
-    const moved = {};
-    Object.keys(itemUndoStacks).forEach(k => {
-      if (!k.startsWith('lore:')) return;
-      const id = k.slice(5);
-      if (!isNaN(id) && map.has(Number(id))) { moved[k] = itemUndoStacks[k]; delete itemUndoStacks[k]; }
-    });
-    Object.keys(moved).forEach(k => { itemUndoStacks['lore:' + m(Number(k.slice(5)))] = moved[k]; });
-  }
+  Object.keys(state.formState).forEach(k => { fs[isNaN(k) ? k : m(Number(k))] = state.formState[k]; });
+  state.formState = fs;
+  const moved = {};
+  Object.keys(itemUndoStacks).forEach(k => {
+    if (!k.startsWith('lore:')) return;
+    const id = k.slice(5);
+    if (!isNaN(id) && map.has(Number(id))) { moved[k] = itemUndoStacks[k]; delete itemUndoStacks[k]; }
+  });
+  Object.keys(moved).forEach(k => { itemUndoStacks['lore:' + m(Number(k.slice(5)))] = moved[k]; });
 }
 
 // Shift every entry at or after `fromUid` up by one; returns the old->new map.
-function shiftEntriesFrom(fromUid) {
+export function shiftEntriesFrom(fromUid) {
   // Bank whatever is typed in open forms first: they are keyed by the old uids
-  if (typeof commitActiveEditor === 'function') commitActiveEditor();
+  commitActiveEditor();
   const map = new Map();
-  Object.values(lorebook.entries).forEach(en => {
+  Object.values(state.lorebook.entries).forEach(en => {
     if (en.uid >= fromUid) {
       map.set(en.uid, en.uid + 1);
       en.uid++; en.order = en.uid; en.displayIndex = en.uid;
@@ -46,30 +44,30 @@ function shiftEntriesFrom(fromUid) {
   return map;
 }
 
-function finishInsert(newEntry) {
+export function finishInsert(newEntry) {
   const rebuilt = {};
-  Object.values(lorebook.entries).forEach(en => { rebuilt[en.uid] = en; });
+  Object.values(state.lorebook.entries).forEach(en => { rebuilt[en.uid] = en; });
   rebuilt[newEntry.uid] = newEntry;
-  lorebook.entries = rebuilt;
-  nextUid = Math.max(...Object.keys(rebuilt).map(Number)) + 1;
+  state.lorebook.entries = rebuilt;
+  state.nextUid = Math.max(...Object.keys(rebuilt).map(Number)) + 1;
   renderList(); openInTab(newEntry.uid);
   saveToStorage();
-  if (typeof loreSnapshotSoon === 'function') loreSnapshotSoon();
+  loreSnapshotSoon();
 }
 
-function insertAbove(targetUid) {
+export function insertAbove(targetUid) {
   shiftEntriesFrom(targetUid);
   finishInsert(blankEntry(targetUid));
 }
 
-function insertBelow(targetUid) {
+export function insertBelow(targetUid) {
   const newUid = targetUid + 1;
   shiftEntriesFrom(newUid);
   finishInsert(blankEntry(newUid));
 }
 
-function copyEntry(srcUid) {
-  const src = lorebook.entries[srcUid]; if (!src) return;
+export function copyEntry(srcUid) {
+  const src = state.lorebook.entries[srcUid]; if (!src) return;
   const newUid = srcUid + 1;
   const cp = JSON.parse(JSON.stringify(src));
   shiftEntriesFrom(newUid);
@@ -78,60 +76,70 @@ function copyEntry(srcUid) {
   finishInsert(cp);
 }
 
-async function deleteSidebar(uid) {
+export async function deleteSidebar(uid) {
   if (!await askConfirm('Delete this entry? This cannot be undone.')) return;
-  delete lorebook.entries[uid];
+  delete state.lorebook.entries[uid];
   closeTab(uid);
   renderList();
   saveToStorage();
-  if (typeof loreSnapshotSoon === 'function') loreSnapshotSoon();
+  loreSnapshotSoon();
 }
 
 // ═══════════════════════════════════════════════════════
 // CLEAR / REORDER
 // ═══════════════════════════════════════════════════════
-async function clearEditor() {
-  if (Object.keys(lorebook.entries).length === 0) { toast('Already empty.', 'info'); return; }
+
+import { openFullscreen } from './fullscreen.js';
+import { itemUndoCanRedo, itemUndoCanUndo, itemUndoGet, itemUndoPush, itemUndoStacks, wireFieldUndoRedo } from './history.js';
+import { blankEntry, normalizeEntry } from './lorebook_model.js';
+import { state } from './state.js';
+import { loreSnapshotSoon, safeSet, saveToStorage } from './storage.js';
+import { openEntryPicker } from './templates.js';
+import { askConfirm, closeModal, esc, g, openModal, toast } from './util.js';
+import { commitActiveEditor } from './workshop.js';
+
+export async function clearEditor() {
+  if (Object.keys(state.lorebook.entries).length === 0) { toast('Already empty.', 'info'); return; }
   if (!await askConfirm('Clear all entries? Consider saving to Library first.')) return;
-  lorebook = { entries: {} };
-  openTabs = []; activeTabId = null; nextUid = 0;
-  unsaved = new Set(); formState = {};
+  state.lorebook = { entries: {} };
+  state.openTabs = []; state.activeTabId = null; state.nextUid = 0;
+  state.unsaved = new Set(); state.formState = {};
   g('lorebookName').value = '';
   renderList(); renderTabs(); renderEditor();
   saveToStorage();
   toast('Editor cleared.', 'ok');
 }
 
-function reorderEntry(oldUid, newUid) {
+export function reorderEntry(oldUid, newUid) {
   if (oldUid === newUid) return;
   if (newUid < 0) { renderList(); return; }
-  const moving = lorebook.entries[oldUid]; if (!moving) return;
-  if (typeof commitActiveEditor === 'function') commitActiveEditor();
-  const arr = Object.values(lorebook.entries).sort((a,b) => a.uid - b.uid);
+  const moving = state.lorebook.entries[oldUid]; if (!moving) return;
+  commitActiveEditor();
+  const arr = Object.values(state.lorebook.entries).sort((a,b) => a.uid - b.uid);
   const filtered = arr.filter(e => e.uid !== oldUid);
   const insertAt = Math.min(newUid, filtered.length);
   filtered.splice(insertAt, 0, moving);
-  lorebook.entries = {};
+  state.lorebook.entries = {};
   const map = new Map();
   filtered.forEach((en, i) => {
     map.set(en.uid, i);
     en.uid = i; en.displayIndex = i;
-    lorebook.entries[i] = en;
+    state.lorebook.entries[i] = en;
   });
   remapEntryUids(map);
-  nextUid = Math.max(...Object.keys(lorebook.entries).map(Number)) + 1;
+  state.nextUid = Math.max(...Object.keys(state.lorebook.entries).map(Number)) + 1;
   renderList(); renderTabs(); renderEditor();
   saveToStorage();
 }
 
-function renderList() {
+export function renderList() {
   const list = g('entryList');
   const count = g('entryCount');
   const clearBtn = g('clearSel');
-  clearBtn.style.display = selectedEntries.length > 0 ? 'flex' : 'none';
-  if (selectedEntries.length > 0) clearBtn.textContent = `☑ Clear (${selectedEntries.length})`;
+  clearBtn.style.display = state.selectedEntries.length > 0 ? 'flex' : 'none';
+  if (state.selectedEntries.length > 0) clearBtn.textContent = `☑ Clear (${state.selectedEntries.length})`;
 
-  const entries = Object.values(lorebook.entries).sort((a,b) => a.uid - b.uid);
+  const entries = Object.values(state.lorebook.entries).sort((a,b) => a.uid - b.uid);
   count.textContent = `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}`;
   list.innerHTML = '';
 
@@ -140,12 +148,12 @@ function renderList() {
     li.className = 'ei';
     li.dataset.uid = en.uid;
     li.draggable = true;
-    if (openTabs.includes(en.uid)) li.classList.add('open');
-    if (selectedEntries.includes(en.uid)) li.classList.add('sel');
+    if (state.openTabs.includes(en.uid)) li.classList.add('open');
+    if (state.selectedEntries.includes(en.uid)) li.classList.add('sel');
 
     // Drag
     li.addEventListener('dragstart', e => {
-      draggedEntries = selectedEntries.includes(en.uid) ? [...selectedEntries].sort((a,b)=>a-b) : [en.uid];
+      state.draggedEntries = state.selectedEntries.includes(en.uid) ? [...state.selectedEntries].sort((a,b)=>a-b) : [en.uid];
       e.dataTransfer.effectAllowed = 'move';
       li.style.opacity = '.4';
     });
@@ -153,20 +161,20 @@ function renderList() {
     li.addEventListener('dragleave', () => { li.style.borderTop = ''; });
     li.addEventListener('drop', e => {
       e.stopPropagation(); li.style.borderTop = '';
-      if (!draggedEntries.includes(en.uid)) moveDragged(draggedEntries, en.uid);
+      if (!state.draggedEntries.includes(en.uid)) moveDragged(state.draggedEntries, en.uid);
     });
-    li.addEventListener('dragend', () => { li.style.opacity = '1'; list.querySelectorAll('.ei').forEach(x => x.style.borderTop = ''); draggedEntries = []; });
+    li.addEventListener('dragend', () => { li.style.opacity = '1'; list.querySelectorAll('.ei').forEach(x => x.style.borderTop = ''); state.draggedEntries = []; });
 
     // Header
     const head = document.createElement('div');
     head.className = 'ei-head';
 
     const cb = document.createElement('input');
-    cb.type = 'checkbox'; cb.className = 'ei-cb'; cb.checked = selectedEntries.includes(en.uid);
+    cb.type = 'checkbox'; cb.className = 'ei-cb'; cb.checked = state.selectedEntries.includes(en.uid);
     cb.addEventListener('click', e2 => e2.stopPropagation());
     cb.addEventListener('change', () => {
-      const idx = selectedEntries.indexOf(en.uid);
-      if (idx > -1) selectedEntries.splice(idx, 1); else selectedEntries.push(en.uid);
+      const idx = state.selectedEntries.indexOf(en.uid);
+      if (idx > -1) state.selectedEntries.splice(idx, 1); else state.selectedEntries.push(en.uid);
       renderList();
     });
 
@@ -204,10 +212,10 @@ function renderList() {
     li.append(acts);
 
     // Keywords (normal + zoomed)
-    if (zoomLevel >= 1 && en.key && en.key.length > 0) {
+    if (state.zoomLevel >= 1 && en.key && en.key.length > 0) {
       const kws = document.createElement('div');
       kws.className = 'ei-kws';
-      const show = zoomLevel === 2 ? 5 : 3;
+      const show = state.zoomLevel === 2 ? 5 : 3;
       en.key.slice(0, show).forEach(k => {
         const t = document.createElement('span'); t.className = 'kw-tag'; t.textContent = k; kws.append(t);
       });
@@ -221,7 +229,7 @@ function renderList() {
       li.append(st);
     }
     // Content preview when zoomed in
-    if (zoomLevel === 2 && en.content) {
+    if (state.zoomLevel === 2 && en.content) {
       const prev = document.createElement('div'); prev.className = 'ei-preview'; prev.textContent = en.content; li.append(prev);
     }
 
@@ -230,19 +238,19 @@ function renderList() {
   });
 }
 
-function moveDragged(uids, targetUid) {
-  if (typeof commitActiveEditor === 'function') commitActiveEditor();
-  const arr = Object.values(lorebook.entries).sort((a,b) => a.uid - b.uid);
+export function moveDragged(uids, targetUid) {
+  commitActiveEditor();
+  const arr = Object.values(state.lorebook.entries).sort((a,b) => a.uid - b.uid);
   const moving = arr.filter(e => uids.includes(e.uid));
   const rest = arr.filter(e => !uids.includes(e.uid));
   const ti = rest.findIndex(e => e.uid === targetUid);
   if (ti === -1) return;
   rest.splice(ti, 0, ...moving);
-  lorebook.entries = {};
+  state.lorebook.entries = {};
   const map = new Map();
-  rest.forEach((en, i) => { map.set(en.uid, i); en.uid = i; en.displayIndex = i; lorebook.entries[i] = en; });
+  rest.forEach((en, i) => { map.set(en.uid, i); en.uid = i; en.displayIndex = i; state.lorebook.entries[i] = en; });
   remapEntryUids(map);
-  nextUid = Math.max(...Object.keys(lorebook.entries).map(Number)) + 1;
+  state.nextUid = Math.max(...Object.keys(state.lorebook.entries).map(Number)) + 1;
   renderList(); renderTabs(); renderEditor();
   saveToStorage();
 }
@@ -251,21 +259,21 @@ function moveDragged(uids, targetUid) {
 // ═══════════════════════════════════════════════════════
 // ZOOM
 // ═══════════════════════════════════════════════════════
-function changeZoom(d) {
-  zoomLevel = Math.max(0, Math.min(2, zoomLevel + d));
+export function changeZoom(d) {
+  state.zoomLevel = Math.max(0, Math.min(2, state.zoomLevel + d));
   applyZoom();
-  safeSet('aet_zoom', String(zoomLevel));
+  safeSet('aet_zoom', String(state.zoomLevel));
   renderList();
 }
-function applyZoom() {
+export function applyZoom() {
   const sb = g('sidebar');
   sb.classList.remove('zoom-out','zoom-in');
-  g('zoomLabel').textContent = ['Compact','Normal','Detailed'][zoomLevel];
-  if (zoomLevel === 0) sb.classList.add('zoom-out');
-  if (zoomLevel === 2) sb.classList.add('zoom-in');
+  g('zoomLabel').textContent = ['Compact','Normal','Detailed'][state.zoomLevel];
+  if (state.zoomLevel === 0) sb.classList.add('zoom-out');
+  if (state.zoomLevel === 2) sb.classList.add('zoom-in');
 }
 
-function handleSbSearch(e) {
+export function handleSbSearch(e) {
   const q = e.target.value.toLowerCase();
   document.querySelectorAll('.ei').forEach(li => {
     const name = li.querySelector('.ei-name')?.textContent.toLowerCase() || '';
@@ -274,44 +282,44 @@ function handleSbSearch(e) {
   });
 }
 
-function clearSelection() { selectedEntries = []; renderList(); }
+export function clearSelection() { state.selectedEntries = []; renderList(); }
 
 // ═══════════════════════════════════════════════════════
 // TABS
 // ═══════════════════════════════════════════════════════
-function openInTab(uid) {
-  if (!openTabs.includes(uid)) openTabs.push(uid);
-  activeTabId = uid;
+export function openInTab(uid) {
+  if (!state.openTabs.includes(uid)) state.openTabs.push(uid);
+  state.activeTabId = uid;
   renderTabs(); renderEditor();
 }
 
-function closeTab(uid) {
-  const i = openTabs.indexOf(uid);
-  if (i > -1) openTabs.splice(i, 1);
-  if (activeTabId === uid) activeTabId = openTabs.length > 0 ? openTabs[openTabs.length - 1] : null;
-  unsaved.delete(uid);
-  delete formState[uid];
+export function closeTab(uid) {
+  const i = state.openTabs.indexOf(uid);
+  if (i > -1) state.openTabs.splice(i, 1);
+  if (state.activeTabId === uid) state.activeTabId = state.openTabs.length > 0 ? state.openTabs[state.openTabs.length - 1] : null;
+  state.unsaved.delete(uid);
+  delete state.formState[uid];
   renderTabs(); renderEditor();
 }
 
-function toggleView() {
-  sideBySide = !sideBySide;
-  g('viewToggle').textContent = sideBySide ? '▦' : '▥';
+export function toggleView() {
+  state.sideBySide = !state.sideBySide;
+  g('viewToggle').textContent = state.sideBySide ? '▦' : '▥';
   renderEditor();
 }
 
-function renderTabs() {
+export function renderTabs() {
   const bar = g('tabBar');
   bar.innerHTML = '';
-  openTabs.forEach(uid => {
-    const en = lorebook.entries[uid];
+  state.openTabs.forEach(uid => {
+    const en = state.lorebook.entries[uid];
     if (!en && uid !== 'help-tab') return;
-    const isUnsaved = unsaved.has(uid);
+    const isUnsaved = state.unsaved.has(uid);
     const emoji = en ? (en.disable?'⚫':en.constant?'🔵':en.vectorized?'🔗':'🟢') : '📖';
     const label = (isUnsaved ? '● ' : '') + emoji + ' ' + (en ? (en.comment || 'Untitled') : 'Help');
 
     const tab = document.createElement('button');
-    tab.className = 'tab' + (uid === activeTabId ? ' active' : '');
+    tab.className = 'tab' + (uid === state.activeTabId ? ' active' : '');
     const span = document.createElement('span');
     span.textContent = label;
     if (isUnsaved) span.style.color = '#f0a830';
@@ -319,7 +327,7 @@ function renderTabs() {
     x.className = 'tab-x'; x.textContent = '×';
     x.addEventListener('click', e => { e.stopPropagation(); closeTab(uid); });
     tab.append(span, x);
-    tab.addEventListener('click', () => { activeTabId = uid; renderTabs(); renderEditor(); });
+    tab.addEventListener('click', () => { state.activeTabId = uid; renderTabs(); renderEditor(); });
     bar.append(tab);
   });
 }
@@ -327,21 +335,21 @@ function renderTabs() {
 // ═══════════════════════════════════════════════════════
 // EDITOR RENDER
 // ═══════════════════════════════════════════════════════
-function renderEditor() {
+export function renderEditor() {
   const ec = g('editorContent');
-  if (openTabs.length === 0) {
+  if (state.openTabs.length === 0) {
     ec.className = ''; ec.style.display = '';
     ec.innerHTML = `<div class="empty-state"><div>// select an entry to begin</div><button class="btn btn-ok" id="newEntryBtnAlt">+ New Entry</button></div>`;
     g('newEntryBtnAlt').onclick = openEntryPicker;
     return;
   }
-  if (sideBySide && openTabs.length > 1) {
+  if (state.sideBySide && state.openTabs.length > 1) {
     ec.className = 'editor-grid';
     ec.innerHTML = '';
-    openTabs.forEach(uid => {
+    state.openTabs.forEach(uid => {
       const panel = document.createElement('div');
       panel.className = 'editor-panel';
-      const en = lorebook.entries[uid];
+      const en = state.lorebook.entries[uid];
       if (!en) return;
       try {
         panel.innerHTML = buildEditorHTML(en, uid);
@@ -354,25 +362,25 @@ function renderEditor() {
     });
   } else {
     ec.className = '';
-    if (activeTabId === null || !lorebook.entries[activeTabId]) {
+    if (state.activeTabId === null || !state.lorebook.entries[state.activeTabId]) {
       ec.innerHTML = `<div class="empty-state"><div>// select an entry to begin</div><button class="btn btn-ok" id="newEntryBtnAlt">+ New Entry</button></div>`;
       g('newEntryBtnAlt').onclick = openEntryPicker;
       return;
     }
-    const en = lorebook.entries[activeTabId];
+    const en = state.lorebook.entries[state.activeTabId];
     try {
-      ec.innerHTML = buildEditorHTML(en, activeTabId);
-      attachEditorEvents(ec, activeTabId);
+      ec.innerHTML = buildEditorHTML(en, state.activeTabId);
+      attachEditorEvents(ec, state.activeTabId);
     } catch(err) {
-      ec.innerHTML = `<div style="padding:1rem;color:var(--err);font-family:var(--fx);font-size:.8rem">Error rendering entry #${activeTabId}: ${err.message}</div>`;
-      console.error('buildEditorHTML error', activeTabId, err);
+      ec.innerHTML = `<div style="padding:1rem;color:var(--err);font-family:var(--fx);font-size:.8rem">Error rendering entry #${state.activeTabId}: ${err.message}</div>`;
+      console.error('buildEditorHTML error', state.activeTabId, err);
     }
   }
 }
 
-function buildEditorHTML(en, uid) {
+export function buildEditorHTML(en, uid) {
   normalizeEntry(en);
-  const s = formState[uid] || {};
+  const s = state.formState[uid] || {};
   const get = (key, fallback) => s[key] !== undefined ? s[key] : fallback;
 
   const comment = get('comment', en.comment || '');
@@ -529,7 +537,7 @@ function buildEditorHTML(en, uid) {
   </div>`;
 }
 
-function attachEditorEvents(container, uid) {
+export function attachEditorEvents(container, uid) {
   // Save / Delete
   container.querySelector(`.save-btn[data-uid="${uid}"]`)?.addEventListener('click', () => saveEntry(uid));
   // Same path as the sidebar delete, so both confirm, save, and snapshot the same way
@@ -568,9 +576,9 @@ function attachEditorEvents(container, uid) {
 
   // Mark unsaved on any input change
   const markUnsaved = () => {
-    unsaved.add(uid);
+    state.unsaved.add(uid);
     captureState(uid, container);
-    if (typeof itemUndoPush === 'function') itemUndoPush('lore', uid, JSON.parse(JSON.stringify(formState[uid] || {})));
+    itemUndoPush('lore', uid, JSON.parse(JSON.stringify(state.formState[uid] || {})));
     renderTabs();
     syncEntryUndoButtons(uid, container);
   };
@@ -587,29 +595,29 @@ function attachEditorEvents(container, uid) {
 
   // Push initial state so undo has a baseline
   captureState(uid, container);
-  if (typeof itemUndoPush === 'function') itemUndoPush('lore', uid, JSON.parse(JSON.stringify(formState[uid] || {})));
+  itemUndoPush('lore', uid, JSON.parse(JSON.stringify(state.formState[uid] || {})));
 
   // Wire field-level undo/redo on all textareas
-  if (typeof wireFieldUndoRedo === 'function') wireFieldUndoRedo(container);
+  wireFieldUndoRedo(container);
 }
 
 // ═══════════════════════════════════════════════════════
 // ENTRY UNDO/REDO HELPERS
 // ═══════════════════════════════════════════════════════
 
-function syncEntryUndoButtons(uid, container) {
+export function syncEntryUndoButtons(uid, container) {
   const undoBtn = container?.querySelector(`.entry-undo-btn[data-uid="${uid}"]`);
   const redoBtn = container?.querySelector(`.entry-redo-btn[data-uid="${uid}"]`);
   if (undoBtn) undoBtn.disabled = !itemUndoCanUndo('lore', uid);
   if (redoBtn) redoBtn.disabled = !itemUndoCanRedo('lore', uid);
 }
 
-function applyEntryUndo(uid, direction, container) {
+export function applyEntryUndo(uid, direction, container) {
   const snapshot = itemUndoGet('lore', uid, direction);
   if (!snapshot) return;
   // Restore formState and re-render editor
-  formState[uid] = snapshot;
-  unsaved.add(uid);
+  state.formState[uid] = snapshot;
+  state.unsaved.add(uid);
   renderEditor(); // re-renders from formState
   renderTabs();
   // Sync buttons after re-render (container changes on re-render)
@@ -620,7 +628,7 @@ function applyEntryUndo(uid, direction, container) {
 // ═══════════════════════════════════════════════════════
 // SAVE ENTRY
 // ═══════════════════════════════════════════════════════
-function captureState(uid, container) {
+export function captureState(uid, container) {
   const s = {};
   const gid = id => container ? container.querySelector(`#${id}-${uid}`) : g(`${id}-${uid}`);
   const chk = id => gid(id)?.checked;
@@ -649,11 +657,11 @@ function captureState(uid, container) {
   s.matchPersonaDescription = chk('eMatchPersona'); s.matchCharacterDescription = chk('eMatchCharDesc');
   s.matchCharacterPersonality = chk('eMatchCharPers'); s.matchCharacterDepthPrompt = chk('eMatchCharDepth');
   s.matchScenario = chk('eMatchScenario'); s.matchCreatorNotes = chk('eMatchCreator');
-  formState[uid] = s;
+  state.formState[uid] = s;
 }
 
-function saveEntry(uid, opts = {}) {
-  const en = lorebook.entries[uid]; if (!en) return;
+export function saveEntry(uid, opts = {}) {
+  const en = state.lorebook.entries[uid]; if (!en) return;
   const gid = id => g(`${id}-${uid}`);
   const num = id => parseInt(gid(id)?.value) || 0;
   const str = id => gid(id)?.value || '';
@@ -689,18 +697,18 @@ function saveEntry(uid, opts = {}) {
   en.matchCharacterPersonality = chk('eMatchCharPers'); en.matchCharacterDepthPrompt = chk('eMatchCharDepth');
   en.matchScenario = chk('eMatchScenario'); en.matchCreatorNotes = chk('eMatchCreator');
 
-  unsaved.delete(uid); delete formState[uid];
+  state.unsaved.delete(uid); delete state.formState[uid];
   renderList(); renderTabs(); saveToStorage();
   // Autosaves skip the version-history snapshot (see commitActiveEditor)
-  if (!opts.noSnapshot && typeof loreSnapshotSoon === 'function') loreSnapshotSoon();
+  if (!opts.noSnapshot) loreSnapshotSoon();
 }
 
 // ═══════════════════════════════════════════════════════
 // GLOBAL LOREBOOK SETTINGS MODAL
 // ═══════════════════════════════════════════════════════
 
-function openLoreSettings() {
-  const s = lorebook.settings || {};
+export function openLoreSettings() {
+  const s = state.lorebook.settings || {};
   const el = id => document.getElementById(id);
   if (el('lsScanDepth')) el('lsScanDepth').value = s.scan_depth ?? 2;
   if (el('lsTokenBudget')) el('lsTokenBudget').value = s.token_budget ?? 2048;
@@ -711,15 +719,15 @@ function openLoreSettings() {
   openModal('loreSettingsModal');
 }
 
-function applyLoreSettings() {
+export function applyLoreSettings() {
   const el = id => document.getElementById(id);
-  if (!lorebook.settings) lorebook.settings = {};
-  lorebook.settings.scan_depth = parseInt(el('lsScanDepth')?.value) || 2;
-  lorebook.settings.token_budget = parseInt(el('lsTokenBudget')?.value) || 2048;
-  lorebook.settings.case_sensitive = el('lsCaseSensitive')?.checked || false;
-  lorebook.settings.match_whole_words = el('lsMatchWholeWords')?.checked || false;
-  lorebook.settings.use_group_scoring = el('lsUseGroupScoring')?.checked || false;
-  lorebook.settings.recursive_scanning = el('lsRecursiveScanning')?.checked || false;
+  if (!state.lorebook.settings) state.lorebook.settings = {};
+  state.lorebook.settings.scan_depth = parseInt(el('lsScanDepth')?.value) || 2;
+  state.lorebook.settings.token_budget = parseInt(el('lsTokenBudget')?.value) || 2048;
+  state.lorebook.settings.case_sensitive = el('lsCaseSensitive')?.checked || false;
+  state.lorebook.settings.match_whole_words = el('lsMatchWholeWords')?.checked || false;
+  state.lorebook.settings.use_group_scoring = el('lsUseGroupScoring')?.checked || false;
+  state.lorebook.settings.recursive_scanning = el('lsRecursiveScanning')?.checked || false;
   closeModal('loreSettingsModal');
   toast('Lorebook settings updated.', 'ok');
 }

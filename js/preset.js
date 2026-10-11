@@ -2,8 +2,17 @@
 // PRESET EDITOR
 // ═══════════════════════════════════════════════════════
 
+import { scanAndRenderVars } from './attach_lb.js';
+import { openFullscreen } from './fullscreen.js';
+import { itemHistoryPush, itemUndoGet, itemUndoPush, openItemHistory, syncItemUndoButtons, wireFieldUndoRedo } from './history.js';
+import { closeMobSidebar } from './mobile.js';
+import { state } from './state.js';
+import { savePresetLibrary } from './storage.js';
+import { askConfirm, closeModal, dlFile, esc, g, openModal, safeFileName, toast } from './util.js';
+import { commitActiveEditor, wsDropItem, wsMarkSaved, wsShowItem } from './workshop.js';
+
 // ── Blank preset matching ST chat completion format ──
-function blankPreset() {
+export function blankPreset() {
   return {
     name: 'New Preset',
     temperature: 0.8, top_p: 1, top_k: 0, top_a: 0, min_p: 0,
@@ -30,32 +39,32 @@ function blankPreset() {
   };
 }
 
-function presetId() { return 'p' + Date.now() + Math.floor(Math.random()*1000); }
+export function presetId() { return 'p' + Date.now() + Math.floor(Math.random()*1000); }
 
-function createPreset() {
+export function createPreset() {
   const p = blankPreset();
   const id = presetId();
-  presetLibrary[id] = { id, name: p.name, preset: p, savedAt: new Date().toISOString() };
+  state.presetLibrary[id] = { id, name: p.name, preset: p, savedAt: new Date().toISOString() };
   savePresetLibrary();
   renderPresetSidebar();
   // New presets get their own workshop tab (falls back to no tab if full)
-  if (!(typeof wsShowItem === 'function' && wsShowItem('preset', id))) openPreset(id);
+  if (!wsShowItem('preset', id)) openPreset(id);
 }
 
-function openPreset(id) {
+export function openPreset(id) {
   // Moving to a different preset: save what's typed in the current one first
-  if (activePresetId && activePresetId !== id && typeof commitActiveEditor === 'function') commitActiveEditor();
-  presetUnsaved = false;
-  activePresetId = id;
+  if (state.activePresetId && state.activePresetId !== id) commitActiveEditor();
+  state.presetUnsaved = false;
+  state.activePresetId = id;
   renderPresetSidebar();
   renderPresetEditor();
 }
 
-function renderPresetSidebar() {
+export function renderPresetSidebar() {
   const list = g('entryList');
   const count = g('entryCount');
   // By name, like the character list: sorting by save time made the open preset jump to the top on every autosave
-  const presets = Object.values(presetLibrary).sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  const presets = Object.values(state.presetLibrary).sort((a,b) => (a.name||'').localeCompare(b.name||''));
   count.textContent = `${presets.length} ${presets.length === 1 ? 'preset' : 'presets'}`;
   list.innerHTML = '';
 
@@ -68,7 +77,7 @@ function renderPresetSidebar() {
 
   presets.forEach(entry => {
     const li = document.createElement('li');
-    li.className = 'ei' + (entry.id === activePresetId ? ' open' : '');
+    li.className = 'ei' + (entry.id === state.activePresetId ? ' open' : '');
     const head = document.createElement('div'); head.className = 'ei-head';
     const emoji = document.createElement('span'); emoji.className = 'ei-emoji'; emoji.textContent = '⚙';
     const name = document.createElement('div'); name.className = 'ei-name';
@@ -92,40 +101,40 @@ function renderPresetSidebar() {
     });
     li.append(meta);
     li.addEventListener('click', () => {
-      if (!(typeof wsShowItem === 'function' && wsShowItem('preset', entry.id))) openPreset(entry.id);
-      if (typeof closeMobSidebar === 'function') closeMobSidebar();
+      if (!wsShowItem('preset', entry.id)) openPreset(entry.id);
+      closeMobSidebar();
     });
     list.append(li);
   });
 }
 
-function duplicatePreset(id) {
-  const src = presetLibrary[id]; if (!src) return;
+export function duplicatePreset(id) {
+  const src = state.presetLibrary[id]; if (!src) return;
   const newId = presetId();
   const p = JSON.parse(JSON.stringify(src.preset));
   p.name = (p.name || 'Untitled') + ' (Copy)';
-  presetLibrary[newId] = { id: newId, name: p.name, preset: p, savedAt: new Date().toISOString() };
+  state.presetLibrary[newId] = { id: newId, name: p.name, preset: p, savedAt: new Date().toISOString() };
   savePresetLibrary(); renderPresetSidebar();
-  if (!(typeof wsShowItem === 'function' && wsShowItem('preset', newId))) openPreset(newId);
+  if (!wsShowItem('preset', newId)) openPreset(newId);
 }
 
-async function deletePreset(id) {
+export async function deletePreset(id) {
   if (!await askConfirm('Delete this preset?')) return;
-  delete presetLibrary[id];
-  if (typeof wsDropItem === 'function') wsDropItem('preset', id);
-  if (activePresetId === id) activePresetId = null;
+  delete state.presetLibrary[id];
+  wsDropItem('preset', id);
+  if (state.activePresetId === id) state.activePresetId = null;
   savePresetLibrary(); renderPresetSidebar(); renderPresetEditor();
 }
 
-function renderPresetEditor() {
+export function renderPresetEditor() {
   const ec = g('editorContent');
   g('tabBar').innerHTML = '';
-  if (!activePresetId || !presetLibrary[activePresetId]) {
+  if (!state.activePresetId || !state.presetLibrary[state.activePresetId]) {
     ec.className = '';
     ec.innerHTML = `<div class="empty-state"><div>// select or create a preset</div><button class="btn btn-ok" id="newEntryBtnAlt">+ New Preset</button></div>`;
     g('newEntryBtnAlt').onclick = createPreset; return;
   }
-  const entry = presetLibrary[activePresetId];
+  const entry = state.presetLibrary[state.activePresetId];
   const p = entry.preset;
 
   ec.className = '';
@@ -321,14 +330,14 @@ function renderPresetEditor() {
   g('psScrollBot').addEventListener('click', () => { g('editorContent').scrollTop = g('editorContent').scrollHeight; });
 
   g('psCollapseAll').addEventListener('click', () => {
-    const entry2 = presetLibrary[activePresetId]; if (!entry2) return;
+    const entry2 = state.presetLibrary[state.activePresetId]; if (!entry2) return;
     getOrderedPrompts(entry2.preset).forEach(pr => collapsedPrompts.add(pr.identifier || pr.id));
     renderPromptList(entry2.preset.prompts);
   });
 
   g('psExpandAll').addEventListener('click', () => {
     collapsedPrompts.clear();
-    const entry2 = presetLibrary[activePresetId]; if (!entry2) return;
+    const entry2 = state.presetLibrary[state.activePresetId]; if (!entry2) return;
     renderPromptList(entry2.preset.prompts);
   });
 
@@ -414,8 +423,6 @@ function renderPresetEditor() {
   }
 
   editorScroll.addEventListener('scroll', updateSearchBarSticky);
-  // Clean up on mode switch or preset change
-  const _origOpenPreset = openPreset;
   // Store scroll listener ref for cleanup when preset re-renders
   searchBar._scrollCleanup = () => editorScroll.removeEventListener('scroll', updateSearchBarSticky);
 
@@ -426,35 +433,33 @@ function renderPresetEditor() {
 
   g('psSaveBtn').addEventListener('click', savePreset);
   g('psExportBtn').addEventListener('click', exportPreset);
-  g('psDeleteBtn').addEventListener('click', () => deletePreset(activePresetId));
+  g('psDeleteBtn').addEventListener('click', () => deletePreset(state.activePresetId));
 
   // Item-level undo/redo
   if (g('psUndoBtn')) g('psUndoBtn').addEventListener('click', () => {
-    const snap = itemUndoGet('preset', activePresetId, 'undo');
+    const snap = itemUndoGet('preset', state.activePresetId, 'undo');
     if (!snap) return;
-    presetFormState = snap;
+    state.presetFormState = snap;
     renderPresetEditor();
-    syncItemUndoButtons('preset', activePresetId);
+    syncItemUndoButtons('preset', state.activePresetId);
   });
   if (g('psRedoBtn')) g('psRedoBtn').addEventListener('click', () => {
-    const snap = itemUndoGet('preset', activePresetId, 'redo');
+    const snap = itemUndoGet('preset', state.activePresetId, 'redo');
     if (!snap) return;
-    presetFormState = snap;
+    state.presetFormState = snap;
     renderPresetEditor();
-    syncItemUndoButtons('preset', activePresetId);
+    syncItemUndoButtons('preset', state.activePresetId);
   });
 
   // Wire field-level undo/redo on preset textareas
-  if (typeof wireFieldUndoRedo === 'function') wireFieldUndoRedo(g('editorContent'));
+  wireFieldUndoRedo(g('editorContent'));
 
   // Push undo baseline after editor renders
-  if (typeof itemUndoPush === 'function') {
-    setTimeout(() => {
-      const snap = {}; document.querySelectorAll('#editorContent input,#editorContent select').forEach(el => { snap[el.id] = el.type === 'checkbox' ? el.checked : el.value; });
-      itemUndoPush('preset', activePresetId, snap);
-      syncItemUndoButtons('preset', activePresetId);
-    }, 0);
-  }
+  setTimeout(() => {
+    const snap = {}; document.querySelectorAll('#editorContent input,#editorContent select').forEach(el => { snap[el.id] = el.type === 'checkbox' ? el.checked : el.value; });
+    itemUndoPush('preset', state.activePresetId, snap);
+    syncItemUndoButtons('preset', state.activePresetId);
+  }, 0);
 
   // Variables panel
   g('psVarsHead').addEventListener('click', () => {
@@ -468,7 +473,7 @@ function renderPresetEditor() {
   });
 }
 
-function presetSlider(id, label, val, min, max, step) {
+export function presetSlider(id, label, val, min, max, step) {
   return `<div class="fg" style="grid-column:span 1">
     <label class="flabel-sm" style="display:flex;justify-content:space-between">
       <span>${label}</span><span id="${id}Val" style="color:var(--p)">${esc(val)}</span>
@@ -482,7 +487,7 @@ function presetSlider(id, label, val, min, max, step) {
   </div>`;
 }
 
-function presetStringField(id, label, val, tall=false) {
+export function presetStringField(id, label, val, tall=false) {
   return `<div class="fg">
     <label class="flabel-sm">${label}</label>
     ${tall
@@ -492,7 +497,7 @@ function presetStringField(id, label, val, tall=false) {
 }
 
 // ST special identifiers — fixed positions, ST injects these automatically
-const ST_SPECIAL = {
+export const ST_SPECIAL = {
   'main':               { label: '🔧 Main Prompt',           desc: 'ST main system prompt' },
   'nsfw':               { label: '🔞 NSFW',                  desc: 'NSFW/adult content block' },
   'jailbreak':          { label: '🔓 Jailbreak',             desc: 'Jailbreak / post-history block' },
@@ -508,9 +513,9 @@ const ST_SPECIAL = {
 };
 
 // Which prompts are collapsed (by identifier)
-const collapsedPrompts = new Set();
+export const collapsedPrompts = new Set();
 
-function getOrderedPrompts(preset) {
+export function getOrderedPrompts(preset) {
   // Use prompt_order[0].order as the canonical sequence if available
   const order = preset.prompt_order?.[0]?.order;
   if (!order?.length) return preset.prompts || [];
@@ -530,11 +535,11 @@ function getOrderedPrompts(preset) {
   return result;
 }
 
-function renderPromptList(prompts) {
+export function renderPromptList(prompts) {
   const list = g('psPromptList'); if (!list) return;
   list.innerHTML = '';
 
-  const entry = presetLibrary[activePresetId]; if (!entry) return;
+  const entry = state.presetLibrary[state.activePresetId]; if (!entry) return;
   // Use order from prompt_order for display
   const ordered = getOrderedPrompts(entry.preset);
 
@@ -714,7 +719,7 @@ function renderPromptList(prompts) {
   });
 }
 
-function makeBlankPrompt() {
+export function makeBlankPrompt() {
   const id = crypto.randomUUID();
   return {
     id, identifier: id, name: 'New Prompt', content: '',
@@ -724,7 +729,7 @@ function makeBlankPrompt() {
   };
 }
 
-function syncPromptOrder(preset) {
+export function syncPromptOrder(preset) {
   // Rebuild prompt_order to match current prompts array order + enabled state
   preset.prompt_order = [{
     id: preset.prompt_order?.[0]?.id ?? 0,
@@ -736,8 +741,8 @@ function syncPromptOrder(preset) {
 // opts.silent: no toast; opts.noHistory: no version-history snapshot (both
 // used by autosave). When wired straight to a click this receives the click
 // event, which has neither property, so it behaves like a normal save.
-function savePreset(opts = {}) {
-  const entry = presetLibrary[activePresetId]; if (!entry) return;
+export function savePreset(opts = {}) {
+  const entry = state.presetLibrary[state.activePresetId]; if (!entry) return;
   const p = entry.preset;
   const gv = id => g(id)?.value;
   const gc = id => g(id)?.checked;
@@ -786,23 +791,23 @@ function savePreset(opts = {}) {
   entry.name = p.name;
   entry.savedAt = new Date().toISOString();
   // Snapshot on every explicit save
-  if (!opts.noHistory && typeof itemHistoryPush === 'function') itemHistoryPush('preset', activePresetId, JSON.parse(JSON.stringify(entry)));
-  presetUnsaved = false;
+  if (!opts.noHistory) itemHistoryPush('preset', state.activePresetId, JSON.parse(JSON.stringify(entry)));
+  state.presetUnsaved = false;
   savePresetLibrary();
   renderPresetSidebar();
-  if (typeof wsMarkSaved === 'function') wsMarkSaved('preset', activePresetId);
+  wsMarkSaved('preset', state.activePresetId);
   if (!opts.silent) toast('Preset saved.', 'ok');
 }
 
-function exportPreset() {
-  const entry = presetLibrary[activePresetId]; if (!entry) return;
+export function exportPreset() {
+  const entry = state.presetLibrary[state.activePresetId]; if (!entry) return;
   savePreset(); // save first to capture any unsaved edits
   const fn = safeFileName(entry.preset.name, 'preset') + '.json';
   dlFile(JSON.stringify(entry.preset, null, 4), fn, 'application/json');
   toast('Exported: ' + fn, 'ok');
 }
 
-function handlePresetImport(e) {
+export function handlePresetImport(e) {
   const file = e.target.files[0]; if (!file) return;
   const r = new FileReader();
   r.onload = ev => {
@@ -811,9 +816,9 @@ function handlePresetImport(e) {
       if (!p || typeof p !== 'object' || Array.isArray(p) || (!Array.isArray(p.prompts) && p.temperature === undefined)) { toast('Doesn\'t look like an ST preset.', 'err'); return; }
       if (!p.name) p.name = file.name.replace(/\.json$/i, '');
       const id = presetId();
-      presetLibrary[id] = { id, name: p.name, preset: p, savedAt: new Date().toISOString() };
+      state.presetLibrary[id] = { id, name: p.name, preset: p, savedAt: new Date().toISOString() };
       savePresetLibrary(); renderPresetSidebar();
-      if (!(typeof wsShowItem === 'function' && wsShowItem('preset', id))) openPreset(id);
+      if (!wsShowItem('preset', id)) openPreset(id);
       toast('Imported: ' + p.name, 'ok');
     } catch(err) { toast('Import error: ' + err.message, 'err'); console.error(err); }
   };
@@ -821,18 +826,18 @@ function handlePresetImport(e) {
   e.target.value = '';
 }
 
-function openPresetLibrary() {
+export function openPresetLibrary() {
   g('libModalTitle').textContent = 'Preset Library';
   const list = g('libList');
   list.innerHTML = '';
-  const presets = Object.values(presetLibrary).sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
+  const presets = Object.values(state.presetLibrary).sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
 
   if (!presets.length) {
     list.innerHTML = '<div class="lib-empty">// no presets yet</div>';
   } else {
     presets.forEach(entry => {
       const item = document.createElement('div');
-      item.className = 'lib-item' + (entry.id === activePresetId ? ' active' : '');
+      item.className = 'lib-item' + (entry.id === state.activePresetId ? ' active' : '');
       const date = new Date(entry.savedAt).toLocaleDateString();
       item.innerHTML = `
         <span class="lib-name">${esc(entry.name || 'Unnamed')}</span>
@@ -844,7 +849,7 @@ function openPresetLibrary() {
         </div>`;
       item.querySelector('.lib-name').addEventListener('click', () => { openPreset(entry.id); closeModal('libModal'); });
       item.querySelector('.lib-load').addEventListener('click', () => { openPreset(entry.id); closeModal('libModal'); });
-      item.querySelector('.lib-hist').addEventListener('click', () => { if (typeof openItemHistory === 'function') openItemHistory('preset', entry.id); });
+      item.querySelector('.lib-hist').addEventListener('click', () => { openItemHistory('preset', entry.id); });
       item.querySelector('.lib-del').addEventListener('click', () => { deletePreset(entry.id); openPresetLibrary(); });
       list.append(item);
     });

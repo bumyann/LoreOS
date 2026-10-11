@@ -2,12 +2,12 @@
 // UTIL — small helpers every module uses: DOM lookup, HTML escaping, dialogs, toasts, downloads.
 // ═══════════════════════════════════════════════════════
 
-function g(id) { return document.getElementById(id); }
+export function g(id) { return document.getElementById(id); }
 
 // File name from a user-facing name. Keeps letters from any language and emoji
 // (the old [^a-z0-9] rule turned a Japanese name into "______.json" and made
 // different characters collide), drops only what file systems reject.
-function safeFileName(name, fallback = 'untitled') {
+export function safeFileName(name, fallback = 'untitled') {
   const clean = String(name || '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/\s+/g, ' ').trim().replace(/^\.+/, '').slice(0, 80);
   return clean || fallback;
 }
@@ -18,20 +18,20 @@ function safeFileName(name, fallback = 'untitled') {
 // as text, not run, and a value containing a double quote must not be able to
 // break out of its attribute. (Setting textContent and reading innerHTML back
 // does NOT escape quotes, which is why this is done by hand.)
-function esc(v) {
+export function esc(v) {
   return ((v === null || v === undefined) ? '' : String(v))
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function closeAllDropdowns() {
+export function closeAllDropdowns() {
   document.querySelectorAll('.dd-menu.open').forEach(m => m.classList.remove('open'));
 }
 
 // Null-guarded: dynamically built modals (version history) remove themselves,
 // and the delegated close handler used to then crash on the missing element.
-const _modalReturnFocus = {};
-function openModal(id) {
+export const _modalReturnFocus = {};
+export function openModal(id) {
   const el = g(id); if (!el) return;
   // Dialog semantics for screen readers, and keyboard focus moves into the
   // dialog (onto its box, not an input, so phones don't pop the keyboard)
@@ -42,7 +42,7 @@ function openModal(id) {
   if (!box.hasAttribute('tabindex')) box.setAttribute('tabindex', '-1');
   try { box.focus({ preventScroll: true }); } catch (e) {}
 }
-function closeModal(id) {
+export function closeModal(id) {
   const el = g(id); if (!el) return;
   el.classList.remove('open');
   const back = _modalReturnFocus[id]; delete _modalReturnFocus[id];
@@ -55,7 +55,7 @@ function closeModal(id) {
 // Promise-based confirm modal — replaces native confirm() which gets silently
 // blocked/auto-rejected in sandboxed iframe contexts (e.g. in-chat previews)
 // Promise-based input modal — replaces native prompt() which is blocked in sandboxed iframes
-function askInput(message, defaultValue = '') {
+export function askInput(message, defaultValue = '') {
   return new Promise(resolve => {
     g('renameModalMsg').textContent = message;
     g('renameModalInput').value = defaultValue;
@@ -79,7 +79,7 @@ function askInput(message, defaultValue = '') {
   });
 }
 
-function askConfirm(message) {
+export function askConfirm(message) {
   return new Promise(resolve => {
     g('confirmMsg').textContent = message;
     openModal('confirmModal');
@@ -98,7 +98,7 @@ function askConfirm(message) {
   });
 }
 
-function toast(msg, type = 'info') {
+export function toast(msg, type = 'info') {
   const container = g('notifs');
   const el = document.createElement('div');
   el.className = `notif ${type === 'ok' ? 'ok' : type === 'err' ? 'err' : type === 'warn' ? 'warn' : 'info'}`;
@@ -109,7 +109,7 @@ function toast(msg, type = 'info') {
   setTimeout(dismiss, 3500);
 }
 
-function dlFile(content, filename, mime) {
+export function dlFile(content, filename, mime) {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -119,7 +119,7 @@ function dlFile(content, filename, mime) {
 }
 
 // Works in sandboxed iframes where navigator.clipboard is blocked
-function copyToClipboard(text) {
+export function copyToClipboard(text) {
   try {
     if (navigator.clipboard && window.isSecureContext) {
       return navigator.clipboard.writeText(text).then(() => true).catch(() => fallback());

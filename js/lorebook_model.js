@@ -3,13 +3,15 @@
 // from other tools, and rebuilding the entries object from any shape of import.
 // ═══════════════════════════════════════════════════════
 
+import { toast } from './util.js';
+
 // Rebuild an entries object so every key == en.uid, handling arrays, odd keys
 // and collisions. Entry keys are NOT always 0,1,2: other tools export string or
 // UUID keys, arrays, negative or duplicate uids. Numbers keep their slot where
 // they can; everything else gets the next free one, in file order, so no entry
 // is ever silently dropped. Only entries that are not objects at all (null,
 // numbers, strings) are skipped. rebuildEntries.lastReport says what happened.
-function rebuildEntries(raw) {
+export function rebuildEntries(raw) {
   const pairs = Array.isArray(raw)
     ? raw.map((en, i) => [String(i), en])
     : Object.entries(raw && typeof raw === 'object' ? raw : {});
@@ -44,13 +46,13 @@ function rebuildEntries(raw) {
 }
 
 // Tell the user when an import had to be adjusted, never silently
-function reportRebuild(r) {
+export function reportRebuild(r) {
   if (!r) return;
   if (r.skipped) toast(r.skipped === 1 ? "1 item in the file wasn't a lorebook entry and was skipped." : `${r.skipped} items in the file weren't lorebook entries and were skipped.`, 'warn');
   if (r.renumbered) toast(`${r.renumbered} entr${r.renumbered === 1 ? 'y' : 'ies'} had unusual ids and were renumbered.`, 'info');
 }
 
-function normalizeEntry(en) {
+export function normalizeEntry(en) {
   // Core array fields — some lorebooks omit these or use null
   // Keywords: some tools write a comma separated string instead of an array
   const asList = v => Array.isArray(v) ? v : (typeof v === 'string' ? v.split(',').map(x => x.trim()).filter(Boolean) : []);
@@ -90,7 +92,7 @@ function normalizeEntry(en) {
 // ═══════════════════════════════════════════════════════
 // ENTRY CREATION
 // ═══════════════════════════════════════════════════════
-function blankEntry(uid) {
+export function blankEntry(uid) {
   return {
     uid, key: [], keysecondary: [], comment: 'New Entry', content: '',
     constant: false, vectorized: false, selective: true, selectiveLogic: 0,

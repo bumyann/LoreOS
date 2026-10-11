@@ -2,6 +2,46 @@
 // MAIN — start-up. Wires the page together in a fixed order and handles global events.
 // ═══════════════════════════════════════════════════════
 
+import { openAttachLbModal } from './attach_lb.js';
+import { createChar, exportCharCharx, exportCharJson, exportCharJsonV2, exportCharSaucepan, handleCharCompanionImport, handleCharImport, handleCharxImport, openCharLibrary, openCharPngExport, saveChar } from './character.js';
+import { wireFullscreen } from './fullscreen.js';
+import { libSaveCurrent, openLibrary } from './library.js';
+import { applyLoreSettings, changeZoom, clearEditor, clearSelection, closeTab, createEntry, handleSbSearch, openLoreSettings, renderEditor, renderTabs, saveEntry, toggleView } from './lorebook.js';
+import { doExportPublic, doExportTxt, executeMerge, exportJanitorJson, exportJson, exportSaucepanJson, handleImport, handleJanitorPaste, handleMergeImport, handleSaucepanImport, openJanitorPasteModal, openPublicExport, previewPublic, renderMergeList } from './lorebook_io.js';
+import { wireMobile } from './mobile.js';
+import { createPreset, exportPreset, handlePresetImport, makeBlankPrompt, openPresetLibrary, renderPromptList, savePreset, syncPromptOrder } from './preset.js';
+import { PT, ptRefreshManual, wirePronounTool } from './pronoun.js';
+import { initRouter } from './router.js';
+import { doReplaceAll, doReplaceOne, doSearch } from './search.js';
+import { applyAllCustomisations, applyFonts, toggleTheme, wireFonts, wireSettings } from './settings.js';
+import * as m_util from './util.js';
+import * as m_storage from './storage.js';
+import * as m_history from './history.js';
+import * as m_pronoun from './pronoun.js';
+import * as m_lorebook_model from './lorebook_model.js';
+import * as m_lorebook from './lorebook.js';
+import * as m_lorebook_io from './lorebook_io.js';
+import * as m_library from './library.js';
+import * as m_search from './search.js';
+import * as m_workshop from './workshop.js';
+import * as m_character from './character.js';
+import * as m_preset from './preset.js';
+import * as m_templates from './templates.js';
+import * as m_attach_lb from './attach_lb.js';
+import * as m_fullscreen from './fullscreen.js';
+import * as m_settings from './settings.js';
+import * as m_sync from './sync.js';
+import * as m_gdrive from './gdrive.js';
+import * as m_mobile from './mobile.js';
+import * as m_router from './router.js';
+import * as m_pwa from './pwa.js';
+import { setupOffline } from './pwa.js';
+import { state } from './state.js';
+import { loadFromStorage, loadPrefs } from './storage.js';
+import { openEntryPicker, openTemplateLibrary, wireTplLibrary } from './templates.js';
+import { closeAllDropdowns, closeModal, g, openModal, toast } from './util.js';
+import { openWsPicker, renderWsPickerList, switchMode, wireAutosave, wsRestoreTabs } from './workshop.js';
+
 // ═══════════════════════════════════════════════════════
 // GLOBAL ERROR CATCHER
 // Nothing in LoreOS used to surface a thrown error, which is how
@@ -16,7 +56,7 @@
     if (msg === lastMsg && now - lastAt < 3000) return; // don't spam on loops
     lastMsg = msg; lastAt = now;
     console.error('[LoreOS]', what, err);
-    if (typeof toast === 'function') toast('Something broke: ' + msg, 'err');
+    toast('Something broke: ' + msg, 'err');
   }
   window.addEventListener('error', e => report('uncaught error:', e.error || e.message));
   window.addEventListener('unhandledrejection', e => report('unhandled promise:', e.reason));
@@ -27,24 +67,27 @@
 // Each step is isolated: one module failing to start must not
 // stop the rest of the app from starting.
 // ═══════════════════════════════════════════════════════
-function initStep(name, fn) {
+export function initStep(name, fn) {
   try { fn(); }
   catch(e) {
     console.error(`[LoreOS] init step "${name}" failed:`, e);
     setTimeout(() => {
-      if (typeof toast === 'function') toast(`Startup problem in ${name} — see console.`, 'warn');
+      toast(`Startup problem in ${name} — see console.`, 'warn');
     }, 400);
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+// The order of these steps matters: events are wired before saved data is loaded,
+// and the router runs after the editors exist. initStep isolates each one so a
+// failure in one module can't stop the rest of the app from starting.
+function startApp() {
   initStep('prefs',        loadPrefs);
   initStep('events',       wireEvents);
   initStep('autosave',     wireAutosave);
   initStep('mobile',       wireMobile);
   initStep('storage',      loadFromStorage);
   initStep('mode',         () => switchMode('lore'));
-  initStep('router',       () => { if (typeof initRouter === 'function') initRouter(); });
+  initStep('router',       initRouter);
   initStep('workshop tabs', wsRestoreTabs);
   initStep('pronoun tool', wirePronounTool);
   initStep('fullscreen',   wireFullscreen);
@@ -53,12 +96,17 @@ document.addEventListener('DOMContentLoaded', () => {
   initStep('fonts',        wireFonts);
   initStep('theme',        applyAllCustomisations);
   initStep('font apply',   applyFonts);
-});
+  initStep('offline',      setupOffline);
+}
+
+// Module scripts run after the page is parsed, so this is usually already true
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startApp);
+else startApp();
 
 // ═══════════════════════════════════════════════════════
 // EVENTS
 // ═══════════════════════════════════════════════════════
-function wireEvents() {
+export function wireEvents() {
   // Mode tab switching
   document.querySelectorAll('.mode-tab').forEach(tab => {
     tab.addEventListener('click', () => switchMode(tab.dataset.mode));
@@ -102,8 +150,8 @@ function wireEvents() {
   g('presetLibraryBtn').onclick = openPresetLibrary;
   g('presetTemplatesBtn').onclick = () => openTemplateLibrary('preset');
   g('psAddPromptHdr').onclick = () => {
-    if (!activePresetId || !presetLibrary[activePresetId]) { toast('Open a preset first.', 'warn'); return; }
-    const entry2 = presetLibrary[activePresetId];
+    if (!state.activePresetId || !state.presetLibrary[state.activePresetId]) { toast('Open a preset first.', 'warn'); return; }
+    const entry2 = state.presetLibrary[state.activePresetId];
     if (!entry2.preset.prompts) entry2.preset.prompts = [];
     entry2.preset.prompts.unshift(makeBlankPrompt()); // add to TOP
     syncPromptOrder(entry2.preset);
@@ -120,12 +168,12 @@ function wireEvents() {
   if (g('fileCharxInput')) g('fileCharxInput').onchange = handleCharxImport;
   g('presetImportBtn').onclick = () => { g('filePresetInput').click(); };
   // Header export buttons (char)
-  if (g('charHdrExportJsonBtn')) g('charHdrExportJsonBtn').onclick = () => exportCharJson(activeCharId);
-  if (g('charHdrExportV2JsonBtn')) g('charHdrExportV2JsonBtn').onclick = () => exportCharJsonV2(activeCharId);
-  if (g('charHdrExportV3PngBtn')) g('charHdrExportV3PngBtn').onclick = () => openCharPngExport(activeCharId, false);
-  if (g('charHdrExportPngBtn')) g('charHdrExportPngBtn').onclick = () => openCharPngExport(activeCharId, true);
-  if (g('charHdrExportSaucepanBtn')) g('charHdrExportSaucepanBtn').onclick = () => exportCharSaucepan(activeCharId);
-  if (g('charHdrExportCharxBtn')) g('charHdrExportCharxBtn').onclick = () => exportCharCharx(activeCharId);
+  if (g('charHdrExportJsonBtn')) g('charHdrExportJsonBtn').onclick = () => exportCharJson(state.activeCharId);
+  if (g('charHdrExportV2JsonBtn')) g('charHdrExportV2JsonBtn').onclick = () => exportCharJsonV2(state.activeCharId);
+  if (g('charHdrExportV3PngBtn')) g('charHdrExportV3PngBtn').onclick = () => openCharPngExport(state.activeCharId, false);
+  if (g('charHdrExportPngBtn')) g('charHdrExportPngBtn').onclick = () => openCharPngExport(state.activeCharId, true);
+  if (g('charHdrExportSaucepanBtn')) g('charHdrExportSaucepanBtn').onclick = () => exportCharSaucepan(state.activeCharId);
+  if (g('charHdrExportCharxBtn')) g('charHdrExportCharxBtn').onclick = () => exportCharCharx(state.activeCharId);
   // Header export button (preset)
   if (g('presetHdrExportBtn')) g('presetHdrExportBtn').onclick = () => exportPreset();
   g('newEntryBtnAlt').onclick = openEntryPicker;
@@ -156,7 +204,7 @@ function wireEvents() {
   });
   g('fileInput').onchange = handleImport;
   g('fileMergeInput').onchange = handleMergeImport;
-  g('lorebookName').oninput = e => { lorebook.name = e.target.value.trim(); };
+  g('lorebookName').oninput = e => { state.lorebook.name = e.target.value.trim(); };
   g('sbSearch').oninput = handleSbSearch;
   g('zoomOut').onclick = () => changeZoom(-1);
   g('zoomIn').onclick = () => changeZoom(1);
@@ -179,8 +227,8 @@ function wireEvents() {
   g('srReplace').onkeypress = e => { if (e.key === 'Enter' && e.ctrlKey) doReplaceAll(); };
 
   // Merge
-  g('mergeSelAll').onclick = () => { mergeSelected = Object.values(mergeStaging.entries).map(e => e.uid); renderMergeList(); };
-  g('mergeDeselAll').onclick = () => { mergeSelected = []; renderMergeList(); };
+  g('mergeSelAll').onclick = () => { if (!state.mergeStaging) return; state.mergeSelected = Object.values(state.mergeStaging.entries).map(e => e.uid); renderMergeList(); };
+  g('mergeDeselAll').onclick = () => { state.mergeSelected = []; renderMergeList(); };
   g('mergeConfirm').onclick = executeMerge;
 
   // Export text
@@ -232,7 +280,7 @@ function wireEvents() {
       if (e.key === 'F1' || (e.shiftKey && e.key === '?')) { e.preventDefault(); openModal('helpModal'); }
       return;
     }
-    const m = mode;
+    const m = state.mode;
     switch(e.key.toLowerCase()) {
       case 'n':
         e.preventDefault();
@@ -240,7 +288,7 @@ function wireEvents() {
         break;
       case 's':
         e.preventDefault();
-        if (m === 'lore') { if (activeTabId !== null) saveEntry(activeTabId); }
+        if (m === 'lore') { if (state.activeTabId !== null) saveEntry(state.activeTabId); }
         else if (m === 'char') saveChar();
         else if (m === 'preset') savePreset();
         break;
@@ -253,19 +301,19 @@ function wireEvents() {
       case 'e':
         e.preventDefault();
         if (m === 'lore') exportJson();
-        else if (m === 'char') { if (activeCharId) exportCharJson(activeCharId); }
+        else if (m === 'char') { if (state.activeCharId) exportCharJson(state.activeCharId); }
         else if (m === 'preset') exportPreset();
         break;
       case 'm': if (m === 'lore') { e.preventDefault(); g('fileMergeInput').click(); } break;
       case 'h': if (m === 'lore') { e.preventDefault(); openModal('srModal'); } break;
-      case 'w': if (m === 'lore') { e.preventDefault(); if (activeTabId !== null) closeTab(activeTabId); } break;
+      case 'w': if (m === 'lore') { e.preventDefault(); if (state.activeTabId !== null) closeTab(state.activeTabId); } break;
       case 'd': e.preventDefault(); toggleTheme(); break;
       case 'tab':
         if (m !== 'lore') break;
         e.preventDefault();
-        if (openTabs.length > 0) {
-          const i = openTabs.indexOf(activeTabId);
-          activeTabId = e.shiftKey ? openTabs[(i - 1 + openTabs.length) % openTabs.length] : openTabs[(i + 1) % openTabs.length];
+        if (state.openTabs.length > 0) {
+          const i = state.openTabs.indexOf(state.activeTabId);
+          state.activeTabId = e.shiftKey ? state.openTabs[(i - 1 + state.openTabs.length) % state.openTabs.length] : state.openTabs[(i + 1) % state.openTabs.length];
           renderTabs(); renderEditor();
         }
         break;
@@ -274,3 +322,20 @@ function wireEvents() {
     }
   });
 }
+
+// ═══════════════════════════════════════════════════════
+// CONSOLE ACCESS
+// Everything is reachable from the browser console as LoreOS.<name> — handy for
+// debugging, and what the automated tests use. State variables read and write
+// through to the shared state object.
+// ═══════════════════════════════════════════════════════
+const LoreOS = {};
+[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa].forEach(ns => {
+  Object.keys(ns).forEach(k => {
+    if (!(k in LoreOS)) Object.defineProperty(LoreOS, k, { get: () => ns[k], enumerable: true, configurable: true });
+  });
+});
+Object.keys(state).forEach(k => {
+  Object.defineProperty(LoreOS, k, { get: () => state[k], set: v => { state[k] = v; }, enumerable: true, configurable: true });
+});
+window.LoreOS = LoreOS;

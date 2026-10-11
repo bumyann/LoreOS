@@ -1,29 +1,29 @@
 
 // ── Pronoun/noun tool globals — must live here so wireEvents can reference PT ──
-const PT = {
+export const PT = {
   open: false,
   src: 'they',
   tgt: 'macro',
   targetField: null,
   manualTokens: [],
 };
-const MACROS = {
+export const MACROS = {
   sub: '{{sub}}', obj: '{{obj}}', poss: '{{poss}}',
   poss_p: '{{poss_p}}', ref: '{{ref}}'
 };
-const PRONOUN_FORMS = {
+export const PRONOUN_FORMS = {
   he:   { sub: 'he',   obj: 'him',  poss: 'his',   poss_p: 'his',   ref: 'himself'   },
   she:  { sub: 'she',  obj: 'her',  poss: 'her',   poss_p: 'hers',  ref: 'herself'   },
   they: { sub: 'they', obj: 'them', poss: 'their', poss_p: 'theirs', ref: 'themselves' },
 };
-const CONTRACTION_FORMS = {
+export const CONTRACTION_FORMS = {
   he:   { sub_is: "he's",   sub_ll: "he'll",   sub_d: "he'd",   sub_has: "he's"   },
   she:  { sub_is: "she's",  sub_ll: "she'll",  sub_d: "she'd",  sub_has: "she's"  },
   they: { sub_is: "they're", sub_ll: "they'll", sub_d: "they'd", sub_has: "they've" },
 };
-const THEY_VERB_FIX = { is:'are', was:'were', has:'have', does:'do', "doesn't":"don't", "hasn't":"haven't", "wasn't":"weren't" };
-const SINGULAR_VERB_FIX = { are:'is', were:'was', have:'has', do:'does', "don't":"doesn't", "haven't":"hasn't", "weren't":"wasn't" };
-const NOUN_TABLE = [
+export const THEY_VERB_FIX = { is:'are', was:'were', has:'have', does:'do', "doesn't":"don't", "hasn't":"haven't", "wasn't":"weren't" };
+export const SINGULAR_VERB_FIX = { are:'is', were:'was', have:'has', do:'does', "don't":"doesn't", "haven't":"hasn't", "weren't":"wasn't" };
+export const NOUN_TABLE = [
   ['brother','sister','sibling'],['brothers','sisters','siblings'],
   ['father','mother','parent'],['dad','mom','parent'],
   ['son','daughter','child'],['sons','daughters','children'],
@@ -50,7 +50,7 @@ const NOUN_TABLE = [
   ['steward','stewardess','flight attendant'],
   ['landlord','landlady','landlord'],
 ];
-const NOUN_MAP = {};
+export const NOUN_MAP = {};
 // A word can belong to more than one row (e.g. "person" is the neutral of both
 // man/woman and gentleman/lady; "parent" of father/mother and dad/mom). The
 // first row listed wins, so every word converts to its closest counterpart
@@ -63,16 +63,19 @@ NOUN_TABLE.forEach(([m, f, n]) => {
   };
   add(m, 0); add(f, 1); add(n, 2);
 });
-let PT_nounTgt = 'masc';
-let PT_nounTokens = [];
+export let PT_nounTgt = 'masc';
+export let PT_nounTokens = [];
 // ═══════════════════════════════════════════════════════
 // PRONOUN MACRO TOOL
 // ═══════════════════════════════════════════════════════
 
+import { state } from './state.js';
+import { copyToClipboard, g, toast } from './util.js';
+
 // ── Pronoun patterns per source ──
 // Each entry: { regex, type, macro, ambiguous? }
 // Order matters — longer/more specific patterns first
-function getPatterns(src) {
+export function getPatterns(src) {
   if (src === 'they') return [
     { re: /\bthey're\b/gi,    macro: 'sub',    verb: ' is',  contractVerb: true, contractKey: 'sub_is' },
     { re: /\bthey've\b/gi,    macro: 'sub',    verb: ' has', contractVerb: true, contractKey: 'sub_has' },
@@ -106,7 +109,7 @@ function getPatterns(src) {
 }
 
 // Get the output text for a token given target mode
-function getTokenOutput(tok, tgt, originalText) {
+export function getTokenOutput(tok, tgt, originalText) {
   if (tgt === 'macro') {
     if (tok.contractVerb) return MACROS[tok.macro] + tok.verb;
     return MACROS[tok.macro];
@@ -125,7 +128,7 @@ function getTokenOutput(tok, tgt, originalText) {
 }
 
 // ── Manual mode tokenizer ──
-function tokenizeForManual(text, src) {
+export function tokenizeForManual(text, src) {
   const patterns = getPatterns(src);
   const combined = new RegExp(
     patterns.map(p => p.re.source).join('|'), 'gi'
@@ -158,7 +161,7 @@ function tokenizeForManual(text, src) {
   return tokens;
 }
 
-function renderManualDisplay(tokens) {
+export function renderManualDisplay(tokens) {
   const wrap = g('ptManualDisplay');
   const tgt = PT.tgt || 'macro';
   wrap.innerHTML = '';
@@ -219,7 +222,7 @@ function renderManualDisplay(tokens) {
   });
 }
 
-function getManualResult(tokens) {
+export function getManualResult(tokens) {
   const tgt = PT.tgt || 'macro';
   return tokens.map(tok => {
     if (tok.type === 'text') return tok.text;
@@ -232,7 +235,7 @@ function getManualResult(tokens) {
 // NOUN CONVERTER
 // ══════════════════════════════════════════
 
-function tokenizeForNouns(text) {
+export function tokenizeForNouns(text) {
   // Build regex from all known nouns
   const words = Object.keys(NOUN_MAP).sort((a,b) => b.length - a.length);
   const combined = new RegExp('\\b(' + words.map(w => w.replace(/'/g, "\\'")).join('|') + ')\\b', 'gi');
@@ -251,7 +254,7 @@ function tokenizeForNouns(text) {
   return tokens;
 }
 
-function getNounOutput(tok) {
+export function getNounOutput(tok) {
   const e = tok.entry;
   if (!e) return tok.text;
   let out;
@@ -265,7 +268,7 @@ function getNounOutput(tok) {
     : out;
 }
 
-function renderNounDisplay(tokens) {
+export function renderNounDisplay(tokens) {
   const wrap = g('ptNounDisplay');
   wrap.innerHTML = '';
   tokens.forEach(tok => {
@@ -289,7 +292,7 @@ function renderNounDisplay(tokens) {
   });
 }
 
-function getNounResult(tokens) {
+export function getNounResult(tokens) {
   return tokens.map(tok => {
     if (tok.type === 'text') return tok.text;
     if (!tok.converted) return tok.text;
@@ -298,7 +301,7 @@ function getNounResult(tokens) {
 }
 
 // ── Wire up the tool ──
-function wirePronounTool() {
+export function wirePronounTool() {
   const tool = g('pronounTool');
 
   // Open/close handled by wireEvents (pronounToolBtn.onclick)
@@ -334,7 +337,7 @@ function wirePronounTool() {
 
   // Track focused textarea in char mode — catches all textareas anywhere on the page
   document.addEventListener('focusin', e => {
-    if (e.target.tagName === 'TEXTAREA' && mode === 'char') {
+    if (e.target.tagName === 'TEXTAREA' && state.mode === 'char') {
       // Exclude textareas inside the pronounTool itself and modals
       if (e.target.closest('#pronounTool') || e.target.closest('.modal')) return;
       PT.targetField = e.target;
@@ -344,7 +347,7 @@ function wirePronounTool() {
 
   // Also track input[type=text] fields in char mode
   document.addEventListener('focusin', e => {
-    if (e.target.tagName === 'INPUT' && e.target.type === 'text' && mode === 'char') {
+    if (e.target.tagName === 'INPUT' && e.target.type === 'text' && state.mode === 'char') {
       if (e.target.closest('#pronounTool') || e.target.closest('.modal')) return;
       PT.targetField = e.target;
       if (PT.open) ptRefreshManual();
@@ -379,7 +382,7 @@ function wirePronounTool() {
   });
 }
 
-function ptRefreshManual() {
+export function ptRefreshManual() {
   if (!PT.targetField) {
     g('ptManualDisplay').textContent = 'focus a text field first';
     g('ptNounDisplay').textContent = 'focus a text field first';

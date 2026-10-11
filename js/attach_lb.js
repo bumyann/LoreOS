@@ -5,7 +5,12 @@
 // inside card.data, so they never leak into exported card JSON.
 // ═══════════════════════════════════════════════════════
 
-function updateLbStatus(entry) {
+import { renderPromptList } from './preset.js';
+import { state } from './state.js';
+import { libGet, saveCharLibrary, savePresetLibrary } from './storage.js';
+import { askInput, esc, g, openModal, toast } from './util.js';
+
+export function updateLbStatus(entry) {
   const statusEl = g('chLbStatus');
   if (!statusEl) return;
   const sources = entry?.attachedLbSources || [];
@@ -25,7 +30,7 @@ function updateLbStatus(entry) {
 
 // Rebuild card.data.character_book fresh from every attached source,
 // remapping entry uids so entries from different lorebooks never collide.
-function rebuildCharacterBook(entry) {
+export function rebuildCharacterBook(entry) {
   const sources = entry.attachedLbSources || [];
   if (!sources.length) { entry.card.data.character_book = null; return; }
   // character_book.entries must be an ARRAY of spec entries. This used to be
@@ -46,7 +51,7 @@ function rebuildCharacterBook(entry) {
 // chara_card_v2 character_book entry. Mirrors SillyTavern's own
 // world-info -> character_book conversion: spec fields at the top level,
 // everything ST-specific under `extensions` so it survives the round trip.
-function worldInfoEntryToSpec(en, id, order) {
+export function worldInfoEntryToSpec(en, id, order) {
   const pos = Number(en.position) || 0;
   const num = (v, fb) => { const n = Number(v); return Number.isFinite(n) ? n : fb; };
   return {
@@ -99,7 +104,7 @@ function worldInfoEntryToSpec(en, id, order) {
 // Cards saved before this fix hold the old object-shaped character_book.
 // Convert them in place (called when the library loads and on every card
 // normalise). Cards that already have an array, or no book, are untouched.
-function migrateCharacterBook(card) {
+export function migrateCharacterBook(card) {
   const d = card && card.data;
   const cb = d && d.character_book;
   if (!cb || !cb.entries || Array.isArray(cb.entries) || typeof cb.entries !== 'object') return false;
@@ -109,13 +114,13 @@ function migrateCharacterBook(card) {
   return true;
 }
 
-function renderAttachLbList() {
+export function renderAttachLbList() {
   const list = g('attachLbLibList');
   if (!list) return;
   list.innerHTML = '';
   const lib = libGet();
   const books = Object.values(lib).sort((a,b) => b.savedAt.localeCompare(a.savedAt));
-  const entry = charLibrary[activeCharId];
+  const entry = state.charLibrary[state.activeCharId];
   const attachedNames = new Set((entry?.attachedLbSources || []).map(s => s.name));
 
   if (!books.length) {
@@ -140,8 +145,8 @@ function renderAttachLbList() {
   });
 }
 
-function openAttachLbModal() {
-  if (!activeCharId) { toast('Open a character first.', 'warn'); return; }
+export function openAttachLbModal() {
+  if (!state.activeCharId) { toast('Open a character first.', 'warn'); return; }
   renderAttachLbList();
 
   g('attachLbUploadBtn').onclick = () => g('attachLbFileInput').click();
@@ -163,9 +168,9 @@ function openAttachLbModal() {
 
 // Attach one more lorebook on top of whatever's already attached — merges
 // rather than replaces. Re-attaching the same name refreshes its entries.
-function attachLorebook(lb) {
-  if (!activeCharId || !charLibrary[activeCharId]) return;
-  const entry = charLibrary[activeCharId];
+export function attachLorebook(lb) {
+  if (!state.activeCharId || !state.charLibrary[state.activeCharId]) return;
+  const entry = state.charLibrary[state.activeCharId];
   if (!entry.attachedLbSources) entry.attachedLbSources = [];
   const name = lb.name || 'Attached Lorebook';
   const existingIdx = entry.attachedLbSources.findIndex(s => s.name === name);
@@ -183,8 +188,8 @@ function attachLorebook(lb) {
 }
 
 // Detach a single attached lorebook by name, keeping the rest merged.
-function detachOneLorebook(name) {
-  const entry = charLibrary[activeCharId]; if (!entry) return;
+export function detachOneLorebook(name) {
+  const entry = state.charLibrary[state.activeCharId]; if (!entry) return;
   entry.attachedLbSources = (entry.attachedLbSources || []).filter(s => s.name !== name);
   rebuildCharacterBook(entry);
   saveCharLibrary();
@@ -194,9 +199,9 @@ function detachOneLorebook(name) {
 }
 
 // Detach everything at once (the modal's "Detach All" button).
-function detachLorebook() {
-  if (!activeCharId || !charLibrary[activeCharId]) return;
-  const entry = charLibrary[activeCharId];
+export function detachLorebook() {
+  if (!state.activeCharId || !state.charLibrary[state.activeCharId]) return;
+  const entry = state.charLibrary[state.activeCharId];
   entry.attachedLbSources = [];
   entry.card.data.character_book = null;
   saveCharLibrary();
@@ -208,8 +213,8 @@ function detachLorebook() {
 // PRESET VARIABLES PANEL
 // ═══════════════════════════════════════════════════════
 
-function scanAndRenderVars() {
-  const entry = presetLibrary[activePresetId];
+export function scanAndRenderVars() {
+  const entry = state.presetLibrary[state.activePresetId];
   if (!entry) return;
   const vars = extractVars(entry.preset);
   const container = g('psVarsList');
@@ -272,7 +277,7 @@ function scanAndRenderVars() {
 }
 
 // Parse all prompt content for {{setvar::name::value}} patterns
-function extractVars(preset) {
+export function extractVars(preset) {
   const vars = {};
   const re = /\{\{setvar::([^:}]+)::([^}]*)\}\}/g;
   (preset.prompts || []).forEach(pr => {
@@ -290,7 +295,7 @@ function extractVars(preset) {
 }
 
 // Rename a variable across all prompt content (setvar + getvar)
-async function renameVar(oldName) {
+export async function renameVar(oldName) {
   g('renameModalTitle').textContent = 'Rename Variable';
   const newName = await askInput(`Rename variable "${oldName}" to:`, oldName);
   if (!newName || newName.trim() === oldName) return;
@@ -300,7 +305,7 @@ async function renameVar(oldName) {
     return;
   }
 
-  const entry = presetLibrary[activePresetId]; if (!entry) return;
+  const entry = state.presetLibrary[state.activePresetId]; if (!entry) return;
   let count = 0;
 
   (entry.preset.prompts || []).forEach(pr => {
@@ -319,6 +324,6 @@ async function renameVar(oldName) {
   toast(`Renamed "${oldName}" → "${trimmed}" across ${count} prompt${count !== 1 ? 's' : ''}.`, 'ok');
 }
 
-function escapeRegex(s) {
+export function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

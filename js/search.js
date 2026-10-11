@@ -2,10 +2,14 @@
 // SEARCH & REPLACE across the open lorebook.
 // ═══════════════════════════════════════════════════════
 
+import { openInTab, renderEditor, renderList, renderTabs } from './lorebook.js';
+import { state } from './state.js';
+import { askConfirm, esc, g, toast } from './util.js';
+
 // ═══════════════════════════════════════════════════════
 // SEARCH & REPLACE
 // ═══════════════════════════════════════════════════════
-function buildPattern() {
+export function buildPattern() {
   const text = g('srFind').value;
   const cs = g('srCase').checked;
   const ww = g('srWhole').checked;
@@ -19,11 +23,11 @@ function buildPattern() {
   } catch(e) { toast('Invalid regex: ' + e.message, 'err'); return null; }
 }
 
-function doSearch() {
+export function doSearch() {
   const pat = buildPattern(); if (!pat) return;
   const scope = g('srScope').value;
-  searchResults = [];
-  Object.entries(lorebook.entries).forEach(([uid, en]) => {
+  state.searchResults = [];
+  Object.entries(state.lorebook.entries).forEach(([uid, en]) => {
     const fields = {};
     if (scope === 'content' || scope === 'all') fields.content = en.content || '';
     if (scope === 'keywords' || scope === 'all') { fields.primaryKeywords = (en.key||[]).join(', '); fields.secondaryKeywords = (en.keysecondary||[]).join(', '); }
@@ -32,65 +36,65 @@ function doSearch() {
       pat.lastIndex = 0;
       let m;
       while ((m = pat.exec(text)) !== null) {
-        searchResults.push({ uid, entryName: en.comment || '(Untitled)', field, matchText: m[0], startIndex: m.index, fullText: text });
+        state.searchResults.push({ uid, entryName: en.comment || '(Untitled)', field, matchText: m[0], startIndex: m.index, fullText: text });
       }
     });
   });
-  searchIdx = 0;
+  state.searchIdx = 0;
   renderSearchResults();
 }
 
-function renderSearchResults() {
+export function renderSearchResults() {
   const res = g('srResults'); const list = g('srResultsList'); const head = g('srResultsHead');
   res.style.display = 'block';
-  head.textContent = searchResults.length === 0 ? 'No matches found' : `Found ${searchResults.length} match${searchResults.length===1?'':'es'}`;
+  head.textContent = state.searchResults.length === 0 ? 'No matches found' : `Found ${state.searchResults.length} match${state.searchResults.length===1?'':'es'}`;
   list.innerHTML = '';
-  searchResults.forEach((r, i) => {
+  state.searchResults.forEach((r, i) => {
     const ctx_s = Math.max(0, r.startIndex - 20);
     const ctx_e = Math.min(r.fullText.length, r.startIndex + r.matchText.length + 20);
     const ctx = (ctx_s > 0 ? '…' : '') + r.fullText.substring(ctx_s, ctx_e) + (ctx_e < r.fullText.length ? '…' : '');
     const div = document.createElement('div'); div.className = 'sr-item';
     div.innerHTML = `<div class="sr-item-t"><strong>${esc(r.entryName)}</strong> (${esc(r.field)})<br><code>${esc(ctx)}</code></div><div class="sr-item-loc">#${r.uid}</div>`;
-    div.addEventListener('click', () => { openInTab(parseInt(r.uid)); searchIdx = i; });
+    div.addEventListener('click', () => { openInTab(parseInt(r.uid)); state.searchIdx = i; });
     list.append(div);
   });
 }
 
-function doReplaceOne() {
-  if (!searchResults.length) { toast('Search first.', 'warn'); return; }
+export function doReplaceOne() {
+  if (!state.searchResults.length) { toast('Search first.', 'warn'); return; }
   const pat = buildPattern(); if (!pat) return;
-  const r = searchResults[searchIdx];
-  const en = lorebook.entries[r.uid]; if (!en) return;
+  const r = state.searchResults[state.searchIdx];
+  const en = state.lorebook.entries[r.uid]; if (!en) return;
   const repTxt = g('srReplace').value;
   const singlePat = new RegExp(pat.source, pat.flags.replace('g',''));
   if (r.field === 'content') en.content = en.content.replace(singlePat, repTxt);
   else if (r.field === 'name') en.comment = en.comment.replace(singlePat, repTxt);
   else if (r.field === 'primaryKeywords') en.key = en.key.map(k => k.replace(singlePat, repTxt));
   else if (r.field === 'secondaryKeywords') en.keysecondary = en.keysecondary.map(k => k.replace(singlePat, repTxt));
-  unsaved.add(r.uid);
-  searchResults.splice(searchIdx, 1);
-  if (searchIdx >= searchResults.length && searchIdx > 0) searchIdx--;
-  renderList(); renderTabs(); if (activeTabId === parseInt(r.uid)) renderEditor();
+  state.unsaved.add(r.uid);
+  state.searchResults.splice(state.searchIdx, 1);
+  if (state.searchIdx >= state.searchResults.length && state.searchIdx > 0) state.searchIdx--;
+  renderList(); renderTabs(); if (state.activeTabId === parseInt(r.uid)) renderEditor();
   renderSearchResults();
   toast('Replaced 1 occurrence.', 'ok');
 }
 
-async function doReplaceAll() {
-  if (!searchResults.length) { toast('Search first.', 'warn'); return; }
-  if (!await askConfirm(`Replace all ${searchResults.length} occurrences?`)) return;
+export async function doReplaceAll() {
+  if (!state.searchResults.length) { toast('Search first.', 'warn'); return; }
+  if (!await askConfirm(`Replace all ${state.searchResults.length} occurrences?`)) return;
   const pat = buildPattern(); if (!pat) return;
   const repTxt = g('srReplace').value;
   const changed = new Set();
-  searchResults.forEach(r => {
-    const en = lorebook.entries[r.uid]; if (!en) return;
+  state.searchResults.forEach(r => {
+    const en = state.lorebook.entries[r.uid]; if (!en) return;
     if (r.field === 'content') { en.content = en.content.replace(pat, repTxt); }
     else if (r.field === 'name') { en.comment = en.comment.replace(pat, repTxt); }
     else if (r.field === 'primaryKeywords') en.key = en.key.map(k => k.replace(pat, repTxt));
     else if (r.field === 'secondaryKeywords') en.keysecondary = en.keysecondary.map(k => k.replace(pat, repTxt));
     changed.add(r.uid);
   });
-  changed.forEach(uid => unsaved.add(uid));
-  const n = searchResults.length; searchResults = []; searchIdx = 0;
+  changed.forEach(uid => state.unsaved.add(uid));
+  const n = state.searchResults.length; state.searchResults = []; state.searchIdx = 0;
   g('srResults').style.display = 'none';
   renderList(); renderTabs(); renderEditor();
   toast(`Replaced ${n} occurrence${n===1?'':'s'}.`, 'ok');

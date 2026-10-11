@@ -2,7 +2,14 @@
 // ═══════════════════════════════════════════════════════
 // THEME
 // ═══════════════════════════════════════════════════════
-function toggleTheme() {
+
+import { downscaleAvatar, renderCharSidebar } from './character.js';
+import { state } from './state.js';
+import { safeSet, saveCharLibrary, storageUsage } from './storage.js';
+import { wireSync } from './sync.js';
+import { askConfirm, closeModal, esc, g, openModal, toast } from './util.js';
+
+export function toggleTheme() {
   document.body.classList.toggle('pink');
   safeSet('aet_theme', document.body.classList.contains('pink') ? 'pink' : 'dark');
   applyCustomTheme(); // re-apply custom overrides for the new mode
@@ -12,7 +19,7 @@ function toggleTheme() {
 // ═══════════════════════════════════════════════════════
 
 // Default colour values for both modes
-const DEFAULT_THEMES = {
+export const DEFAULT_THEMES = {
   dark: {
     '--p':'#9d8fcc','--ph':'#7d6fac','--a':'#c4b8e8','--a2':'#e8e4f5',
     '--bg':'#0d1121','--bg2':'#111829','--bg3':'#161f33',
@@ -27,16 +34,16 @@ const DEFAULT_THEMES = {
   }
 };
 
-const COLOUR_VARS = ['--p','--ph','--a','--a2','--bg','--bg2','--bg3','--sf','--sf2','--tx','--txd','--txm'];
+export const COLOUR_VARS = ['--p','--ph','--a','--a2','--bg','--bg2','--bg3','--sf','--sf2','--tx','--txd','--txm'];
 
-let stgEditingMode = 'dark'; // which mode we're currently editing colours for
+export let stgEditingMode = 'dark'; // which mode we're currently editing colours for
 
-function settingsGet() {
+export function settingsGet() {
   try { return JSON.parse(localStorage.getItem('aet_settings') || '{}'); } catch(e) { return {}; }
 }
-function settingsSet(d) { return safeSet('aet_settings', JSON.stringify(d)); }
+export function settingsSet(d) { return safeSet('aet_settings', JSON.stringify(d)); }
 
-function applyCustomTheme() {
+export function applyCustomTheme() {
   const cfg = settingsGet();
   const root = document.documentElement;
   const body = document.body;
@@ -64,7 +71,7 @@ function applyCustomTheme() {
 // One-time cleanup: 'Universal Editor' was the old default subtitle, so it got
 // saved into existing settings and themes and kept showing in the tab title
 // even after the default changed.
-function migrateOldTitleSub(cfg) {
+export function migrateOldTitleSub(cfg) {
   if (cfg._titleSubMigrated) return false;
   const OLD = 'Universal Editor';
   if (cfg.titleSub === OLD) cfg.titleSub = '';
@@ -73,7 +80,7 @@ function migrateOldTitleSub(cfg) {
   return true;
 }
 
-function applyCustomTitle() {
+export function applyCustomTitle() {
   const cfg = settingsGet();
   if (migrateOldTitleSub(cfg)) settingsSet(cfg);
   // Title lives in .nav-logo-text; the version tag is left alone.
@@ -87,18 +94,18 @@ function applyCustomTitle() {
   document.title = main + (sub ? ' ' + sub : '');
 }
 
-function hexToRgba(hex, alpha) {
+export function hexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
 // Called on page load
-function applyAllCustomisations() {
+export function applyAllCustomisations() {
   applyCustomTheme();
   applyCustomTitle();
 }
 
-function openSettings() {
+export function openSettings() {
   const cfg = settingsGet();
   // Title
   g('stgTitleMain').value = cfg.titleMain || 'LoreOS';
@@ -126,14 +133,14 @@ function openSettings() {
   openModal('settingsModal');
 }
 
-function updateSettingsModeLabel() {
+export function updateSettingsModeLabel() {
   const activeMode = document.body.classList.contains('pink') ? 'pink' : 'dark';
   const isActive = stgEditingMode === activeMode;
   g('stgModeLabel').textContent = `editing: ${stgEditingMode} mode${isActive ? ' (live preview)' : ' (apply to see changes)'}`;
   g('stgModeToggle').textContent = stgEditingMode === 'dark' ? 'Switch to Light' : 'Switch to Dark';
 }
 
-function populateColourPickers() {
+export function populateColourPickers() {
   const cfg = settingsGet();
   const saved = (stgEditingMode === 'pink' ? cfg.colours?.pink : cfg.colours?.dark) || {};
   const defaults = DEFAULT_THEMES[stgEditingMode];
@@ -148,7 +155,7 @@ function populateColourPickers() {
   });
 }
 
-function wireSettings() {
+export function wireSettings() {
   if (g('settingsBtn')) g('settingsBtn').addEventListener('click', openSettings);
 
   // Closing Settings without Apply used to leave the live colour preview on
@@ -269,7 +276,7 @@ function wireSettings() {
   });
 }
 
-function renderThemeSlots() {
+export function renderThemeSlots() {
   const cfg = settingsGet();
   const slots = g('stgThemeSlots');
   slots.innerHTML = '';
@@ -308,7 +315,7 @@ function renderThemeSlots() {
   });
 }
 
-function loadThemeSlot(name, themeData) {
+export function loadThemeSlot(name, themeData) {
   const cfg = settingsGet();
   if (!cfg.colours) cfg.colours = {};
   cfg.colours.dark = { ...themeData.dark };
@@ -327,15 +334,15 @@ function loadThemeSlot(name, themeData) {
 // FONT MANAGEMENT
 // ═══════════════════════════════════════════════════════
 
-const FONT_ROLES = { fp: '--fp', fx: '--fx', fb: '--fb' };
-const FONT_DEFAULTS = { fp: 'VT323', fx: 'Pixelify Sans', fb: 'Noto Sans' };
-const FONT_STORAGE_KEY = 'aet_fonts';
+export const FONT_ROLES = { fp: '--fp', fx: '--fx', fb: '--fb' };
+export const FONT_DEFAULTS = { fp: 'VT323', fx: 'Pixelify Sans', fb: 'Noto Sans' };
+export const FONT_STORAGE_KEY = 'aet_fonts';
 
-function fontsGet() { try { return JSON.parse(localStorage.getItem(FONT_STORAGE_KEY) || '{}'); } catch(e) { return {}; } }
-function fontsSet(d) { return safeSet(FONT_STORAGE_KEY, JSON.stringify(d)); }
+export function fontsGet() { try { return JSON.parse(localStorage.getItem(FONT_STORAGE_KEY) || '{}'); } catch(e) { return {}; } }
+export function fontsSet(d) { return safeSet(FONT_STORAGE_KEY, JSON.stringify(d)); }
 
 // Apply saved fonts on load
-function applyFonts() {
+export function applyFonts() {
   const saved = fontsGet();
   Object.entries(FONT_ROLES).forEach(([role, cssVar]) => {
     const data = saved[role];
@@ -348,7 +355,7 @@ function applyFonts() {
   });
 }
 
-function loadGoogleFont(role, name, save = true) {
+export function loadGoogleFont(role, name, save = true) {
   const cssVar = FONT_ROLES[role];
   const linkId = `gf-font-${role}`;
   const existing = document.getElementById(linkId);
@@ -378,7 +385,7 @@ function loadGoogleFont(role, name, save = true) {
   }
 }
 
-function injectUploadedFont(role, name, dataUrl, save = true) {
+export function injectUploadedFont(role, name, dataUrl, save = true) {
   const cssVar = FONT_ROLES[role];
   const styleId = `uploaded-font-${role}`;
   const existing = document.getElementById(styleId);
@@ -402,7 +409,7 @@ function injectUploadedFont(role, name, dataUrl, save = true) {
   }
 }
 
-function resetFont(role) {
+export function resetFont(role) {
   const cssVar = FONT_ROLES[role];
   const defaultName = FONT_DEFAULTS[role];
   // remove any injected style/link
@@ -419,7 +426,7 @@ function resetFont(role) {
   toast(`Font reset to ${defaultName}.`, 'ok');
 }
 
-function wireFonts() {
+export function wireFonts() {
   // Pre-fill inputs with saved font names
   const saved = fontsGet();
   Object.keys(FONT_ROLES).forEach(role => {
@@ -474,7 +481,7 @@ function wireFonts() {
 // that silently eats a save.
 // ═══════════════════════════════════════════════════════
 
-const STORAGE_LABELS = {
+export const STORAGE_LABELS = {
   aet_charLibrary:  'Characters',
   aet_library:      'Lorebook library',
   aet_lorebook:     'Open lorebook',
@@ -488,12 +495,12 @@ const STORAGE_LABELS = {
   aet_settings:     'Theme & settings',
 };
 
-function fmtKB(bytes) {
+export function fmtKB(bytes) {
   const kb = bytes / 1024;
   return kb >= 1024 ? (kb / 1024).toFixed(1) + ' MB' : Math.round(kb) + ' KB';
 }
 
-function renderStoragePanel() {
+export function renderStoragePanel() {
   const host = g('stgStorageBody');
   if (!host) return;
 
@@ -525,9 +532,9 @@ function renderStoragePanel() {
 
 // One-time cleanup: shrink avatars that were imported before
 // resizing existed. Reports exactly how much it freed.
-async function optimiseStoredAvatars() {
+export async function optimiseStoredAvatars() {
   const btn = g('stgOptimiseAvatars');
-  const ids = Object.keys(charLibrary || {});
+  const ids = Object.keys(state.charLibrary || {});
   if (!ids.length) { toast('No characters to optimise.', 'warn'); return; }
 
   const before = storageUsage().total;
@@ -535,7 +542,7 @@ async function optimiseStoredAvatars() {
 
   let changed = 0, skipped = 0;
   for (const id of ids) {
-    const entry = charLibrary[id];
+    const entry = state.charLibrary[id];
     if (!entry || !entry.imageData) { skipped++; continue; }
     const originalLen = entry.imageData.length;
     try {
@@ -556,7 +563,7 @@ async function optimiseStoredAvatars() {
   const after = storageUsage().total;
   const freed = Math.max(0, before - after);
   renderStoragePanel();
-  if (typeof renderCharSidebar === 'function') renderCharSidebar();
+  renderCharSidebar();
   toast(changed
     ? `Optimised ${changed} avatar${changed === 1 ? '' : 's'} — freed ${fmtKB(freed)}.`
     : 'Nothing to optimise — avatars are already small.', changed ? 'ok' : 'info');

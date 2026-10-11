@@ -1,9 +1,13 @@
 // ═══════════════════════════════════════════════════════
 // FULLSCREEN FIELD EDITOR
 // ═══════════════════════════════════════════════════════
-let fullscreenTargetId = null;
 
-function openFullscreen(fieldId, label) {
+import { attachFieldUndoRedo } from './history.js';
+import { closeModal, g, openModal, toast } from './util.js';
+
+export let fullscreenTargetId = null;
+
+export function openFullscreen(fieldId, label) {
   const el = g(fieldId);
   if (!el) return;
   fullscreenTargetId = fieldId;
@@ -24,11 +28,11 @@ function openFullscreen(fieldId, label) {
     // Remove old pair if present
     const old = g('fullscreenModal').querySelector('.field-ur-pair');
     if (old) old.remove();
-    if (typeof attachFieldUndoRedo === 'function') attachFieldUndoRedo(ta);
+    attachFieldUndoRedo(ta);
   }, 80);
 }
 
-function wireFullscreen() {
+export function wireFullscreen() {
   g('fullscreenApply').addEventListener('click', () => {
     if (!fullscreenTargetId) return;
     const el = g(fullscreenTargetId);

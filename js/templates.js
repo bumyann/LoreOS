@@ -1,7 +1,7 @@
 
-let tplMode = 'lore';
-let tplTargetFieldId = null;
-let lastFocusedField = null;
+export let tplMode = 'lore';
+export let tplTargetFieldId = null;
+export let lastFocusedField = null;
 
 document.addEventListener('focusin', e => {
   if (['TEXTAREA','INPUT'].includes(e.target.tagName) && e.target.id !== 'tplNewName' && e.target.id !== 'tplNewContent') {
@@ -9,18 +9,26 @@ document.addEventListener('focusin', e => {
   }
 });
 
-function tplKey(m) { return m === 'lore' ? 'aet_tpl_lore' : m === 'preset' ? 'aet_tpl_preset' : 'aet_tpl_char'; }
-function tplGet(m) { try { return JSON.parse(localStorage.getItem(tplKey(m)) || '{}'); } catch(e) { return {}; } }
-function tplSet(m, d) { return safeSet(tplKey(m), JSON.stringify(d)); }
-function tplNewId() { return 't' + Date.now() + Math.floor(Math.random()*1000); }
+export function tplKey(m) { return m === 'lore' ? 'aet_tpl_lore' : m === 'preset' ? 'aet_tpl_preset' : 'aet_tpl_char'; }
+export function tplGet(m) { try { return JSON.parse(localStorage.getItem(tplKey(m)) || '{}'); } catch(e) { return {}; } }
+export function tplSet(m, d) { return safeSet(tplKey(m), JSON.stringify(d)); }
+export function tplNewId() { return 't' + Date.now() + Math.floor(Math.random()*1000); }
 
 // ═══════════════════════════════════════════════════════
 // BUILT-IN TEMPLATES
 // ═══════════════════════════════════════════════════════
+
+import { createEntry, openInTab, renderList } from './lorebook.js';
+import { blankEntry } from './lorebook_model.js';
+import { renderPromptList, ST_SPECIAL, syncPromptOrder } from './preset.js';
+import { state } from './state.js';
+import { safeSet } from './storage.js';
+import { askConfirm, closeModal, esc, g, openModal, toast } from './util.js';
+
 // Synced from yuu's burrow → Templates (Notion), 2026-09-22.
 // `hint` shows in the library list; `keys` fill an empty Primary keywords
 // field when pasted into a lorebook entry.
-const BUILTIN_TEMPLATES = {
+export const BUILTIN_TEMPLATES = {
   char: [
     {
       category: "Basic",
@@ -745,7 +753,7 @@ const BUILTIN_TEMPLATES = {
 // ═══════════════════════════════════════════════════════
 // TEMPLATE LIBRARY MODAL
 // ═══════════════════════════════════════════════════════
-function openTemplateLibrary(m, fieldId) {
+export function openTemplateLibrary(m, fieldId) {
   tplMode = m;
   tplTargetFieldId = fieldId || null;
   g('tplModalTitle').textContent = m === 'lore' ? 'Lorebook Templates' : m === 'preset' ? 'Prompt Library' : 'Character Templates';
@@ -754,7 +762,7 @@ function openTemplateLibrary(m, fieldId) {
   openModal('tplModal');
 }
 
-function renderTemplateList(m) {
+export function renderTemplateList(m) {
   const list = g('tplList');
   list.innerHTML = '';
 
@@ -787,14 +795,14 @@ function renderTemplateList(m) {
   }
 }
 
-function makeSectionHeader(text) {
+export function makeSectionHeader(text) {
   const el = document.createElement('div');
   el.style.cssText = 'font-family:var(--fx);font-size:.72rem;color:var(--p);letter-spacing:1px;padding:.35rem 0 .3rem;border-bottom:1px solid var(--bd);margin:.3rem 0 .2rem';
   el.textContent = text;
   return el;
 }
 
-function makeCollapsibleGroup(categoryName, items, m) {
+export function makeCollapsibleGroup(categoryName, items, m) {
   const wrapper = document.createElement('div');
   wrapper.style.cssText = 'border:1px solid var(--bd);border-radius:4px;overflow:hidden;margin-bottom:.3rem';
 
@@ -823,7 +831,7 @@ function makeCollapsibleGroup(categoryName, items, m) {
   return wrapper;
 }
 
-function makeBuiltinItem(tpl, m) {
+export function makeBuiltinItem(tpl, m) {
   const item = document.createElement('div');
   item.className = 'tpl-item';
   item.innerHTML = `
@@ -842,7 +850,7 @@ function makeBuiltinItem(tpl, m) {
   return item;
 }
 
-function renderPresetAnchors(list) {
+export function renderPresetAnchors(list) {
   list.append(makeSectionHeader('ST System Anchors'));
   Object.entries(ST_SPECIAL).forEach(([id, info]) => {
     const item = document.createElement('div');
@@ -860,7 +868,7 @@ function renderPresetAnchors(list) {
         <button class="btn btn-p btn-sm tpl-anchor-add">+ Add</button>
       </div>`;
     item.querySelector('.tpl-anchor-add').addEventListener('click', () => {
-      const entry2 = presetLibrary[activePresetId];
+      const entry2 = state.presetLibrary[state.activePresetId];
       if (!entry2) { toast('Open a preset first.', 'warn'); return; }
       const newPr = {
         id, identifier: id,
@@ -881,7 +889,7 @@ function renderPresetAnchors(list) {
   });
 }
 
-function renderSavedTemplates(items, m, list) {
+export function renderSavedTemplates(items, m, list) {
   items.forEach(tpl => {
     const item = document.createElement('div');
     item.className = 'tpl-item';
@@ -905,7 +913,7 @@ function renderSavedTemplates(items, m, list) {
   });
 }
 
-function tplPaste(tpl) {
+export function tplPaste(tpl) {
   const el = tplTargetFieldId ? g(tplTargetFieldId) : lastFocusedField;
   if (!el || !['TEXTAREA','INPUT'].includes(el.tagName)) {
     toast('Focus a field first, then paste.', 'warn'); return;
@@ -926,7 +934,7 @@ function tplPaste(tpl) {
   toast(`Pasted "${tpl.name}".`, 'ok');
 }
 
-async function tplSaveCurrent(m, fieldId) {
+export async function tplSaveCurrent(m, fieldId) {
   const name = g('tplNewName').value.trim();
   if (!name) { toast('Enter a template name.', 'warn'); return; }
   const directContent = g('tplNewContent')?.value || '';
@@ -949,7 +957,7 @@ async function tplSaveCurrent(m, fieldId) {
 // ═══════════════════════════════════════════════════════
 // ENTRY TYPE PICKER (+ New Entry flow)
 // ═══════════════════════════════════════════════════════
-function openEntryPicker() {
+export function openEntryPicker() {
   const categories = g('pickerCategories');
   categories.innerHTML = '';
 
@@ -961,8 +969,8 @@ function openEntryPicker() {
     btn.addEventListener('click', () => {
       closeModal('entryPickerModal');
       // Create entry first, then open template library scoped to this category
-      const uid = nextUid++;
-      lorebook.entries[uid] = blankEntry(uid);
+      const uid = state.nextUid++;
+      state.lorebook.entries[uid] = blankEntry(uid);
       renderList();
       openInTab(uid);
       // Open template library filtered to this category
@@ -974,7 +982,7 @@ function openEntryPicker() {
   openModal('entryPickerModal');
 }
 
-function openTemplateLibraryFiltered(m, categoryFilter, fieldId) {
+export function openTemplateLibraryFiltered(m, categoryFilter, fieldId) {
   tplMode = m;
   tplTargetFieldId = fieldId;
   g('tplModalTitle').textContent = `// ${categoryFilter}`;
@@ -1005,12 +1013,12 @@ function openTemplateLibraryFiltered(m, categoryFilter, fieldId) {
 // ═══════════════════════════════════════════════════════
 // WIRE
 // ═══════════════════════════════════════════════════════
-function wireTplLibrary() {
+export function wireTplLibrary() {
   document.addEventListener('keydown', e => {
     if (e.ctrlKey && e.key.toLowerCase() === 't') {
       e.preventDefault();
       const fieldId = lastFocusedField?.id || null;
-      openTemplateLibrary(mode === 'char' ? 'char' : 'lore', fieldId);
+      openTemplateLibrary(state.mode === 'char' ? 'char' : 'lore', fieldId);
     }
   });
 

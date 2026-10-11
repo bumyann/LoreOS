@@ -2,27 +2,36 @@
 // CHARACTER CARD EDITOR
 // ═══════════════════════════════════════════════════════
 
+import { migrateCharacterBook, openAttachLbModal, updateLbStatus } from './attach_lb.js';
+import { openFullscreen } from './fullscreen.js';
+import { itemHistoryPush, itemUndoGet, itemUndoPush, openItemHistory, syncItemUndoButtons, wireFieldUndoRedo } from './history.js';
+import { closeMobSidebar } from './mobile.js';
+import { state } from './state.js';
+import { saveCharLibrary } from './storage.js';
+import { askConfirm, askInput, closeAllDropdowns, closeModal, dlFile, esc, g, openModal, safeFileName, toast } from './util.js';
+import { commitActiveEditor, wsDropItem, wsMarkSaved, wsShowItem } from './workshop.js';
+
 // Active format picker state: 'st' | 'saucepan' | 'lumiverse'
-let charActiveFormat = 'st';
+export let charActiveFormat = 'st';
 
 // ── Lumiverse alternate_fields helpers ──
-function getLumiVariants(card, field) {
+export function getLumiVariants(card, field) {
   return card?.data?.extensions?._lumiverse?.alternate_fields?.[field] || [];
 }
-function setLumiVariants(card, field, variants) {
+export function setLumiVariants(card, field, variants) {
   if (!card.data.extensions) card.data.extensions = {};
   if (!card.data.extensions._lumiverse) card.data.extensions._lumiverse = {};
   if (!card.data.extensions._lumiverse.alternate_fields) card.data.extensions._lumiverse.alternate_fields = {};
   card.data.extensions._lumiverse.alternate_fields[field] = variants;
 }
-function lumiGenId() {
+export function lumiGenId() {
   return 'xxxxxxxx-xxxx-7xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
     const r = Math.random() * 16 | 0;
     return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
   });
 }
 
-function blankCharCard() {
+export function blankCharCard() {
   return {
     id: 'c' + Date.now() + Math.floor(Math.random()*1000),
     spec: 'chara_card_v2',
@@ -47,7 +56,7 @@ function blankCharCard() {
   };
 }
 
-function normalizeCharCard(card) {
+export function normalizeCharCard(card) {
   if (!card.data) card.data = {};
   const d = card.data;
   if (typeof d.name !== 'string') d.name = card.name || 'Unnamed';
@@ -66,58 +75,58 @@ function normalizeCharCard(card) {
   if (!d.extensions) d.extensions = {};
   if (!card.spec) card.spec = 'chara_card_v2';
   if (!card.spec_version) { card.spec = 'chara_card_v3'; card.spec_version = '3.0'; } // default new cards to V3
-  if (typeof migrateCharacterBook === 'function') migrateCharacterBook(card); // old object-shaped character_book -> spec array
+  migrateCharacterBook(card); // old object-shaped character_book -> spec array
   return card;
 }
 
-function charId() { return 'c' + Date.now() + Math.floor(Math.random()*1000); }
+export function charId() { return 'c' + Date.now() + Math.floor(Math.random()*1000); }
 
-function createChar() {
+export function createChar() {
   const card = blankCharCard();
-  charLibrary[card.id] = { id: card.id, name: card.data.name, card, savedAt: new Date().toISOString() };
+  state.charLibrary[card.id] = { id: card.id, name: card.data.name, card, savedAt: new Date().toISOString() };
   saveCharLibrary();
   renderCharSidebar();
   // New characters get their own workshop tab (falls back to no tab if full)
-  if (!(typeof wsShowItem === 'function' && wsShowItem('char', card.id))) openChar(card.id);
+  if (!wsShowItem('char', card.id)) openChar(card.id);
 }
 
-function openChar(id) {
+export function openChar(id) {
   // Moving to a different character: save what's typed in the current one first
-  if (activeCharId && activeCharId !== id && typeof commitActiveEditor === 'function') commitActiveEditor();
-  charUnsaved = false;
-  activeCharId = id;
-  charFormState = {}; // clear stale state from previous character
+  if (state.activeCharId && state.activeCharId !== id) commitActiveEditor();
+  state.charUnsaved = false;
+  state.activeCharId = id;
+  state.charFormState = {}; // clear stale state from previous character
   charActiveFormat = 'st'; // reset format picker
   renderCharSidebar();
   renderCharEditor();
 }
 
-async function deleteChar(id) {
+export async function deleteChar(id) {
   if (!await askConfirm('Delete this character? This cannot be undone.')) return;
-  delete charLibrary[id];
-  if (typeof wsDropItem === 'function') wsDropItem('char', id);
-  if (activeCharId === id) activeCharId = null;
+  delete state.charLibrary[id];
+  wsDropItem('char', id);
+  if (state.activeCharId === id) state.activeCharId = null;
   saveCharLibrary();
   renderCharSidebar();
   renderCharEditor();
 }
 
-function duplicateChar(id) {
-  const src = charLibrary[id]; if (!src) return;
+export function duplicateChar(id) {
+  const src = state.charLibrary[id]; if (!src) return;
   const newId = charId();
   const card = JSON.parse(JSON.stringify(src.card));
   card.id = newId;
   card.data.name = (card.data.name || 'Unnamed') + ' (Copy)';
-  charLibrary[newId] = { id: newId, name: card.data.name, card, savedAt: new Date().toISOString() };
+  state.charLibrary[newId] = { id: newId, name: card.data.name, card, savedAt: new Date().toISOString() };
   saveCharLibrary();
   renderCharSidebar();
-  if (!(typeof wsShowItem === 'function' && wsShowItem('char', newId))) openChar(newId);
+  if (!wsShowItem('char', newId)) openChar(newId);
 }
 
-function renderCharSidebar() {
+export function renderCharSidebar() {
   const list = g('entryList');
   const count = g('entryCount');
-  const chars = Object.values(charLibrary).sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  const chars = Object.values(state.charLibrary).sort((a,b) => (a.name||'').localeCompare(b.name||''));
   count.textContent = `${chars.length} ${chars.length === 1 ? 'character' : 'characters'}`;
   list.innerHTML = '';
 
@@ -132,7 +141,7 @@ function renderCharSidebar() {
   chars.forEach(entry => {
     const li = document.createElement('li');
     li.className = 'ei';
-    if (entry.id === activeCharId) li.classList.add('open');
+    if (entry.id === state.activeCharId) li.classList.add('open');
 
     const head = document.createElement('div');
     head.className = 'ei-head';
@@ -181,28 +190,28 @@ function renderCharSidebar() {
 
     li.addEventListener('click', () => {
       // Through the workshop tab bar so the character gets a tab like any other
-      if (!(typeof wsShowItem === 'function' && wsShowItem('char', entry.id))) openChar(entry.id);
-      if (typeof closeMobSidebar === 'function') closeMobSidebar();
+      if (!wsShowItem('char', entry.id)) openChar(entry.id);
+      closeMobSidebar();
     });
     list.append(li);
   });
 }
 
-function renderCharEditor() {
+export function renderCharEditor() {
   const ec = g('editorContent');
   g('tabBar').innerHTML = '';
 
-  if (!activeCharId || !charLibrary[activeCharId]) {
+  if (!state.activeCharId || !state.charLibrary[state.activeCharId]) {
     ec.className = '';
     ec.innerHTML = `<div class="empty-state"><div>// select or create a character</div><button class="btn btn-ok" id="newEntryBtnAlt">+ New Character</button></div>`;
     g('newEntryBtnAlt').onclick = createChar;
     return;
   }
 
-  const entry = charLibrary[activeCharId];
+  const entry = state.charLibrary[state.activeCharId];
   const card = normalizeCharCard(entry.card);
   const d = card.data;
-  const s = charFormState;
+  const s = state.charFormState;
   const get = (k, fb) => s[k] !== undefined ? s[k] : fb;
 
   const name = get('name', d.name);
@@ -225,7 +234,7 @@ function renderCharEditor() {
   const isSauce = fmt === 'saucepan';
 
   // Lumiverse alternate_fields — read from extensions or charFormState
-  const lumiVariants = charFormState._lumiVariants || {
+  const lumiVariants = state.charFormState._lumiVariants || {
     description: getLumiVariants(card, 'description'),
     personality: getLumiVariants(card, 'personality'),
     scenario:    getLumiVariants(card, 'scenario'),
@@ -401,8 +410,8 @@ function renderCharEditor() {
   g('chAddGreet').addEventListener('click', () => {
     const cur = captureCharGreetings();
     cur.push({ title: '', message: '' });
-    charFormState.alternate_greetings = cur;
-    charUnsaved = true;
+    state.charFormState.alternate_greetings = cur;
+    state.charUnsaved = true;
     renderAltGreetings(cur);
   });
   g('chFormatPicker').addEventListener('change', e => {
@@ -412,28 +421,28 @@ function renderCharEditor() {
   });
   g('chSaveBtn').addEventListener('click', () => saveChar());
   if (g('chUndoBtn')) g('chUndoBtn').addEventListener('click', () => {
-    const snap = itemUndoGet('char', activeCharId, 'undo');
+    const snap = itemUndoGet('char', state.activeCharId, 'undo');
     if (!snap) return;
-    charFormState = snap;
-    charUnsaved = true;
+    state.charFormState = snap;
+    state.charUnsaved = true;
     renderCharEditor();
-    syncItemUndoButtons('char', activeCharId);
+    syncItemUndoButtons('char', state.activeCharId);
   });
   if (g('chRedoBtn')) g('chRedoBtn').addEventListener('click', () => {
-    const snap = itemUndoGet('char', activeCharId, 'redo');
+    const snap = itemUndoGet('char', state.activeCharId, 'redo');
     if (!snap) return;
-    charFormState = snap;
-    charUnsaved = true;
+    state.charFormState = snap;
+    state.charUnsaved = true;
     renderCharEditor();
-    syncItemUndoButtons('char', activeCharId);
+    syncItemUndoButtons('char', state.activeCharId);
   });
-  g('chExportJsonBtn').addEventListener('click', () => exportCharJson(activeCharId));
-  if (g('chExportV2JsonBtn'))   g('chExportV2JsonBtn').addEventListener('click',   () => exportCharJsonV2(activeCharId));
+  g('chExportJsonBtn').addEventListener('click', () => exportCharJson(state.activeCharId));
+  if (g('chExportV2JsonBtn'))   g('chExportV2JsonBtn').addEventListener('click',   () => exportCharJsonV2(state.activeCharId));
   if (g('chLbManageBtn'))       g('chLbManageBtn').addEventListener('click',       () => openAttachLbModal());
-  g('chExportPngBtn').addEventListener('click', () => openCharPngExport(activeCharId, true));
-  if (g('chExportV3PngBtn')) g('chExportV3PngBtn').addEventListener('click', () => openCharPngExport(activeCharId, false));
-  g('chExportSaucepanBtn').addEventListener('click', () => exportCharSaucepan(activeCharId));
-  if (g('chExportCharxBtn')) g('chExportCharxBtn').addEventListener('click', () => exportCharCharx(activeCharId));
+  g('chExportPngBtn').addEventListener('click', () => openCharPngExport(state.activeCharId, true));
+  if (g('chExportV3PngBtn')) g('chExportV3PngBtn').addEventListener('click', () => openCharPngExport(state.activeCharId, false));
+  g('chExportSaucepanBtn').addEventListener('click', () => exportCharSaucepan(state.activeCharId));
+  if (g('chExportCharxBtn')) g('chExportCharxBtn').addEventListener('click', () => exportCharCharx(state.activeCharId));
   // Wire the char export dropdown
   const ddCharExport = document.getElementById('dd-char-export');
   if (ddCharExport) {
@@ -446,13 +455,13 @@ function renderCharEditor() {
       if (!isOpen) ddMenu.classList.add('open');
     });
   }
-  g('chDeleteBtn').addEventListener('click', () => deleteChar(activeCharId));
+  g('chDeleteBtn').addEventListener('click', () => deleteChar(state.activeCharId));
 
   // Image upload wiring
   const imgPreview = g('chImagePreview');
   const imgInput = g('chImageFileInput');
   const imgRemove = g('chImageRemoveBtn');
-  const charEntry = charLibrary[activeCharId];
+  const charEntry = state.charLibrary[state.activeCharId];
 
   function refreshImagePreview() {
     const src = charEntry?.imageData;
@@ -499,27 +508,27 @@ function renderCharEditor() {
   // Mark unsaved on input + push item undo snapshot
   ec.querySelectorAll('input,textarea,select').forEach(el => {
     el.addEventListener('input', () => {
-      charUnsaved = true; captureCharState();
-      if (typeof itemUndoPush === 'function') itemUndoPush('char', activeCharId, JSON.parse(JSON.stringify(charFormState)));
-      syncItemUndoButtons('char', activeCharId);
+      state.charUnsaved = true; captureCharState();
+      itemUndoPush('char', state.activeCharId, JSON.parse(JSON.stringify(state.charFormState)));
+      syncItemUndoButtons('char', state.activeCharId);
     });
     el.addEventListener('change', () => {
-      charUnsaved = true; captureCharState();
-      if (typeof itemUndoPush === 'function') itemUndoPush('char', activeCharId, JSON.parse(JSON.stringify(charFormState)));
-      syncItemUndoButtons('char', activeCharId);
+      state.charUnsaved = true; captureCharState();
+      itemUndoPush('char', state.activeCharId, JSON.parse(JSON.stringify(state.charFormState)));
+      syncItemUndoButtons('char', state.activeCharId);
     });
   });
 
   // Wire field-level undo/redo on all textareas
-  if (typeof wireFieldUndoRedo === 'function') wireFieldUndoRedo(ec);
+  wireFieldUndoRedo(ec);
 
   // Push initial baseline for undo
   captureCharState();
-  if (typeof itemUndoPush === 'function') itemUndoPush('char', activeCharId, JSON.parse(JSON.stringify(charFormState)));
-  syncItemUndoButtons('char', activeCharId);
+  itemUndoPush('char', state.activeCharId, JSON.parse(JSON.stringify(state.charFormState)));
+  syncItemUndoButtons('char', state.activeCharId);
 }
 
-function renderAltGreetings(list) {
+export function renderAltGreetings(list) {
   const wrap = g('chAltGreetList');
   if (!wrap) return;
   wrap.innerHTML = '';
@@ -542,8 +551,8 @@ function renderAltGreetings(list) {
     rm.addEventListener('click', () => {
       const cur = captureCharGreetings();
       cur.splice(i, 1);
-      charFormState.alternate_greetings = cur;
-      charUnsaved = true;
+      state.charFormState.alternate_greetings = cur;
+      state.charUnsaved = true;
       renderAltGreetings(cur);
     });
     hdr.append(lbl, rm);
@@ -553,7 +562,7 @@ function renderAltGreetings(list) {
     titleInput.className = 'finput'; titleInput.type = 'text';
     titleInput.placeholder = 'Greeting title (optional)...';
     titleInput.value = titleVal;
-    titleInput.addEventListener('input', () => { charUnsaved = true; });
+    titleInput.addEventListener('input', () => { state.charUnsaved = true; });
 
     // Message textarea
     const ta = document.createElement('textarea');
@@ -561,7 +570,7 @@ function renderAltGreetings(list) {
     ta.id = 'chGreet_' + i;
     ta.placeholder = 'Greeting message #' + (i + 1) + '...';
     ta.value = messageVal;
-    ta.addEventListener('input', () => { charUnsaved = true; });
+    ta.addEventListener('input', () => { state.charUnsaved = true; });
 
     // content-wrap with tok-count + expand button
     const cwrap = document.createElement('div');
@@ -590,7 +599,7 @@ function renderAltGreetings(list) {
 
 // ── Lumiverse variant field UI ──
 
-function renderLumiVariantField(baseId, field, defaultVal, variants, placeholder, minHeight) {
+export function renderLumiVariantField(baseId, field, defaultVal, variants, placeholder, minHeight) {
   const esc2 = esc;
   const tabs = [
     `<button class="lumi-vtab active" data-field="${field}" data-idx="-1">Default</button>`,
@@ -605,30 +614,30 @@ function renderLumiVariantField(baseId, field, defaultVal, variants, placeholder
   </div>`;
 }
 
-const LUMI_FIELDS = ['description', 'personality', 'scenario'];
-const LUMI_FIELD_IDS = { description: 'chDesc', personality: 'chPers', scenario: 'chScen' };
+export const LUMI_FIELDS = ['description', 'personality', 'scenario'];
+export const LUMI_FIELD_IDS = { description: 'chDesc', personality: 'chPers', scenario: 'chScen' };
 
 // Which tab is showing in a field's shared textarea: '-1' = Default, else variant index
-function lumiActiveIdx(field) {
+export function lumiActiveIdx(field) {
   const wrap = document.getElementById('lumi-vwrap-' + field);
   const active = wrap && wrap.querySelector('.lumi-vtab.active');
   return active ? active.dataset.idx : '-1';
 }
 
 // Write what the shared textarea currently shows back into the slot it belongs to
-function lumiStashField(field, lv) {
+export function lumiStashField(field, lv) {
   const ta = g(LUMI_FIELD_IDS[field]);
   if (!ta) return;
   const idx = lumiActiveIdx(field);
   if (idx === '-1' || idx === 'add') {
-    charFormState[field] = ta.value;
+    state.charFormState[field] = ta.value;
   } else {
     const v = lv[field] && lv[field][parseInt(idx)];
     if (v) v.content = ta.value;
   }
 }
 
-function wireLumiVariantFields() {
+export function wireLumiVariantFields() {
   document.querySelectorAll('.lumi-vtab').forEach(btn => {
     btn.addEventListener('click', () => {
       const field = btn.dataset.field;
@@ -639,12 +648,12 @@ function wireLumiVariantFields() {
 
       // Save whatever is on screen into its own slot BEFORE the textarea changes
       captureCharState();
-      const lv = charFormState._lumiVariants;
+      const lv = state.charFormState._lumiVariants;
 
       if (idx === 'add') {
         if (!lv[field]) lv[field] = [];
         lv[field].push({ id: lumiGenId(), label: 'Variant ' + (lv[field].length + 1), content: '' });
-        charUnsaved = true;
+        state.charUnsaved = true;
         renderCharEditor();
         return;
       }
@@ -653,7 +662,7 @@ function wireLumiVariantFields() {
       btn.classList.add('active');
 
       if (idx === '-1') {
-        ta.value = charFormState[field] || '';
+        ta.value = state.charFormState[field] || '';
       } else {
         const v = lv[field] && lv[field][parseInt(idx)];
         ta.value = v ? (v.content || '') : '';
@@ -666,12 +675,12 @@ function wireLumiVariantFields() {
         const field = btn.dataset.field;
         const idx   = parseInt(btn.dataset.idx);
         captureCharState();
-        const lv = charFormState._lumiVariants;
+        const lv = state.charFormState._lumiVariants;
         if (!lv[field] || !lv[field][idx]) return;
         const newLabel = await askInput('Rename variant:', lv[field][idx].label || ('Variant ' + (idx+1)));
         if (newLabel === null) return;
         lv[field][idx].label = newLabel.trim() || ('Variant ' + (idx+1));
-        charUnsaved = true;
+        state.charUnsaved = true;
         btn.textContent = lv[field][idx].label;
       });
 
@@ -682,10 +691,10 @@ function wireLumiVariantFields() {
         const idx   = parseInt(btn.dataset.idx);
         if (!await askConfirm('Delete this variant?')) return;
         captureCharState();
-        const lv = charFormState._lumiVariants;
+        const lv = state.charFormState._lumiVariants;
         if (!lv[field]) return;
         lv[field].splice(idx, 1);
-        charUnsaved = true;
+        state.charUnsaved = true;
         renderCharEditor();
       });
     }
@@ -695,9 +704,9 @@ function wireLumiVariantFields() {
 // Returns a fresh copy of all variants with the on-screen textarea routed into
 // the right slot. Falls back to the card's stored variants the first time,
 // previously it fell back to {}, which dropped every imported variant.
-function captureLumiVariants() {
-  const card = charLibrary[activeCharId]?.card;
-  const src = charFormState._lumiVariants || {};
+export function captureLumiVariants() {
+  const card = state.charLibrary[state.activeCharId]?.card;
+  const src = state.charFormState._lumiVariants || {};
   const result = {};
   LUMI_FIELDS.forEach(field => {
     const base = src[field] || getLumiVariants(card, field);
@@ -707,9 +716,9 @@ function captureLumiVariants() {
   return result;
 }
 
-function captureCharGreetings() {
+export function captureCharGreetings() {
   const wrap = g('chAltGreetList');
-  if (!wrap) return charFormState.alternate_greetings || [];
+  if (!wrap) return state.charFormState.alternate_greetings || [];
   // Each greeting block has: [0]=header(ignored), [1]=title input, [2]=message textarea
   return [...wrap.children].map(block => {
     const titleInput = block.querySelector('input.finput');
@@ -730,13 +739,13 @@ function captureCharGreetings() {
 // }
 // ═══════════════════════════════════════════════════════
 
-function gtGenId() {
+export function gtGenId() {
   // Generate a GreetingTools-style ID: g_<8hex>_<6hex>
   const rnd = n => Math.floor(Math.random() * 16**n).toString(16).padStart(n, '0');
   return 'g_' + rnd(8) + '_' + rnd(6);
 }
 
-function gtReadFromCard(card) {
+export function gtReadFromCard(card) {
   // Returns { mainTitle, mainDesc, alts: [{title, desc}, ...] } from extensions.greeting_tools
   const gt = card?.data?.extensions?.greeting_tools;
   if (!gt) return null;
@@ -758,7 +767,7 @@ function gtReadFromCard(card) {
   };
 }
 
-function gtWriteToCard(card, firstMesTitle, firstMesDesc, altGreetings) {
+export function gtWriteToCard(card, firstMesTitle, firstMesDesc, altGreetings) {
   // Writes greeting_tools back to card.data.extensions
   if (!card.data.extensions) card.data.extensions = {};
 
@@ -808,8 +817,8 @@ function gtWriteToCard(card, firstMesTitle, firstMesDesc, altGreetings) {
 }
 
 
-function captureCharState() {
-  charFormState.name = g('chName')?.value;
+export function captureCharState() {
+  state.charFormState.name = g('chName')?.value;
   // Lumiverse: chDesc/chPers/chScen are shared between the Default tab and
   // every variant tab, so the textarea only holds the Default text while the
   // Default tab is active. captureLumiVariants() routes each textarea's value
@@ -818,36 +827,36 @@ function captureCharState() {
   // is what made variant text overwrite Default.
   const lumiUi = charActiveFormat === 'lumiverse' && document.getElementById('lumi-vwrap-description');
   if (!lumiUi) {
-    charFormState.description = g('chDesc')?.value;
-    charFormState.personality = g('chPers')?.value;
-    charFormState.scenario = g('chScen')?.value;
+    state.charFormState.description = g('chDesc')?.value;
+    state.charFormState.personality = g('chPers')?.value;
+    state.charFormState.scenario = g('chScen')?.value;
   }
-  charFormState.first_mes = g('chFirst')?.value;
-  charFormState.mes_example = g('chMesEx')?.value;
-  charFormState.system_prompt = g('chSysPrompt')?.value;
-  charFormState.post_history_instructions = g('chPHI')?.value;
-  charFormState.creator_notes = g('chNotes')?.value;
-  charFormState.creator = g('chCreator')?.value;
-  charFormState.character_version = g('chVersion')?.value;
-  charFormState.tags = g('chTags')?.value;
-  charFormState.spec = g('chSpec')?.value;
-  charFormState.alternate_greetings = captureCharGreetings();
+  state.charFormState.first_mes = g('chFirst')?.value;
+  state.charFormState.mes_example = g('chMesEx')?.value;
+  state.charFormState.system_prompt = g('chSysPrompt')?.value;
+  state.charFormState.post_history_instructions = g('chPHI')?.value;
+  state.charFormState.creator_notes = g('chNotes')?.value;
+  state.charFormState.creator = g('chCreator')?.value;
+  state.charFormState.character_version = g('chVersion')?.value;
+  state.charFormState.tags = g('chTags')?.value;
+  state.charFormState.spec = g('chSpec')?.value;
+  state.charFormState.alternate_greetings = captureCharGreetings();
   // Lumiverse variant fields (also stashes the Default text, see above)
   if (lumiUi) {
-    charFormState._lumiVariants = captureLumiVariants();
+    state.charFormState._lumiVariants = captureLumiVariants();
     // Safety net: never let a Default field fall through as undefined,
     // saveChar() would turn that into an empty string.
-    const d = charLibrary[activeCharId]?.card?.data || {};
-    LUMI_FIELDS.forEach(f => { if (charFormState[f] === undefined) charFormState[f] = d[f] || ''; });
+    const d = state.charLibrary[state.activeCharId]?.card?.data || {};
+    LUMI_FIELDS.forEach(f => { if (state.charFormState[f] === undefined) state.charFormState[f] = d[f] || ''; });
   }
 }
 
-function saveChar(opts = {}) {
-  if (!activeCharId || !charLibrary[activeCharId]) return false;
+export function saveChar(opts = {}) {
+  if (!state.activeCharId || !state.charLibrary[state.activeCharId]) return false;
   captureCharState();
-  const entry = charLibrary[activeCharId];
+  const entry = state.charLibrary[state.activeCharId];
   const card = entry.card;
-  const s = charFormState;
+  const s = state.charFormState;
 
   card.spec = s.spec || card.spec;
   card.spec = 'chara_card_v3'; card.spec_version = '3.0'; // always export V3
@@ -877,8 +886,8 @@ function saveChar(opts = {}) {
 
   entry.name = card.data.name;
   entry.savedAt = new Date().toISOString();
-  charUnsaved = false;
-  charFormState = {};
+  state.charUnsaved = false;
+  state.charFormState = {};
 
   // Snapshot this version into history. The snapshot strips the avatar
   // and the nested history list (see itemHistoryPush) — previously each
@@ -886,18 +895,18 @@ function saveChar(opts = {}) {
   // blew the storage quota and silently failed, which is why history
   // has never actually persisted.
   // Autosaves pass noHistory so they don't use up the 10 snapshot slots.
-  if (!opts.noHistory && typeof itemHistoryPush === 'function') itemHistoryPush('char', activeCharId, entry);
+  if (!opts.noHistory) itemHistoryPush('char', state.activeCharId, entry);
 
   const ok = saveCharLibrary();
   renderCharSidebar();
-  if (typeof wsMarkSaved === 'function') wsMarkSaved('char', activeCharId);
+  wsMarkSaved('char', state.activeCharId);
   if (ok && !opts.silent) toast('Character saved.', 'ok');
   return ok;
 }
 
 // ── Import / Export ──
 
-function handleCharImport(e) {
+export function handleCharImport(e) {
   const file = e.target.files[0]; if (!file) return;
   const ext = file.name.split('.').pop().toLowerCase();
 
@@ -932,7 +941,7 @@ function handleCharImport(e) {
 }
 
 
-function handleCharCompanionImport(e) {
+export function handleCharCompanionImport(e) {
   const file = e.target.files[0]; if (!file) return;
   const r = new FileReader();
   r.onload = ev => {
@@ -972,7 +981,7 @@ function handleCharCompanionImport(e) {
   e.target.value = '';
 }
 
-function importCharCard(data, filename, imageData = null) {
+export function importCharCard(data, filename, imageData = null) {
   let card;
   // Handle both wrapped (spec_version) and raw V1-style flat cards
   if (data.spec && data.data) {
@@ -1005,16 +1014,16 @@ function importCharCard(data, filename, imageData = null) {
   );
 
   card.id = charId();
-  charLibrary[card.id] = { id: card.id, name: card.data.name, card, imageData, savedAt: new Date().toISOString() };
+  state.charLibrary[card.id] = { id: card.id, name: card.data.name, card, imageData, savedAt: new Date().toISOString() };
 
   // Resize the avatar before it ever reaches storage, then save.
   Promise.resolve(downscaleAvatar(imageData)).then(small => {
     const before = (imageData || '').length;
     const after  = (small || '').length;
-    if (small !== imageData) charLibrary[card.id].imageData = small;
+    if (small !== imageData) state.charLibrary[card.id].imageData = small;
     saveCharLibrary();
     renderCharSidebar();
-    if (!(typeof wsShowItem === 'function' && wsShowItem('char', card.id))) openChar(card.id);
+    if (!wsShowItem('char', card.id)) openChar(card.id);
     const saving = before && after < before
       ? ` (avatar ${Math.round(before/1024)}KB → ${Math.round(after/1024)}KB)` : '';
     toast('Imported: ' + card.data.name + saving, 'ok');
@@ -1023,14 +1032,14 @@ function importCharCard(data, filename, imageData = null) {
 
 // Commit whatever is currently typed in the editor into the stored card.
 // Every export path must call this first, or it ships stale data.
-function commitBeforeExport(id) {
-  if (id && activeCharId === id && typeof saveChar === 'function') {
+export function commitBeforeExport(id) {
+  if (id && state.activeCharId === id) {
     saveChar({ silent: true });
   }
 }
 
-function exportCharJson(id) {
-  const entry = charLibrary[id]; if (!entry) return;
+export function exportCharJson(id) {
+  const entry = state.charLibrary[id]; if (!entry) return;
   commitBeforeExport(id);
   const fn = safeFileName(entry.card.data.name, 'character') + '.json';
   dlFile(JSON.stringify(toV3Card(entry.card), null, 2), fn, 'application/json');
@@ -1041,7 +1050,7 @@ function exportCharJson(id) {
 // Flattens alternate_greetings from internal {title,message} objects back to
 // plain strings (V2 spec requires string[]) and drops LoreOS-internal fields
 // (top-level `id`, greeting titles, etc.) that aren't part of the V2 spec.
-function toV2Card(d) {
+export function toV2Card(d) {
   return {
     spec: 'chara_card_v2',
     spec_version: '2.0',
@@ -1069,7 +1078,7 @@ function toV2Card(d) {
 // canonical card (stored as V3-shaped); every export derives its target format
 // from it. Drops LoreOS-internal fields (top-level `id`, greeting titles) and
 // guarantees the fields the V3 spec requires, which blank/imported cards lack.
-function toV3Card(card) {
+export function toV3Card(card) {
   const d = (card && card.data) || {};
   const flat = a => (Array.isArray(a) ? a : []).map(g => typeof g === 'object' && g ? (g.message || '') : (g || ''));
   return {
@@ -1088,8 +1097,8 @@ function toV3Card(card) {
 
 // Export as V2 JSON (chara_card_v2 / spec_version 2.0)
 // Strips V3-only fields (group_only_greetings, assets, character_version) for max compat
-function exportCharJsonV2(id) {
-  const entry = charLibrary[id]; if (!entry) return;
+export function exportCharJsonV2(id) {
+  const entry = state.charLibrary[id]; if (!entry) return;
   commitBeforeExport(id);
   const d = entry.card.data;
   const v2card = toV2Card(d);
@@ -1098,10 +1107,10 @@ function exportCharJsonV2(id) {
   toast('Exported V2: ' + fn, 'ok');
 }
 
-function exportCharSaucepan(id) {
-  const entry = charLibrary[id]; if (!entry) return;
+export function exportCharSaucepan(id) {
+  const entry = state.charLibrary[id]; if (!entry) return;
   commitBeforeExport(id);
-  const s = charFormState;
+  const s = state.charFormState;
   const d = entry.card.data;
 
   // Build starting_scenarios from first_mes + alternate_greetings
@@ -1179,7 +1188,7 @@ function exportCharSaucepan(id) {
 // Requires JSZip (loaded via CDN)
 // ═══════════════════════════════════════════════════════
 
-function handleCharxImport(e) {
+export function handleCharxImport(e) {
   const file = e.target.files[0]; if (!file) return;
   if (typeof JSZip === 'undefined') {
     toast('JSZip not loaded — check your connection.', 'err'); return;
@@ -1216,8 +1225,8 @@ function handleCharxImport(e) {
   e.target.value = '';
 }
 
-function exportCharCharx(id) {
-  const entry = charLibrary[id]; if (!entry) return;
+export function exportCharCharx(id) {
+  const entry = state.charLibrary[id]; if (!entry) return;
   if (typeof JSZip === 'undefined') {
     toast('JSZip not loaded — check your connection.', 'err'); return;
   }
@@ -1279,17 +1288,17 @@ function exportCharCharx(id) {
 // in Settings; the trade-off is storage.
 // ═══════════════════════════════════════════════════════
 
-const AVATAR_MAX = 512;        // px, longest edge
-const AVATAR_QUALITY = 0.88;   // WebP quality
+export const AVATAR_MAX = 512;        // px, longest edge
+export const AVATAR_QUALITY = 0.88;   // WebP quality
 
-function keepFullAvatars() {
+export function keepFullAvatars() {
   try { return !!(JSON.parse(localStorage.getItem('aet_settings') || '{}').keepFullAvatars); }
   catch(e) { return false; }
 }
 
 // Takes a data URL, returns a smaller data URL (or the original if
 // it's already small enough / the user opted out / anything fails).
-function downscaleAvatar(dataUrl, force = false) {
+export function downscaleAvatar(dataUrl, force = false) {
   return new Promise(resolve => {
     if (!dataUrl) { resolve(dataUrl); return; }
     if (!force && keepFullAvatars()) { resolve(dataUrl); return; }
@@ -1332,7 +1341,7 @@ function downscaleAvatar(dataUrl, force = false) {
 
 // Converts a base64 data URL to a PNG ArrayBuffer, auto-converting via
 // canvas if the source isn't already PNG (e.g. stored as JPEG/WebP).
-function dataUrlToPngArrayBuffer(dataUrl) {
+export function dataUrlToPngArrayBuffer(dataUrl) {
   return new Promise((resolve, reject) => {
     const b64 = dataUrl.split(',')[1];
     const bin = atob(b64);
@@ -1361,8 +1370,8 @@ function dataUrlToPngArrayBuffer(dataUrl) {
   });
 }
 
-function openCharPngExport(id, forceV2 = true) {
-  const entry = charLibrary[id]; if (!entry) return;
+export function openCharPngExport(id, forceV2 = true) {
+  const entry = state.charLibrary[id]; if (!entry) return;
   commitBeforeExport(id);
 
   const doExport = (arrayBuf) => {
@@ -1414,7 +1423,7 @@ function openCharPngExport(id, forceV2 = true) {
   }
 }
 
-function crc32(buf) {
+export function crc32(buf) {
   let c, table = crc32.table;
   if (!table) {
     table = crc32.table = [];
@@ -1429,16 +1438,16 @@ function crc32(buf) {
   return (crc ^ 0xFFFFFFFF) >>> 0;
 }
 
-function u32be(n) {
+export function u32be(n) {
   return new Uint8Array([(n>>>24)&255, (n>>>16)&255, (n>>>8)&255, n&255]);
 }
 
-function strToBytes(s) {
+export function strToBytes(s) {
   return new Uint8Array([...s].map(c => c.charCodeAt(0)));
 }
 
 // One tEXt chunk: length + "tEXt" + keyword\0base64(json) + crc
-function buildTextChunk(keyword, obj) {
+export function buildTextChunk(keyword, obj) {
   const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
   const textBytes = strToBytes(keyword + '\0' + b64);
   const typeBytes = strToBytes('tEXt');
@@ -1454,7 +1463,7 @@ function buildTextChunk(keyword, obj) {
 }
 
 // `card` goes in the `chara` chunk; `v3card`, when given, also goes in `ccv3`
-function embedCharInPng(pngBuf, card, v3card) {
+export function embedCharInPng(pngBuf, card, v3card) {
   // Validate PNG signature
   const sig = [137,80,78,71,13,10,26,10];
   for (let i = 0; i < 8; i++) if (pngBuf[i] !== sig[i]) throw new Error('Not a valid PNG file');
@@ -1484,7 +1493,7 @@ function embedCharInPng(pngBuf, card, v3card) {
 // metadata (prompt, workflow, LoRA/checkpoint names) baked in as tEXt chunks.
 // None of that belongs in an exported character card, so we clear it all
 // before embedding our own "chara" chunk.
-function stripExistingCharaChunks(buf) {
+export function stripExistingCharaChunks(buf) {
   const out = [];
   let pos = 8;
   out.push(buf.subarray(0, 8));
@@ -1509,7 +1518,7 @@ function stripExistingCharaChunks(buf) {
 
 // Reads every tEXt chunk and returns the card. V3 PNGs carry the V3 card in
 // `ccv3` (and often a V2 copy in `chara`); prefer ccv3, fall back to chara.
-function extractCharFromPng(buf) {
+export function extractCharFromPng(buf) {
   const sig = [137,80,78,71,13,10,26,10];
   for (let i = 0; i < 8; i++) if (buf[i] !== sig[i]) throw new Error('Not a valid PNG file');
   let pos = 8;
@@ -1538,17 +1547,17 @@ function extractCharFromPng(buf) {
 
 // Character library modal reuses the same #libModal as lorebooks, but
 // scoped to charLibrary instead of the lorebook-saves library
-function openCharLibrary() {
+export function openCharLibrary() {
   g('libModalTitle').textContent = 'Character Library';
   const list = g('libList');
   list.innerHTML = '';
-  const chars = Object.values(charLibrary).sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
+  const chars = Object.values(state.charLibrary).sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
   if (!chars.length) {
     list.innerHTML = '<div class="lib-empty">// no characters yet</div>';
   } else {
     chars.forEach(entry => {
       const item = document.createElement('div');
-      item.className = 'lib-item' + (entry.id === activeCharId ? ' active' : '');
+      item.className = 'lib-item' + (entry.id === state.activeCharId ? ' active' : '');
       const date = new Date(entry.savedAt).toLocaleDateString();
       item.innerHTML = `
         <span class="lib-name">${esc(entry.name || 'Unnamed')}</span>
@@ -1560,7 +1569,7 @@ function openCharLibrary() {
         </div>`;
       item.querySelector('.lib-name').addEventListener('click', () => { openChar(entry.id); closeModal('libModal'); });
       item.querySelector('.lib-load').addEventListener('click', () => { openChar(entry.id); closeModal('libModal'); });
-      item.querySelector('.lib-hist').addEventListener('click', () => { if (typeof openItemHistory === 'function') openItemHistory('char', entry.id); });
+      item.querySelector('.lib-hist').addEventListener('click', () => { openItemHistory('char', entry.id); });
       item.querySelector('.lib-del').addEventListener('click', () => { deleteChar(entry.id); openCharLibrary(); });
       list.append(item);
     });
@@ -1570,7 +1579,7 @@ function openCharLibrary() {
   openModal('libModal');
 }
 
-function closeCharLibraryModal() {
+export function closeCharLibraryModal() {
   g('libSaveBtn').parentElement.style.display = '';
   closeModal('libModal');
 }

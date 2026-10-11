@@ -1,25 +1,38 @@
 // ═══════════════════════════════════════════════════════
 // MOBILE.JS — mobile nav, drawer, touch UX
 // ═══════════════════════════════════════════════════════
-const isMob = () => window.innerWidth <= 700;
+
+import { createChar, exportCharCharx, exportCharJson, exportCharJsonV2, exportCharSaucepan, openCharLibrary, openCharPngExport } from './character.js';
+import { openLibrary } from './library.js';
+import { clearEditor, openLoreSettings } from './lorebook.js';
+import { exportJanitorJson, exportJson, exportSaucepanJson, openJanitorPasteModal, openPublicExport } from './lorebook_io.js';
+import { createPreset, makeBlankPrompt, openPresetLibrary, renderPromptList, syncPromptOrder } from './preset.js';
+import { PT, ptRefreshManual } from './pronoun.js';
+import { currentView, navigateTo } from './router.js';
+import { toggleTheme } from './settings.js';
+import { state } from './state.js';
+import { openEntryPicker, openTemplateLibrary } from './templates.js';
+import { closeModal, g, openModal, toast } from './util.js';
+
+export const isMob = () => window.innerWidth <= 700;
 
 // ── Sidebar drawer ──
-function openSidebar() {
+export function openSidebar() {
   g('sidebar').classList.add('mob-open');
   g('mob-backdrop').classList.add('visible');
   document.body.style.overflow = 'hidden';
 }
-function closeSidebar() {
+export function closeSidebar() {
   g('sidebar').classList.remove('mob-open');
   g('mob-backdrop').classList.remove('visible');
   document.body.style.overflow = '';
 }
 
 // Lets sidebar lists close the drawer after you pick something (phones only)
-function closeMobSidebar() { if (isMob()) closeSidebar(); }
+export function closeMobSidebar() { if (isMob()) closeSidebar(); }
 
 // ── updateMobNav: show/hide mode-specific action buttons ──
-function updateMobNav(m) {
+export function updateMobNav(m) {
   ['lore','char','preset'].forEach(modeKey => {
     document.querySelectorAll(`.mob-mode-btn.mob-${modeKey}`).forEach(btn => {
       btn.style.display = (m === modeKey) ? '' : 'none';
@@ -36,7 +49,7 @@ function updateMobNav(m) {
 // ── updateMobViewBtns: show/hide view-specific controls ──
 // When in editor: collapse view nav, show back button + sidebar + mode action buttons
 // When in other views: show view nav, hide editor-specific buttons
-function updateMobViewBtns(view) {
+export function updateMobViewBtns(view) {
   const isEditor = view === 'editor';
 
   // View nav buttons (Home/Library/Notebook/Editor)
@@ -81,7 +94,7 @@ function updateMobViewBtns(view) {
   // Sidebar toggle + sep — only in the editor (all three modes have a sidebar)
   const entriesBtn = g('mobEntries');
   const sep = g('mob-nav-sep');
-  const sidebarMode = (typeof mode !== 'undefined') ? mode : 'lore';
+  const sidebarMode = (typeof state.mode !== 'undefined') ? state.mode : 'lore';
   const showSidebar = isEditor && ['lore','char','preset'].includes(sidebarMode);
   if (entriesBtn) entriesBtn.style.display = showSidebar ? '' : 'none';
   if (sep) sep.style.display = showSidebar ? '' : 'none';
@@ -90,7 +103,7 @@ function updateMobViewBtns(view) {
   if (!isEditor) {
     document.querySelectorAll('.mob-mode-btn').forEach(b => { b.style.display = 'none'; });
   } else {
-    updateMobNav(mode || 'lore');
+    updateMobNav(state.mode || 'lore');
   }
 
   // Active state on view nav buttons
@@ -102,19 +115,19 @@ function updateMobViewBtns(view) {
 }
 
 // Called by switchMode after every mode change so the phone nav follows it
-function mobileAfterModeSwitch(newMode) {
+export function mobileAfterModeSwitch(newMode) {
   if (!isMob()) return;
   updateMobNav(newMode);
   // if we're in editor view, keep mode buttons visible for new mode
   if (currentView === 'editor') updateMobViewBtns('editor');
 }
 
-function wireMobile() {
+export function wireMobile() {
   g('mob-backdrop').addEventListener('click', closeSidebar);
   g('mob-sb-close').addEventListener('click', closeSidebar);
 
   // ── Init state ──
-  updateMobNav(mode || 'lore');
+  updateMobNav(state.mode || 'lore');
   // default to 'home' — router will call updateMobViewBtns again after init
   updateMobViewBtns('home');
 
@@ -170,12 +183,12 @@ function wireMobile() {
 
   // Mobile char export
   g('mobCharExport').addEventListener('click', () => openModal('mobCharExportModal'));
-  if (g('mobCharExportJsonBtn'))      g('mobCharExportJsonBtn').addEventListener('click',      () => { closeModal('mobCharExportModal'); exportCharJson(activeCharId); });
-  if (g('mobCharExportV2JsonBtn'))    g('mobCharExportV2JsonBtn').addEventListener('click',    () => { closeModal('mobCharExportModal'); exportCharJsonV2(activeCharId); });
-  if (g('mobCharExportV3PngBtn'))     g('mobCharExportV3PngBtn').addEventListener('click',     () => { closeModal('mobCharExportModal'); openCharPngExport(activeCharId, false); });
-  if (g('mobCharExportPngBtn'))       g('mobCharExportPngBtn').addEventListener('click',       () => { closeModal('mobCharExportModal'); openCharPngExport(activeCharId, true); });
-  if (g('mobCharExportSaucepanBtn'))  g('mobCharExportSaucepanBtn').addEventListener('click',  () => { closeModal('mobCharExportModal'); exportCharSaucepan(activeCharId); });
-  if (g('mobCharExportCharxBtn'))     g('mobCharExportCharxBtn').addEventListener('click',     () => { closeModal('mobCharExportModal'); exportCharCharx(activeCharId); });
+  if (g('mobCharExportJsonBtn'))      g('mobCharExportJsonBtn').addEventListener('click',      () => { closeModal('mobCharExportModal'); exportCharJson(state.activeCharId); });
+  if (g('mobCharExportV2JsonBtn'))    g('mobCharExportV2JsonBtn').addEventListener('click',    () => { closeModal('mobCharExportModal'); exportCharJsonV2(state.activeCharId); });
+  if (g('mobCharExportV3PngBtn'))     g('mobCharExportV3PngBtn').addEventListener('click',     () => { closeModal('mobCharExportModal'); openCharPngExport(state.activeCharId, false); });
+  if (g('mobCharExportPngBtn'))       g('mobCharExportPngBtn').addEventListener('click',       () => { closeModal('mobCharExportModal'); openCharPngExport(state.activeCharId, true); });
+  if (g('mobCharExportSaucepanBtn'))  g('mobCharExportSaucepanBtn').addEventListener('click',  () => { closeModal('mobCharExportModal'); exportCharSaucepan(state.activeCharId); });
+  if (g('mobCharExportCharxBtn'))     g('mobCharExportCharxBtn').addEventListener('click',     () => { closeModal('mobCharExportModal'); exportCharCharx(state.activeCharId); });
 
   // ── PRESET buttons ──
   g('mobPresetNew').addEventListener('click', () => { createPreset(); if(isMob()) closeSidebar(); });
@@ -183,8 +196,8 @@ function wireMobile() {
   g('mobPresetLibrary').addEventListener('click', openPresetLibrary);
   g('mobPresetPromptLib').addEventListener('click', () => openTemplateLibrary('preset'));
   g('mobPresetAddPrompt').addEventListener('click', () => {
-    if (!activePresetId || !presetLibrary[activePresetId]) { toast('Open a preset first.', 'warn'); return; }
-    const entry2 = presetLibrary[activePresetId];
+    if (!state.activePresetId || !state.presetLibrary[state.activePresetId]) { toast('Open a preset first.', 'warn'); return; }
+    const entry2 = state.presetLibrary[state.activePresetId];
     if (!entry2.preset.prompts) entry2.preset.prompts = [];
     entry2.preset.prompts.unshift(makeBlankPrompt());
     syncPromptOrder(entry2.preset);

@@ -2,7 +2,15 @@
 // LIBRARY — the saved-lorebook library dialog (save, load, rename, delete).
 // ═══════════════════════════════════════════════════════
 
-function openLibrary() {
+import { itemHistoryPush, openItemHistory } from './history.js';
+import { renderEditor, renderList, renderTabs } from './lorebook.js';
+import { rebuildEntries } from './lorebook_model.js';
+import { state } from './state.js';
+import { libGet, libSet, loreActiveLibName, loreLinkToLib, saveToStorage } from './storage.js';
+import { askConfirm, askInput, closeModal, esc, g, openModal, toast } from './util.js';
+import { renderWsTabs, wsDropItem, wsShowItem } from './workshop.js';
+
+export function openLibrary() {
   g('libModalTitle').textContent = 'Lorebook Library';
   g('libSaveBtn').parentElement.style.display = '';
   g('libNewName').value = g('lorebookName').value.trim();
@@ -10,7 +18,7 @@ function openLibrary() {
   openModal('libModal');
 }
 
-function renderLibraryList() {
+export function renderLibraryList() {
   const lib = libGet();
   const container = g('libList');
   container.innerHTML = '';
@@ -37,51 +45,51 @@ function renderLibraryList() {
     item.querySelector('.lib-name').addEventListener('click', () => libLoad(book.name));
     item.querySelector('.lib-load').addEventListener('click', () => libLoad(book.name));
     item.querySelector('.lib-rename').addEventListener('click', () => libRename(book.name));
-    item.querySelector('.lib-hist').addEventListener('click', () => { if (typeof openItemHistory === 'function') openItemHistory('lore', book.name); });
+    item.querySelector('.lib-hist').addEventListener('click', () => { openItemHistory('lore', book.name); });
     item.querySelector('.lib-del').addEventListener('click', () => libDelete(book.name));
     container.append(item);
   });
 }
 
-async function libSaveCurrent() {
+export async function libSaveCurrent() {
   const name = (g('libNewName').value.trim() || g('lorebookName').value.trim() || 'Untitled').substring(0, 60);
   const lib = libGet();
   if (lib[name] && !await askConfirm(`"${name}" already exists. Overwrite?`)) return;
   // Keep any existing history when overwriting an entry of the same name
-  lib[name] = { ...(lib[name] || {}), name, lb: JSON.parse(JSON.stringify(lorebook)), savedAt: new Date().toISOString() };
+  lib[name] = { ...(lib[name] || {}), name, lb: JSON.parse(JSON.stringify(state.lorebook)), savedAt: new Date().toISOString() };
   libSet(lib);
   // From now on, edits to this lorebook write through to this library entry
-  if (typeof loreLinkToLib === 'function') loreLinkToLib(name);
+  loreLinkToLib(name);
   // ...and it gets a workshop tab (a saved lorebook is what a tab points at)
-  if (typeof wsShowItem === 'function') wsShowItem('lore', name);
+  wsShowItem('lore', name);
   // Snapshot on every explicit save to library
-  if (typeof itemHistoryPush === 'function') itemHistoryPush('lore', name, lib[name]);
+  itemHistoryPush('lore', name, lib[name]);
   g('libNewName').value = '';
   renderLibraryList();
   toast(`Saved "${name}" to library.`, 'ok');
 }
 
-async function libLoad(name) {
+export async function libLoad(name) {
   const lib = libGet();
   const book = lib[name]; if (!book) return;
-  if (unsaved.size > 0 && !await askConfirm('You have unsaved changes. Load anyway?')) return;
-  lorebook = JSON.parse(JSON.stringify(book.lb));
-  openTabs = []; activeTabId = null; unsaved = new Set(); formState = {};
+  if (state.unsaved.size > 0 && !await askConfirm('You have unsaved changes. Load anyway?')) return;
+  state.lorebook = JSON.parse(JSON.stringify(book.lb));
+  state.openTabs = []; state.activeTabId = null; state.unsaved = new Set(); state.formState = {};
 
-  lorebook.entries = rebuildEntries(lorebook.entries);
-  nextUid = Object.keys(lorebook.entries).length
-    ? Math.max(...Object.keys(lorebook.entries).map(Number)) + 1
+  state.lorebook.entries = rebuildEntries(state.lorebook.entries);
+  state.nextUid = Object.keys(state.lorebook.entries).length
+    ? Math.max(...Object.keys(state.lorebook.entries).map(Number)) + 1
     : 0;
 
-  g('lorebookName').value = lorebook.name || name;
-  if (typeof loreLinkToLib === 'function') loreLinkToLib(name);
+  g('lorebookName').value = state.lorebook.name || name;
+  loreLinkToLib(name);
   renderList(); renderTabs(); renderEditor();
   saveToStorage();
   closeModal('libModal');
   toast(`Loaded "${name}".`, 'ok');
 }
 
-async function libRename(oldName) {
+export async function libRename(oldName) {
   g('renameModalTitle').textContent = 'Rename Lorebook';
   const newName = await askInput(`Rename "${oldName}" to:`, oldName);
   if (!newName || newName.trim() === oldName) return;
@@ -92,22 +100,22 @@ async function libRename(oldName) {
   delete lib[oldName];
   libSet(lib);
   // Keep the open lorebook (and any open workshop tab) pointed at the new name
-  if (typeof loreActiveLibName === 'function' && loreActiveLibName() === oldName) loreLinkToLib(trimmed);
-  if (typeof wsItems !== 'undefined') {
-    wsItems.forEach(t => { if (t.type === 'lore' && t.itemId === oldName) t.itemId = trimmed; });
-    if (typeof renderWsTabs === 'function') renderWsTabs();
+  if (loreActiveLibName() === oldName) loreLinkToLib(trimmed);
+  if (typeof state.wsItems !== 'undefined') {
+    state.wsItems.forEach(t => { if (t.type === 'lore' && t.itemId === oldName) t.itemId = trimmed; });
+    renderWsTabs();
   }
   renderLibraryList();
   toast(`Renamed to "${trimmed}".`, 'ok');
 }
 
-async function libDelete(name) {
+export async function libDelete(name) {
   if (!await askConfirm(`Delete "${name}" from library?`)) return;
   const lib = libGet();
   delete lib[name];
   libSet(lib);
-  if (typeof wsDropItem === 'function') wsDropItem('lore', name);
-  if (typeof loreActiveLibName === 'function' && loreActiveLibName() === name) loreLinkToLib(null);
+  wsDropItem('lore', name);
+  if (loreActiveLibName() === name) loreLinkToLib(null);
   renderLibraryList();
   toast(`Deleted "${name}".`, 'info');
 }
