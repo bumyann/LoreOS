@@ -9,6 +9,7 @@ import { openPreset } from './preset.js';
 import { state } from './state.js';
 import { loreActiveLibName, loreLinkToLib, loreSyncToLib, lzPack, lzUnpack, safeSet, saveCharLibrary, savePresetLibrary, saveToStorage } from './storage.js';
 import { askConfirm, dlFile, esc, g, toast } from './util.js';
+import { store } from './kv.js';
 
 // ═══════════════════════════════════════════════════════
 // FIELD-LEVEL UNDO/REDO
@@ -176,12 +177,12 @@ export function itemHistoryPush(type, itemId, entryOrData, label = null) {
   // Skip an auto snapshot identical to the newest one (e.g. closing a tab
   // right after saving), so real versions don't get pushed out of the 10 slots
   const histOf = type === 'lore'
-    ? (JSON.parse(localStorage.getItem('aet_library') || '{}')[itemId] || {}).history
+    ? (JSON.parse(store.get('aet_library') || '{}')[itemId] || {}).history
     : type === 'char' ? state.charLibrary[itemId]?.history : state.presetLibrary[itemId]?.history;
   if (!label && histOf && histOf[0] && histOf[0].data === snapshot.data) return;
 
   if (type === 'lore') {
-    const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+    const lib = JSON.parse(store.get('aet_library') || '{}');
     if (!lib[itemId]) return;
     if (!lib[itemId].history) lib[itemId].history = [];
     lib[itemId].history.unshift(snapshot);
@@ -208,7 +209,7 @@ export function itemHistorySaveCheckpoint(type, itemId, label) {
   if (type === 'lore') {
     // Checkpoint the lorebook as it is on screen, not the last library save
     if (loreActiveLibName() === itemId) loreSyncToLib();
-    const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+    const lib = JSON.parse(store.get('aet_library') || '{}');
     if (lib[itemId]) itemHistoryPush(type, itemId, lib[itemId], label.trim());
   } else if (type === 'char') {
     itemHistoryPush(type, itemId, state.charLibrary[itemId], label.trim());
@@ -223,7 +224,7 @@ export function itemHistorySaveCheckpoint(type, itemId, label) {
 export function itemHistoryRefreshOpen(type, itemId) {
   if (type === 'lore') {
     if (loreActiveLibName() !== itemId) return;
-    const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+    const lib = JSON.parse(store.get('aet_library') || '{}');
     if (!lib[itemId]) return;
     state.lorebook = JSON.parse(JSON.stringify(lib[itemId].lb));
     state.lorebook.entries = rebuildEntries(state.lorebook.entries || {});
@@ -244,7 +245,7 @@ export function itemHistoryRefreshOpen(type, itemId) {
 export function openItemHistory(type, itemId) {
   let entry, history;
   if (type === 'lore') {
-    const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+    const lib = JSON.parse(store.get('aet_library') || '{}');
     entry = lib[itemId];
   } else if (type === 'char') {
     entry = state.charLibrary[itemId];
@@ -325,7 +326,7 @@ export function openItemHistory(type, itemId) {
 
         let ok = false;
         if (type === 'lore') {
-          const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+          const lib = JSON.parse(store.get('aet_library') || '{}');
           if (lib[itemId]) { lib[itemId].lb = data; ok = safeSet('aet_library', JSON.stringify(lib)); }
         } else if (type === 'char') {
           if (state.charLibrary[itemId]) { Object.assign(state.charLibrary[itemId], data); ok = saveCharLibrary(); }

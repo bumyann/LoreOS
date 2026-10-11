@@ -63,7 +63,7 @@ const GSI = `window.google={accounts:{oauth2:{initTokenClient:cfg=>({requestAcce
   const A = await device();
   // device A: create some data, connect, first sync creates the file
   await A.ev(`(async()=>{ charLibrary.c1={id:'c1',name:'Alice',card:{spec:'chara_card_v3',spec_version:'3.0',data:{name:'Alice'}},imageData:null,savedAt:new Date().toISOString()}; saveCharLibrary&&saveCharLibrary(); })()`).catch(()=>{});
-  await A.pg.evaluate(() => { localStorage.setItem('aet_charLibrary', JSON.stringify({ c1: { id: 'c1', name: 'Alice', card: { spec: 'chara_card_v3', data: { name: 'Alice' } }, savedAt: new Date().toISOString() } })); });
+  await A.pg.evaluate(() => { window.LoreOS.store.set('aet_charLibrary', JSON.stringify({ c1: { id: 'c1', name: 'Alice', card: { spec: 'chara_card_v3', data: { name: 'Alice' } }, savedAt: new Date().toISOString() } })); });
   await A.ev(`gdriveConnect()`); await w(800);
   chk('A connected', await A.ev(`!!gdriveToken`));
   chk('Drive file created (exactly one)', Object.keys(drive.files).length === 1, Object.keys(drive.files));
@@ -79,7 +79,7 @@ const GSI = `window.google={accounts:{oauth2:{initTokenClient:cfg=>({requestAcce
   await A.ev(`(async()=>{ const r=await gdrivePush({force:true}); return r; })()`);
   chk('A push bumps version', Object.values(drive.files)[0].version === 2, Object.values(drive.files)[0].version);
   // B is empty+unsynced: mark it as having local data and being dirty vs old base
-  await B.pg.evaluate(() => { localStorage.setItem('aet_charLibrary', JSON.stringify({ z: { id: 'z', name: 'Zed', card: {}, savedAt: 'x' } })); localStorage.setItem('aet_gdrive_base', '1'); localStorage.setItem('aet_gdrive_dirty', '1'); });
+  await B.pg.evaluate(() => { window.LoreOS.store.set('aet_charLibrary', JSON.stringify({ z: { id: 'z', name: 'Zed', card: {}, savedAt: 'x' } })); localStorage.setItem('aet_gdrive_base', '1'); localStorage.setItem('aet_gdrive_dirty', '1'); });
   await B.ev(`gdriveReconcile()`); await w(500);
   chk('B detects conflict', (await B.ev(`gdriveState`)) === 'conflict', await B.ev(`gdriveState`));
   const r = await B.ev(`gdrivePush()`);
@@ -107,7 +107,7 @@ const GSI = `window.google={accounts:{oauth2:{initTokenClient:cfg=>({requestAcce
   const A4 = await A.ev(`(async()=>{ gdriveState='ok'; return await gdrivePush({force:true}); })()`);
   drive.force401 = 0;
   chk('persistent 401 => auth failure', A4.ok === false && A4.reason === 'auth', A4);
-  chk('state expired, local data intact', (await A.ev(`gdriveState`)) === 'expired' && (await A.pg.evaluate(() => !!localStorage.getItem('aet_charLibrary'))));
+  chk('state expired, local data intact', (await A.ev(`gdriveState`)) === 'expired' && (await A.pg.evaluate(() => !!window.LoreOS.store.get('aet_charLibrary'))));
   await b.close(); srv.close();
   console.log(fail.length ? '\nFAIL\n' + fail.join('\n') : '\nall drive checks passed'); process.exit(fail.length ? 1 : 0);
 })();

@@ -18,7 +18,7 @@
  out.xssFiredInPicker = window.__xss===1;
  // lib list xss
  lorebook={name:'<img src=x onerror="window.__xss2=1">',entries:{}}; 
- const lib={}; lib[lorebook.name]={name:lorebook.name,lb:lorebook,savedAt:new Date().toISOString()}; localStorage.setItem('aet_library',JSON.stringify(lib));
+ const lib={}; lib[lorebook.name]={name:lorebook.name,lb:lorebook,savedAt:new Date().toISOString()}; store.set('aet_library',JSON.stringify(lib));
  renderLibraryList(); await new Promise(r=>setTimeout(r,200)); out.xssLib=window.__xss2===1;
  return out;
 })()

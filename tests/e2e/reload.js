@@ -16,13 +16,13 @@ const srv=http.createServer((q,s)=>{let p=q.url.split('?')[0]; if(p==='/')p='/in
    charLibrary.c1={id:'c1',name:'Char',card:{spec:'chara_card_v3',spec_version:'3.0',data:{name:'Char'}},imageData:null,savedAt:new Date().toISOString()}; saveCharLibrary();
    const pr=blankPreset(); pr.name='Pre'; presetLibrary.p1={id:'p1',name:'Pre',preset:pr,savedAt:new Date().toISOString()}; savePresetLibrary();
    openChar('c1'); openPreset('p1'); wsShowItem('char','c1'); wsShowItem('preset','p1'); await w(300);
-   localStorage.setItem('loreos_notebook',JSON.stringify({activePageId:'j',pages:{j:{id:'j',title:'T',content:'<p>x</p>',updatedAt:'2026-01-01'}}}));
+   store.set('loreos_notebook',JSON.stringify({activePageId:'j',pages:{j:{id:'j',title:'T',content:'<p>x</p>',updatedAt:'2026-01-01'}}}));
    settingsSet({keepFullAvatars:false}); trashPush('char','Gone',{id:'g',name:'Gone',card:{data:{}}},{undo:false});
    wsSaveTabs(); await w(400);
  })()`);
- const keysBefore=await pg.evaluate(()=>Object.keys(localStorage).sort());
+ const keysBefore=await pg.evaluate(()=>window.LoreOS.store.keys().sort());
  await pg.reload(); await pg.waitForTimeout(1200);
- const after=await pg.evaluate(()=>({keys:Object.keys(localStorage).sort(), corrupt:Object.keys(localStorage).filter(k=>k.startsWith('aet_corrupt_')), toast:[...document.querySelectorAll('#notifs .notif')].map(n=>n.textContent), tabs:JSON.parse(localStorage.getItem('aet_wsTabs')||'null')}));
+ const after=await pg.evaluate(()=>({keys:window.LoreOS.store.keys().sort(), corrupt:window.LoreOS.store.keys().filter(k=>k.startsWith('aet_corrupt_')), toast:[...document.querySelectorAll('#notifs .notif')].map(n=>n.textContent), tabs:JSON.parse(localStorage.getItem('aet_wsTabs')||'null')}));
  const problems=[];
  if(after.corrupt.length) problems.push('set aside: '+after.corrupt.join(', '));
  if(after.toast.some(t=>/set aside/i.test(t))) problems.push('warning shown: '+after.toast.join(' | '));

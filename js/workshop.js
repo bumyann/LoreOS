@@ -13,6 +13,7 @@ import { state, WS_MAX_TABS } from './state.js';
 import { loreActiveLibName, loreSyncToLib } from './storage.js';
 import { closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
 import { fitHeader } from './header_fit.js';
+import { store } from './kv.js';
 
 // ═══════════════════════════════════════════════════════
 // WORKSHOP TABS
@@ -85,7 +86,7 @@ export function wsCloseTab(tabId) {
   if (tab.id === state.wsActiveId) commitActiveEditor();
   if (tab.type === 'lore') {
     if (loreActiveLibName() === tab.itemId) loreSyncToLib();
-    const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+    const lib = JSON.parse(store.get('aet_library') || '{}');
     if (lib[tab.itemId]) itemHistoryPush('lore', tab.itemId, lib[tab.itemId]);
   } else if (tab.type === 'char') {
     if (state.charLibrary[tab.itemId]) itemHistoryPush('char', tab.itemId, JSON.parse(JSON.stringify(state.charLibrary[tab.itemId])));
@@ -211,7 +212,7 @@ export function renderWsTabs() {
   state.wsItems.forEach(tab => {
     let name = '...';
     if (tab.type === 'lore') {
-      const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+      const lib = JSON.parse(store.get('aet_library') || '{}');
       name = lib[tab.itemId]?.name || 'Untitled';
     } else if (tab.type === 'char') {
       name = state.charLibrary[tab.itemId]?.name || 'Untitled';
@@ -269,7 +270,7 @@ export function wsRestoreTabsInner() {
   if (!saved || !Array.isArray(saved.items) || !saved.items.length) return;
 
   // Drop tabs whose item was deleted since
-  const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+  const lib = JSON.parse(store.get('aet_library') || '{}');
   const exists = t =>
     t.type === 'lore'   ? !!lib[t.itemId] :
     t.type === 'char'   ? !!state.charLibrary[t.itemId] :
@@ -321,7 +322,7 @@ export function renderWsPickerList(type) {
 
   let items = [];
   if (type === 'lore') {
-    const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+    const lib = JSON.parse(store.get('aet_library') || '{}');
     // Lorebook lib: { [name]: { name, lb, savedAt } } — add name as id for consistency
     items = Object.values(lib).map(b => ({ id: b.name, name: b.name, savedAt: b.savedAt || '' }))
       .sort((a, b) => b.savedAt.localeCompare(a.savedAt));

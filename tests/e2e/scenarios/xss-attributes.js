@@ -14,7 +14,7 @@
  charLibrary.yy={id:'yy',name:P,card,imageData:'data:image/png;base64,AAAA" onerror="window.__hit=(window.__hit||[]).concat(\'IMG\')',savedAt:new Date().toISOString()};
  switchMode('char'); openChar('yy'); await w(400);
  // template + journal + notebook title
- localStorage.loreos_notebook=JSON.stringify({pages:{nb1:{id:'nb1',title:P,content:'',updatedAt:new Date().toISOString()}},activePageId:'nb1'});
+ store.set('loreos_notebook',JSON.stringify({pages:{nb1:{id:'nb1',title:P,content:'',updatedAt:new Date().toISOString()}},activePageId:'nb1'}));
  navigateTo('notebook'); await w(500);
  o.hit=window.__hit||[];
  return o;

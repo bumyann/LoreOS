@@ -20,7 +20,7 @@
  // autosave must not undo it
  await w(1800); chk('autosave does not revert replacement', !/foo/i.test(lorebook.entries[0].content), lorebook.entries[0].content);
  // persisted
- chk('persisted to storage', !/foo/i.test(localStorage.aet_lorebook), (localStorage.aet_lorebook||'').slice(0,80));
+ chk('persisted to storage', !/foo/i.test(store.get('aet_lorebook')), (store.get('aet_lorebook')||'').slice(0,80));
  chk('no stale unsaved marks', unsaved.size===0, [...unsaved]);
  // regex + groups
  set('srFind','(ba)(z)'); set('srRegex',true); set('srReplace','$2$1'); doSearch(); const p2=doReplaceAll(); await w(100); document.getElementById('confirmOkBtn').click(); await p2; await w(200);

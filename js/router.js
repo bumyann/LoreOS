@@ -14,6 +14,7 @@ import { libGet, safeSet } from './storage.js';
 import { registerTrashRestorer, trashPush } from './trash.js';
 import { askConfirm, esc } from './util.js';
 import { switchMode } from './workshop.js';
+import { store } from './kv.js';
 
 export let currentView = null;
 
@@ -346,7 +347,7 @@ export let _nbAutoSaveTimer = null;
 export let _nbDirty = false;   // typed since the last save (so just visiting a page doesn't bump its date)
 
 export function nbGet() {
-  try { return JSON.parse(localStorage.getItem('loreos_notebook') || '{"pages":{},"activePageId":null}'); }
+  try { return JSON.parse(store.get('loreos_notebook') || '{"pages":{},"activePageId":null}'); }
   catch(e) { return { pages: {}, activePageId: null }; }
 }
 export function nbSet(data) {

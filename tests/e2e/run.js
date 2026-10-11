@@ -48,7 +48,10 @@ const T=[
  for(const [name,check] of T){
   if(only&&!name.startsWith(only)) continue;
   const code=fs.readFileSync(path.join(__dirname,'scenarios',name+'.js'),'utf8');
-  const ctx=await b.newContext({viewport:{width:1280,height:900}}); const pg=await ctx.newPage(); await pg.addInitScript(HINIT); const errs=[]; pg.on('pageerror',e=>errs.push(e.message));
+  const ctx=await b.newContext({viewport:{width:1280,height:900}}); const pg=await ctx.newPage(); await pg.addInitScript(HINIT);
+  // A scenario that starts with `// kv: ls` runs against plain localStorage (the fallback path, or to simulate a tiny quota)
+  if(/^\/\/ kv: ls/.test(code)) await pg.addInitScript("try{localStorage.setItem('aet_kv_off','1')}catch(e){}");
+  const errs=[]; pg.on('pageerror',e=>errs.push(e.message));
   await pg.route(/accounts.google|fonts/, r=>r.abort());
   let ok=false, detail='';
   try{ await pg.goto('http://localhost:8092/'); await pg.waitForTimeout(700); const res=await ev(pg, code); ok=!!check(res); if(!ok) detail=JSON.stringify(res).slice(0,400); }catch(e){ detail='threw: '+e.message.slice(0,200); }

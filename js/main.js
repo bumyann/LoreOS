@@ -20,6 +20,8 @@ import { state } from './state.js';
 import { wireHeaderFit } from './header_fit.js';
 import { showPostRestoreNotice } from './sync.js';
 import { wireDropImport } from './dropimport.js';
+import { kvInit } from './kv.js';
+import * as m_kv from './kv.js';
 import * as m_dropimport from './dropimport.js';
 import * as m_header_fit from './header_fit.js';
 import * as m_trash from './trash.js';
@@ -115,9 +117,15 @@ function startApp() {
   initStep('restore notice', showPostRestoreNotice);
 }
 
+// The large-data store has to be open and loaded before anything reads saved data.
+// kvInit never throws: if IndexedDB is unavailable the app simply uses localStorage.
+async function boot() {
+  try { await kvInit(); } catch (e) { console.error('[LoreOS] storage init failed:', e); }
+  startApp();
+}
 // Module scripts run after the page is parsed, so this is usually already true
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startApp);
-else startApp();
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+else boot();
 
 // ═══════════════════════════════════════════════════════
 // EVENTS
@@ -349,7 +357,7 @@ export function wireEvents() {
 // through to the shared state object.
 // ═══════════════════════════════════════════════════════
 const LoreOS = {};
-[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa, m_character_io, m_avatar, m_templates_data, m_dropimport, m_header_fit, m_trash].forEach(ns => {
+[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa, m_character_io, m_avatar, m_templates_data, m_dropimport, m_header_fit, m_trash, m_kv].forEach(ns => {
   Object.keys(ns).forEach(k => {
     if (!(k in LoreOS)) Object.defineProperty(LoreOS, k, { get: () => ns[k], enumerable: true, configurable: true });
   });

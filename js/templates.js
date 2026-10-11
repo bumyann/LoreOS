@@ -10,6 +10,7 @@ import { state } from './state.js';
 import { safeSet } from './storage.js';
 import { BUILTIN_TEMPLATES } from './templates_data.js';
 import { askConfirm, closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
+import { store } from './kv.js';
 
 export let tplMode = 'lore';
 export let tplTargetFieldId = null;
@@ -22,7 +23,7 @@ document.addEventListener('focusin', e => {
 });
 
 export function tplKey(m) { return m === 'lore' ? 'aet_tpl_lore' : m === 'preset' ? 'aet_tpl_preset' : 'aet_tpl_char'; }
-export function tplGet(m) { try { return JSON.parse(localStorage.getItem(tplKey(m)) || '{}'); } catch(e) { return {}; } }
+export function tplGet(m) { try { return JSON.parse(store.get(tplKey(m)) || '{}'); } catch(e) { return {}; } }
 export function tplSet(m, d) { return safeSet(tplKey(m), JSON.stringify(d)); }
 export function tplNewId() { return 't' + Date.now() + Math.floor(Math.random()*1000); }
 

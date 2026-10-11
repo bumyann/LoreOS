@@ -6,6 +6,7 @@ import { downscaleAvatar } from './avatar.js';
 import { renderCharSidebar } from './character.js';
 import { state } from './state.js';
 import { safeSet, saveCharLibrary, storageUsage } from './storage.js';
+import { store } from './kv.js';
 import { wireSync } from './sync.js';
 import { trashAll, trashClear, trashDiscard, trashKindLabel, trashRestore } from './trash.js';
 import { askConfirm, closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
@@ -340,7 +341,7 @@ export const FONT_ROLES = { fp: '--fp', fx: '--fx', fb: '--fb' };
 export const FONT_DEFAULTS = { fp: 'VT323', fx: 'Pixelify Sans', fb: 'Noto Sans' };
 export const FONT_STORAGE_KEY = 'aet_fonts';
 
-export function fontsGet() { try { return JSON.parse(localStorage.getItem(FONT_STORAGE_KEY) || '{}'); } catch(e) { return {}; } }
+export function fontsGet() { try { return JSON.parse(store.get(FONT_STORAGE_KEY) || '{}'); } catch(e) { return {}; } }
 export function fontsSet(d) { return safeSet(FONT_STORAGE_KEY, JSON.stringify(d)); }
 
 // Apply saved fonts on load
@@ -504,18 +505,20 @@ export function renderStoragePanel() {
   const host = g('stgStorageBody');
   if (!host) return;
 
-  const { rows, total, limit } = storageUsage();
+  const { rows, total, bigTotal, limit, mode } = storageUsage();
+  // In large-data mode the 5 MB cap only applies to the small settings kept in localStorage
   const pct = Math.min(100, (total / limit) * 100);
   const level = pct > 85 ? 'err' : pct > 60 ? 'warn' : 'ok';
 
   const visible = rows.filter(r => r.bytes > 512);
+  const grand = Math.max(total + bigTotal, 1);
   const listHTML = visible.map(r => {
     const label = STORAGE_LABELS[r.key] || r.key;
-    const share = Math.max(1, (r.bytes / Math.max(total, 1)) * 100);
+    const share = Math.max(1, (r.bytes / grand) * 100);
     return `<div class="stg-storage-row">
       <span class="stg-storage-name">${esc(label)}</span>
       <span class="stg-storage-bar"><i style="width:${share.toFixed(1)}%"></i></span>
-      <span class="stg-storage-val">${fmtKB(r.bytes)}</span>
+      <span class="stg-storage-val">${fmtKB(r.bytes)}${r.where === 'large' ? ' ·&nbsp;large store' : ''}</span>
     </div>`;
   }).join('') || '<div class="stg-storage-empty">// nothing stored yet</div>';
 
@@ -523,7 +526,9 @@ export function renderStoragePanel() {
     <div class="stg-storage-total ${level}">
       <div class="stg-storage-meter"><i style="width:${pct.toFixed(1)}%"></i></div>
       <div class="stg-storage-caption">
-        ${fmtKB(total)} used of about ${fmtKB(limit)} &nbsp;·&nbsp; ${pct.toFixed(0)}%
+        ${mode === 'idb'
+          ? `Your libraries live in the large-data store: ${fmtKB(bigTotal)}, no 5 MB limit.<br>Small settings: ${fmtKB(total)} of about ${fmtKB(limit)}.`
+          : `${fmtKB(total)} used of about ${fmtKB(limit)} &nbsp;·&nbsp; ${pct.toFixed(0)}%<br><em>Large-data store unavailable in this browser, so everything shares the 5 MB limit.</em>`}
         ${pct > 85 ? '<br><strong>Almost full — saves may start failing.</strong>' : ''}
       </div>
     </div>
@@ -569,7 +574,7 @@ export async function optimiseStoredAvatars() {
   const ids = Object.keys(state.charLibrary || {});
   if (!ids.length) { toast('No characters to optimise.', 'warn'); return; }
 
-  const before = storageUsage().total;
+  const before = (u => u.total + u.bigTotal)(storageUsage());
   if (btn) { btn.disabled = true; btn.textContent = 'Optimising...'; }
 
   let changed = 0, skipped = 0;
@@ -592,7 +597,7 @@ export async function optimiseStoredAvatars() {
   if (btn) { btn.disabled = false; btn.textContent = 'Optimise existing avatars'; }
 
   if (!saved) return; // safeSet already explained
-  const after = storageUsage().total;
+  const after = (u => u.total + u.bigTotal)(storageUsage());
   const freed = Math.max(0, before - after);
   renderStoragePanel();
   renderCharSidebar();

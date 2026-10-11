@@ -8,6 +8,7 @@
 // ═══════════════════════════════════════════════════════
 import { safeSet } from './storage.js';
 import { toast } from './util.js';
+import { store } from './kv.js';
 
 export const TRASH_KEY = 'aet_trash';
 export const TRASH_MAX_ITEMS = 20;
@@ -18,7 +19,7 @@ export function registerTrashRestorer(kind, fn) { restorers[kind] = fn; }
 
 export function trashAll() {
   try {
-    const v = JSON.parse(localStorage.getItem(TRASH_KEY) || '[]');
+    const v = JSON.parse(store.get(TRASH_KEY) || '[]');
     return Array.isArray(v) ? v.filter(x => x && typeof x === 'object' && x.id && x.kind) : [];
   } catch (e) { return []; }
 }
@@ -58,7 +59,7 @@ export function trashRestore(id) {
 }
 
 export function trashDiscard(id) { return trashSave(trashAll().filter(x => x.id !== id)); }
-export function trashClear() { try { localStorage.removeItem(TRASH_KEY); } catch (e) {} }
+export function trashClear() { try { store.remove(TRASH_KEY); } catch (e) {} }
 
 const KIND_LABEL = { char: 'Character', preset: 'Preset', lorelib: 'Lorebook', entry: 'Entry', entries: 'Cleared entries', journal: 'Journal page' };
 export function trashKindLabel(k) { return KIND_LABEL[k] || k; }

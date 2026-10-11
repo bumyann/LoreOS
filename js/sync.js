@@ -6,6 +6,7 @@ import { openCharLibrary } from './character.js';
 import { cancelDrivePush, gdriveAutoPush, wireGdrive } from './gdrive.js';
 import { openLibrary } from './library.js';
 import { openPresetLibrary } from './preset.js';
+import { kvFlush, kvMode, store } from './kv.js';
 import { cancelJournalAutosave } from './router.js';
 import { state } from './state.js';
 import { cancelLoreSnapshot, isQuotaError, safeSet, storageUsage } from './storage.js';
@@ -52,7 +53,10 @@ export const HISTORY_KEY = 'aet_backup_history';
 export const MAX_HISTORY = 10;
 export const NOTICE_KEY = 'aet_post_restore_notice';
 const fmtMB = n => (n / 1048576).toFixed(1) + ' MB';
-export const HISTORY_MAX_CHARS = 1000000; // the snapshots together may use at most this much of the ~5 MB browser budget
+// The snapshots together may use at most this much. In plain localStorage that is a slice of the ~5 MB cap;
+// in the large-data store there is plenty of room.
+export const HISTORY_MAX_CHARS = 1000000;
+export const historyBudget = () => (kvMode() === 'idb' ? 20000000 : HISTORY_MAX_CHARS);
 
 // ── pending import bundle (set before opening checklist modal) ──
 export let _pendingImport = null;
@@ -73,7 +77,7 @@ export function syncSetStatus(msg, type = 'info') {
 export function syncBundleData() {
   const bundle = { _version: '1', _synced_at: new Date().toISOString() };
   SYNC_KEYS.forEach(k => {
-    const v = localStorage.getItem(k);
+    const v = store.get(k);
     if (v !== null) bundle[k] = v;
   });
   return bundle;
@@ -83,8 +87,8 @@ export function syncRestoreKeys(bundle, keys) {
   keys.forEach(k => {
     // A key the backup doesn't have means "it didn't exist then": clear it, so a
     // restored module never mixes with leftovers from this device
-    if (bundle[k] !== undefined) localStorage.setItem(k, bundle[k]);
-    else localStorage.removeItem(k);
+    if (bundle[k] !== undefined) store.set(k, bundle[k]);
+    else store.remove(k);
   });
 }
 
@@ -93,7 +97,7 @@ export function syncRestoreKeys(bundle, keys) {
 // ═══════════════════════════════════════════════════════
 export function historyGet() {
   try {
-    const raw = localStorage.getItem(HISTORY_KEY);
+    const raw = store.get(HISTORY_KEY);
     if (!raw) return [];
     return JSON.parse(raw);
   } catch(e) { return []; }
@@ -110,14 +114,14 @@ export function historySave() {
   if (history.length > MAX_HISTORY) history.splice(MAX_HISTORY);
   // Every snapshot is a full copy of the workspace, so ten of them used to eat
   // most of a phone or iPad's 5 MB and made restores fail. Keep them under a budget.
-  while (history.length && JSON.stringify(history).length > HISTORY_MAX_CHARS) history.pop();
+  while (history.length && JSON.stringify(history).length > historyBudget()) history.pop();
   if (!history.length) return; // even one snapshot is too big for the budget: skip it, the data itself is safe
   try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    store.set(HISTORY_KEY, JSON.stringify(history));
   } catch(e) {
     // localStorage full: keep only the newest and retry
     history.splice(1);
-    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch(e2) {}
+    try { store.set(HISTORY_KEY, JSON.stringify(history)); } catch(e2) {}
   }
 }
 
@@ -178,7 +182,7 @@ export function openImportModal(bundle, title = 'Import Backup') {
   openModal('syncImportModal');
 }
 
-export function syncImportConfirm() {
+export async function syncImportConfirm() {
   if (!_pendingImport) return;
   const bundle = _pendingImport;
   const checks = g('syncImportChecks').querySelectorAll('input[type=checkbox]:checked');
@@ -197,31 +201,35 @@ export function syncImportConfirm() {
   // Restore all-or-nothing: if the browser refuses part way (storage full),
   // put every key back as it was instead of leaving a half-restored mix
   const previous = {};
-  selectedKeys.forEach(k => { previous[k] = localStorage.getItem(k); });
-  const attempt = () => {
-    try { syncRestoreKeys(bundle, selectedKeys); return null; }
-    catch (e) {
-      selectedKeys.forEach(k => {
-        try { previous[k] === null ? localStorage.removeItem(k) : localStorage.setItem(k, previous[k]); } catch (e2) {}
-      });
-      return e;
+  selectedKeys.forEach(k => { previous[k] = store.get(k); });
+  const rollback = () => selectedKeys.forEach(k => {
+    try { previous[k] === null ? store.remove(k) : store.set(k, previous[k]); } catch (e2) {}
+  });
+  const attempt = async () => {
+    try { syncRestoreKeys(bundle, selectedKeys); }
+    catch (e) { rollback(); return e; }
+    // Big keys are written to the large-data store in the background: wait until it is confirmed
+    if (!(await kvFlush())) {
+      rollback(); await kvFlush();
+      const e = new Error('the browser refused to store the restored data'); e.name = 'QuotaExceededError'; return e;
     }
+    return null;
   };
-  let err = attempt();
+  let err = await attempt();
   // Storage full: free the things that can be rebuilt (deleted-items bin, old local
   // backup snapshots), a step at a time, trying again after each. The data being
   // restored lives on Drive / the backup file, so those copies are the cheap ones to give up.
   const freedSteps = [];
   if (err && isQuotaError(err)) {
     const steps = [
-      ['recently deleted items', () => { localStorage.removeItem('aet_trash'); Object.keys(localStorage).filter(k => k.startsWith('aet_corrupt_')).forEach(k => localStorage.removeItem(k)); }],
-      ['older local backup snapshots', () => { const h = historyGet(); if (h.length > 1) localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0, 1))); }],
-      ['local backup snapshots', () => localStorage.removeItem(HISTORY_KEY)],
+      ['recently deleted items', () => { store.remove('aet_trash'); store.keys().filter(k => k.startsWith('aet_corrupt_')).forEach(k => store.remove(k)); }],
+      ['older local backup snapshots', () => { const h = historyGet(); if (h.length > 1) store.set(HISTORY_KEY, JSON.stringify(h.slice(0, 1))); }],
+      ['local backup snapshots', () => store.remove(HISTORY_KEY)],
     ];
     for (const [label, run] of steps) {
       try { run(); } catch (e) {}
       freedSteps.push(label);
-      err = attempt();
+      err = await attempt();
       if (!err) break;
     }
   }
@@ -229,9 +237,9 @@ export function syncImportConfirm() {
     state.restoringBackup = false;
     console.error('[LoreOS] restore failed, rolled back:', err);
     if (isQuotaError(err)) {
-      const { total } = storageUsage();
+      const { total, bigTotal } = storageUsage();
       const need = selectedKeys.reduce((n, k) => n + (bundle[k] === undefined ? 0 : String(bundle[k]).length) - (previous[k] ? previous[k].length : 0), 0);
-      toast(`Not enough room on this device (about ${fmtMB(total)} of 5 MB used, and this restore needs about ${fmtMB(need)} more). Nothing in your libraries was changed${freedSteps.length ? ' (LoreOS did clear ' + freedSteps.join(' and ') + ' while trying to make room)' : ''}. Try ticking fewer items (one library at a time), or free space in Settings > Storage.`, 'err');
+      toast(`Not enough room on this device (about ${fmtMB(total + bigTotal)} stored, and this restore needs about ${fmtMB(need)} more). Nothing in your libraries was changed${freedSteps.length ? ' (LoreOS did clear ' + freedSteps.join(' and ') + ' while trying to make room)' : ''}. Try ticking fewer items (one library at a time), or free space in Settings > Storage.`, 'err');
     } else {
       toast('Restore failed: ' + (err.message || err) + ' Nothing was changed.', 'err');
     }
@@ -241,7 +249,7 @@ export function syncImportConfirm() {
   // Keep the note and show it (for longer) once the page is back.
   if (freedSteps.length) {
     try {
-      localStorage.setItem(NOTICE_KEY, 'Restore done. This device is short on storage (about ' + fmtMB(storageUsage().total) + ' of 5 MB used), so LoreOS cleared ' +
+      localStorage.setItem(NOTICE_KEY, 'Restore done. This device is short on storage (about ' + fmtMB((u => u.total + u.bigTotal)(storageUsage())) + ' stored), so LoreOS cleared ' +
         freedSteps.join(' and ') + ' to make room. Your restored data is intact. Settings > Storage shows what is using the space.');
     } catch (e) {}
   }
@@ -256,6 +264,7 @@ export function syncImportConfirm() {
     try { localStorage.setItem('aet_gdrive_dirty', '1'); } catch (e) {}
   }
   historySave();
+  await kvFlush(); // everything must be on disk before the page reloads
   closeModal('syncImportModal');
   syncSetStatus('Imported ✓ — reloading...', 'ok');
   setTimeout(() => location.reload(), 900);
@@ -313,7 +322,7 @@ export function openSyncHistory() {
 export function libExportSelective(type) {
   const mod = LIB_MODULES[type];
   if (!mod) return;
-  const raw = localStorage.getItem(mod.storageKey);
+  const raw = store.get(mod.storageKey);
   if (!raw || raw === '{}') { toast('Nothing to export.', 'warn'); return; }
   const bundle = {
     _version: '1',
@@ -339,7 +348,7 @@ export function libImportSelective(file, type, onDone) {
       if (!bundle._version) throw new Error('Not a valid LoreOS export.');
       if (!bundle[mod.storageKey]) throw new Error(`No ${mod.label} data found in this file.`);
       // Merge into existing (don't wipe, combine)
-      const existing = JSON.parse(localStorage.getItem(mod.storageKey) || '{}');
+      const existing = JSON.parse(store.get(mod.storageKey) || '{}');
       const incoming = JSON.parse(bundle[mod.storageKey]);
       const merged = { ...existing, ...incoming };
       // Through safeSet so a full disk is reported, not swallowed as "Import error"
@@ -374,15 +383,15 @@ export function syncAutoPush() {
 // An empty fresh install doesn't, so it can pull straight away.
 export function syncLocalHasData() {
   const nonEmptyObj = k => {
-    try { const v = JSON.parse(localStorage.getItem(k) || '{}'); return !!v && Object.keys(v).length > 0; }
+    try { const v = JSON.parse(store.get(k) || '{}'); return !!v && Object.keys(v).length > 0; }
     catch (e) { return false; }
   };
   if (['aet_library', 'aet_charLibrary', 'aet_presetLibrary', 'aet_tpl_lore', 'aet_tpl_char', 'aet_tpl_preset'].some(nonEmptyObj)) return true;
   try {
-    const lb = JSON.parse(localStorage.getItem('aet_lorebook') || 'null');
+    const lb = JSON.parse(store.get('aet_lorebook') || 'null');
     if (lb && lb.entries && Object.keys(lb.entries).length > 0) return true;
   } catch (e) {}
-  return (localStorage.getItem('loreos_notebook') || '').length > 2;
+  return (store.get('loreos_notebook') || '').length > 2;
 }
 
 // ═══════════════════════════════════════════════════════

@@ -7,6 +7,7 @@ import { migrateCharacterBook } from './attach_lb.js';
 import { itemHistoryPush } from './history.js';
 import { applyZoom, renderEditor, renderList, renderTabs } from './lorebook.js';
 import { rebuildEntries } from './lorebook_model.js';
+import { store, isBigKey, kvMode } from './kv.js';
 import { state } from './state.js';
 import { syncAutoPush } from './sync.js';
 import { g, toast } from './util.js';
@@ -35,7 +36,7 @@ export function isQuotaError(e) {
 export function safeSet(key, value) {
   if (state.restoringBackup) return false; // a restore is in progress: nothing may overwrite it
   try {
-    localStorage.setItem(key, value);
+    store.set(key, value); // big keys go to the large-data store, the rest to localStorage
     return true;
   } catch(e) {
     if (isQuotaError(e)) {
@@ -53,18 +54,17 @@ export function safeSet(key, value) {
   }
 }
 
-// Approximate bytes used across all of localStorage for this origin.
+// Approximate bytes used by LoreOS data. `total` / `limit` describe localStorage (the part with
+// the ~5 MB cap); the large-data store has no such cap and is reported separately as `bigTotal`.
 export function storageUsage() {
   const rows = [];
-  let total = 0;
-  for (const k in localStorage) {
-    if (!Object.prototype.hasOwnProperty.call(localStorage, k)) continue;
-    const bytes = (localStorage[k] || '').length;
-    total += bytes;
-    rows.push({ key: k, bytes });
-  }
+  let total = 0, bigTotal = 0;
+  store.entries().forEach((info, k) => {
+    rows.push({ key: k, bytes: info.bytes, where: info.where });
+    if (info.where === 'large') bigTotal += info.bytes; else total += info.bytes;
+  });
   rows.sort((a, b) => b.bytes - a.bytes);
-  return { rows, total, limit: 5 * 1024 * 1024 };
+  return { rows, total, bigTotal, limit: 5 * 1024 * 1024, mode: kvMode() };
 }
 
 // ── LZ helpers ──
@@ -130,10 +130,10 @@ const ENTRY_NEEDS = { aet_charLibrary: 'card', aet_presetLibrary: 'preset' };
 export function sanitizeStorage() {
   const fixed = [];
   // Copy left by an earlier version that wrongly flagged the (valid) open-tabs record
-  try { localStorage.removeItem('aet_corrupt_aet_wsTabs'); } catch (e) {}
+  try { store.remove('aet_corrupt_aet_wsTabs'); } catch (e) {}
   Object.keys(STORAGE_SHAPES).forEach(key => {
     let raw = null;
-    try { raw = localStorage.getItem(key); } catch (e) { return; }
+    try { raw = store.get(key); } catch (e) { return; }
     if (raw === null) return;
     let val; let bad = false;
     try { val = JSON.parse(raw); } catch (e) { bad = true; }
@@ -146,19 +146,19 @@ export function sanitizeStorage() {
         if (!isObj(e) || (need && !isObj(e[need]))) { delete val[id]; pruned = true; }
       });
       if (pruned) {
-        try { localStorage.setItem('aet_corrupt_' + key, raw); localStorage.setItem(key, JSON.stringify(val)); fixed.push(key); } catch (e) {}
+        try { store.set('aet_corrupt_' + key, raw); store.set(key, JSON.stringify(val)); fixed.push(key); } catch (e) {}
       }
       return;
     }
     if (!bad && key === 'loreos_notebook') {
       let pruned = false;
       Object.keys(val.pages).forEach(id => { if (!isObj(val.pages[id])) { delete val.pages[id]; pruned = true; } });
-      if (pruned) { try { localStorage.setItem('aet_corrupt_' + key, raw); localStorage.setItem(key, JSON.stringify(val)); fixed.push(key); } catch (e) {} }
+      if (pruned) { try { store.set('aet_corrupt_' + key, raw); store.set(key, JSON.stringify(val)); fixed.push(key); } catch (e) {} }
       return;
     }
     if (bad) {
-      try { localStorage.setItem('aet_corrupt_' + key, raw); } catch (e) {}
-      try { localStorage.removeItem(key); } catch (e) {}
+      try { store.set('aet_corrupt_' + key, raw); } catch (e) {}
+      try { store.remove(key); } catch (e) {}
       fixed.push(key);
     }
   });
@@ -171,7 +171,7 @@ export function sanitizeStorage() {
 
 export function loadFromStorage() {
   loadPart('lorebook', () => {
-    const lb = localStorage.getItem('aet_lorebook');
+    const lb = store.get('aet_lorebook');
     if (!lb) return;
     state.lorebook = JSON.parse(lb);
     g('lorebookName').value = state.lorebook.name || '';
@@ -179,7 +179,7 @@ export function loadFromStorage() {
     // Re-link to the library entry it came from, if that still exists
     const linked = localStorage.getItem('aet_lorebookLibName');
     if (linked) {
-      const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+      const lib = JSON.parse(store.get('aet_library') || '{}');
       if (lib[linked]) loreLinkToLib(linked); else loreLinkToLib(null);
     }
   });
@@ -194,7 +194,7 @@ export function loadFromStorage() {
   });
 
   loadPart('character library', () => {
-    state.charLibrary = JSON.parse(localStorage.getItem('aet_charLibrary') || '{}');
+    state.charLibrary = JSON.parse(store.get('aet_charLibrary') || '{}');
     // Cards with an attached lorebook saved before the character_book fix hold
     // an object-shaped book that SillyTavern can't import; convert them once
     let migrated = false;
@@ -205,7 +205,7 @@ export function loadFromStorage() {
   });
 
   loadPart('preset library', () => {
-    state.presetLibrary = JSON.parse(localStorage.getItem('aet_presetLibrary') || '{}');
+    state.presetLibrary = JSON.parse(store.get('aet_presetLibrary') || '{}');
   });
 
   loadPart('workshop tabs', renderWsTabs);
@@ -247,7 +247,7 @@ export function loreSyncToLib() {
   if (loreLibName && loreLibRef !== state.lorebook) loreLinkToLib(null);
   const name = loreActiveLibName();
   if (!name) return true;
-  const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+  const lib = JSON.parse(store.get('aet_library') || '{}');
   if (!lib[name]) { loreLinkToLib(null); return true; }
   const next = JSON.stringify(state.lorebook);
   if (JSON.stringify(lib[name].lb) === next) return true;
@@ -273,7 +273,7 @@ export function loreSnapshotNow() {
   const name = loreActiveLibName();
   if (!name) return;
   loreSyncToLib();
-  const lib = JSON.parse(localStorage.getItem('aet_library') || '{}');
+  const lib = JSON.parse(store.get('aet_library') || '{}');
   if (lib[name]) itemHistoryPush('lore', name, lib[name]);
 }
 window.addEventListener('pagehide', () => { if (loreSnapTimer) loreSnapshotNow(); });
@@ -304,7 +304,7 @@ export function savePresetLibrary() {
 // ═══════════════════════════════════════════════════════
 // LIBRARY
 // ═══════════════════════════════════════════════════════
-export function libGet() { try { return JSON.parse(localStorage.getItem('aet_library') || '{}'); } catch(e) { return {}; } }
+export function libGet() { try { return JSON.parse(store.get('aet_library') || '{}'); } catch(e) { return {}; } }
 export function libSet(d) {
   const ok = safeSet('aet_library', JSON.stringify(d));
   if (ok) syncAutoPush(); // library edits should reach Drive too

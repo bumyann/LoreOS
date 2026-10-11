@@ -18,7 +18,7 @@
  chk('enabled:false -> disable:true', ents[0].disable===true && ents[1].disable===false, ents.map(e=>e.disable));
  chk('regex key with comma kept', JSON.stringify(ents[1].key)===JSON.stringify(['x','/y,z/i']), ents[1].key);
  chk('entries normalized (characterFilter, triggers)', ents.every(e=>e.characterFilter&&Array.isArray(e.triggers)));
- chk('persisted to storage', JSON.parse(localStorage.aet_lorebook).entries[0]?.comment==='Ent1');
+ chk('persisted to storage', JSON.parse(store.get('aet_lorebook')).entries[0]?.comment==='Ent1');
  // export janitor: enabled mirrors disable (toggle in editor)
  lorebook.entries[1].disable=true;
  exportJanitorJson(); const jx=JSON.parse((await dl()).text);
@@ -35,7 +35,7 @@
  chk('saucepan imported', Object.keys(lorebook.entries).length===2&&lorebook.entries[0].comment==='Ent1'&&lorebook.saucepanMeta, Object.keys(lorebook.entries));
  chk('saucepan entries normalized', lorebook.entries[0].characterFilter&&lorebook.entries[0].disable===false);
  // library-linked lorebook: no prompt
- const lib={}; lib.L={name:'L',lb:JSON.parse(JSON.stringify(lorebook)),savedAt:new Date().toISOString()}; localStorage.setItem('aet_library',JSON.stringify(lib)); loreLinkToLib('L');
+ const lib={}; lib.L={name:'L',lb:JSON.parse(JSON.stringify(lorebook)),savedAt:new Date().toISOString()}; store.set('aet_library',JSON.stringify(lib)); loreLinkToLib('L');
  await feed('fileInput',{name:'ST',entries:{0:{uid:0,key:['q'],comment:'qq',content:'z'}}},'st.json'); chk('linked lorebook replaced without prompt', !confirmOpen()&&lorebook.name==='ST'&&lorebook.entries[0].comment==='qq', [confirmOpen(),lorebook.name]);
  chk('import unlinked from library', loreActiveLibName()===null);
  // text export honours titles option & order 0

@@ -12,7 +12,7 @@
  let t=performance.now(); renderList(); o.renderList2000ms=Math.round(performance.now()-t);
  t=performance.now(); openInTab(1500); o.openEntryMs=Math.round(performance.now()-t);
  t=performance.now(); const sb=document.getElementById('sbSearch'); sb.value='Entry 19'; sb.dispatchEvent(new Event('input',{bubbles:true})); o.sidebarSearchMs=Math.round(performance.now()-t);
- t=performance.now(); saveToStorage(); o.saveMs=Math.round(performance.now()-t); o.storedKB=Math.round(localStorage.aet_lorebook.length/1024);
+ t=performance.now(); saveToStorage(); o.saveMs=Math.round(performance.now()-t); o.storedKB=Math.round(store.get('aet_lorebook').length/1024);
  // ---- export filenames
  const caps=[]; const dlStart=__dl.length;
  charLibrary.j={id:'j',name:'日本語 🦊',card:{spec:'chara_card_v3',spec_version:'3.0',data:{name:'日本語 🦊',tags:[],alternate_greetings:[],extensions:{}}},savedAt:new Date().toISOString()};

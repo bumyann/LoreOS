@@ -8,10 +8,10 @@
  document.getElementById('libModalTitle').textContent='Character Library';
  libImportSelective(file,'char',()=>{});
  await new Promise(r=>setTimeout(r,300));
- out.lsHasImported=!!JSON.parse(localStorage.aet_charLibrary).cX;
+ out.lsHasImported=!!JSON.parse(store.get('aet_charLibrary')).cX;
  out.memHasImported=!!charLibrary.cX;
  // now do any save
  saveCharLibrary();
- out.lsAfterNextSave=!!JSON.parse(localStorage.aet_charLibrary).cX;
+ out.lsAfterNextSave=!!JSON.parse(store.get('aet_charLibrary')).cX;
  return out;
 })()

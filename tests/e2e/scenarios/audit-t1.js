@@ -30,13 +30,13 @@
  await ok(libDelete('LibBook')); chk('lib lorebook deleted', !libGet().LibBook);
  trashRestore(trashAll().find(t=>t.kind==='lorelib').id); chk('lib lorebook restored', !!libGet().LibBook);
  // journal page
- localStorage.setItem('loreos_notebook',JSON.stringify({activePageId:'jp',pages:{jp:{id:'jp',title:'Dear diary',content:'<p>hi</p>',updatedAt:'2026-01-01'}}}));
+ store.set('loreos_notebook',JSON.stringify({activePageId:'jp',pages:{jp:{id:'jp',title:'Dear diary',content:'<p>hi</p>',updatedAt:'2026-01-01'}}}));
  navigateTo('notebook'); await w(500);
  document.getElementById('nbDeleteBtn').click(); await w(150); document.getElementById('confirmOkBtn').click(); await w(300);
  chk('journal page deleted', !nbGet().pages.jp);
  trashRestore(trashAll().find(t=>t.kind==='journal').id); chk('journal page restored', !!nbGet().pages.jp && nbGet().pages.jp.title==='Dear diary');
  // settings panel lists and restores
- localStorage.removeItem('aet_trash'); charLibrary.t2={id:'t2',name:'Panel',card:{data:{name:'Panel'}},savedAt:'x'}; switchMode('char');
+ store.remove('aet_trash'); charLibrary.t2={id:'t2',name:'Panel',card:{data:{name:'Panel'}},savedAt:'x'}; switchMode('char');
  await ok(deleteChar('t2')); openSettings(); await w(300);
  const row=document.querySelector('#stgStorageBody [data-trash-restore]'); chk('panel lists deleted item', !!row);
  if(row){ row.click(); await w(200); chk('panel Restore works', !!charLibrary.t2); }

@@ -8,6 +8,6 @@
  insertBelow(activeTabId); out.afterBelow=show();
  copyEntry(0); out.afterCopy=show();
  out.names=Object.values(lorebook.entries).map(e=>e.uid+':'+e.comment);
- out.stored=Object.keys(JSON.parse(localStorage.aet_lorebook).entries).length;
+ out.stored=Object.keys(JSON.parse(store.get('aet_lorebook')).entries).length;
  return out;
 })()

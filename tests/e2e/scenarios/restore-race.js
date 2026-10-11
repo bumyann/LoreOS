@@ -10,18 +10,18 @@
  const bundle={_version:'1',_synced_at:new Date().toISOString(),aet_charLibrary:JSON.stringify(backupChars)};
  // lore: link a lib entry, with a pending snapshot
  createEntry(); const lib={Book:{name:'Book',lb:{name:'Book',entries:{}},savedAt:new Date().toISOString()}};
- localStorage.setItem('aet_library',JSON.stringify(lib)); loreLinkToLib('Book'); loreSnapshotSoon();
+ store.set('aet_library',JSON.stringify(lib)); loreLinkToLib('Book'); loreSnapshotSoon();
  bundle.aet_library=JSON.stringify({Book:{name:'Book',lb:{name:'Book',entries:{0:{uid:0,comment:'BACKUP ENTRY',key:[],content:''}}},savedAt:new Date().toISOString()}});
  openImportModal(bundle,'t');
  // stop the reload so we can inspect, but let everything else run
  const realSet=window.setTimeout; window.setTimeout=(f,ms,...a)=> (ms===900?0:realSet(f,ms,...a));
- syncImportConfirm();
+ await syncImportConfirm();
  window.setTimeout=realSet;
  // simulate what the browser fires on reload / hide
  window.dispatchEvent(new Event('pagehide'));
  Object.defineProperty(document,'hidden',{value:true,configurable:true}); document.dispatchEvent(new Event('visibilitychange'));
  await w(2500); // autosave + snapshot timers
- const c=JSON.parse(localStorage.aet_charLibrary), l=JSON.parse(localStorage.aet_library);
+ const c=JSON.parse(store.get('aet_charLibrary')), l=JSON.parse(store.get('aet_library'));
  o.charLibKeys=Object.keys(c); o.backupCharSurvived=!!c.cB;
  o.bookEntryNames=Object.values(l.Book.lb.entries||{}).map(e=>e.comment);
  o.backupLoreSurvived=o.bookEntryNames.includes('BACKUP ENTRY');
