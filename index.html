@@ -14,8 +14,8 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" type="image/x-icon" href="icons/favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="vendor/lz-string.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=VT323&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -1068,11 +1068,23 @@
 <script src="js/router.js"></script>
 
 <script>
-if ('serviceWorker' in navigator) {
+// Offline support. Relative path so it also works when the app lives in a
+// subfolder (GitHub Pages: /LoreOS/). Not on file://, where service workers
+// can't run.
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+  // The service worker serves the saved copy first and refreshes it in the
+  // background, so tell the user when a newer version has been downloaded
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data && e.data.type === 'update-ready' && typeof toast === 'function') {
+      toast('A new version of LoreOS is ready. Reload the page to update.', 'info');
+    }
   });
 }
+window.addEventListener('offline', () => { if (typeof toast === 'function') toast("You're offline. Everything still works and is saved on this device.", 'info'); });
+window.addEventListener('online',  () => { if (typeof toast === 'function') toast('Back online.', 'ok'); });
 </script>
 </body>
 </html>

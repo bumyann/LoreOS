@@ -603,6 +603,13 @@ function wireGdrive() {
   g('gdrivePushBtn')?.addEventListener('click', gdrivePushManual);
   g('gdrivePullBtn')?.addEventListener('click', gdrivePull);
 
+  // Back online after being offline: send whatever was edited in the meantime
+  window.addEventListener('online', () => {
+    if (!gdriveToken || gdrivePushing) return;
+    if (gdriveState === 'conflict' || gdriveState === 'behind') return;
+    if (gdriveIsDirty()) gdriveAutoPush();
+  });
+
   // Coming back to the tab (after a while, or from another device's session):
   // quietly check whether another device pushed in the meantime
   document.addEventListener('visibilitychange', () => {
