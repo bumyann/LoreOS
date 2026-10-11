@@ -1,3 +1,12 @@
+
+// ═══════════════════════════════════════════════════════
+// THEME
+// ═══════════════════════════════════════════════════════
+function toggleTheme() {
+  document.body.classList.toggle('pink');
+  safeSet('aet_theme', document.body.classList.contains('pink') ? 'pink' : 'dark');
+  applyCustomTheme(); // re-apply custom overrides for the new mode
+}
 // ═══════════════════════════════════════════════════════
 // SETTINGS — theme customization + title editor
 // ═══════════════════════════════════════════════════════

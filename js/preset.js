@@ -842,4 +842,3 @@ function openPresetLibrary() {
   g('libSaveBtn').parentElement.style.display = 'none';
   openModal('libModal');
 }
-

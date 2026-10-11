@@ -1048,16 +1048,20 @@
   </div>
 </div>
 
-<!-- Core: state, storage, utils, events -->
-<script src="js/core.js"></script>
-
-<!-- Router -->
-
-<!-- Feature modules -->
+<!-- App code (classic scripts, shared global scope — order matters; main.js starts the app and loads last) -->
+<script src="js/util.js"></script>
+<script src="js/state.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/history.js"></script>
+<script src="js/pronoun.js"></script>
+<script src="js/lorebook_model.js"></script>
 <script src="js/lorebook.js"></script>
+<script src="js/lorebook_io.js"></script>
+<script src="js/library.js"></script>
+<script src="js/search.js"></script>
+<script src="js/workshop.js"></script>
 <script src="js/character.js"></script>
 <script src="js/preset.js"></script>
-<script src="js/pronoun.js"></script>
 <script src="js/templates.js"></script>
 <script src="js/attach_lb.js"></script>
 <script src="js/fullscreen.js"></script>
@@ -1066,6 +1070,7 @@
 <script src="js/gdrive.js"></script>
 <script src="js/mobile.js"></script>
 <script src="js/router.js"></script>
+<script src="js/main.js"></script>
 
 <script>
 // Offline support. Relative path so it also works when the app lives in a

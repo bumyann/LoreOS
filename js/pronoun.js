@@ -1,3 +1,70 @@
+
+// ── Pronoun/noun tool globals — must live here so wireEvents can reference PT ──
+const PT = {
+  open: false,
+  src: 'they',
+  tgt: 'macro',
+  targetField: null,
+  manualTokens: [],
+};
+const MACROS = {
+  sub: '{{sub}}', obj: '{{obj}}', poss: '{{poss}}',
+  poss_p: '{{poss_p}}', ref: '{{ref}}'
+};
+const PRONOUN_FORMS = {
+  he:   { sub: 'he',   obj: 'him',  poss: 'his',   poss_p: 'his',   ref: 'himself'   },
+  she:  { sub: 'she',  obj: 'her',  poss: 'her',   poss_p: 'hers',  ref: 'herself'   },
+  they: { sub: 'they', obj: 'them', poss: 'their', poss_p: 'theirs', ref: 'themselves' },
+};
+const CONTRACTION_FORMS = {
+  he:   { sub_is: "he's",   sub_ll: "he'll",   sub_d: "he'd",   sub_has: "he's"   },
+  she:  { sub_is: "she's",  sub_ll: "she'll",  sub_d: "she'd",  sub_has: "she's"  },
+  they: { sub_is: "they're", sub_ll: "they'll", sub_d: "they'd", sub_has: "they've" },
+};
+const THEY_VERB_FIX = { is:'are', was:'were', has:'have', does:'do', "doesn't":"don't", "hasn't":"haven't", "wasn't":"weren't" };
+const SINGULAR_VERB_FIX = { are:'is', were:'was', have:'has', do:'does', "don't":"doesn't", "haven't":"hasn't", "weren't":"wasn't" };
+const NOUN_TABLE = [
+  ['brother','sister','sibling'],['brothers','sisters','siblings'],
+  ['father','mother','parent'],['dad','mom','parent'],
+  ['son','daughter','child'],['sons','daughters','children'],
+  ['uncle','aunt',null],['uncles','aunts',null],
+  ['nephew','niece',null],['nephews','nieces',null],
+  ['husband','wife','spouse'],['husbands','wives','spouses'],
+  ['boyfriend','girlfriend','partner'],['boyfriends','girlfriends','partners'],
+  ['king','queen','ruler'],['kings','queens','rulers'],
+  ['prince','princess',null],['princes','princesses',null],
+  ['lord','lady',null],['lords','ladies',null],
+  ['sir',"ma'am",null],
+  ['man','woman','person'],['men','women','people'],
+  ['boy','girl',null],['boys','girls',null],
+  ['gentleman','lady','person'],['gentlemen','ladies','people'],
+  ['male','female',null],
+  ['grandfather','grandmother','grandparent'],
+  ['grandson','granddaughter','grandchild'],
+  ['stepfather','stepmother','stepparent'],
+  ['stepson','stepdaughter','stepchild'],
+  ['godfather','godmother',null],['godson','goddaughter',null],
+  ['widower','widow',null],
+  ['actor','actress','actor'],
+  ['waiter','waitress','server'],
+  ['steward','stewardess','flight attendant'],
+  ['landlord','landlady','landlord'],
+];
+const NOUN_MAP = {};
+// A word can belong to more than one row (e.g. "person" is the neutral of both
+// man/woman and gentleman/lady; "parent" of father/mother and dad/mom). The
+// first row listed wins, so every word converts to its closest counterpart
+// instead of whichever row happened to be registered last.
+NOUN_TABLE.forEach(([m, f, n]) => {
+  const add = (word, src) => {
+    if (!word) return;
+    const key = word.toLowerCase();
+    if (!NOUN_MAP[key]) NOUN_MAP[key] = { masc: m, fem: f, neutral: n, src };
+  };
+  add(m, 0); add(f, 1); add(n, 2);
+});
+let PT_nounTgt = 'masc';
+let PT_nounTokens = [];
 // ═══════════════════════════════════════════════════════
 // PRONOUN MACRO TOOL
 // ═══════════════════════════════════════════════════════

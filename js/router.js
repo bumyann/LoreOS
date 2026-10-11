@@ -530,5 +530,3 @@ function nbNewPage() {
   nbOpenPage(id);
   setTimeout(() => document.getElementById('nbTitleInput')?.focus(), 80);
 }
-
-
