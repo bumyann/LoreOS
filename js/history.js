@@ -7,8 +7,9 @@ import { renderEditor, renderList, renderTabs } from './lorebook.js';
 import { rebuildEntries } from './lorebook_model.js';
 import { openPreset } from './preset.js';
 import { openPrompt } from './prompt.js';
+import { openRegex } from './regex.js';
 import { state } from './state.js';
-import { loreActiveLibName, loreLinkToLib, loreSyncToLib, lzPack, lzUnpack, safeSet, saveCharLibrary, savePresetLibrary, savePromptLibrary, saveToStorage } from './storage.js';
+import { loreActiveLibName, loreLinkToLib, loreSyncToLib, lzPack, lzUnpack, safeSet, saveCharLibrary, savePresetLibrary, savePromptLibrary, saveRegexLibrary, saveToStorage } from './storage.js';
 import { askConfirm, dlFile, esc, g, toast } from './util.js';
 import { store } from './kv.js';
 
@@ -163,7 +164,7 @@ export function itemHistoryPush(type, itemId, entryOrData, label = null) {
   // Storing imageData in every snapshot meant one character with a
   // picture could be keeping eleven copies of that picture. Strip it —
   // and strip the nested history so snapshots don't contain snapshots.
-  if (payload && typeof payload === 'object' && (type === 'char' || type === 'preset' || type === 'prompt')) {
+  if (payload && typeof payload === 'object' && (type === 'char' || type === 'preset' || type === 'prompt' || type === 'regex')) {
     payload = { ...payload };
     delete payload.imageData;
     delete payload.history;
@@ -180,7 +181,8 @@ export function itemHistoryPush(type, itemId, entryOrData, label = null) {
   const histOf = type === 'lore'
     ? (JSON.parse(store.get('aet_library') || '{}')[itemId] || {}).history
     : type === 'char' ? state.charLibrary[itemId]?.history
-    : type === 'prompt' ? state.promptLibrary[itemId]?.history : state.presetLibrary[itemId]?.history;
+    : type === 'prompt' ? state.promptLibrary[itemId]?.history
+    : type === 'regex' ? state.regexLibrary[itemId]?.history : state.presetLibrary[itemId]?.history;
   if (!label && histOf && histOf[0] && histOf[0].data === snapshot.data) return;
 
   if (type === 'lore') {
@@ -208,6 +210,12 @@ export function itemHistoryPush(type, itemId, entryOrData, label = null) {
     state.promptLibrary[itemId].history.unshift(snapshot);
     if (state.promptLibrary[itemId].history.length > ITEM_HIST_MAX) state.promptLibrary[itemId].history.splice(ITEM_HIST_MAX);
     savePromptLibrary();
+  } else if (type === 'regex') {
+    if (!state.regexLibrary[itemId]) return;
+    if (!state.regexLibrary[itemId].history) state.regexLibrary[itemId].history = [];
+    state.regexLibrary[itemId].history.unshift(snapshot);
+    if (state.regexLibrary[itemId].history.length > ITEM_HIST_MAX) state.regexLibrary[itemId].history.splice(ITEM_HIST_MAX);
+    saveRegexLibrary();
   }
 }
 
@@ -225,6 +233,8 @@ export function itemHistorySaveCheckpoint(type, itemId, label) {
     itemHistoryPush(type, itemId, state.presetLibrary[itemId], label.trim());
   } else if (type === 'prompt') {
     itemHistoryPush(type, itemId, state.promptLibrary[itemId], label.trim());
+  } else if (type === 'regex') {
+    itemHistoryPush(type, itemId, state.regexLibrary[itemId], label.trim());
   }
   toast('Checkpoint saved.', 'ok');
 }
@@ -251,6 +261,8 @@ export function itemHistoryRefreshOpen(type, itemId) {
     if (state.activePresetId === itemId && state.mode === 'preset') openPreset(itemId);
   } else if (type === 'prompt') {
     if (state.activePromptId === itemId && state.mode === 'prompt') openPrompt(itemId);
+  } else if (type === 'regex') {
+    if (state.activeRegexId === itemId && state.mode === 'regex') openRegex(itemId);
   }
 }
 
@@ -265,6 +277,8 @@ export function openItemHistory(type, itemId) {
     entry = state.presetLibrary[itemId];
   } else if (type === 'prompt') {
     entry = state.promptLibrary[itemId];
+  } else if (type === 'regex') {
+    entry = state.regexLibrary[itemId];
   }
 
   if (!entry) { toast('Item not found.', 'err'); return; }
@@ -348,6 +362,8 @@ export function openItemHistory(type, itemId) {
           if (state.presetLibrary[itemId]) { Object.assign(state.presetLibrary[itemId], data); ok = savePresetLibrary(); }
         } else if (type === 'prompt') {
           if (state.promptLibrary[itemId]) { Object.assign(state.promptLibrary[itemId], data); ok = savePromptLibrary(); }
+        } else if (type === 'regex') {
+          if (state.regexLibrary[itemId]) { Object.assign(state.regexLibrary[itemId], data); ok = saveRegexLibrary(); }
         }
         if (!ok) return; // safeSet already told the user why
         modal.remove();

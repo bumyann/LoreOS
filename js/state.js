@@ -11,7 +11,7 @@ export const WS_MAX_TABS = 5;
 
 export const state = {
   // ── Editor ──
-  mode: 'lore', // 'lore' | 'char' | 'preset' | 'prompt' (regex is still a stub)
+  mode: 'lore', // 'lore' | 'char' | 'preset' | 'prompt' | 'regex'
 
   // ── Lorebook editor ──
   lorebook: { entries: {} },
@@ -47,7 +47,13 @@ export const state = {
   promptUnsaved: false,
   promptTab: 'build',   // which part of the pack editor is showing
 
-  // ── Workshop tabs: { id, type: 'lore'|'char'|'preset'|'prompt', itemId, unsaved } ──
+  // ── Regex sets: { id: { id, name, set, savedAt } } (see regex_model.js) ──
+  regexLibrary: {},
+  activeRegexId: null,
+  regexUnsaved: false,
+  regexOpen: null,      // id of the script card that is expanded
+
+  // ── Workshop tabs: { id, type: 'lore'|'char'|'preset'|'prompt'|'regex', itemId, unsaved } ──
   wsItems: [],      // open tabs
   wsActiveId: null, // currently focused tab id
   wsNextId: 1,      // internal tab id counter

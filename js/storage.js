@@ -116,6 +116,7 @@ const STORAGE_SHAPES = {
   aet_charLibrary:   v => isObj(v),
   aet_presetLibrary: v => isObj(v),
   aet_promptLibrary: v => isObj(v),
+  aet_regexLibrary:  v => isObj(v),
   aet_library:       v => isObj(v),
   aet_tpl_lore:      v => isObj(v),
   aet_tpl_char:      v => isObj(v),
@@ -126,7 +127,7 @@ const STORAGE_SHAPES = {
   aet_trash:         v => Array.isArray(v),
 };
 // Library maps: every value must be an object, and some need their payload
-const ENTRY_NEEDS = { aet_charLibrary: 'card', aet_presetLibrary: 'preset', aet_promptLibrary: 'pack' };
+const ENTRY_NEEDS = { aet_charLibrary: 'card', aet_presetLibrary: 'preset', aet_promptLibrary: 'pack', aet_regexLibrary: 'set' };
 
 export function sanitizeStorage() {
   const fixed = [];
@@ -213,6 +214,10 @@ export function loadFromStorage() {
     state.promptLibrary = JSON.parse(store.get('aet_promptLibrary') || '{}');
   });
 
+  loadPart('regex library', () => {
+    state.regexLibrary = JSON.parse(store.get('aet_regexLibrary') || '{}');
+  });
+
   loadPart('workshop tabs', renderWsTabs);
 
   loadPart('editor', () => {
@@ -296,6 +301,12 @@ export function saveToStorage() {
 
 export function saveCharLibrary() {
   const ok = safeSet('aet_charLibrary', JSON.stringify(state.charLibrary));
+  if (ok) syncAutoPush();
+  return ok;
+}
+
+export function saveRegexLibrary() {
+  const ok = safeSet('aet_regexLibrary', JSON.stringify(state.regexLibrary));
   if (ok) syncAutoPush();
   return ok;
 }

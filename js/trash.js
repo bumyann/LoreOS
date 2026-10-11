@@ -61,5 +61,5 @@ export function trashRestore(id) {
 export function trashDiscard(id) { return trashSave(trashAll().filter(x => x.id !== id)); }
 export function trashClear() { try { store.remove(TRASH_KEY); } catch (e) {} }
 
-const KIND_LABEL = { char: 'Character', preset: 'Preset', lorelib: 'Lorebook', entry: 'Entry', entries: 'Cleared entries', journal: 'Journal page' };
+const KIND_LABEL = { char: 'Character', preset: 'Preset', prompt: 'Prompt pack', regex: 'Regex set', lorelib: 'Lorebook', entry: 'Entry', entries: 'Cleared entries', journal: 'Journal page' };
 export function trashKindLabel(k) { return KIND_LABEL[k] || k; }

@@ -14,6 +14,7 @@ import { loreActiveLibName, loreSyncToLib } from './storage.js';
 import { closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
 import { fitHeader } from './header_fit.js';
 import { openPrompt, renderPromptEditor, renderPromptSidebar, savePrompt } from './prompt.js';
+import { openRegex, renderRegexEditor, renderRegexSidebar, saveRegex } from './regex.js';
 import { store } from './kv.js';
 
 // ═══════════════════════════════════════════════════════
@@ -79,6 +80,9 @@ export function wsActivate(tabId) {
   } else if (tab.type === 'prompt') {
     switchMode('prompt');
     openPrompt(tab.itemId);
+  } else if (tab.type === 'regex') {
+    switchMode('regex');
+    openRegex(tab.itemId);
   }
 }
 
@@ -98,6 +102,8 @@ export function wsCloseTab(tabId) {
     if (state.presetLibrary[tab.itemId]) itemHistoryPush('preset', tab.itemId, JSON.parse(JSON.stringify(state.presetLibrary[tab.itemId])));
   } else if (tab.type === 'prompt') {
     if (state.promptLibrary[tab.itemId]) itemHistoryPush('prompt', tab.itemId, JSON.parse(JSON.stringify(state.promptLibrary[tab.itemId])));
+  } else if (tab.type === 'regex') {
+    if (state.regexLibrary[tab.itemId]) itemHistoryPush('regex', tab.itemId, JSON.parse(JSON.stringify(state.regexLibrary[tab.itemId])));
   }
 
   state.wsItems = state.wsItems.filter(t => t.id !== tabId);
@@ -169,6 +175,10 @@ export function commitActiveEditor() {
       if (state.promptUnsaved && state.activePromptId && state.promptLibrary[state.activePromptId] && g('prName')) {
         savePrompt({ silent: true, noHistory: true });
       }
+    } else if (state.mode === 'regex') {
+      if (state.regexUnsaved && state.activeRegexId && state.regexLibrary[state.activeRegexId] && g('rxName')) {
+        saveRegex({ silent: true, noHistory: true });
+      }
     } else if (state.mode === 'lore') {
       let saved = false;
       [...state.unsaved].forEach(uid => {
@@ -192,6 +202,7 @@ export function wsMarkActiveUnsaved() {
   if (state.mode === 'char' && state.activeCharId) wsMarkUnsaved('char', state.activeCharId);
   else if (state.mode === 'preset' && state.activePresetId) wsMarkUnsaved('preset', state.activePresetId);
   else if (state.mode === 'prompt' && state.activePromptId) wsMarkUnsaved('prompt', state.activePromptId);
+  else if (state.mode === 'regex' && state.activeRegexId) wsMarkUnsaved('regex', state.activeRegexId);
   else if (state.mode === 'lore') { const n = loreActiveLibName(); if (n) wsMarkUnsaved('lore', n); }
 }
 
@@ -203,6 +214,7 @@ export function wireAutosave() {
     if (state.mode === 'char') state.charUnsaved = true;
     else if (state.mode === 'preset') state.presetUnsaved = true;
     else if (state.mode === 'prompt') state.promptUnsaved = true;
+    else if (state.mode === 'regex') state.regexUnsaved = true;
     wsMarkActiveUnsaved();
     clearTimeout(autosaveTimer);
     autosaveTimer = setTimeout(commitActiveEditor, AUTOSAVE_MS);
@@ -219,7 +231,7 @@ export function renderWsTabs() {
   if (!bar) return;
   bar.innerHTML = '';
 
-  const TYPE_LABEL = { lore: 'LB', char: 'CH', preset: 'PS', prompt: 'PR' };
+  const TYPE_LABEL = { lore: 'LB', char: 'CH', preset: 'PS', prompt: 'PR', regex: 'RX' };
 
   state.wsItems.forEach(tab => {
     let name = '...';
@@ -232,6 +244,8 @@ export function renderWsTabs() {
       name = state.presetLibrary[tab.itemId]?.name || 'Untitled';
     } else if (tab.type === 'prompt') {
       name = state.promptLibrary[tab.itemId]?.name || 'Untitled';
+    } else if (tab.type === 'regex') {
+      name = state.regexLibrary[tab.itemId]?.name || 'Untitled';
     }
 
     const el = document.createElement('div');
@@ -289,7 +303,8 @@ export function wsRestoreTabsInner() {
     t.type === 'lore'   ? !!lib[t.itemId] :
     t.type === 'char'   ? !!state.charLibrary[t.itemId] :
     t.type === 'preset' ? !!state.presetLibrary[t.itemId] :
-    t.type === 'prompt' ? !!state.promptLibrary[t.itemId] : false;
+    t.type === 'prompt' ? !!state.promptLibrary[t.itemId] :
+    t.type === 'regex' ? !!state.regexLibrary[t.itemId] : false;
 
   const activeSaved = saved.items[saved.active];
   state.wsItems = saved.items.filter(exists).slice(0, WS_MAX_TABS)
@@ -347,10 +362,12 @@ export function renderWsPickerList(type) {
     items = Object.values(state.presetLibrary).sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
   } else if (type === 'prompt') {
     items = Object.values(state.promptLibrary).sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
+  } else if (type === 'regex') {
+    items = Object.values(state.regexLibrary).sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
   }
 
   if (!items.length) {
-    list.innerHTML = `<div class="lib-empty">// no ${type === 'lore' ? 'lorebooks' : type === 'char' ? 'characters' : type === 'prompt' ? 'prompt packs' : 'presets'} saved yet</div>`;
+    list.innerHTML = `<div class="lib-empty">// no ${type === 'lore' ? 'lorebooks' : type === 'char' ? 'characters' : type === 'prompt' ? 'prompt packs' : type === 'regex' ? 'regex sets' : 'presets'} saved yet</div>`;
     return;
   }
 
@@ -393,7 +410,7 @@ export function applyMode(newMode) {
   // Save what's typed in the editor we're about to replace
   commitActiveEditor();
   // Stub modes — navigate to editor and show coming soon
-  const STUB_MODES = ['regex'];
+  const STUB_MODES = [];
   const isStub = STUB_MODES.includes(newMode);
 
   // Navigate to editor view when switching modes
@@ -458,6 +475,11 @@ export function applyMode(newMode) {
     g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search packs...';
     renderPromptSidebar(); renderPromptEditor();
+  } else if (newMode === 'regex') {
+    sbTitle.textContent = 'Regex sets';
+    g('zoomRow').style.display = 'none';
+    g('sbSearch').placeholder = 'Search sets...';
+    renderRegexSidebar(); renderRegexEditor();
   }
 }
 
@@ -476,6 +498,7 @@ registerMarkup(270, `<!-- WORKSHOP TAB PICKER MODAL -->
         <button class="ws-picker-type" data-type="char">Character</button>
         <button class="ws-picker-type" data-type="preset">Preset</button>
         <button class="ws-picker-type" data-type="prompt">Prompt</button>
+        <button class="ws-picker-type" data-type="regex">Regex</button>
       </div>
       <div id="wsPickerList" class="lib-list" style="max-height:300px"></div>
     </div>

@@ -24,6 +24,9 @@ import { kvInit } from './kv.js';
 import { wirePromptActions } from './prompt.js';
 import * as m_prompt from './prompt.js';
 import * as m_logo from './logo.js';
+import { wireRegexActions } from './regex.js';
+import * as m_regex from './regex.js';
+import * as m_regex_model from './regex_model.js';
 import * as m_prompt_model from './prompt_model.js';
 import * as m_kv from './kv.js';
 import * as m_dropimport from './dropimport.js';
@@ -109,6 +112,7 @@ function startApp() {
   initStep('header fit',   wireHeaderFit);
   initStep('drop import',  wireDropImport);
   initStep('prompt actions', wirePromptActions);
+  initStep('regex actions', wireRegexActions);
   initStep('router',       initRouter);
   initStep('workshop tabs', wsRestoreTabs);
   initStep('pronoun tool', wirePronounTool);
@@ -231,10 +235,6 @@ export function wireEvents() {
   if (g('loreSettingsBtn')) g('loreSettingsBtn').onclick = openLoreSettings;
   if (g('lsApplyBtn')) g('lsApplyBtn').onclick = applyLoreSettings;
 
-  // Stub mode tabs — mark as stub
-  ['regex'].forEach(m => {
-    document.querySelectorAll(`.mode-tab[data-mode="${m}"]`).forEach(t => t.classList.add('stub'));
-  });
   g('fileInput').onchange = handleImport;
   g('fileMergeInput').onchange = handleMergeImport;
   g('lorebookName').oninput = e => { state.lorebook.name = e.target.value.trim(); };
@@ -362,7 +362,7 @@ export function wireEvents() {
 // through to the shared state object.
 // ═══════════════════════════════════════════════════════
 const LoreOS = {};
-[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa, m_character_io, m_avatar, m_templates_data, m_dropimport, m_header_fit, m_trash, m_kv, m_prompt, m_prompt_model, m_logo].forEach(ns => {
+[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa, m_character_io, m_avatar, m_templates_data, m_dropimport, m_header_fit, m_trash, m_kv, m_prompt, m_prompt_model, m_logo, m_regex, m_regex_model].forEach(ns => {
   Object.keys(ns).forEach(k => {
     if (!(k in LoreOS)) Object.defineProperty(LoreOS, k, { get: () => ns[k], enumerable: true, configurable: true });
   });

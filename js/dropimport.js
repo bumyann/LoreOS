@@ -3,6 +3,7 @@
 // The file is sniffed (PNG / .charx / JSON content) and handed to the SAME file
 // input the Import menus use, so every check and confirmation still applies.
 // ═══════════════════════════════════════════════════════
+import { looksLikeRegexJson } from './regex_model.js';
 import { switchMode } from './workshop.js';
 import { g, toast } from './util.js';
 
@@ -17,6 +18,7 @@ export async function classifyDrop(file) {
   if (!name.endsWith('.json')) return null;
   let data;
   try { data = JSON.parse(await file.text()); } catch (e) { return null; }
+  if (looksLikeRegexJson(data)) return { input: 'fileRegexInput', mode: 'regex' };      // SillyTavern regex script(s)
   if (Array.isArray(data)) return { input: 'fileJanitorInput', mode: 'lore' };          // JanitorAI lorebook
   if (!isObj(data)) return null;
   if (data._version) return { input: 'syncImportFile', mode: null };                     // LoreOS backup
