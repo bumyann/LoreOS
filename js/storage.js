@@ -102,6 +102,70 @@ export function loadPart(name, fn) {
   }
 }
 
+// ═══════════════════════════════════════════════════════
+// STORAGE SANITY CHECK — runs before anything reads saved data.
+// Valid JSON of the wrong shape (a bad import, a hand edit, a sync glitch)
+// used to crash start-up or an editor. Anything unusable is set aside under
+// 'aet_corrupt_<key>' (so nothing is lost) and the key is cleared or pruned.
+// ═══════════════════════════════════════════════════════
+const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+const STORAGE_SHAPES = {
+  aet_lorebook:      v => isObj(v) && (v.entries === undefined || isObj(v.entries)),
+  aet_tabs:          v => Array.isArray(v),
+  aet_wsTabs:        v => Array.isArray(v),
+  aet_charLibrary:   v => isObj(v),
+  aet_presetLibrary: v => isObj(v),
+  aet_library:       v => isObj(v),
+  aet_tpl_lore:      v => isObj(v),
+  aet_tpl_char:      v => isObj(v),
+  aet_tpl_preset:    v => isObj(v),
+  aet_theme_slots:   v => isObj(v),
+  aet_settings:      v => isObj(v),
+  loreos_notebook:   v => isObj(v) && isObj(v.pages),
+};
+// Library maps: every value must be an object, and some need their payload
+const ENTRY_NEEDS = { aet_charLibrary: 'card', aet_presetLibrary: 'preset' };
+
+export function sanitizeStorage() {
+  const fixed = [];
+  Object.keys(STORAGE_SHAPES).forEach(key => {
+    let raw = null;
+    try { raw = localStorage.getItem(key); } catch (e) { return; }
+    if (raw === null) return;
+    let val; let bad = false;
+    try { val = JSON.parse(raw); } catch (e) { bad = true; }
+    if (!bad && !STORAGE_SHAPES[key](val)) bad = true;
+    if (!bad && isObj(val) && (key in ENTRY_NEEDS || key === 'aet_library')) {
+      const need = ENTRY_NEEDS[key];
+      let pruned = false;
+      Object.keys(val).forEach(id => {
+        const e = val[id];
+        if (!isObj(e) || (need && !isObj(e[need]))) { delete val[id]; pruned = true; }
+      });
+      if (pruned) {
+        try { localStorage.setItem('aet_corrupt_' + key, raw); localStorage.setItem(key, JSON.stringify(val)); fixed.push(key); } catch (e) {}
+      }
+      return;
+    }
+    if (!bad && key === 'loreos_notebook') {
+      let pruned = false;
+      Object.keys(val.pages).forEach(id => { if (!isObj(val.pages[id])) { delete val.pages[id]; pruned = true; } });
+      if (pruned) { try { localStorage.setItem('aet_corrupt_' + key, raw); localStorage.setItem(key, JSON.stringify(val)); fixed.push(key); } catch (e) {} }
+      return;
+    }
+    if (bad) {
+      try { localStorage.setItem('aet_corrupt_' + key, raw); } catch (e) {}
+      try { localStorage.removeItem(key); } catch (e) {}
+      fixed.push(key);
+    }
+  });
+  if (fixed.length) {
+    console.warn('[LoreOS] unusable saved data set aside:', fixed.join(', '));
+    setTimeout(() => toast('Some saved data was unreadable and was set aside (' + fixed.length + ' item' + (fixed.length > 1 ? 's' : '') + '). The rest loaded fine.', 'warn'), 600);
+  }
+  return fixed;
+}
+
 export function loadFromStorage() {
   loadPart('lorebook', () => {
     const lb = localStorage.getItem('aet_lorebook');

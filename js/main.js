@@ -17,7 +17,7 @@ import { initRouter } from './router.js';
 import { doReplaceAll, doReplaceOne, doSearch } from './search.js';
 import { applyAllCustomisations, applyFonts, toggleTheme, wireFonts, wireSettings } from './settings.js';
 import { state } from './state.js';
-import { loadFromStorage, loadPrefs } from './storage.js';
+import { loadFromStorage, loadPrefs, sanitizeStorage } from './storage.js';
 import { openEntryPicker, openTemplateLibrary, wireTplLibrary } from './templates.js';
 import { closeAllDropdowns, closeModal, g, injectMarkup, openModal, toast } from './util.js';
 import { openWsPicker, renderWsPickerList, switchMode, wireAutosave, wsRestoreTabs } from './workshop.js';
@@ -87,6 +87,7 @@ export function initStep(name, fn) {
 // failure in one module can't stop the rest of the app from starting.
 function startApp() {
   initStep('markup',       injectMarkup); // dialogs etc. owned by the modules, before anything looks for them
+  initStep('storage check', sanitizeStorage);
   initStep('prefs',        loadPrefs);
   initStep('events',       wireEvents);
   initStep('autosave',     wireAutosave);
