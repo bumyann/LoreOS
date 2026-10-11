@@ -7,6 +7,7 @@ import { renderCharSidebar } from './character.js';
 import { state } from './state.js';
 import { safeSet, saveCharLibrary, storageUsage } from './storage.js';
 import { store } from './kv.js';
+import { canInstall, installApp, isInstalledApp } from './pwa.js';
 import { wireSync } from './sync.js';
 import { trashAll, trashClear, trashDiscard, trashKindLabel, trashRestore } from './trash.js';
 import { askConfirm, closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
@@ -563,9 +564,13 @@ export async function fillBrowserStorage() {
     lines.push('<span style="color:var(--warn)">● Not protected:</span> if the device runs low on space the browser may clear this data (and Safari clears sites that go unvisited for about 7 days, unless added to the Home Screen). Backups and Drive sync are your safety net.');
     if (s.persist) lines.push('<button class="btn btn-ok btn-sm" id="stgPersistBtn">Protect my data</button>');
   }
+  if (isInstalledApp()) lines.push('<span style="color:var(--ok)">●</span> Running as an installed app.');
+  else if (canInstall()) lines.push('<button class="btn btn-s btn-sm" id="stgInstallBtn">Install LoreOS as an app</button> <span style="color:var(--txm)">Installed apps are the most reliably protected by browsers.</span>');
   if (isLocalHost()) lines.push('<em>Running from a local address: data is kept per address and port, so localhost:8000 and localhost:3000 do not share anything.</em>');
   el.innerHTML = lines.map(l => `<div class="stg-browser-line">${l}</div>`).join('');
 }
+
+document.addEventListener('loreos-install-state', () => fillBrowserStorage());
 
 export async function protectData() {
   let ok = false;
@@ -599,6 +604,7 @@ export function wireTrashPanel() {
     const r = e.target.closest('[data-trash-restore]');
     const d = e.target.closest('[data-trash-discard]');
     if (e.target.id === 'stgPersistBtn') { protectData(); return; }
+    if (e.target.id === 'stgInstallBtn') { installApp().then(() => fillBrowserStorage()); return; }
     if (r) { trashRestore(r.dataset.trashRestore); renderStoragePanel(); }
     else if (d) { trashDiscard(d.dataset.trashDiscard); renderStoragePanel(); }
     else if (e.target.id === 'stgTrashClear') {

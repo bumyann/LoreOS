@@ -124,6 +124,20 @@ const w=ms=>new Promise(r=>setTimeout(r,ms));
   chk('browsers without the API get a plain note, no errors', /does not say/.test(await u.pg.evaluate(()=>document.getElementById('stgBrowserStore').textContent)) && u.errs.length===0, u.errs);
   await u.pg.context().close();
  }
+ // 10. Install button: appears when the browser offers installation, runs the prompt, disappears after
+ {
+  const {pg,errs}=await newCtx(); await pg.goto(url); await pg.waitForTimeout(800);
+  await L(pg,'openSettings()'); await pg.waitForTimeout(400);
+  chk('no install button before the browser offers one', !(await pg.$('#stgInstallBtn')));
+  await pg.evaluate(()=>{ const e=new Event('beforeinstallprompt',{cancelable:true}); e.prompt=()=>{ window.__installPrompted=true; }; e.userChoice=Promise.resolve({outcome:'accepted'}); window.dispatchEvent(e); });
+  await pg.waitForTimeout(300);
+  chk('button appears', !!(await pg.$('#stgInstallBtn')));
+  await pg.click('#stgInstallBtn'); await pg.waitForTimeout(400);
+  chk('browser prompt was shown', (await pg.evaluate(()=>window.__installPrompted))===true);
+  chk('button gone afterwards', !(await pg.$('#stgInstallBtn')));
+  chk('no page errors', errs.length===0, errs);
+  await pg.context().close();
+ }
  await b.close(); srv.close();
  console.log(fail.length?'\nFAIL\n'+fail.join('\n'):'\nall large-data store checks passed'); process.exit(fail.length?1:0);
 })();
