@@ -4,7 +4,7 @@
  chk('Persona tab is gone from the workshop', !document.querySelector('.mode-tab[data-mode="persona"]') && !document.getElementById('hdr-persona'));
  const tab=m=>document.querySelector('.mode-tab[data-mode="'+m+'"]');
  chk('Prompt tab is a real tab (not faded as a stub)', !!tab('prompt') && !tab('prompt').classList.contains('stub') && getComputedStyle(tab('prompt')).opacity==='1', tab('prompt') && getComputedStyle(tab('prompt')).opacity);
- chk('Regex is still marked coming soon', tab('regex').classList.contains('stub'));
+ chk('no tab is marked coming soon any more', document.querySelectorAll('.mode-tab.stub').length===0);
  chk('tabs in order', [...document.querySelectorAll('.mode-tab')].map(t=>t.dataset.mode).join()==='lore,char,preset,prompt,regex', [...document.querySelectorAll('.mode-tab')].map(t=>t.dataset.mode));
  tab('prompt').click(); await w(300);
  chk('clicking it opens the prompt editor', state.mode==='prompt' && /prompt pack/i.test(document.getElementById('sbTitle').textContent+document.getElementById('editorContent').textContent));
