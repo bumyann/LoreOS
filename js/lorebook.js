@@ -159,50 +159,76 @@ function createEntry() {
   openInTab(uid);
 }
 
-function insertAbove(targetUid) {
+// Entries get renumbered when one is inserted or copied. Everything that
+// remembers an entry by uid (open tabs, selection, unsaved marks, form
+// state, undo stacks) has to follow the renumbering, or a tab silently
+// ends up pointing at a different entry and edits save into the wrong one.
+function remapEntryUids(map) {
+  if (!map.size) return;
+  const m = u => (map.has(u) ? map.get(u) : u);
+  openTabs = openTabs.map(m);
+  if (activeTabId !== null) activeTabId = m(activeTabId);
+  selectedEntries = selectedEntries.map(m);
+  unsaved = new Set([...unsaved].map(m));
+  const fs = {};
+  Object.keys(formState).forEach(k => { fs[isNaN(k) ? k : m(Number(k))] = formState[k]; });
+  formState = fs;
+  if (typeof itemUndoStacks !== 'undefined') {
+    const moved = {};
+    Object.keys(itemUndoStacks).forEach(k => {
+      if (!k.startsWith('lore:')) return;
+      const id = k.slice(5);
+      if (!isNaN(id) && map.has(Number(id))) { moved[k] = itemUndoStacks[k]; delete itemUndoStacks[k]; }
+    });
+    Object.keys(moved).forEach(k => { itemUndoStacks['lore:' + m(Number(k.slice(5)))] = moved[k]; });
+  }
+}
+
+// Shift every entry at or after `fromUid` up by one; returns the old->new map.
+function shiftEntriesFrom(fromUid) {
+  // Bank whatever is typed in open forms first: they are keyed by the old uids
+  if (typeof commitActiveEditor === 'function') commitActiveEditor();
+  const map = new Map();
   Object.values(lorebook.entries).forEach(en => {
-    if (en.uid >= targetUid) { en.uid++; en.order = en.uid; en.displayIndex = en.uid; }
+    if (en.uid >= fromUid) {
+      map.set(en.uid, en.uid + 1);
+      en.uid++; en.order = en.uid; en.displayIndex = en.uid;
+    }
   });
-  const ne = blankEntry(targetUid);
+  remapEntryUids(map);
+  return map;
+}
+
+function finishInsert(newEntry) {
   const rebuilt = {};
   Object.values(lorebook.entries).forEach(en => { rebuilt[en.uid] = en; });
-  rebuilt[targetUid] = ne;
+  rebuilt[newEntry.uid] = newEntry;
   lorebook.entries = rebuilt;
   nextUid = Math.max(...Object.keys(rebuilt).map(Number)) + 1;
-  renderList(); openInTab(targetUid);
+  renderList(); openInTab(newEntry.uid);
+  saveToStorage();
+  if (typeof loreSnapshotSoon === 'function') loreSnapshotSoon();
+}
+
+function insertAbove(targetUid) {
+  shiftEntriesFrom(targetUid);
+  finishInsert(blankEntry(targetUid));
 }
 
 function insertBelow(targetUid) {
   const newUid = targetUid + 1;
-  Object.values(lorebook.entries).forEach(en => {
-    if (en.uid > targetUid) { en.uid++; en.order = en.uid; en.displayIndex = en.uid; }
-  });
-  const ne = blankEntry(newUid);
-  const rebuilt = {};
-  Object.values(lorebook.entries).forEach(en => { rebuilt[en.uid] = en; });
-  rebuilt[newUid] = ne;
-  lorebook.entries = rebuilt;
-  nextUid = Math.max(...Object.keys(rebuilt).map(Number)) + 1;
-  renderList(); openInTab(newUid);
+  shiftEntriesFrom(newUid);
+  finishInsert(blankEntry(newUid));
 }
 
 function copyEntry(srcUid) {
   const src = lorebook.entries[srcUid]; if (!src) return;
   const newUid = srcUid + 1;
-  Object.values(lorebook.entries).forEach(en => {
-    if (en.uid > srcUid) { en.uid++; en.order = en.uid; en.displayIndex = en.uid; }
-  });
   const cp = JSON.parse(JSON.stringify(src));
+  shiftEntriesFrom(newUid);
   cp.uid = newUid; cp.order = newUid; cp.displayIndex = newUid;
   cp.comment = (cp.comment || 'Untitled') + ' (Copy)';
-  const rebuilt = {};
-  Object.values(lorebook.entries).forEach(en => { rebuilt[en.uid] = en; });
-  rebuilt[newUid] = cp;
-  lorebook.entries = rebuilt;
-  nextUid = Math.max(...Object.keys(rebuilt).map(Number)) + 1;
-  renderList(); openInTab(newUid);
-  saveToStorage();
-  if (typeof loreSnapshotSoon === 'function') loreSnapshotSoon();
+  finishInsert(cp);
 }
 
 async function deleteSidebar(uid) {
@@ -233,21 +259,22 @@ function reorderEntry(oldUid, newUid) {
   if (oldUid === newUid) return;
   if (newUid < 0) { renderList(); return; }
   const moving = lorebook.entries[oldUid]; if (!moving) return;
+  if (typeof commitActiveEditor === 'function') commitActiveEditor();
   const arr = Object.values(lorebook.entries).sort((a,b) => a.uid - b.uid);
   const filtered = arr.filter(e => e.uid !== oldUid);
   const insertAt = Math.min(newUid, filtered.length);
   filtered.splice(insertAt, 0, moving);
   lorebook.entries = {};
+  const map = new Map();
   filtered.forEach((en, i) => {
-    const old = en.uid;
+    map.set(en.uid, i);
     en.uid = i; en.displayIndex = i;
     lorebook.entries[i] = en;
-    const ti = openTabs.indexOf(old);
-    if (ti > -1) openTabs[ti] = i;
-    if (activeTabId === old) activeTabId = i;
   });
+  remapEntryUids(map);
   nextUid = Math.max(...Object.keys(lorebook.entries).map(Number)) + 1;
   renderList(); renderTabs(); renderEditor();
+  saveToStorage();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -427,6 +454,7 @@ function renderList() {
 }
 
 function moveDragged(uids, targetUid) {
+  if (typeof commitActiveEditor === 'function') commitActiveEditor();
   const arr = Object.values(lorebook.entries).sort((a,b) => a.uid - b.uid);
   const moving = arr.filter(e => uids.includes(e.uid));
   const rest = arr.filter(e => !uids.includes(e.uid));
@@ -436,11 +464,10 @@ function moveDragged(uids, targetUid) {
   lorebook.entries = {};
   const map = new Map();
   rest.forEach((en, i) => { map.set(en.uid, i); en.uid = i; en.displayIndex = i; lorebook.entries[i] = en; });
-  openTabs = openTabs.map(u => map.get(u) ?? u);
-  if (activeTabId !== null) activeTabId = map.get(activeTabId) ?? activeTabId;
-  selectedEntries = selectedEntries.map(u => map.get(u) ?? u);
+  remapEntryUids(map);
   nextUid = Math.max(...Object.keys(lorebook.entries).map(Number)) + 1;
   renderList(); renderTabs(); renderEditor();
+  saveToStorage();
 }
 
 
@@ -1146,7 +1173,7 @@ function renderLibraryList() {
   const lib = libGet();
   const container = g('libList');
   container.innerHTML = '';
-  const books = Object.values(lib).sort((a,b) => b.savedAt.localeCompare(a.savedAt));
+  const books = Object.values(lib).sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
   if (!books.length) {
     container.innerHTML = '<div class="lib-empty">// no saved lorebooks yet</div>';
     return;
@@ -1158,7 +1185,7 @@ function renderLibraryList() {
     const item = document.createElement('div');
     item.className = 'lib-item' + (book.name === curName ? ' active' : '');
     item.innerHTML = `
-      <span class="lib-name" title="Load ${book.name}">${book.name}</span>
+      <span class="lib-name" title="Load ${esc(book.name)}">${esc(book.name)}</span>
       <span class="lib-meta">${count} entries · ${date}</span>
       <div class="lib-acts">
         <button class="btn btn-s btn-sm lib-load">Load</button>
@@ -1238,6 +1265,7 @@ async function libDelete(name) {
   const lib = libGet();
   delete lib[name];
   libSet(lib);
+  if (typeof wsDropItem === 'function') wsDropItem('lore', name);
   if (typeof loreActiveLibName === 'function' && loreActiveLibName() === name) loreLinkToLib(null);
   renderLibraryList();
   toast(`Deleted "${name}".`, 'info');
