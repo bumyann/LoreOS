@@ -1,3 +1,16 @@
+// ═══════════════════════════════════════════════════════
+// LOREBOOK EDITOR — the entry list and tabs, the entry editor form, saving, ordering, zoom and the
+// lorebook's global settings.
+// ═══════════════════════════════════════════════════════
+
+import { openFullscreen } from './fullscreen.js';
+import { itemUndoCanRedo, itemUndoCanUndo, itemUndoGet, itemUndoPush, itemUndoStacks, wireFieldUndoRedo } from './history.js';
+import { blankEntry, normalizeEntry } from './lorebook_model.js';
+import { state } from './state.js';
+import { loreSnapshotSoon, safeSet, saveToStorage } from './storage.js';
+import { openEntryPicker } from './templates.js';
+import { askConfirm, closeModal, esc, g, openModal, toast } from './util.js';
+import { commitActiveEditor } from './workshop.js';
 
 export function createEntry() {
   const uid = state.nextUid++;
@@ -88,15 +101,6 @@ export async function deleteSidebar(uid) {
 // ═══════════════════════════════════════════════════════
 // CLEAR / REORDER
 // ═══════════════════════════════════════════════════════
-
-import { openFullscreen } from './fullscreen.js';
-import { itemUndoCanRedo, itemUndoCanUndo, itemUndoGet, itemUndoPush, itemUndoStacks, wireFieldUndoRedo } from './history.js';
-import { blankEntry, normalizeEntry } from './lorebook_model.js';
-import { state } from './state.js';
-import { loreSnapshotSoon, safeSet, saveToStorage } from './storage.js';
-import { openEntryPicker } from './templates.js';
-import { askConfirm, closeModal, esc, g, openModal, toast } from './util.js';
-import { commitActiveEditor } from './workshop.js';
 
 export async function clearEditor() {
   if (Object.keys(state.lorebook.entries).length === 0) { toast('Already empty.', 'info'); return; }
@@ -254,7 +258,6 @@ export function moveDragged(uids, targetUid) {
   renderList(); renderTabs(); renderEditor();
   saveToStorage();
 }
-
 
 // ═══════════════════════════════════════════════════════
 // ZOOM

@@ -1,3 +1,10 @@
+// ═══════════════════════════════════════════════════════
+// PRONOUN & NOUN TOOL — converts pronouns and gendered nouns in a field to macros or to
+// another gender, with grammar fix-ups.
+// ═══════════════════════════════════════════════════════
+
+import { state } from './state.js';
+import { copyToClipboard, g, toast } from './util.js';
 
 // ── Pronoun/noun tool globals — must live here so wireEvents can reference PT ──
 export const PT = {
@@ -68,9 +75,6 @@ export let PT_nounTokens = [];
 // ═══════════════════════════════════════════════════════
 // PRONOUN MACRO TOOL
 // ═══════════════════════════════════════════════════════
-
-import { state } from './state.js';
-import { copyToClipboard, g, toast } from './util.js';
 
 // ── Pronoun patterns per source ──
 // Each entry: { regex, type, macro, ambiguous? }

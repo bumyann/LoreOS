@@ -1,3 +1,14 @@
+// ═══════════════════════════════════════════════════════
+// TEMPLATES — the template library: built-in and saved templates for lorebook entries,
+// character fields and prompts, plus the new-entry type picker.
+// ═══════════════════════════════════════════════════════
+
+import { createEntry, openInTab, renderList } from './lorebook.js';
+import { blankEntry } from './lorebook_model.js';
+import { renderPromptList, ST_SPECIAL, syncPromptOrder } from './preset.js';
+import { state } from './state.js';
+import { safeSet } from './storage.js';
+import { askConfirm, closeModal, esc, g, openModal, toast } from './util.js';
 
 export let tplMode = 'lore';
 export let tplTargetFieldId = null;
@@ -17,13 +28,6 @@ export function tplNewId() { return 't' + Date.now() + Math.floor(Math.random()*
 // ═══════════════════════════════════════════════════════
 // BUILT-IN TEMPLATES
 // ═══════════════════════════════════════════════════════
-
-import { createEntry, openInTab, renderList } from './lorebook.js';
-import { blankEntry } from './lorebook_model.js';
-import { renderPromptList, ST_SPECIAL, syncPromptOrder } from './preset.js';
-import { state } from './state.js';
-import { safeSet } from './storage.js';
-import { askConfirm, closeModal, esc, g, openModal, toast } from './util.js';
 
 // Synced from yuu's burrow → Templates (Notion), 2026-09-22.
 // `hint` shows in the library list; `keys` fill an empty Primary keywords
@@ -66,7 +70,6 @@ export const BUILTIN_TEMPLATES = {
 # BACKGROUND
 // full history — origin, formative events, what shaped them into who they are now
 // no length limit here; write as much as the character needs
-
 
 # PERSONALITY
 - Outwardly:
@@ -131,45 +134,36 @@ export const BUILTIN_TEMPLATES = {
         { name: "💬 Example Dialogues", hint: "Style anchors by mood. Keep the NOT VERBATIM header.", content: `# EXAMPLE DIALOGUES
 (FOR REFERENCE ONLY — NOT VERBATIM)
 
-
 ## GREETING {{user}}
 // first contact or re-entry into scene — sets baseline voice
-
 
 ## HAPPY / LIGHT
 // joy, amusement, something going right — how do they carry
 // warmth? are they loud about it or does it leak out quietly?
 
-
 ## ANGRY
 // how does anger sound in their mouth — cold, loud, clipped,
 // dangerously calm? do they go still or do they take up space?
-
 
 ## UPSET / HURT
 // distinct from angry — this is the soft underbelly
 // do they go quiet? deflect? push away? overcorrect?
 
-
 ## AWKWARD / CAUGHT OFF GUARD
 // when they don't have a script — filler words, physical tells,
 // what breaks their composure and how does it show?
-
 
 ## EMBARRASSED
 // different from awkward — there's heat here, something exposed
 // do they lean into it, laugh it off, or try to bury it fast?
 
-
 ## LOVING / TENDER
 // the version of them that only comes out when guard is down
 // can be subtle — love doesn't have to be declared to be felt
 
-
 ## TENSE / GUARDED
 // when something is wrong but they're not saying it
 // subtext-heavy — what they say and what they mean should diverge
-
 
 ## ADDITIONAL LINES
 // voice anchors that don't fit a specific state —
@@ -212,7 +206,6 @@ export const BUILTIN_TEMPLATES = {
 
 # BACKGROUND
 // 2–4 sentences. Public-facing only.
-
 
 # PERSONALITY
 - Outwardly:
@@ -426,196 +419,140 @@ export const BUILTIN_TEMPLATES = {
       items: [
         { name: "🌌 Cosmological Entry", hint: "Planes, realms, universal mechanics, existence rules.", content: `# LORE TITLE
 
-
 ## WHAT IT IS
 // 2–4 sentences — what is it, where does it exist, what is its fundamental nature?
-
 
 ## SENSORY REALITY
 // what it looks, sounds, feels like to exist within or near it
 // skip if purely abstract
 
-
 ## MECHANICS & RULES
 -
 -
 
-
 ## WHO OR WHAT INHABITS IT // [OPTIONAL]
-
 
 ## INTERACTION WITH MORTALS
 
-
 ## RELATIONSHIP TO OTHER PLANES/CONCEPTS // [OPTIONAL]
-
 
 ## NOTES` },
         { name: "🧬 Species Entry", hint: "Any named species or category of being.", content: `# LORE TITLE
 
-
 ## WHAT THEY ARE
 // 2–3 sentences — mortal or immortal? origin? what makes them distinct at a glance?
 
-
 ## APPEARANCE // [OPTIONAL — skip if varies too widely]
-
 
 ## BIOLOGY & LIFECYCLE
 
-
 ## REPRODUCTION // [OPTIONAL]
-
 
 ## ABILITIES & POWERS
 // include limits and costs
 -
 -
 
-
 ## MORTALITY & DEATH
-
 
 ## SOCIAL BEHAVIOR & CULTURE // [OPTIONAL]
 
-
 ## HOW THEY FIT IN THE WORLD
-
 
 ## NOTES` },
         { name: "🕍 Belief System Entry", hint: "Faiths, deities, religious mechanics, practices.", content: `# LORE TITLE
 
-
 ## OVERVIEW
 // 2–4 sentences — what does this system hold to be true? who/what do they worship?
-
 
 ## MECHANICS
 -
 -
 
-
 ## DEITIES & FIGURES // [OPTIONAL]
 - [DEITY/FIGURE]:
 - [DEITY/FIGURE]:
 
-
 ## PRACTICES & RITUALS // [OPTIONAL]
-
 
 ## SOCIAL ROLE
 
-
 ## RELATIONSHIP TO OTHER FAITHS // [OPTIONAL]
-
 
 ## NOTES` },
         { name: "📜 Historical Event Entry", hint: "World-shaping events, eras, disasters.", content: `# LORE TITLE
 
-
 ## WHAT HAPPENED
-
 
 ## BEFORE
 
-
 ## DURING
 
-
 ## AFTER
-
 
 ## HOW IT IS REMEMBERED
 // truth vs. what people believe — myth, denial, reverence, trauma?
 
-
 ## RELEVANCE TO CHARACTERS // [OPTIONAL]
-
 
 ## NOTES` },
         { name: "⚔️ Faction / Clan Entry", hint: "Groups with structure, history, and internal logic.", content: `# LORE TITLE
 
-
 ## OVERVIEW
-
 
 ## HISTORY & ORIGIN
 
-
 ## CURRENT ERA
-
 
 ## INTERNAL STRUCTURE & HIERARCHY
 -
 -
 
-
 ## CODE & VALUES
-
 
 ## TERRITORY & PRESENCE // [OPTIONAL]
 
-
 ## PUBLIC FACE VS. REALITY
 
-
 ## RELATIONSHIP TO OTHER FACTIONS // [OPTIONAL]
-
 
 ## NOTES` },
         { name: "🏛️ Institution Entry", hint: "Schools, academies, formal programmes, ranked systems.", content: `# LORE TITLE
 
-
 ## OVERVIEW
-
 
 ## ADMISSION & ENTRY
 
-
 ## STRUCTURE & PROGRAMMES
-
 
 ## POPULATION & HIERARCHY
 
-
 ## STAFF & LEADERSHIP // [OPTIONAL]
-
 
 ## NOTABLE FEATURES
 
-
 ## CULTURE & SOCIAL LIFE
-
 
 ## NOTES` },
         { name: "📍 Location Entry", hint: "Physical spaces: rooms, buildings, towns, campuses.", content: `# LORE TITLE
 
-
 ## WHAT IT IS
-
 
 ## ATMOSPHERE & SENSORY DETAIL
 
-
 ## LAYOUT & FEATURES
-
 
 ## WHO IS HERE // [OPTIONAL]
 
-
 ## RULES & ACCESS // [OPTIONAL]
-
 
 ## SOCIAL FUNCTION
 // what does this place mean beyond its stated purpose?
 
-
 ## NOTES` },
         { name: "📊 Social System Entry", hint: "Class structures, cultural norms, group rules, hierarchies.", content: `# LORE TITLE
 
-
 ## OVERVIEW
-
 
 ## TIERS / CATEGORIES
 // one block per tier — duplicate as needed
@@ -630,18 +567,13 @@ export const BUILTIN_TEMPLATES = {
   - What it grants them:
   - How others perceive them:
 
-
 ## HOW ONE MOVES WITHIN IT
-
 
 ## UNWRITTEN RULES
 
-
 ## RELATIONSHIP TO POWER // [OPTIONAL]
 
-
 ## HOW CHARACTERS ARE AFFECTED
-
 
 ## NOTES` },
       ]
@@ -659,7 +591,6 @@ export const BUILTIN_TEMPLATES = {
 - Affiliation:
 - Residence/Location:
 
-
 # PUBLIC APPEARANCE
 // 2–3 visually distinctive details someone who's seen them would remember
 - Hair:
@@ -667,32 +598,26 @@ export const BUILTIN_TEMPLATES = {
 - Body:
 - Distinguishing Details:
 
-
 # REPUTATION & PUBLIC PERCEPTION
 - General Reputation:
 - What People Assume:
 - Known For:
-
 
 # ROLE IN THE SERIES
 - Role:
 - Allegiances:
 - Notable Involvements: // [OPTIONAL]
 
-
 # RELATIONSHIPS TO OTHER NAMED CHARACTERS
 // public-facing only — private feelings → character lorebook
 - [CHARACTER A]: [nature of connection]
 - [CHARACTER B]:
 
-
 # KNOWN BACKSTORY
 // 2–4 sentences max, publicly discoverable only
 
-
 # SURFACE PERSONALITY
 // 3–5 observable traits written as behaviour, not adjectives
-
 
 # NOTES
 // cross-bot consistency flags
@@ -702,19 +627,16 @@ export const BUILTIN_TEMPLATES = {
 [BOT NAME] — [NPC NAME]
 - Dynamic Type: // rivals, estranged, one-sided, complicated allies, something unspoken
 
-
 # INTERIOR FEELING
 // how [BOT] genuinely feels — NOT how they act, NOT the public dynamic
 - What [BOT] actually feels:
 - What [BOT] would never admit:
 - What [NPC] represents to [BOT] unconsciously: // a wound, a reminder, a possibility, a threat
 
-
 # BEHAVIORAL SHIFT
 - How [BOT] acts around [NPC]:
 - What [BOT] does differently around [NPC] vs. others:
 - A tell that gives them away:
-
 
 # SHARED HISTORY
 - How they met:
@@ -722,12 +644,10 @@ export const BUILTIN_TEMPLATES = {
 - Something that shifted the dynamic:
 - What neither has addressed directly:
 
-
 # UNRESOLVED TENSION
 - What's unspoken:
 - What [BOT] wants from [NPC] but won't ask for:
 - What [NPC] wants from [BOT] that [BOT] either can't or won't give: // [OPTIONAL]
-
 
 # HOW THIS RELATIONSHIP HAS CHANGED [BOT]
 // one or two lines — don't over-explain` },
