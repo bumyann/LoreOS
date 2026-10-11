@@ -56,6 +56,7 @@ const ASSETS = [
   'js/dropimport.js',
   'js/trash.js',
   'js/kv.js',
+  'js/logo.js',
   'js/prompt.js',
   'js/prompt_model.js',
   'js/router.js',

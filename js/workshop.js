@@ -393,7 +393,7 @@ export function applyMode(newMode) {
   // Save what's typed in the editor we're about to replace
   commitActiveEditor();
   // Stub modes — navigate to editor and show coming soon
-  const STUB_MODES = ['persona', 'regex'];
+  const STUB_MODES = ['regex'];
   const isStub = STUB_MODES.includes(newMode);
 
   // Navigate to editor view when switching modes
@@ -407,7 +407,7 @@ export function applyMode(newMode) {
   if (newMode !== 'lore') { state.sideBySide = false; }
 
   // Show/hide mode headers (lore/char/preset have headers; stubs get empty placeholder)
-  ['lore','char','preset','persona','prompt','regex'].forEach(m => {
+  ['lore','char','preset','prompt','regex'].forEach(m => {
     const el = g('hdr-' + m);
     if (el) el.style.display = newMode === m ? '' : 'none';
   });
@@ -421,7 +421,7 @@ export function applyMode(newMode) {
   g('tabBar').innerHTML = '';
 
   if (isStub) {
-    const labels = { persona: 'Persona', prompt: 'Prompt', regex: 'Regex' };
+    const labels = { regex: 'Regex' };
     sbTitle.textContent = '' + (labels[newMode] || newMode);
     g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search...';

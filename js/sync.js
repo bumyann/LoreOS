@@ -22,7 +22,7 @@ export const SYNC_KEYS = [
   'aet_theme','aet_zoom','aet_css','aet_css_light',
   'aet_title_main','aet_title_sub',
   'aet_font_fp','aet_font_fx','aet_font_fb',
-  'aet_theme_slots',
+  'aet_theme_slots','aet_logo','aet_logo_custom',
   'loreos_notebook',
 ];
 
@@ -36,7 +36,7 @@ export const SYNC_MODULES = [
   { key: 'tpl_lore',  label: 'Lorebook Templates',  keys: ['aet_tpl_lore'] },
   { key: 'tpl_char',  label: 'Character Templates', keys: ['aet_tpl_char'] },
   { key: 'tpl_preset',label: 'Prompt Library',      keys: ['aet_tpl_preset'] },
-  { key: 'settings',  label: 'Settings & Theme',    keys: ['aet_theme','aet_zoom','aet_css','aet_css_light','aet_title_main','aet_title_sub','aet_font_fp','aet_font_fx','aet_font_fb','aet_theme_slots'] },
+  { key: 'settings',  label: 'Settings & Theme',    keys: ['aet_theme','aet_zoom','aet_css','aet_css_light','aet_title_main','aet_title_sub','aet_font_fp','aet_font_fx','aet_font_fb','aet_theme_slots','aet_logo','aet_logo_custom'] },
   { key: 'journal',   label: 'Journal',             keys: ['loreos_notebook'] },
 ];
 

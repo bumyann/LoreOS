@@ -8,6 +8,7 @@ import { libLoad } from './library.js';
 import { createEntry } from './lorebook.js';
 import { updateMobViewBtns } from './mobile.js';
 import { createPreset, openPreset } from './preset.js';
+import { createPrompt, openPrompt } from './prompt.js';
 import { openSettings } from './settings.js';
 import { state } from './state.js';
 import { libGet, safeSet } from './storage.js';
@@ -88,7 +89,8 @@ export function renderHomeView() {
   const hasLorebooks = Object.keys(lb_data).length > 0;
   const hasChars = Object.keys(typeof state.charLibrary !== 'undefined' ? state.charLibrary : {}).length > 0;
   const hasPresets = Object.keys(typeof state.presetLibrary !== 'undefined' ? state.presetLibrary : {}).length > 0;
-  const isReturning = hasLorebooks || hasChars || hasPresets;
+  const hasPrompts = Object.keys(state.promptLibrary || {}).length > 0;
+  const isReturning = hasLorebooks || hasChars || hasPresets || hasPrompts;
 
   if (isReturning) {
     renderDashboard(el);
@@ -101,11 +103,12 @@ export function renderGetStarted(el) {
   el.innerHTML = `
     <div class="home-hero">
       <div class="home-hero-title">LoreOS</div>
-      <div class="home-hero-tagline">// lorebooks. characters. presets. all in one place.</div>
+      <div class="home-hero-tagline">// lorebooks. characters. presets. prompts. all in one place.</div>
       <div class="home-hero-actions">
         <button class="btn btn-ok home-cta" data-new="lore">✦ New Lorebook Entry</button>
         <button class="btn btn-p home-cta" data-new="char">+ New Character</button>
         <button class="btn btn-s home-cta" data-new="preset">⚙ New Preset</button>
+        <button class="btn btn-s home-cta" data-new="prompt">✎ New Prompt Pack</button>
       </div>
       <div class="home-cards">
         <div class="home-card">
@@ -154,6 +157,11 @@ export function renderDashboard(el) {
     recentItems.push({ type: 'preset', icon: '⚙', name: s.name || 'Untitled Preset', savedAt: s.savedAt, action: () => { navigateTo('editor'); setTimeout(() => { switchMode('preset'); openPreset(s.id); }, 80); } });
   });
 
+  // Prompt packs
+  Object.values(state.promptLibrary || {}).forEach(s => {
+    recentItems.push({ type: 'prompt pack', icon: '✎', name: s.name || 'Untitled pack', savedAt: s.savedAt, action: () => { navigateTo('editor'); setTimeout(() => { switchMode('prompt'); openPrompt(s.id); }, 80); } });
+  });
+
   // Sort by savedAt desc, take top 6
   recentItems.sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
   const recent = recentItems.slice(0, 6);
@@ -175,6 +183,7 @@ export function renderDashboard(el) {
           <button class="btn btn-ok dash-act" data-new="lore">✦ New Entry</button>
           <button class="btn btn-p dash-act" data-new="char">+ New Character</button>
           <button class="btn btn-s dash-act" data-new="preset">⚙ New Preset</button>
+          <button class="btn btn-s dash-act" data-new="prompt">✎ New Prompt Pack</button>
           <button class="btn btn-s dash-act" data-go="library">📚 Library</button>
         </div>
       </div>
@@ -186,6 +195,7 @@ export function renderDashboard(el) {
         <div class="dash-stat"><span class="dash-stat-num">${Object.keys((typeof libGet==='function')?libGet():{}).length}</span><span class="dash-stat-lbl">lorebooks</span></div>
         <div class="dash-stat"><span class="dash-stat-num">${Object.keys(ch).length}</span><span class="dash-stat-lbl">characters</span></div>
         <div class="dash-stat"><span class="dash-stat-num">${Object.keys(pr).length}</span><span class="dash-stat-lbl">presets</span></div>
+        <div class="dash-stat"><span class="dash-stat-num">${Object.keys(state.promptLibrary || {}).length}</span><span class="dash-stat-lbl">prompt packs</span></div>
       </div>
       <div class="home-footer-note">// all data stays in your browser &nbsp;·&nbsp; <a href="https://loreos.net/legal.html" target="_blank" style="color:var(--txm);text-decoration:none;border-bottom:1px solid var(--bd)">privacy & terms</a></div>
     </div>
@@ -323,7 +333,7 @@ export function initRouter() {
       navigateTo('editor');
       setTimeout(() => {
         switchMode(kind);
-        if (kind === 'lore') createEntry(); else if (kind === 'char') createChar(); else if (kind === 'preset') createPreset();
+        if (kind === 'lore') createEntry(); else if (kind === 'char') createChar(); else if (kind === 'preset') createPreset(); else if (kind === 'prompt') createPrompt();
       }, 80);
       return;
     }

@@ -11,7 +11,7 @@ export const WS_MAX_TABS = 5;
 
 export const state = {
   // ── Editor ──
-  mode: 'lore', // 'lore' | 'char' | 'preset' | 'prompt' (persona / regex are still stubs)
+  mode: 'lore', // 'lore' | 'char' | 'preset' | 'prompt' (regex is still a stub)
 
   // ── Lorebook editor ──
   lorebook: { entries: {} },

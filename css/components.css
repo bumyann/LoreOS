@@ -605,3 +605,16 @@ input[type=number].fnum::-webkit-inner-spin-button{-webkit-appearance:none;margi
 }
 .pr-where{font-weight:400;color:var(--txm);font-size:.64rem}
 .pr-chips-off{opacity:.55}
+
+/* Logo picker (Settings) and the optional sidebar logo */
+.logo-cards{display:flex;gap:.6rem;flex-wrap:wrap}
+.logo-card{display:flex;flex-direction:column;align-items:center;gap:.25rem;width:92px;padding:.55rem .3rem;border:1px solid var(--bd);border-radius:4px;cursor:pointer;background:var(--bg2);text-align:center}
+.logo-card.on{border-color:var(--p);background:var(--sf)}
+.logo-card input{accent-color:var(--p)}
+.logo-card img{image-rendering:pixelated;border-radius:4px}
+.logo-card-label{font-family:var(--fx);font-size:.7rem;color:var(--tx)}
+.logo-card-note,.logo-card-empty{font-family:var(--fx);font-size:.58rem;color:var(--txm)}
+.logo-card-empty{display:flex;align-items:center;justify-content:center;width:56px;height:56px;border:1px dashed var(--bd);border-radius:4px}
+.logo-acts{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:.55rem}
+.logo-hint{font-family:var(--fx);font-size:.62rem;color:var(--txm);line-height:1.5;margin-top:.4rem}
+.nav-logo-img{width:30px;height:30px;border-radius:5px;image-rendering:pixelated;margin-bottom:.3rem}

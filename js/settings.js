@@ -7,6 +7,7 @@ import { renderCharSidebar } from './character.js';
 import { state } from './state.js';
 import { safeSet, saveCharLibrary, storageUsage } from './storage.js';
 import { store } from './kv.js';
+import { applyLogo, renderLogoSettings, wireLogoSettings } from './logo.js';
 import { canInstall, installApp, isInstalledApp } from './pwa.js';
 import { wireSync } from './sync.js';
 import { trashAll, trashClear, trashDiscard, trashKindLabel, trashRestore } from './trash.js';
@@ -16,6 +17,7 @@ export function toggleTheme() {
   document.body.classList.toggle('pink');
   safeSet('aet_theme', document.body.classList.contains('pink') ? 'pink' : 'dark');
   applyCustomTheme(); // re-apply custom overrides for the new mode
+  applyLogo();        // the Automatic logo follows the theme
 }
 // ═══════════════════════════════════════════════════════
 // SETTINGS — theme customization + title editor
@@ -106,6 +108,7 @@ export function hexToRgba(hex, alpha) {
 export function applyAllCustomisations() {
   applyCustomTheme();
   applyCustomTitle();
+  applyLogo();
 }
 
 export function openSettings() {
@@ -131,6 +134,8 @@ export function openSettings() {
   // Storage panel
   renderStoragePanel();
   wireTrashPanel();
+  wireLogoSettings();
+  renderLogoSettings();
   // Avatar handling toggle
   const keepFull = g('stgKeepFullAvatars');
   if (keepFull) keepFull.checked = !!cfg.keepFullAvatars;
@@ -675,6 +680,11 @@ registerMarkup(250, `<!-- SETTINGS MODAL (still accessible via ⚙ and settings 
             <input type="text" id="stgTitleSub" class="finput" placeholder="v1.0">
           </div>
         </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Logo</div>
+        <div id="stgLogoBody"></div>
       </div>
 
       <div class="settings-section">
