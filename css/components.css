@@ -517,3 +517,33 @@ input[type=number].fnum::-webkit-inner-spin-button{-webkit-appearance:none;margi
    dynamically appended version history modal (same z-index, later in the DOM,
    so it used to cover the restore confirm). Still below toasts (#notifs, 3000). */
 #confirmModal, #renameModal, #inputModal { z-index: 2500; }
+
+/* Touch screens: small controls get a bigger hit area (kept at the end so it wins over the base sizes above) */
+@media (pointer:coarse){
+  .z-btn{width:2.1rem;height:2.1rem}
+  .ei-cb{width:22px;height:22px}
+  .ei-num{width:44px;height:30px}
+  .expand-btn{min-height:32px;padding:.3rem .6rem}
+  .field-ur-btn{min-width:32px;min-height:32px}
+  .lib-filter-tab{min-height:36px;padding-top:.4rem;padding-bottom:.4rem}
+  .nav-toggle{min-width:36px;min-height:36px}
+  .tab{min-height:34px}
+  #helpBtn,#mob-topbar-help,.mob-topbar-help{min-width:36px;min-height:40px}
+  .sb-search,.sbSearch,#sbSearch,.finput,.fselect,.fnum,#lorebookName{min-height:38px}
+  .home-footer-note a,.legal-link{display:inline-block;padding:.5rem 0}
+}
+
+/* Drop-to-import overlay */
+#dropHint{position:fixed;inset:0;z-index:9000;display:none;align-items:center;justify-content:center;pointer-events:none;
+  background:rgba(13,17,33,.72);border:3px dashed var(--p);font-family:var(--fp);font-size:1.6rem;color:var(--p);letter-spacing:2px}
+#dropHint.on{display:flex}
+
+/* Toast action button (Undo) and the Recently deleted list */
+.notif-act{margin-left:.7rem;padding:.1rem .55rem;font-family:var(--fx);font-size:.7rem;color:inherit;background:transparent;border:1px solid currentColor;border-radius:3px;cursor:pointer}
+.notif-act:hover{background:rgba(255,255,255,.12)}
+.stg-trash{margin-top:.9rem;border-top:1px solid var(--bd);padding-top:.7rem}
+.stg-trash-head{font-family:var(--fx);font-size:.72rem;color:var(--txd);letter-spacing:.5px;display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem}
+.stg-trash-row{display:flex;align-items:center;gap:.5rem;padding:.25rem 0;font-family:var(--fx);font-size:.7rem;color:var(--txd)}
+.stg-trash-kind{color:var(--txm);min-width:5.2rem}
+.stg-trash-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stg-trash-date{color:var(--txm);font-size:.62rem}

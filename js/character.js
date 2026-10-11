@@ -10,6 +10,7 @@ import { itemHistoryPush, itemUndoGet, itemUndoPush, openItemHistory, syncItemUn
 import { closeMobSidebar } from './mobile.js';
 import { state } from './state.js';
 import { saveCharLibrary } from './storage.js';
+import { registerTrashRestorer, trashPush } from './trash.js';
 import { askConfirm, askInput, closeAllDropdowns, closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
 import { commitActiveEditor, wsDropItem, wsMarkSaved, wsShowItem } from './workshop.js';
 
@@ -104,7 +105,8 @@ export function openChar(id) {
 }
 
 export async function deleteChar(id) {
-  if (!await askConfirm('Delete this character? This cannot be undone.')) return;
+  if (!await askConfirm('Delete this character? You can bring it back from Settings > Storage > Recently deleted.')) return;
+  if (state.charLibrary[id]) trashPush('char', state.charLibrary[id].name || 'Unnamed character', state.charLibrary[id]);
   delete state.charLibrary[id];
   wsDropItem('char', id);
   if (state.activeCharId === id) state.activeCharId = null;
@@ -350,13 +352,16 @@ export function renderCharEditor() {
       <div class="dd" id="dd-char-export">
         <button class="btn btn-s dd-btn">&#8657; Export</button>
         <div class="dd-menu">
-          <button class="dd-item" id="chExportJsonBtn">V3 JSON</button>
-          <button class="dd-item" id="chExportV2JsonBtn">V2 JSON</button>
           <button class="dd-item" id="chExportV3PngBtn">V3 PNG</button>
           <button class="dd-item" id="chExportPngBtn">V2 PNG</button>
-          <button class="dd-item" id="chExportJanitorBtn">JanitorAI JSON</button>
           <button class="dd-item" id="chExportJanitorPngBtn">JanitorAI PNG</button>
-          <button class="dd-item" id="chExportCharxBtn">.charx (Lumiverse)</button>
+          <details class="dd-group">
+            <summary>JSON</summary>
+            <button class="dd-item" id="chExportJsonBtn">V3 JSON</button>
+            <button class="dd-item" id="chExportV2JsonBtn">V2 JSON</button>
+            <button class="dd-item" id="chExportJanitorBtn">JanitorAI JSON</button>
+          </details>
+          <button class="dd-item" id="chExportCharxBtn">.CHARX</button>
         </div>
       </div>
       <button class="btn btn-err" id="chDeleteBtn">Delete Character</button>
@@ -960,3 +965,11 @@ registerMarkup(40, `<input type="file" id="fileCharxInput" accept=".charx" style
 
 registerMarkup(50, `<input type="file" id="fileCharCompanionInput" accept=".json" style="display:none">`);
 
+
+registerTrashRestorer('char', data => {
+  const id = data.id && !state.charLibrary[data.id] ? data.id : charId();
+  state.charLibrary[id] = { ...data, id };
+  if (state.charLibrary[id].card && state.charLibrary[id].card.id) state.charLibrary[id].card.id = id;
+  saveCharLibrary();
+  if (state.mode === 'char') renderCharSidebar();
+});

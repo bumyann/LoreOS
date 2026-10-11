@@ -351,13 +351,18 @@ registerMarkup(180, `<div id="mobCharExportModal" class="modal">
   <div class="modal-box">
     <div class="modal-head"><h2>Export Card</h2><button class="modal-x" data-close="mobCharExportModal">×</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
-      <button class="btn btn-p" id="mobCharExportJsonBtn" style="width:100%;justify-content:center;padding:.65rem">V3 JSON</button>
-      <button class="btn btn-s" id="mobCharExportV2JsonBtn" style="width:100%;justify-content:center;padding:.65rem">V2 JSON</button>
-      <button class="btn btn-s" id="mobCharExportV3PngBtn" style="width:100%;justify-content:center;padding:.65rem">V3 PNG</button>
+      <button class="btn btn-p" id="mobCharExportV3PngBtn" style="width:100%;justify-content:center;padding:.65rem">V3 PNG</button>
       <button class="btn btn-s" id="mobCharExportPngBtn" style="width:100%;justify-content:center;padding:.65rem">V2 PNG</button>
-      <button class="btn btn-s" id="mobCharExportJanitorBtn" style="width:100%;justify-content:center;padding:.65rem">JanitorAI JSON</button>
       <button class="btn btn-s" id="mobCharExportJanitorPngBtn" style="width:100%;justify-content:center;padding:.65rem">JanitorAI PNG</button>
-      <button class="btn btn-s" id="mobCharExportCharxBtn" style="width:100%;justify-content:center;padding:.65rem">.charx (Lumiverse)</button>
+      <details class="dd-group mob-group">
+        <summary>JSON</summary>
+        <div style="display:flex;flex-direction:column;gap:.65rem;margin-top:.65rem">
+          <button class="btn btn-s" id="mobCharExportJsonBtn" style="width:100%;justify-content:center;padding:.65rem">V3 JSON</button>
+          <button class="btn btn-s" id="mobCharExportV2JsonBtn" style="width:100%;justify-content:center;padding:.65rem">V2 JSON</button>
+          <button class="btn btn-s" id="mobCharExportJanitorBtn" style="width:100%;justify-content:center;padding:.65rem">JanitorAI JSON</button>
+        </div>
+      </details>
+      <button class="btn btn-s" id="mobCharExportCharxBtn" style="width:100%;justify-content:center;padding:.65rem">.CHARX</button>
     </div>
   </div>
 </div>`);

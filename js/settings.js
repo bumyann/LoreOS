@@ -7,6 +7,7 @@ import { renderCharSidebar } from './character.js';
 import { state } from './state.js';
 import { safeSet, saveCharLibrary, storageUsage } from './storage.js';
 import { wireSync } from './sync.js';
+import { trashAll, trashClear, trashDiscard, trashKindLabel, trashRestore } from './trash.js';
 import { askConfirm, closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
 
 export function toggleTheme() {
@@ -24,13 +25,13 @@ export const DEFAULT_THEMES = {
     '--p':'#9d8fcc','--ph':'#7d6fac','--a':'#c4b8e8','--a2':'#e8e4f5',
     '--bg':'#0d1121','--bg2':'#111829','--bg3':'#161f33',
     '--sf':'#1c2740','--sf2':'#22304d',
-    '--tx':'#e8e4f5','--txd':'#b0a8d0','--txm':'#6a6290'
+    '--tx':'#e8e4f5','--txd':'#b0a8d0','--txm':'#8f87b8'
   },
   pink: {
     '--p':'#b87090','--ph':'#96587a','--a':'#c4849a','--a2':'#f5eaee',
     '--bg':'#f5eaee','--bg2':'#ede0e5','--bg3':'#e4d4db',
     '--sf':'#d8c4cc','--sf2':'#ccb4be',
-    '--tx':'#2e1c26','--txd':'#5a3a4a','--txm':'#8a6070'
+    '--tx':'#2e1c26','--txd':'#5a3a4a','--txm':'#76485c'
   }
 };
 
@@ -127,6 +128,7 @@ export function openSettings() {
   renderThemeSlots();
   // Storage panel
   renderStoragePanel();
+  wireTrashPanel();
   // Avatar handling toggle
   const keepFull = g('stgKeepFullAvatars');
   if (keepFull) keepFull.checked = !!cfg.keepFullAvatars;
@@ -525,7 +527,39 @@ export function renderStoragePanel() {
         ${pct > 85 ? '<br><strong>Almost full — saves may start failing.</strong>' : ''}
       </div>
     </div>
-    <div class="stg-storage-list">${listHTML}</div>`;
+    <div class="stg-storage-list">${listHTML}</div>
+    ${trashHTML()}`;
+}
+
+// ── Recently deleted (see trash.js) ──
+export function trashHTML() {
+  const items = trashAll();
+  const rows = items.map(t => `<div class="stg-trash-row">
+      <span class="stg-trash-kind">${esc(trashKindLabel(t.kind))}</span>
+      <span class="stg-trash-name">${esc(t.label)}</span>
+      <span class="stg-trash-date">${esc(new Date(t.at).toLocaleDateString())}</span>
+      <button class="btn btn-s btn-sm" data-trash-restore="${esc(t.id)}">Restore</button>
+      <button class="btn btn-err btn-sm" data-trash-discard="${esc(t.id)}" title="Delete for good">✕</button>
+    </div>`).join('');
+  return `<div class="stg-trash">
+    <div class="stg-trash-head">Recently deleted${items.length ? ` <button class="btn btn-s btn-sm" id="stgTrashClear">Empty</button>` : ''}</div>
+    ${rows || '<div class="stg-storage-empty">// nothing deleted lately</div>'}
+  </div>`;
+}
+
+export function wireTrashPanel() {
+  const host = g('stgStorageBody');
+  if (!host || host.dataset.trashWired) return;
+  host.dataset.trashWired = '1';
+  host.addEventListener('click', async e => {
+    const r = e.target.closest('[data-trash-restore]');
+    const d = e.target.closest('[data-trash-discard]');
+    if (r) { trashRestore(r.dataset.trashRestore); renderStoragePanel(); }
+    else if (d) { trashDiscard(d.dataset.trashDiscard); renderStoragePanel(); }
+    else if (e.target.id === 'stgTrashClear') {
+      if (await askConfirm('Permanently delete everything in Recently deleted?')) { trashClear(); renderStoragePanel(); }
+    }
+  });
 }
 
 // One-time cleanup: shrink avatars that were imported before

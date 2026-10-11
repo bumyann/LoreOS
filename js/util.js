@@ -109,7 +109,7 @@ export function askConfirm(message) {
   });
 }
 
-export function toast(msg, type = 'info') {
+export function toast(msg, type = 'info', opts = {}) {
   const container = g('notifs');
   const el = document.createElement('div');
   el.className = `notif ${type === 'ok' ? 'ok' : type === 'err' ? 'err' : type === 'warn' ? 'warn' : 'info'}`;
@@ -117,7 +117,14 @@ export function toast(msg, type = 'info') {
   container.append(el);
   const dismiss = () => { el.classList.add('out'); el.addEventListener('animationend', () => el.remove(), {once:true}); };
   el.addEventListener('click', dismiss);
-  setTimeout(dismiss, 3500);
+  // Optional action button (e.g. Undo). Clicking it runs the action and closes the toast.
+  if (opts.action) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'notif-act'; b.textContent = opts.action.label;
+    b.addEventListener('click', e => { e.stopPropagation(); dismiss(); opts.action.fn(); });
+    el.append(b);
+  }
+  setTimeout(dismiss, opts.ms || 3500);
 }
 
 export function dlFile(content, filename, mime) {

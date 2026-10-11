@@ -7,6 +7,7 @@ import { renderEditor, renderList, renderTabs } from './lorebook.js';
 import { rebuildEntries } from './lorebook_model.js';
 import { state } from './state.js';
 import { libGet, libSet, loreActiveLibName, loreLinkToLib, saveToStorage } from './storage.js';
+import { registerTrashRestorer, trashPush } from './trash.js';
 import { askConfirm, askInput, closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
 import { renderWsTabs, wsDropItem, wsShowItem } from './workshop.js';
 
@@ -112,12 +113,12 @@ export async function libRename(oldName) {
 export async function libDelete(name) {
   if (!await askConfirm(`Delete "${name}" from library?`)) return;
   const lib = libGet();
+  if (lib[name]) trashPush('lorelib', name, { name, lb: lib[name] }, { message: 'Deleted "' + name + '".' });
   delete lib[name];
   libSet(lib);
   wsDropItem('lore', name);
   if (loreActiveLibName() === name) loreLinkToLib(null);
   renderLibraryList();
-  toast(`Deleted "${name}".`, 'info');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -144,3 +145,12 @@ registerMarkup(120, `<!-- LIBRARY MODAL -->
   </div>
 </div>`);
 
+
+registerTrashRestorer('lorelib', data => {
+  const lib = libGet();
+  let name = data.name;
+  while (lib[name]) name += ' (restored)';
+  lib[name] = data.lb;
+  libSet(lib);
+  if (document.getElementById('libModal')?.classList.contains('open')) renderLibraryList();
+});

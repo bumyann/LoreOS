@@ -53,6 +53,8 @@ const ASSETS = [
   'js/gdrive.js',
   'js/mobile.js',
   'js/header_fit.js',
+  'js/dropimport.js',
+  'js/trash.js',
   'js/router.js',
   'js/pwa.js',
   'js/help.js',

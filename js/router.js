@@ -11,6 +11,7 @@ import { createPreset, openPreset } from './preset.js';
 import { openSettings } from './settings.js';
 import { state } from './state.js';
 import { libGet, safeSet } from './storage.js';
+import { registerTrashRestorer, trashPush } from './trash.js';
 import { askConfirm, esc } from './util.js';
 import { switchMode } from './workshop.js';
 
@@ -497,7 +498,8 @@ export function nbOpenPage(id) {
   });
 
   document.getElementById('nbDeleteBtn').addEventListener('click', async () => {
-    if (!await askConfirm('Delete this page?')) return;
+    if (!await askConfirm('Delete this page? You can bring it back from Settings > Storage > Recently deleted.')) return;
+    { const cur = nbGet().pages[id]; if (cur) trashPush('journal', cur.title || 'Untitled page', cur); }
     if (_nbEditor) { try { _nbEditor.destroy(); } catch(e) {} _nbEditor = null; }
     const d = nbGet();
     delete d.pages[id];
@@ -558,3 +560,11 @@ export function nbNewPage() {
   nbOpenPage(id);
   setTimeout(() => document.getElementById('nbTitleInput')?.focus(), 80);
 }
+
+registerTrashRestorer('journal', page => {
+  const d = nbGet();
+  const id = page.id && !d.pages[page.id] ? page.id : nbId();
+  d.pages[id] = { ...page, id };
+  nbSet(d);
+  if (document.getElementById('nb-page-list')) nbRenderPageList();
+});

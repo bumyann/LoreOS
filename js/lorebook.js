@@ -10,6 +10,7 @@ import { state } from './state.js';
 import { loreSnapshotSoon, safeSet, saveToStorage } from './storage.js';
 import { openEntryPicker } from './templates.js';
 import { askConfirm, closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
+import { registerTrashRestorer, trashPush, trashRestore } from './trash.js';
 import { commitActiveEditor } from './workshop.js';
 
 export function createEntry() {
@@ -90,7 +91,8 @@ export function copyEntry(srcUid) {
 }
 
 export async function deleteSidebar(uid) {
-  if (!await askConfirm('Delete this entry? This cannot be undone.')) return;
+  if (!await askConfirm('Delete this entry? You can bring it back from Settings > Storage > Recently deleted.')) return;
+  if (state.lorebook.entries[uid]) trashPush('entry', state.lorebook.entries[uid].comment || 'Untitled entry', state.lorebook.entries[uid]);
   delete state.lorebook.entries[uid];
   closeTab(uid);
   renderList();
@@ -104,14 +106,16 @@ export async function deleteSidebar(uid) {
 
 export async function clearEditor() {
   if (Object.keys(state.lorebook.entries).length === 0) { toast('Already empty.', 'info'); return; }
-  if (!await askConfirm('Clear all entries? Consider saving to Library first.')) return;
+  if (!await askConfirm('Clear all entries? You can bring them back from Settings > Storage > Recently deleted.')) return;
+  const nCleared = Object.keys(state.lorebook.entries).length;
+  const tid = trashPush('entries', nCleared + ' cleared entries' + (state.lorebook.name ? ' from "' + state.lorebook.name + '"' : ''), Object.values(state.lorebook.entries), { undo: false });
   state.lorebook = { entries: {} };
   state.openTabs = []; state.activeTabId = null; state.nextUid = 0;
   state.unsaved = new Set(); state.formState = {};
   g('lorebookName').value = '';
   renderList(); renderTabs(); renderEditor();
   saveToStorage();
-  toast('Editor cleared.', 'ok');
+  toast('Editor cleared.', 'ok', tid ? { action: { label: 'Undo', fn: () => trashRestore(tid) }, ms: 8000 } : {});
 }
 
 export function reorderEntry(oldUid, newUid) {
@@ -784,3 +788,15 @@ registerMarkup(130, `<!-- LOREBOOK SETTINGS MODAL -->
   </div>
 </div>`);
 
+
+// Restore puts entries back at the end of the open lorebook with fresh numbers
+function restoreEntries(list) {
+  const entries = state.lorebook.entries;
+  let next = Math.max(-1, ...Object.keys(entries).map(Number)) + 1;
+  list.forEach(en => { en.uid = next; normalizeEntry(en); entries[next] = en; next++; });
+  state.nextUid = next;
+  saveToStorage(); loreSnapshotSoon();
+  if (state.mode === 'lore') renderList();
+}
+registerTrashRestorer('entry', data => restoreEntries([data]));
+registerTrashRestorer('entries', data => restoreEntries(Array.isArray(data) ? data : []));

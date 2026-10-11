@@ -122,6 +122,7 @@ const STORAGE_SHAPES = {
   aet_theme_slots:   v => isObj(v),
   aet_settings:      v => isObj(v),
   loreos_notebook:   v => isObj(v) && isObj(v.pages),
+  aet_trash:         v => Array.isArray(v),
 };
 // Library maps: every value must be an object, and some need their payload
 const ENTRY_NEEDS = { aet_charLibrary: 'card', aet_presetLibrary: 'preset' };

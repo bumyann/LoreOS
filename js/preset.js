@@ -8,6 +8,7 @@ import { itemHistoryPush, itemUndoGet, itemUndoPush, openItemHistory, syncItemUn
 import { closeMobSidebar } from './mobile.js';
 import { state } from './state.js';
 import { savePresetLibrary } from './storage.js';
+import { registerTrashRestorer, trashPush } from './trash.js';
 import { askConfirm, closeModal, dlFile, esc, g, openModal, registerMarkup, safeFileName, toast } from './util.js';
 import { commitActiveEditor, wsDropItem, wsMarkSaved, wsShowItem } from './workshop.js';
 
@@ -119,7 +120,8 @@ export function duplicatePreset(id) {
 }
 
 export async function deletePreset(id) {
-  if (!await askConfirm('Delete this preset?')) return;
+  if (!await askConfirm('Delete this preset? You can bring it back from Settings > Storage > Recently deleted.')) return;
+  if (state.presetLibrary[id]) trashPush('preset', state.presetLibrary[id].name || 'Unnamed preset', state.presetLibrary[id]);
   delete state.presetLibrary[id];
   wsDropItem('preset', id);
   if (state.activePresetId === id) state.activePresetId = null;
@@ -878,3 +880,10 @@ export function openPresetLibrary() {
 // ═══════════════════════════════════════════════════════
 registerMarkup(60, `<input type="file" id="filePresetInput" accept=".json" style="display:none">`);
 
+
+registerTrashRestorer('preset', data => {
+  const id = data.id && !state.presetLibrary[data.id] ? data.id : presetId();
+  state.presetLibrary[id] = { ...data, id };
+  savePresetLibrary();
+  if (state.mode === 'preset') renderPresetSidebar();
+});

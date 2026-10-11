@@ -9,7 +9,7 @@
   --bg:#0d1121;--bg2:#111829;--bg3:#161f33;
   --sf:#1c2740;--sf2:#22304d;
   --bd:rgba(157,143,204,.18);--bdb:rgba(157,143,204,.45);
-  --tx:#e8e4f5;--txd:#b0a8d0;--txm:#6a6290;
+  --tx:#e8e4f5;--txd:#b0a8d0;--txm:#8f87b8;
   --sh:0 2px 8px rgba(0,0,0,.6);--shg:0 0 14px var(--pg);
   --fp:'VT323',monospace;--fx:'Pixelify Sans',monospace;--fb:'Noto Sans',sans-serif;
   --nav-w:200px;
@@ -22,7 +22,7 @@ body.pink{
   --bg:#f5eaee;--bg2:#ede0e5;--bg3:#e4d4db;
   --sf:#d8c4cc;--sf2:#ccb4be;
   --bd:rgba(184,112,144,.25);--bdb:rgba(184,112,144,.55);
-  --tx:#2e1c26;--txd:#5a3a4a;--txm:#8a6070;
+  --tx:#2e1c26;--txd:#5a3a4a;--txm:#76485c;
   --sh:0 2px 6px rgba(100,60,80,.15);--shg:0 0 12px var(--pg);
 }
 
@@ -288,6 +288,13 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
 .dd-menu{display:none;position:absolute;top:calc(100% + 3px);left:0;background:var(--sf);border:1px solid var(--bdb);border-radius:3px;min-width:200px;z-index:500;box-shadow:var(--sh)}
 .dd-menu.open{display:block}
 .dd-item{display:flex;align-items:center;gap:.4rem;width:100%;padding:.5rem .8rem;border:none;background:transparent;color:var(--txd);text-align:left;cursor:pointer;font-family:var(--fx);font-size:.78rem;letter-spacing:.3px}
+.dd-group>summary{display:block;padding:.5rem .8rem;cursor:pointer;font-family:var(--fx);font-size:.72rem;letter-spacing:.5px;color:var(--txm);list-style:none;user-select:none}
+.dd-group>summary::-webkit-details-marker{display:none}
+.dd-group>summary::before{content:'\25B8  '}
+.dd-group[open]>summary::before{content:'\25BE  '}
+.dd-group>summary:hover{color:var(--p)}
+.dd-group>.dd-item{padding-left:1.6rem}
+.mob-group>summary{padding:.65rem;border:1px solid var(--bd);border-radius:3px;text-align:center}
 .dd-item:hover{background:var(--sf2);color:var(--p)}
 
 /* ─── SETTINGS MODAL STYLES ─── */

@@ -78,7 +78,10 @@ export function syncBundleData() {
 
 export function syncRestoreKeys(bundle, keys) {
   keys.forEach(k => {
+    // A key the backup doesn't have means "it didn't exist then": clear it, so a
+    // restored module never mixes with leftovers from this device
     if (bundle[k] !== undefined) localStorage.setItem(k, bundle[k]);
+    else localStorage.removeItem(k);
   });
 }
 

@@ -18,6 +18,10 @@ import { doReplaceAll, doReplaceOne, doSearch } from './search.js';
 import { applyAllCustomisations, applyFonts, toggleTheme, wireFonts, wireSettings } from './settings.js';
 import { state } from './state.js';
 import { wireHeaderFit } from './header_fit.js';
+import { wireDropImport } from './dropimport.js';
+import * as m_dropimport from './dropimport.js';
+import * as m_header_fit from './header_fit.js';
+import * as m_trash from './trash.js';
 import { loadFromStorage, loadPrefs, sanitizeStorage } from './storage.js';
 import { openEntryPicker, openTemplateLibrary, wireTplLibrary } from './templates.js';
 import { closeAllDropdowns, closeModal, g, injectMarkup, openModal, toast } from './util.js';
@@ -96,6 +100,7 @@ function startApp() {
   initStep('storage',      loadFromStorage);
   initStep('mode',         () => switchMode('lore'));
   initStep('header fit',   wireHeaderFit);
+  initStep('drop import',  wireDropImport);
   initStep('router',       initRouter);
   initStep('workshop tabs', wsRestoreTabs);
   initStep('pronoun tool', wirePronounTool);
@@ -132,6 +137,8 @@ export function wireEvents() {
       if (!isOpen) menu.classList.add('open');
     });
   });
+  // Opening/closing a JSON group inside a menu must not close the menu itself
+  document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.dd-menu .dd-group > summary')) e.stopPropagation(); }, true);
   document.addEventListener('click', closeAllDropdowns);
 
   // Header buttons
@@ -328,8 +335,7 @@ export function wireEvents() {
           renderTabs(); renderEditor();
         }
         break;
-      case '-': if (m === 'lore') { e.preventDefault(); changeZoom(-1); } break;
-      case '=': case '+': if (m === 'lore') { e.preventDefault(); changeZoom(1); } break;
+      // Ctrl +/- is left to the browser (page zoom); the entry list has its own - / + buttons
     }
   });
 }
@@ -341,7 +347,7 @@ export function wireEvents() {
 // through to the shared state object.
 // ═══════════════════════════════════════════════════════
 const LoreOS = {};
-[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa, m_character_io, m_avatar, m_templates_data].forEach(ns => {
+[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa, m_character_io, m_avatar, m_templates_data, m_dropimport, m_header_fit, m_trash].forEach(ns => {
   Object.keys(ns).forEach(k => {
     if (!(k in LoreOS)) Object.defineProperty(LoreOS, k, { get: () => ns[k], enumerable: true, configurable: true });
   });
