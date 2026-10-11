@@ -52,10 +52,49 @@ export function reportRebuild(r) {
   if (r.renumbered) toast(`${r.renumbered} entr${r.renumbered === 1 ? 'y' : 'ies'} had unusual ids and were renumbered.`, 'info');
 }
 
+// Keywords are typed as one comma separated string, but a /regex/ key may itself
+// contain commas (e.g. /\b(red|blue),?\b/i). Split on commas, except inside a
+// regex literal, so those keys survive being edited.
+export function splitKeywords(str) {
+  const s = String(str == null ? '' : str);
+  const out = [];
+  let pos = 0;
+  while (pos < s.length) {
+    while (pos < s.length && /\s/.test(s[pos])) pos++;
+    if (pos >= s.length) break;
+    let end = -1;
+    if (s[pos] === '/') {
+      // the closing slash is the first unescaped "/" followed by flags and then a comma or the end
+      for (let i = pos + 1; i < s.length; i++) {
+        if (s[i] === '\\') { i++; continue; }
+        if (s[i] !== '/') continue;
+        const m = /^[a-z]*\s*(,|$)/.exec(s.slice(i + 1));
+        if (m) { end = i + 1 + m[0].replace(/\s*,?$/, '').length; break; }
+      }
+    }
+    if (end === -1) { const c = s.indexOf(',', pos); end = c === -1 ? s.length : c; }
+    const tok = s.slice(pos, end).trim();
+    if (tok) out.push(tok);
+    const c = s.indexOf(',', end);
+    pos = c === -1 ? s.length : c + 1;
+  }
+  return out;
+}
+
+// What the editor shows for a keyword list, and what to store when the box is saved.
+// If the box still shows exactly what was rendered, the original list is kept as
+// it is, so keys that can't be written as a comma list (a plain key containing a
+// comma) are never split by merely opening and saving an entry.
+export const joinKeywords = list => (Array.isArray(list) ? list : []).join(', ');
+export function parseKeywordField(str, original) {
+  if (Array.isArray(original) && str === joinKeywords(original)) return original;
+  return splitKeywords(str);
+}
+
 export function normalizeEntry(en) {
   // Core array fields — some lorebooks omit these or use null
   // Keywords: some tools write a comma separated string instead of an array
-  const asList = v => Array.isArray(v) ? v : (typeof v === 'string' ? v.split(',').map(x => x.trim()).filter(Boolean) : []);
+  const asList = v => Array.isArray(v) ? v : (typeof v === 'string' ? splitKeywords(v) : []);
   if (!Array.isArray(en.key)) en.key = asList(en.key !== undefined ? en.key : en.keys);
   if (!Array.isArray(en.keysecondary)) en.keysecondary = asList(en.keysecondary !== undefined ? en.keysecondary : en.keyssecondary);
   // uid must be a number

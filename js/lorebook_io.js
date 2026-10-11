@@ -4,18 +4,40 @@
 // ═══════════════════════════════════════════════════════
 
 import { renderEditor, renderList, renderTabs } from './lorebook.js';
-import { rebuildEntries, reportRebuild } from './lorebook_model.js';
+import { rebuildEntries, reportRebuild, splitKeywords } from './lorebook_model.js';
 import { state } from './state.js';
-import { saveToStorage } from './storage.js';
-import { closeModal, dlFile, g, openModal, registerMarkup, safeFileName, toast } from './util.js';
+import { loreActiveLibName, saveToStorage } from './storage.js';
+import { askConfirm, closeModal, dlFile, g, openModal, registerMarkup, safeFileName, toast } from './util.js';
 
 // ═══════════════════════════════════════════════════════
 // IMPORT / EXPORT
 // ═══════════════════════════════════════════════════════
+// Make `lb` the open lorebook. One place resets everything that belonged to the
+// old one (tabs, selection, unsaved marks, form state), saves, and redraws, so
+// every import path behaves the same.
+export function adoptLorebook(lb) {
+  state.lorebook = lb;
+  const nameEl = g('lorebookName'); if (nameEl) nameEl.value = lb.name || '';
+  const uids = Object.keys(lb.entries).map(Number);
+  state.nextUid = uids.length ? Math.max(...uids) + 1 : 0;
+  state.openTabs = []; state.activeTabId = null; state.selectedEntries = [];
+  state.unsaved = new Set(); state.formState = {};
+  renderList(); renderTabs(); renderEditor();
+  saveToStorage();
+}
+
+// Importing replaces the open lorebook. If that one only exists here (not saved
+// to the library, where edits are written through), ask first: it would be gone.
+export async function confirmReplaceLorebook() {
+  const n = Object.keys(state.lorebook.entries || {}).length;
+  if (!n || loreActiveLibName()) return true;
+  return askConfirm(`This replaces the lorebook you have open (${n} ${n === 1 ? 'entry' : 'entries'}), which isn't saved to your library. Import anyway?`);
+}
+
 export function handleImport(e) {
   const file = e.target.files[0]; if (!file) return;
   const r = new FileReader();
-  r.onload = ev => {
+  r.onload = async ev => {
     // Build the whole thing in a scratch object first. Nothing touches
     // the live `lorebook` until we're sure the file is actually valid —
     // a failed import used to destroy whatever you had open.
@@ -44,16 +66,9 @@ export function handleImport(e) {
       return; // your open lorebook is untouched
     }
 
-    // Validated — now it's safe to swap in.
-    state.lorebook = staged;
-    g('lorebookName').value = state.lorebook.name;
-    state.nextUid = Object.keys(state.lorebook.entries).length
-      ? Math.max(...Object.keys(state.lorebook.entries).map(Number)) + 1
-      : 0;
-
-    state.openTabs = []; state.activeTabId = null; state.unsaved = new Set(); state.formState = {};
-    renderList(); renderTabs(); renderEditor();
-    saveToStorage();
+    // Validated — ask before replacing unsaved work, then it's safe to swap in.
+    if (!(await confirmReplaceLorebook())) return;
+    adoptLorebook(staged);
     toast('Imported: ' + state.lorebook.name, 'ok');
     reportRebuild(rebuildReport);
   };
@@ -166,8 +181,8 @@ export function doExportTxt() {
   const name = g('lorebookName').value || 'Lorebook';
   const logicMap = {0:'AND ANY',1:'NOT ALL',2:'NOT ANY',3:'AND ALL'};
   let md = `# ${name}\n\n`;
-  Object.values(state.lorebook.entries).sort((a,b)=>(a.order||999)-(b.order||999)).forEach((en,i) => {
-    let h = `## ${i+1}. ${en.comment || 'Untitled Entry'}`;
+  Object.values(state.lorebook.entries).sort((a,b)=>(a.order ?? 999)-(b.order ?? 999)).forEach((en,i) => {
+    let h = opts.titles ? `## ${i+1}. ${en.comment || 'Untitled Entry'}` : `## ${i+1}.`;
     if (opts.constants) {
       const ind = [en.constant?'🔵':'', en.vectorized?'🔗':'', (en.selective&&en.keysecondary?.length)?'🟢':''].filter(Boolean);
       if (ind.length) h += ' ' + ind.join(' ');
@@ -249,6 +264,12 @@ export function doExportPublic() {
 // file upload and paste-from-clipboard via a modal.
 // ═══════════════════════════════════════════════════════
 
+// The same shapes parseJanitorEntries accepts, checked without touching anything
+export function looksLikeJanitor(raw) {
+  if (raw && raw.data) raw = raw.data;
+  return Array.isArray(raw) || !!(raw && Array.isArray(raw.entries));
+}
+
 export function parseJanitorEntries(raw, sourceName) {
   // Accept: flat array, { entries: [...] }, or { data: { entries: [...] } }
   if (raw && raw.data) raw = raw.data;
@@ -257,14 +278,13 @@ export function parseJanitorEntries(raw, sourceName) {
     : null;
   if (!entries) return null;
 
-  state.lorebook = { name: (raw && raw.name) || sourceName || 'janitor-import', entries: {} };
-  state.nextUid = 0;
+  const lb = { name: (raw && raw.name) || sourceName || 'janitor-import', entries: {} };
 
   entries.forEach((je, i) => {
     const uid = i;
     // JanitorAI key is already an array — keep as array to match ST internal format
-    const keyArr = Array.isArray(je.key) ? je.key : (je.key ? String(je.key).split(',').map(k=>k.trim()).filter(Boolean) : []);
-    const keysecArr = Array.isArray(je.keysecondary) ? je.keysecondary : (je.keysecondary ? String(je.keysecondary).split(',').map(k=>k.trim()).filter(Boolean) : []);
+    const keyArr = Array.isArray(je.key) ? je.key : (je.key ? splitKeywords(je.key) : []);
+    const keysecArr = Array.isArray(je.keysecondary) ? je.keysecondary : (je.keysecondary ? splitKeywords(je.keysecondary) : []);
 
     // Preserve JanitorAI-specific fields in extensions so round-trip works
     const janitorExt = {};
@@ -274,7 +294,7 @@ export function parseJanitorEntries(raw, sourceName) {
       if (je[f] !== undefined) janitorExt[f] = je[f];
     });
 
-    state.lorebook.entries[uid] = {
+    lb.entries[uid] = {
       uid,
       key:           keyArr,       // array — matches ST internal format
       keysecondary:  keysecArr,    // array — matches ST internal format
@@ -283,7 +303,7 @@ export function parseJanitorEntries(raw, sourceName) {
       constant:      je.constant || false,
       selective:     keysecArr.length > 0,
       selectiveLogic: je.selectiveLogic ?? 0,
-      enabled:       je.enabled !== false,
+      disable:       je.enabled === false, // JanitorAI's `enabled` is SillyTavern's inverse `disable`
       order:         je.insertion_order ?? (i * 100),
       position:      je.position ?? 0,
       depth:         je.depth ?? 4,
@@ -295,16 +315,11 @@ export function parseJanitorEntries(raw, sourceName) {
       role:          je.role ?? null,
       extensions:    Object.assign({}, je.extensions || {}, { janitor: janitorExt }),
     };
-    state.nextUid = Math.max(state.nextUid, uid + 1);
   });
 
-  const lbName = (raw && raw.name) || sourceName || '';
-  const nameEl = g('lorebookName');
-  if (nameEl && lbName) nameEl.value = lbName;
-  state.lorebook.name = lbName;
-
-  state.openTabs = []; state.activeTabId = null; state.selectedEntries = [];
-  renderList(); renderTabs(); renderEditor();
+  lb.name = (raw && raw.name) || sourceName || '';
+  lb.entries = rebuildEntries(lb.entries);
+  adoptLorebook(lb);
   return entries.length;
 }
 
@@ -312,9 +327,10 @@ export function handleJanitorImport(e) {
   const file = e.target.files[0];
   if (!file) return;
   const r = new FileReader();
-  r.onload = ev => {
+  r.onload = async ev => {
     try {
       const raw = JSON.parse(ev.target.result);
+      if (looksLikeJanitor(raw) && !(await confirmReplaceLorebook())) return;
       const count = parseJanitorEntries(raw, file.name.replace(/\.json$/i, ''));
       if (count === null) { toast('Unrecognised JanitorAI format.', 'err'); return; }
       toast(`Imported ${count} entries from JanitorAI lorebook.`, 'ok');
@@ -332,11 +348,12 @@ export function openJanitorPasteModal() {
   if (ta) { ta.value = ''; ta.focus(); }
 }
 
-export function handleJanitorPaste() {
+export async function handleJanitorPaste() {
   const ta = g('janitorPasteTA');
   if (!ta || !ta.value.trim()) { toast('Nothing pasted.', 'warn'); return; }
   try {
     const raw = JSON.parse(ta.value.trim());
+    if (looksLikeJanitor(raw) && !(await confirmReplaceLorebook())) return;
     const count = parseJanitorEntries(raw, 'pasted-lorebook');
     if (count === null) { toast('Unrecognised JanitorAI format — expected a JSON array or object with entries.', 'err'); return; }
     closeModal('janitorPasteModal');
@@ -362,7 +379,7 @@ export function exportJanitorJson() {
         comment:            e.comment || '',
         constant:           e.constant || false,
         content:            e.content || '',
-        enabled:            e.enabled !== false,
+        enabled:            !e.disable,
         extensions:         Object.fromEntries(
                               Object.entries(e.extensions || {}).filter(([k]) => k !== 'janitor')
                             ),
@@ -371,10 +388,10 @@ export function exportJanitorJson() {
         inclusionGroupRaw:  janitorExt.inclusionGroupRaw  ?? '',
         insertion_order:    e.order ?? (i * 100),
         // key as array
-        key:                Array.isArray(e.key) ? e.key : (e.key ? e.key.split(',').map(k=>k.trim()).filter(Boolean) : []),
+        key:                Array.isArray(e.key) ? e.key : (e.key ? splitKeywords(e.key) : []),
         keyMatchPriority:   janitorExt.keyMatchPriority   ?? false,
-        keysecondary:       Array.isArray(e.keysecondary) ? e.keysecondary : (e.keysecondary ? e.keysecondary.split(',').map(k=>k.trim()).filter(Boolean) : []),
-        keysecondaryRaw:    e.keysecondary || '',
+        keysecondary:       Array.isArray(e.keysecondary) ? e.keysecondary : (e.keysecondary ? splitKeywords(e.keysecondary) : []),
+        keysecondaryRaw:    Array.isArray(e.keysecondary) ? e.keysecondary.join(', ') : (e.keysecondary || ''),
         keysRaw:            Array.isArray(e.key) ? e.key.join(', ') : (e.key || ''),
         matchWholeWords:    e.matchWholeWords ?? false,
         minMessages:        janitorExt.minMessages        ?? 0,
@@ -410,9 +427,10 @@ export function handleSaucepanImport(e) {
   const file = e.target.files[0];
   if (!file) return;
   const r = new FileReader();
-  r.onload = ev => {
+  r.onload = async ev => {
     try {
       const raw = JSON.parse(ev.target.result);
+      if (raw && Array.isArray(raw.content) && !(await confirmReplaceLorebook())) return;
       const count = parseSaucepanData(raw, file.name.replace(/\.json$/i, ''));
       if (count === null) { toast('Unrecognised SaucepanAI lorebook format.', 'err'); return; }
       toast(`Imported ${count} entries from SaucepanAI lorebook.`, 'ok');
@@ -428,7 +446,7 @@ export function parseSaucepanData(raw, sourceName) {
   if (!raw || !Array.isArray(raw.content)) return null;
 
   const lbName = raw.name || sourceName || 'saucepan-import';
-  state.lorebook = { name: lbName, entries: {}, saucepanMeta: {
+  const lb = { name: lbName, entries: {}, saucepanMeta: {
     id:                raw.id               || '',
     author_id:         raw.author_id        || '',
     short_description: raw.short_description|| '',
@@ -439,10 +457,9 @@ export function parseSaucepanData(raw, sourceName) {
     very_nsfw:         raw.very_nsfw        || false,
     fandom_tags:       raw.fandom_tags      || [],
   }};
-  state.nextUid = 0;
 
   raw.content.forEach((ch, i) => {
-    state.lorebook.entries[i] = {
+    lb.entries[i] = {
       uid:           i,
       key:           [],          // no keywords in saucepan
       keysecondary:  [],
@@ -451,7 +468,7 @@ export function parseSaucepanData(raw, sourceName) {
       constant:      false,
       selective:     false,
       selectiveLogic: 0,
-      enabled:       true,
+      disable:       false,
       order:         i * 100,
       position:      0,
       depth:         4,
@@ -460,15 +477,10 @@ export function parseSaucepanData(raw, sourceName) {
       role:          null,
       extensions:    { saucepan: { originalId: ch.id || '' } },
     };
-    state.nextUid = i + 1;
   });
 
-  const nameEl = g('lorebookName');
-  if (nameEl) nameEl.value = lbName;
-  state.lorebook.name = lbName;
-
-  state.openTabs = []; state.activeTabId = null; state.selectedEntries = [];
-  renderList(); renderTabs(); renderEditor();
+  lb.entries = rebuildEntries(lb.entries);
+  adoptLorebook(lb);
   return raw.content.length;
 }
 
@@ -615,7 +627,9 @@ registerMarkup(310, `<!-- JANITORAI PASTE MODAL -->
         <label class="flabel">Paste JSON here</label>
         <textarea id="janitorPasteTA" class="ftextarea" style="min-height:220px;font-family:var(--fp);font-size:.82rem" placeholder="[ { &quot;comment&quot;: &quot;Entry name&quot;, &quot;key&quot;: [...], &quot;content&quot;: &quot;...&quot; }, ... ]"></textarea>
       </div>
+      <input type="file" id="fileJanitorInput" accept=".json" style="display:none">
       <div class="modal-foot" style="margin-top:.75rem">
+        <button class="btn btn-s" id="janitorPickFileBtn" title="Import a JanitorAI lorebook .json file (for example one exported from LoreOS) instead of pasting">Open a file instead</button>
         <button class="btn btn-s" data-close="janitorPasteModal">Cancel</button>
         <button class="btn btn-p" id="janitorPasteConfirmBtn">Import</button>
       </div>

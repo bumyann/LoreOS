@@ -25,7 +25,7 @@
  chk('char name', document.getElementById('chName')?.value===T, document.getElementById('chName')?.value);
  chk('char desc', document.getElementById('chDesc')?.value===T); chk('char creator', document.getElementById('chCreator')?.value===T);
  saveChar({silent:true}); chk('char saved', charLibrary.yy.card.data.name===T && charLibrary.yy.card.data.description===T && charLibrary.yy.card.data.creator===T, charLibrary.yy.card.data.creator);
- chk('char alt', charLibrary.yy.card.data.alternate_greetings[0]===T, charLibrary.yy.card.data.alternate_greetings);
+ { const g0=charLibrary.yy.card.data.alternate_greetings[0]; chk('char alt', (typeof g0==='object'?g0.message:g0)===T, g0); }
  // library lists render the text literally, not as markup
  openCharLibrary(); await w(100); chk('char lib text', document.querySelector('#libList .lib-name')?.textContent===T, document.querySelector('#libList .lib-name')?.textContent);
  chk('no injected elements', !document.querySelector('#libList b'));

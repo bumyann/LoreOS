@@ -4,7 +4,9 @@
 
 import { openInTab, renderEditor, renderList, renderTabs } from './lorebook.js';
 import { state } from './state.js';
+import { loreSnapshotSoon, saveToStorage } from './storage.js';
 import { askConfirm, esc, g, registerMarkup, toast } from './util.js';
+import { commitActiveEditor } from './workshop.js';
 
 // ═══════════════════════════════════════════════════════
 // SEARCH & REPLACE
@@ -15,28 +17,42 @@ export function buildPattern() {
   const ww = g('srWhole').checked;
   const rx = g('srRegex').checked;
   if (!text) return null;
+  const flags = 'g' + (cs ? '' : 'i');
   try {
-    if (rx) return new RegExp(text, 'g' + (cs ? '' : 'i'));
-    let esc = text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-    if (ww) esc = `\\b${esc}\\b`;
-    return new RegExp(esc, 'g' + (cs ? '' : 'i'));
+    if (rx) return new RegExp(text, flags);
+    const lit = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (!ww) return new RegExp(lit, flags);
+    // Whole words: \b only understands A-Z, so a Japanese or accented word never
+    // matched. Look at the neighbouring characters instead (any letter or digit).
+    try { return new RegExp(`(?<![\\p{L}\\p{N}_])${lit}(?![\\p{L}\\p{N}_])`, flags + 'u'); }
+    catch (e) { return new RegExp(`\\b${lit}\\b`, flags); } // very old browsers
   } catch(e) { toast('Invalid regex: ' + e.message, 'err'); return null; }
 }
 
+// The text fields searched for each entry, per the "Search in" choice
+function searchFields(en, scope) {
+  const fields = {};
+  if (scope === 'content' || scope === 'all') fields.content = en.content || '';
+  if (scope === 'keywords' || scope === 'all') { fields.primaryKeywords = (en.key||[]).join(', '); fields.secondaryKeywords = (en.keysecondary||[]).join(', '); }
+  if (scope === 'names' || scope === 'all') fields.name = en.comment || '';
+  return fields;
+}
+
+// Search runs on what's actually in the entries, so anything typed into an open
+// entry is saved first (otherwise results would describe text that is gone, or
+// miss what's on screen)
 export function doSearch() {
   const pat = buildPattern(); if (!pat) return;
+  commitActiveEditor();
   const scope = g('srScope').value;
   state.searchResults = [];
   Object.entries(state.lorebook.entries).forEach(([uid, en]) => {
-    const fields = {};
-    if (scope === 'content' || scope === 'all') fields.content = en.content || '';
-    if (scope === 'keywords' || scope === 'all') { fields.primaryKeywords = (en.key||[]).join(', '); fields.secondaryKeywords = (en.keysecondary||[]).join(', '); }
-    if (scope === 'names' || scope === 'all') fields.name = en.comment || '';
-    Object.entries(fields).forEach(([field, text]) => {
+    Object.entries(searchFields(en, scope)).forEach(([field, text]) => {
       pat.lastIndex = 0;
       let m;
       while ((m = pat.exec(text)) !== null) {
         state.searchResults.push({ uid, entryName: en.comment || '(Untitled)', field, matchText: m[0], startIndex: m.index, fullText: text });
+        if (m[0] === '') pat.lastIndex++; // an empty match must not loop forever
       }
     });
   });
@@ -60,22 +76,53 @@ export function renderSearchResults() {
   });
 }
 
+// Replace the n-th match (0-based) of `pat` in `text`
+function replaceNth(text, pat, rep, n) {
+  let i = -1;
+  return text.replace(pat, (...a) => {
+    i++;
+    if (i !== n) return a[0];
+    // expand $1, $&, $<name> the way String.replace would for this single match
+    const groups = typeof a[a.length - 1] === 'object' ? a[a.length - 1] : null;
+    const caps = a.slice(1, a.length - (groups ? 3 : 2));
+    return rep.replace(/\$(\$|&|\d{1,2}|<[^>]+>)/g, (m, t) => t === '$' ? '$' : t === '&' ? a[0] : t[0] === '<' ? ((groups && groups[t.slice(1, -1)]) || '') : (caps[parseInt(t, 10) - 1] ?? m));
+  });
+}
+
+// A change made straight to an entry's data: the entry's open form (if any) is
+// now out of date, so drop it, then save. Without this the form would show the
+// old text and autosave would write it back over the replacement.
+function afterDirectEdit(uids) {
+  uids.forEach(uid => { state.unsaved.delete(uid); delete state.formState[uid]; });
+  saveToStorage();
+  loreSnapshotSoon();
+  renderList(); renderTabs(); renderEditor();
+}
+
 export function doReplaceOne() {
   if (!state.searchResults.length) { toast('Search first.', 'warn'); return; }
   const pat = buildPattern(); if (!pat) return;
+  commitActiveEditor();
   const r = state.searchResults[state.searchIdx];
   const en = state.lorebook.entries[r.uid]; if (!en) return;
   const repTxt = g('srReplace').value;
-  const singlePat = new RegExp(pat.source, pat.flags.replace('g',''));
-  if (r.field === 'content') en.content = en.content.replace(singlePat, repTxt);
-  else if (r.field === 'name') en.comment = en.comment.replace(singlePat, repTxt);
-  else if (r.field === 'primaryKeywords') en.key = en.key.map(k => k.replace(singlePat, repTxt));
-  else if (r.field === 'secondaryKeywords') en.keysecondary = en.keysecondary.map(k => k.replace(singlePat, repTxt));
-  state.unsaved.add(r.uid);
-  state.searchResults.splice(state.searchIdx, 1);
-  if (state.searchIdx >= state.searchResults.length && state.searchIdx > 0) state.searchIdx--;
-  renderList(); renderTabs(); if (state.activeTabId === parseInt(r.uid)) renderEditor();
-  renderSearchResults();
+  // which match of this field is it? (results are in order, so count the earlier ones)
+  let n = 0;
+  for (let i = 0; i < state.searchIdx; i++) if (state.searchResults[i].uid === r.uid && state.searchResults[i].field === r.field) n++;
+  if (r.field === 'content') en.content = replaceNth(en.content || '', pat, repTxt, n);
+  else if (r.field === 'name') en.comment = replaceNth(en.comment || '', pat, repTxt, n);
+  else {
+    const prop = r.field === 'primaryKeywords' ? 'key' : 'keysecondary';
+    let left = n;
+    en[prop] = (en[prop] || []).map(k => {
+      const cnt = (k.match(new RegExp(pat.source, pat.flags)) || []).length;
+      if (left < 0 || cnt === 0) return k;
+      if (left < cnt) { const out = replaceNth(k, pat, repTxt, left); left = -1; return out; }
+      left -= cnt; return k;
+    });
+  }
+  afterDirectEdit([r.uid]);
+  doSearch(); // positions have shifted: search again so the list is true
   toast('Replaced 1 occurrence.', 'ok');
 }
 
@@ -83,20 +130,21 @@ export async function doReplaceAll() {
   if (!state.searchResults.length) { toast('Search first.', 'warn'); return; }
   if (!await askConfirm(`Replace all ${state.searchResults.length} occurrences?`)) return;
   const pat = buildPattern(); if (!pat) return;
+  commitActiveEditor();
   const repTxt = g('srReplace').value;
-  const changed = new Set();
-  state.searchResults.forEach(r => {
-    const en = state.lorebook.entries[r.uid]; if (!en) return;
-    if (r.field === 'content') { en.content = en.content.replace(pat, repTxt); }
-    else if (r.field === 'name') { en.comment = en.comment.replace(pat, repTxt); }
-    else if (r.field === 'primaryKeywords') en.key = en.key.map(k => k.replace(pat, repTxt));
-    else if (r.field === 'secondaryKeywords') en.keysecondary = en.keysecondary.map(k => k.replace(pat, repTxt));
-    changed.add(r.uid);
+  const scope = g('srScope').value;
+  const changed = new Set(); let n = 0;
+  Object.entries(state.lorebook.entries).forEach(([uid, en]) => {
+    const count = t => { pat.lastIndex = 0; const m = String(t).match(pat); return m ? m.length : 0; };
+    const f = searchFields(en, scope);
+    if ('content' in f && count(en.content || '')) { n += count(en.content || ''); en.content = (en.content || '').replace(pat, repTxt); changed.add(uid); }
+    if ('name' in f && count(en.comment || '')) { n += count(en.comment || ''); en.comment = (en.comment || '').replace(pat, repTxt); changed.add(uid); }
+    if ('primaryKeywords' in f && (en.key || []).some(k => count(k))) { (en.key || []).forEach(k => { n += count(k); }); en.key = en.key.map(k => k.replace(pat, repTxt)); changed.add(uid); }
+    if ('secondaryKeywords' in f && (en.keysecondary || []).some(k => count(k))) { (en.keysecondary || []).forEach(k => { n += count(k); }); en.keysecondary = en.keysecondary.map(k => k.replace(pat, repTxt)); changed.add(uid); }
   });
-  changed.forEach(uid => state.unsaved.add(uid));
-  const n = state.searchResults.length; state.searchResults = []; state.searchIdx = 0;
+  state.searchResults = []; state.searchIdx = 0;
   g('srResults').style.display = 'none';
-  renderList(); renderTabs(); renderEditor();
+  afterDirectEdit(changed);
   toast(`Replaced ${n} occurrence${n===1?'':'s'}.`, 'ok');
 }
 

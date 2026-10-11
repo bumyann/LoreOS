@@ -873,10 +873,11 @@ export function saveChar(opts = {}) {
   card.data.creator = s.creator || '';
   card.data.character_version = s.character_version || '';
   card.data.tags = (s.tags || '').split(',').map(t => t.trim()).filter(Boolean);
-  // ST format: alternate_greetings is plain strings; strip titles for ST export
+  // Kept as { title, message } here (the titles belong to SaucepanAI and the editor);
+  // every export flattens them back to the plain strings SillyTavern expects
   card.data.alternate_greetings = (s.alternate_greetings || [])
-    .map(g => typeof g === 'object' ? (g.message || '') : (g || ''))
-    .filter(m => m.trim() !== '');
+    .map(g => typeof g === 'object' ? { title: g.title || '', message: g.message || '' } : { title: '', message: g || '' })
+    .filter(g => g.message.trim() !== '');
 
   // Lumiverse alternate_fields
   if (s._lumiVariants) {

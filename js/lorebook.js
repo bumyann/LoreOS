@@ -5,7 +5,7 @@
 
 import { openFullscreen } from './fullscreen.js';
 import { itemUndoCanRedo, itemUndoCanUndo, itemUndoGet, itemUndoPush, itemUndoStacks, wireFieldUndoRedo } from './history.js';
-import { blankEntry, normalizeEntry } from './lorebook_model.js';
+import { blankEntry, normalizeEntry, parseKeywordField } from './lorebook_model.js';
 import { state } from './state.js';
 import { loreSnapshotSoon, safeSet, saveToStorage } from './storage.js';
 import { openEntryPicker } from './templates.js';
@@ -446,7 +446,7 @@ export function buildEditorHTML(en, uid) {
       <div class="kw-row">
         <div class="kw-field"><label class="flabel-sm">Primary</label><input id="eKw-${uid}" class="finput" value="${esc(kw)}" placeholder="sword, magic, fire"></div>
         <div class="kw-logic"><label class="flabel-sm">Logic</label>
-          <select id="eLogic-${uid}" class="fselect">${sel(logic,[[0,'AND ANY'],[1,'NOT ANY'],[2,'NOT ALL'],[3,'AND ALL']])}</select>
+          <select id="eLogic-${uid}" class="fselect">${sel(logic,[[0,'AND ANY'],[1,'NOT ALL'],[2,'NOT ANY'],[3,'AND ALL']])}</select>
         </div>
         <div class="kw-field"><label class="flabel-sm">Secondary</label><input id="eKw2-${uid}" class="finput" value="${esc(kw2)}" placeholder="holy, blessed"></div>
       </div>
@@ -506,6 +506,17 @@ export function buildEditorHTML(en, uid) {
           <div class="fg"><label class="flabel-sm">Group Weight</label><input type="number" id="eGW-${uid}" class="fnum" value="${esc(gw)}" min="0"></div>
           <div class="fg"><label class="flabel-sm">Automation ID</label><input id="eAID-${uid}" class="finput" value="${esc(aid)}" placeholder="Automation ID..."></div>
 
+          <div class="fg" style="grid-column:1/-1">
+            <label class="flabel-sm">Character Filter <span class="form-note" style="display:inline">(empty = every character)</span></label>
+            <div style="display:flex;gap:1rem;flex-wrap:wrap;margin:.35rem 0">
+              <label class="cb-row"><input type="radio" name="cfMode-${uid}" value="include" ${cfExclude ? '' : 'checked'}><span class="flabel-sm">Only these</span></label>
+              <label class="cb-row"><input type="radio" name="cfMode-${uid}" value="exclude" ${cfExclude ? 'checked' : ''}><span class="flabel-sm">Everyone except these</span></label>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.5rem">
+              <input id="eCFN-${uid}" class="finput" value="${esc(cfNames)}" placeholder="Character names, comma separated">
+              <input id="eCFT-${uid}" class="finput" value="${esc(cfTags)}" placeholder="Character tags, comma separated">
+            </div>
+          </div>
           <div class="fg" style="grid-column:1/-1">
             <label class="flabel-sm">Generation Triggers <span class="form-note" style="display:inline">(empty = all)</span></label>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.35rem;margin-top:.35rem">
@@ -674,9 +685,9 @@ export function saveEntry(uid, opts = {}) {
 
   en.comment = str('eName');
   en.content = str('eContent');
-  en.key = str('eKw').split(',').map(k=>k.trim()).filter(Boolean);
-  en.keysecondary = str('eKw2').split(',').map(k=>k.trim()).filter(Boolean);
-  en.selective = en.keysecondary.length > 0;
+  en.key = parseKeywordField(str('eKw'), en.key);
+  en.keysecondary = parseKeywordField(str('eKw2'), en.keysecondary);
+  if (en.keysecondary.length > 0) en.selective = true; // (with no secondary keys the flag is irrelevant: leave it as imported)
   en.selectiveLogic = parseInt(str('eLogic')) || 0;
   const act = str('eAct');
   en.disable = act === 'inactive'; en.constant = act === 'constant'; en.vectorized = act === 'vector';
@@ -692,8 +703,9 @@ export function saveEntry(uid, opts = {}) {
   const outletEl = gid('eOutlet'); if (outletEl) en.outletName = outletEl.value; else if (en.position !== 7) en.outletName = '';
   const cfInc = document.querySelector(`input[name="cfMode-${uid}"][value="include"]`);
   if (cfInc) en.characterFilter.isExclude = !cfInc.checked;
-  en.characterFilter.names = str('eCFN').split(',').map(n=>n.trim()).filter(Boolean);
-  en.characterFilter.tags = str('eCFT').split(',').map(t=>t.trim()).filter(Boolean);
+  // Only touch the filter if its fields are on screen (a missing field must never wipe it)
+  if (gid('eCFN')) en.characterFilter.names = parseKeywordField(str('eCFN'), en.characterFilter.names);
+  if (gid('eCFT')) en.characterFilter.tags = parseKeywordField(str('eCFT'), en.characterFilter.tags);
   const trigCbs = document.querySelectorAll(`#eAdvBody-${uid} .trig-cb`);
   if (trigCbs.length) en.triggers = [...trigCbs].filter(c=>c.checked).map(c=>c.dataset.trigger);
   en.matchPersonaDescription = chk('eMatchPersona'); en.matchCharacterDescription = chk('eMatchCharDesc');

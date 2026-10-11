@@ -8,7 +8,7 @@ import { exportCharCharx, exportCharJson, exportCharJsonV2, exportCharSaucepan, 
 import { wireFullscreen } from './fullscreen.js';
 import { libSaveCurrent, openLibrary } from './library.js';
 import { applyLoreSettings, changeZoom, clearEditor, clearSelection, closeTab, createEntry, handleSbSearch, openLoreSettings, renderEditor, renderTabs, saveEntry, toggleView } from './lorebook.js';
-import { doExportPublic, doExportTxt, executeMerge, exportJanitorJson, exportJson, exportSaucepanJson, handleImport, handleJanitorPaste, handleMergeImport, handleSaucepanImport, openJanitorPasteModal, openPublicExport, previewPublic, renderMergeList } from './lorebook_io.js';
+import { doExportPublic, doExportTxt, executeMerge, exportJanitorJson, exportJson, exportSaucepanJson, handleImport, handleJanitorImport, handleJanitorPaste, handleMergeImport, handleSaucepanImport, openJanitorPasteModal, openPublicExport, previewPublic, renderMergeList } from './lorebook_io.js';
 import { wireMobile } from './mobile.js';
 import { createPreset, exportPreset, handlePresetImport, makeBlankPrompt, openPresetLibrary, renderPromptList, savePreset, syncPromptOrder } from './preset.js';
 import { PT, ptRefreshManual, wirePronounTool } from './pronoun.js';
@@ -191,13 +191,14 @@ export function wireEvents() {
   // JanitorAI import/export (lorebook)
   if (g('importJanitorPasteBtn')) g('importJanitorPasteBtn').onclick = openJanitorPasteModal;
   if (g('janitorPasteConfirmBtn')) g('janitorPasteConfirmBtn').onclick = handleJanitorPaste;
+  if (g('janitorPickFileBtn')) g('janitorPickFileBtn').onclick = () => g('fileJanitorInput').click();
+  if (g('fileJanitorInput')) g('fileJanitorInput').onchange = e => { closeModal('janitorPasteModal'); handleJanitorImport(e); };
   if (g('exportJanitorBtn')) g('exportJanitorBtn').onclick = exportJanitorJson;
   // SaucepanAI import/export
   if (g('importSaucepanBtn')) g('importSaucepanBtn').onclick = () => g('fileSaucepanInput').click();
   if (g('fileSaucepanInput')) g('fileSaucepanInput').onchange = handleSaucepanImport;
   if (g('exportSaucepanBtn')) g('exportSaucepanBtn').onclick = exportSaucepanJson;
   // Mobile janitor
-  if (g('mobImportJanitorBtn')) g('mobImportJanitorBtn').onclick = () => { closeModal('mobImportModal'); g('fileJanitorInput').click(); };
   if (g('mobExportJanitorBtn')) g('mobExportJanitorBtn').onclick = () => { closeModal('mobExportModal'); exportJanitorJson(); };
 
   // Lorebook global settings modal
@@ -344,4 +345,5 @@ const LoreOS = {};
 Object.keys(state).forEach(k => {
   Object.defineProperty(LoreOS, k, { get: () => state[k], set: v => { state[k] = v; }, enumerable: true, configurable: true });
 });
+LoreOS.state = state;
 window.LoreOS = LoreOS;
