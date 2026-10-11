@@ -10,9 +10,8 @@ import { cancelJournalAutosave } from './router.js';
 import { state } from './state.js';
 import { cancelLoreSnapshot, safeSet } from './storage.js';
 import { renderTemplateList } from './templates.js';
-import { closeModal, dlFile, g, openModal, toast } from './util.js';
+import { closeModal, dlFile, g, openModal, registerMarkup, toast } from './util.js';
 import { cancelAutosave, renderWsTabs } from './workshop.js';
-import { registerMarkup } from './util.js';
 
 export const SYNC_KEYS = [
   'aet_lorebook','aet_tabs','aet_activeTab','aet_nextUid',
@@ -416,7 +415,6 @@ export function currentTplMode() {
   if (title.includes('Prompt')) return 'tpl_preset';
   return 'tpl_lore';
 }
-
 
 // ═══════════════════════════════════════════════════════
 // MARKUP — dialogs and fixed elements this module owns. They are registered

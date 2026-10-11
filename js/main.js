@@ -3,7 +3,8 @@
 // ═══════════════════════════════════════════════════════
 
 import { openAttachLbModal } from './attach_lb.js';
-import { createChar, exportCharCharx, exportCharJson, exportCharJsonV2, exportCharSaucepan, handleCharCompanionImport, handleCharImport, handleCharxImport, openCharLibrary, openCharPngExport, saveChar } from './character.js';
+import { createChar, openCharLibrary, saveChar } from './character.js';
+import { exportCharCharx, exportCharJson, exportCharJsonV2, exportCharSaucepan, handleCharCompanionImport, handleCharImport, handleCharxImport, openCharPngExport } from './character_io.js';
 import { wireFullscreen } from './fullscreen.js';
 import { libSaveCurrent, openLibrary } from './library.js';
 import { applyLoreSettings, changeZoom, clearEditor, clearSelection, closeTab, createEntry, handleSbSearch, openLoreSettings, renderEditor, renderTabs, saveEntry, toggleView } from './lorebook.js';
@@ -11,9 +12,15 @@ import { doExportPublic, doExportTxt, executeMerge, exportJanitorJson, exportJso
 import { wireMobile } from './mobile.js';
 import { createPreset, exportPreset, handlePresetImport, makeBlankPrompt, openPresetLibrary, renderPromptList, savePreset, syncPromptOrder } from './preset.js';
 import { PT, ptRefreshManual, wirePronounTool } from './pronoun.js';
+import { setupOffline } from './pwa.js';
 import { initRouter } from './router.js';
 import { doReplaceAll, doReplaceOne, doSearch } from './search.js';
 import { applyAllCustomisations, applyFonts, toggleTheme, wireFonts, wireSettings } from './settings.js';
+import { state } from './state.js';
+import { loadFromStorage, loadPrefs } from './storage.js';
+import { openEntryPicker, openTemplateLibrary, wireTplLibrary } from './templates.js';
+import { closeAllDropdowns, closeModal, g, injectMarkup, openModal, toast } from './util.js';
+import { openWsPicker, renderWsPickerList, switchMode, wireAutosave, wsRestoreTabs } from './workshop.js';
 import * as m_util from './util.js';
 import * as m_storage from './storage.js';
 import * as m_history from './history.js';
@@ -35,13 +42,10 @@ import * as m_gdrive from './gdrive.js';
 import * as m_mobile from './mobile.js';
 import * as m_router from './router.js';
 import * as m_pwa from './pwa.js';
+import * as m_character_io from './character_io.js';
+import * as m_avatar from './avatar.js';
+import * as m_templates_data from './templates_data.js';
 import './help.js'; // registers the help dialog's markup
-import { setupOffline } from './pwa.js';
-import { state } from './state.js';
-import { loadFromStorage, loadPrefs } from './storage.js';
-import { openEntryPicker, openTemplateLibrary, wireTplLibrary } from './templates.js';
-import { closeAllDropdowns, closeModal, g, injectMarkup, openModal, toast } from './util.js';
-import { openWsPicker, renderWsPickerList, switchMode, wireAutosave, wsRestoreTabs } from './workshop.js';
 
 // ═══════════════════════════════════════════════════════
 // GLOBAL ERROR CATCHER
@@ -332,7 +336,7 @@ export function wireEvents() {
 // through to the shared state object.
 // ═══════════════════════════════════════════════════════
 const LoreOS = {};
-[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa].forEach(ns => {
+[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa, m_character_io, m_avatar, m_templates_data].forEach(ns => {
   Object.keys(ns).forEach(k => {
     if (!(k in LoreOS)) Object.defineProperty(LoreOS, k, { get: () => ns[k], enumerable: true, configurable: true });
   });

@@ -9,9 +9,8 @@ import { blankEntry, normalizeEntry } from './lorebook_model.js';
 import { state } from './state.js';
 import { loreSnapshotSoon, safeSet, saveToStorage } from './storage.js';
 import { openEntryPicker } from './templates.js';
-import { askConfirm, closeModal, esc, g, openModal, toast } from './util.js';
+import { askConfirm, closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
 import { commitActiveEditor } from './workshop.js';
-import { registerMarkup } from './util.js';
 
 export function createEntry() {
   const uid = state.nextUid++;
@@ -735,7 +734,6 @@ export function applyLoreSettings() {
   closeModal('loreSettingsModal');
   toast('Lorebook settings updated.', 'ok');
 }
-
 
 // ═══════════════════════════════════════════════════════
 // MARKUP — dialogs and fixed elements this module owns. They are registered

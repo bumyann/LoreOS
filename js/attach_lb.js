@@ -8,8 +8,7 @@
 import { renderPromptList } from './preset.js';
 import { state } from './state.js';
 import { libGet, saveCharLibrary, savePresetLibrary } from './storage.js';
-import { askInput, esc, g, openModal, toast } from './util.js';
-import { registerMarkup } from './util.js';
+import { askInput, esc, g, openModal, registerMarkup, toast } from './util.js';
 
 export function updateLbStatus(entry) {
   const statusEl = g('chLbStatus');
@@ -328,7 +327,6 @@ export async function renameVar(oldName) {
 export function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-
 
 // ═══════════════════════════════════════════════════════
 // MARKUP — dialogs and fixed elements this module owns. They are registered

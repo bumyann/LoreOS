@@ -4,8 +4,7 @@
 // ═══════════════════════════════════════════════════════
 
 import { state } from './state.js';
-import { copyToClipboard, g, toast } from './util.js';
-import { registerMarkup } from './util.js';
+import { copyToClipboard, g, registerMarkup, toast } from './util.js';
 
 // ── Pronoun/noun tool globals — must live here so wireEvents can reference PT ──
 export const PT = {
@@ -399,7 +398,6 @@ export function ptRefreshManual() {
   PT_nounTokens = tokenizeForNouns(text);
   renderNounDisplay(PT_nounTokens);
 }
-
 
 // ═══════════════════════════════════════════════════════
 // MARKUP — dialogs and fixed elements this module owns. They are registered

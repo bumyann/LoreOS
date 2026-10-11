@@ -279,7 +279,6 @@ export function renderLaboratoryView() {
 
 // ─── SETTINGS VIEW ───────────────────────────────────
 
-
 // ─── SIDEBAR NAV TOGGLE ──────────────────────────────
 export function initNavSidebar() {
   const nav = document.getElementById('nav-sidebar');
@@ -332,7 +331,6 @@ export function initRouter() {
   const last = getLastView();
   navigateTo(last);
 }
-
 
 // ═══════════════════════════════════════════════════════
 // NOTEBOOK — tiptap-powered WYSIWYG markdown editor

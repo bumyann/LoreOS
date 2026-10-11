@@ -8,9 +8,8 @@ import { itemHistoryPush, itemUndoGet, itemUndoPush, openItemHistory, syncItemUn
 import { closeMobSidebar } from './mobile.js';
 import { state } from './state.js';
 import { savePresetLibrary } from './storage.js';
-import { askConfirm, closeModal, dlFile, esc, g, openModal, safeFileName, toast } from './util.js';
+import { askConfirm, closeModal, dlFile, esc, g, openModal, registerMarkup, safeFileName, toast } from './util.js';
 import { commitActiveEditor, wsDropItem, wsMarkSaved, wsShowItem } from './workshop.js';
-import { registerMarkup } from './util.js';
 
 // ── Blank preset matching ST chat completion format ──
 export function blankPreset() {
@@ -858,7 +857,6 @@ export function openPresetLibrary() {
   g('libSaveBtn').parentElement.style.display = 'none';
   openModal('libModal');
 }
-
 
 // ═══════════════════════════════════════════════════════
 // MARKUP — dialogs and fixed elements this module owns. They are registered

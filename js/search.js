@@ -4,8 +4,7 @@
 
 import { openInTab, renderEditor, renderList, renderTabs } from './lorebook.js';
 import { state } from './state.js';
-import { askConfirm, esc, g, toast } from './util.js';
-import { registerMarkup } from './util.js';
+import { askConfirm, esc, g, registerMarkup, toast } from './util.js';
 
 // ═══════════════════════════════════════════════════════
 // SEARCH & REPLACE
@@ -100,7 +99,6 @@ export async function doReplaceAll() {
   renderList(); renderTabs(); renderEditor();
   toast(`Replaced ${n} occurrence${n===1?'':'s'}.`, 'ok');
 }
-
 
 // ═══════════════════════════════════════════════════════
 // MARKUP — dialogs and fixed elements this module owns. They are registered

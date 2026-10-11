@@ -2,12 +2,12 @@
 // THEME
 // ═══════════════════════════════════════════════════════
 
-import { downscaleAvatar, renderCharSidebar } from './character.js';
+import { downscaleAvatar } from './avatar.js';
+import { renderCharSidebar } from './character.js';
 import { state } from './state.js';
 import { safeSet, saveCharLibrary, storageUsage } from './storage.js';
 import { wireSync } from './sync.js';
-import { askConfirm, closeModal, esc, g, openModal, toast } from './util.js';
-import { registerMarkup } from './util.js';
+import { askConfirm, closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
 
 export function toggleTheme() {
   document.body.classList.toggle('pink');
@@ -472,8 +472,6 @@ export function wireFonts() {
   wireSync();
 }
 
-
-
 // ═══════════════════════════════════════════════════════
 // STORAGE PANEL
 // Shows where the ~5MB browser storage budget is going, so a
@@ -568,7 +566,6 @@ export async function optimiseStoredAvatars() {
     ? `Optimised ${changed} avatar${changed === 1 ? '' : 's'} — freed ${fmtKB(freed)}.`
     : 'Nothing to optimise — avatars are already small.', changed ? 'ok' : 'info');
 }
-
 
 // ═══════════════════════════════════════════════════════
 // MARKUP — dialogs and fixed elements this module owns. They are registered

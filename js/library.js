@@ -7,9 +7,8 @@ import { renderEditor, renderList, renderTabs } from './lorebook.js';
 import { rebuildEntries } from './lorebook_model.js';
 import { state } from './state.js';
 import { libGet, libSet, loreActiveLibName, loreLinkToLib, saveToStorage } from './storage.js';
-import { askConfirm, askInput, closeModal, esc, g, openModal, toast } from './util.js';
+import { askConfirm, askInput, closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
 import { renderWsTabs, wsDropItem, wsShowItem } from './workshop.js';
-import { registerMarkup } from './util.js';
 
 export function openLibrary() {
   g('libModalTitle').textContent = 'Lorebook Library';
@@ -120,7 +119,6 @@ export async function libDelete(name) {
   renderLibraryList();
   toast(`Deleted "${name}".`, 'info');
 }
-
 
 // ═══════════════════════════════════════════════════════
 // MARKUP — dialogs and fixed elements this module owns. They are registered

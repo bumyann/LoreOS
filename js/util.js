@@ -5,7 +5,7 @@
 // Markup registry. Each feature module registers the dialogs and fixed elements it
 // owns (with a number giving their order on the page); main.js injects them all
 // once, before anything is wired up.
-const _markup = [];
+export const _markup = [];
 export function registerMarkup(order, html) { _markup.push({ order, html }); }
 export function injectMarkup() {
   _markup.sort((a, b) => a.order - b.order);
@@ -149,7 +149,6 @@ export function copyToClipboard(text) {
     return ok;
   }
 }
-
 
 // ═══════════════════════════════════════════════════════
 // MARKUP — dialogs and fixed elements this module owns. They are registered

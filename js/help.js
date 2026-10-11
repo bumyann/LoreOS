@@ -4,7 +4,6 @@
 
 import { registerMarkup } from './util.js';
 
-
 // ═══════════════════════════════════════════════════════
 // MARKUP — dialogs and fixed elements this module owns. They are registered
 // here and injected into the page by main.js, in page order, before the app is

@@ -3,8 +3,7 @@
 // ═══════════════════════════════════════════════════════
 
 import { attachFieldUndoRedo } from './history.js';
-import { closeModal, g, openModal, toast } from './util.js';
-import { registerMarkup } from './util.js';
+import { closeModal, g, openModal, registerMarkup, toast } from './util.js';
 
 export let fullscreenTargetId = null;
 
@@ -60,7 +59,6 @@ export function wireFullscreen() {
 // Storage: 'aet_tpl_lore' and 'aet_tpl_char'
 // lore templates: { id: { id, name, content, savedAt } }
 // char templates: { id: { id, name, field?, content, savedAt } }
-
 
 // ═══════════════════════════════════════════════════════
 // MARKUP — dialogs and fixed elements this module owns. They are registered

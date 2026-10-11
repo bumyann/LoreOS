@@ -2,7 +2,8 @@
 // MOBILE.JS — mobile nav, drawer, touch UX
 // ═══════════════════════════════════════════════════════
 
-import { createChar, exportCharCharx, exportCharJson, exportCharJsonV2, exportCharSaucepan, openCharLibrary, openCharPngExport } from './character.js';
+import { createChar, openCharLibrary } from './character.js';
+import { exportCharCharx, exportCharJson, exportCharJsonV2, exportCharSaucepan, openCharPngExport } from './character_io.js';
 import { openLibrary } from './library.js';
 import { clearEditor, openLoreSettings } from './lorebook.js';
 import { exportJanitorJson, exportJson, exportSaucepanJson, openJanitorPasteModal, openPublicExport } from './lorebook_io.js';
@@ -12,8 +13,7 @@ import { currentView, navigateTo } from './router.js';
 import { toggleTheme } from './settings.js';
 import { state } from './state.js';
 import { openEntryPicker, openTemplateLibrary } from './templates.js';
-import { closeModal, g, openModal, toast } from './util.js';
-import { registerMarkup } from './util.js';
+import { closeModal, g, openModal, registerMarkup, toast } from './util.js';
 
 export const isMob = () => window.innerWidth <= 700;
 
@@ -207,7 +207,6 @@ export function wireMobile() {
   });
 
 }
-
 
 // ═══════════════════════════════════════════════════════
 // MARKUP — dialogs and fixed elements this module owns. They are registered

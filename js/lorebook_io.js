@@ -7,8 +7,7 @@ import { renderEditor, renderList, renderTabs } from './lorebook.js';
 import { rebuildEntries, reportRebuild } from './lorebook_model.js';
 import { state } from './state.js';
 import { saveToStorage } from './storage.js';
-import { closeModal, dlFile, g, openModal, safeFileName, toast } from './util.js';
-import { registerMarkup } from './util.js';
+import { closeModal, dlFile, g, openModal, registerMarkup, safeFileName, toast } from './util.js';
 
 // ═══════════════════════════════════════════════════════
 // IMPORT / EXPORT
@@ -393,7 +392,6 @@ export function exportJanitorJson() {
   toast('Exported as JanitorAI lorebook (flat array format).', 'ok');
 }
 
-
 // ═══════════════════════════════════════════════════════
 // SAUCEPANAI LOREBOOK IMPORT / EXPORT
 //
@@ -519,7 +517,6 @@ export function exportSaucepanJson() {
   dlFile(JSON.stringify(out, null, 2), fn, 'application/json');
   toast('Exported as SaucepanAI lorebook.', 'ok');
 }
-
 
 // ═══════════════════════════════════════════════════════
 // MARKUP — dialogs and fixed elements this module owns. They are registered

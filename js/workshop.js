@@ -11,8 +11,7 @@ import { openPreset, renderPresetEditor, renderPresetSidebar, savePreset } from 
 import { currentView, navigateTo } from './router.js';
 import { state, WS_MAX_TABS } from './state.js';
 import { loreActiveLibName, loreSyncToLib } from './storage.js';
-import { closeModal, esc, g, openModal, toast } from './util.js';
-import { registerMarkup } from './util.js';
+import { closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
 
 // ═══════════════════════════════════════════════════════
 // WORKSHOP TABS
@@ -436,7 +435,6 @@ export function applyMode(newMode) {
     renderPresetSidebar(); renderPresetEditor();
   }
 }
-
 
 // ═══════════════════════════════════════════════════════
 // MARKUP — dialogs and fixed elements this module owns. They are registered
