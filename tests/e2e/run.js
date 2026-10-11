@@ -34,6 +34,7 @@ const T=[
  ['audit-m1', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['audit-t1', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['audit-q1', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
+ ['prompt-packs', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['text-roundtrip', o=>o.fail.length===0],
  ['xss-everywhere',   o=>o.hits.length===0],
  ['lorebook-import-keys',   o=>o.fail.length===0],

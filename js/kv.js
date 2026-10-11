@@ -26,6 +26,7 @@ export const KV_STORE = 'kv';
 export const BIG_KEYS = [
   'aet_lorebook', 'aet_library', 'aet_charLibrary', 'aet_presetLibrary',
   'aet_tpl_lore', 'aet_tpl_char', 'aet_tpl_preset',
+  'aet_promptLibrary',
   'loreos_notebook', 'aet_backup_history', 'aet_trash', 'aet_fonts', // aet_fonts = uploaded font files
 ];
 const BIG = new Set(BIG_KEYS);

@@ -115,6 +115,7 @@ const STORAGE_SHAPES = {
   aet_wsTabs:        v => isObj(v) && (v.items === undefined || Array.isArray(v.items)), // { items: [...], active }
   aet_charLibrary:   v => isObj(v),
   aet_presetLibrary: v => isObj(v),
+  aet_promptLibrary: v => isObj(v),
   aet_library:       v => isObj(v),
   aet_tpl_lore:      v => isObj(v),
   aet_tpl_char:      v => isObj(v),
@@ -125,7 +126,7 @@ const STORAGE_SHAPES = {
   aet_trash:         v => Array.isArray(v),
 };
 // Library maps: every value must be an object, and some need their payload
-const ENTRY_NEEDS = { aet_charLibrary: 'card', aet_presetLibrary: 'preset' };
+const ENTRY_NEEDS = { aet_charLibrary: 'card', aet_presetLibrary: 'preset', aet_promptLibrary: 'pack' };
 
 export function sanitizeStorage() {
   const fixed = [];
@@ -206,6 +207,10 @@ export function loadFromStorage() {
 
   loadPart('preset library', () => {
     state.presetLibrary = JSON.parse(store.get('aet_presetLibrary') || '{}');
+  });
+
+  loadPart('prompt library', () => {
+    state.promptLibrary = JSON.parse(store.get('aet_promptLibrary') || '{}');
   });
 
   loadPart('workshop tabs', renderWsTabs);
@@ -291,6 +296,12 @@ export function saveToStorage() {
 
 export function saveCharLibrary() {
   const ok = safeSet('aet_charLibrary', JSON.stringify(state.charLibrary));
+  if (ok) syncAutoPush();
+  return ok;
+}
+
+export function savePromptLibrary() {
+  const ok = safeSet('aet_promptLibrary', JSON.stringify(state.promptLibrary));
   if (ok) syncAutoPush();
   return ok;
 }

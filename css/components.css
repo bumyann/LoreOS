@@ -549,3 +549,57 @@ input[type=number].fnum::-webkit-inner-spin-button{-webkit-appearance:none;margi
 .stg-trash-date{color:var(--txm);font-size:.62rem}
 .stg-browser{margin-top:.7rem;font-family:var(--fx);font-size:.68rem;line-height:1.55;color:var(--txd)}
 .stg-browser-line{margin-bottom:.4rem}
+
+/* ── Prompt packs (Prompt tab) ── */
+.pr-wrap{display:flex;flex-direction:column;gap:.8rem;padding:1rem;max-width:1180px;margin:0 auto;width:100%}
+.pr-top{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.pr-name{flex:1;min-width:180px;font-size:1rem}
+.pr-top-acts{display:flex;gap:.4rem}
+.pr-tabs{display:flex;gap:.25rem;flex-wrap:wrap;border-bottom:1px solid var(--bd)}
+.pr-tab{font-family:var(--fx);font-size:.75rem;letter-spacing:.4px;padding:.45rem .8rem;background:transparent;color:var(--txm);border:1px solid transparent;border-bottom:none;border-radius:3px 3px 0 0;cursor:pointer}
+.pr-tab:hover{color:var(--txd)}
+.pr-tab.active{color:var(--p);background:var(--bg2);border-color:var(--bd)}
+.pr-body{display:flex;flex-direction:column;gap:.8rem}
+.pr-help{font-family:var(--fx);font-size:.7rem;color:var(--txm);line-height:1.55;margin:0}
+.pr-lbl{font-family:var(--fx);font-size:.7rem;color:var(--txd);letter-spacing:.4px;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.pr-sets{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+.pr-build{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:1rem;align-items:start}
+.pr-group{background:var(--bg2);border:1px solid var(--bd);border-radius:4px;padding:.6rem .7rem;margin-bottom:.7rem;display:flex;flex-direction:column;gap:.45rem}
+.pr-group-head{display:flex;align-items:center;gap:.5rem;font-family:var(--fx);font-size:.78rem;color:var(--tx);letter-spacing:.4px}
+.pr-badge{font-size:.58rem;color:var(--txm);border:1px solid var(--bd);border-radius:10px;padding:0 .45rem}
+.pr-mod{display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap;padding:.3rem .2rem;border-radius:3px;cursor:pointer;font-family:var(--fx);font-size:.74rem;color:var(--txd)}
+.pr-mod:hover{background:var(--sf)}
+.pr-mod.on{color:var(--tx);background:var(--sf)}
+.pr-mod input{accent-color:var(--p);flex-shrink:0}
+.pr-radio{border-radius:50%}
+.pr-mod-notes{flex-basis:100%;font-size:.62rem;color:var(--txm);line-height:1.4;padding-left:1.4rem}
+.pr-tok{font-family:var(--fx);font-size:.62rem;color:var(--txm);white-space:nowrap}
+.pr-out{display:flex;flex-direction:column;gap:.6rem;position:sticky;top:0}
+.pr-names{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.pr-names .finput{flex:1;min-width:120px}
+.pr-total{font-family:var(--fx);font-size:.72rem;color:var(--txd)}
+.pr-field{display:flex;flex-direction:column;gap:.3rem;margin-top:.5rem}
+.pr-field-head{display:flex;align-items:center;gap:.6rem}
+.pr-field-label{font-family:var(--fx);font-size:.78rem;color:var(--tx);flex:1}
+.pr-out-ta{font-size:.72rem;min-height:160px}
+.pr-empty{font-family:var(--fx);font-size:.72rem;color:var(--txm);padding:.8rem}
+.pr-group-edit-head,.pr-row{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}
+.pr-group-edit-head .finput,.pr-row .finput{flex:1;min-width:140px}
+.pr-module{border:1px solid var(--bd);border-radius:3px;background:var(--bg)}
+.pr-module>summary{display:flex;gap:.6rem;align-items:baseline;padding:.4rem .6rem;cursor:pointer;font-family:var(--fx);font-size:.74rem;color:var(--txd);list-style:none}
+.pr-module>summary::-webkit-details-marker{display:none}
+.pr-module>summary::before{content:'\25B8';color:var(--txm)}
+.pr-module[open]>summary::before{content:'\25BE'}
+.pr-mod-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pr-module-body{display:flex;flex-direction:column;gap:.45rem;padding:.2rem .6rem .6rem}
+.pr-ta-wrap{position:relative}
+.pr-chips{display:flex;gap:.3rem;flex-wrap:wrap}
+.pr-chip{font-family:var(--fx);font-size:.66rem;color:var(--txm);border:1px solid var(--bd);border-radius:12px;padding:.15rem .55rem;cursor:pointer;display:inline-flex;gap:.3rem;align-items:center}
+.pr-chip.on{color:var(--tx);border-color:var(--p);background:var(--sf)}
+.pr-chip input{accent-color:var(--p)}
+.pr-field-edit{display:flex;flex-direction:column;gap:.4rem;padding:.4rem 0;border-top:1px dashed var(--bd)}
+@media (max-width:900px){
+  .pr-build{grid-template-columns:minmax(0,1fr)}
+  .pr-out{position:static}
+  .pr-wrap{padding:.6rem}
+}

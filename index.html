@@ -237,7 +237,18 @@
 
           <!-- STUB MODE ACTIONS (persona / prompt / regex) -->
           <div class="hdr-actions mode-actions" id="hdr-persona" style="display:none"></div>
-          <div class="hdr-actions mode-actions" id="hdr-prompt" style="display:none"></div>
+          <div class="hdr-actions mode-actions" id="hdr-prompt" style="display:none">
+            <div class="dd" id="dd-promptexport">
+              <button class="btn btn-s dd-btn">&#8657; Export</button>
+              <div class="dd-menu">
+                <button class="dd-item" id="promptExportTxtBtn">Current stack (text)</button>
+                <button class="dd-item" id="promptExportMdBtn">Markdown page</button>
+                <button class="dd-item" id="promptExportJsonBtn">LoreOS pack (JSON)</button>
+              </div>
+            </div>
+            <button class="btn btn-s" id="promptImportBtn">&#8659; Import</button>
+            <button class="btn btn-ok" id="promptNewBtn">+ New Prompt Pack</button>
+          </div>
           <div class="hdr-actions mode-actions" id="hdr-regex" style="display:none"></div>
 
           <button class="btn-icon btn mob-hide" id="helpBtn" title="Help">?</button>

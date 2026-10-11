@@ -6,8 +6,9 @@ import { openChar } from './character.js';
 import { renderEditor, renderList, renderTabs } from './lorebook.js';
 import { rebuildEntries } from './lorebook_model.js';
 import { openPreset } from './preset.js';
+import { openPrompt } from './prompt.js';
 import { state } from './state.js';
-import { loreActiveLibName, loreLinkToLib, loreSyncToLib, lzPack, lzUnpack, safeSet, saveCharLibrary, savePresetLibrary, saveToStorage } from './storage.js';
+import { loreActiveLibName, loreLinkToLib, loreSyncToLib, lzPack, lzUnpack, safeSet, saveCharLibrary, savePresetLibrary, savePromptLibrary, saveToStorage } from './storage.js';
 import { askConfirm, dlFile, esc, g, toast } from './util.js';
 import { store } from './kv.js';
 
@@ -162,7 +163,7 @@ export function itemHistoryPush(type, itemId, entryOrData, label = null) {
   // Storing imageData in every snapshot meant one character with a
   // picture could be keeping eleven copies of that picture. Strip it —
   // and strip the nested history so snapshots don't contain snapshots.
-  if (payload && typeof payload === 'object' && (type === 'char' || type === 'preset')) {
+  if (payload && typeof payload === 'object' && (type === 'char' || type === 'preset' || type === 'prompt')) {
     payload = { ...payload };
     delete payload.imageData;
     delete payload.history;
@@ -178,7 +179,8 @@ export function itemHistoryPush(type, itemId, entryOrData, label = null) {
   // right after saving), so real versions don't get pushed out of the 10 slots
   const histOf = type === 'lore'
     ? (JSON.parse(store.get('aet_library') || '{}')[itemId] || {}).history
-    : type === 'char' ? state.charLibrary[itemId]?.history : state.presetLibrary[itemId]?.history;
+    : type === 'char' ? state.charLibrary[itemId]?.history
+    : type === 'prompt' ? state.promptLibrary[itemId]?.history : state.presetLibrary[itemId]?.history;
   if (!label && histOf && histOf[0] && histOf[0].data === snapshot.data) return;
 
   if (type === 'lore') {
@@ -200,6 +202,12 @@ export function itemHistoryPush(type, itemId, entryOrData, label = null) {
     state.presetLibrary[itemId].history.unshift(snapshot);
     if (state.presetLibrary[itemId].history.length > ITEM_HIST_MAX) state.presetLibrary[itemId].history.splice(ITEM_HIST_MAX);
     savePresetLibrary();
+  } else if (type === 'prompt') {
+    if (!state.promptLibrary[itemId]) return;
+    if (!state.promptLibrary[itemId].history) state.promptLibrary[itemId].history = [];
+    state.promptLibrary[itemId].history.unshift(snapshot);
+    if (state.promptLibrary[itemId].history.length > ITEM_HIST_MAX) state.promptLibrary[itemId].history.splice(ITEM_HIST_MAX);
+    savePromptLibrary();
   }
 }
 
@@ -215,6 +223,8 @@ export function itemHistorySaveCheckpoint(type, itemId, label) {
     itemHistoryPush(type, itemId, state.charLibrary[itemId], label.trim());
   } else if (type === 'preset') {
     itemHistoryPush(type, itemId, state.presetLibrary[itemId], label.trim());
+  } else if (type === 'prompt') {
+    itemHistoryPush(type, itemId, state.promptLibrary[itemId], label.trim());
   }
   toast('Checkpoint saved.', 'ok');
 }
@@ -239,6 +249,8 @@ export function itemHistoryRefreshOpen(type, itemId) {
     if (state.activeCharId === itemId && state.mode === 'char') openChar(itemId);
   } else if (type === 'preset') {
     if (state.activePresetId === itemId && state.mode === 'preset') openPreset(itemId);
+  } else if (type === 'prompt') {
+    if (state.activePromptId === itemId && state.mode === 'prompt') openPrompt(itemId);
   }
 }
 
@@ -251,6 +263,8 @@ export function openItemHistory(type, itemId) {
     entry = state.charLibrary[itemId];
   } else if (type === 'preset') {
     entry = state.presetLibrary[itemId];
+  } else if (type === 'prompt') {
+    entry = state.promptLibrary[itemId];
   }
 
   if (!entry) { toast('Item not found.', 'err'); return; }
@@ -332,6 +346,8 @@ export function openItemHistory(type, itemId) {
           if (state.charLibrary[itemId]) { Object.assign(state.charLibrary[itemId], data); ok = saveCharLibrary(); }
         } else if (type === 'preset') {
           if (state.presetLibrary[itemId]) { Object.assign(state.presetLibrary[itemId], data); ok = savePresetLibrary(); }
+        } else if (type === 'prompt') {
+          if (state.promptLibrary[itemId]) { Object.assign(state.promptLibrary[itemId], data); ok = savePromptLibrary(); }
         }
         if (!ok) return; // safeSet already told the user why
         modal.remove();

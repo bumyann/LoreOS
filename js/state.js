@@ -11,7 +11,7 @@ export const WS_MAX_TABS = 5;
 
 export const state = {
   // ── Editor ──
-  mode: 'lore', // 'lore' | 'char' | 'preset'
+  mode: 'lore', // 'lore' | 'char' | 'preset' | 'prompt' (persona / regex are still stubs)
 
   // ── Lorebook editor ──
   lorebook: { entries: {} },
@@ -41,7 +41,13 @@ export const state = {
   presetFormState: {},
   presetUnsaved: false, // preset form edited since its last save
 
-  // ── Workshop tabs: { id, type: 'lore'|'char'|'preset', itemId, unsaved } ──
+  // ── Prompt packs: { id: { id, name, pack, savedAt } } (see prompt_model.js) ──
+  promptLibrary: {},
+  activePromptId: null,
+  promptUnsaved: false,
+  promptTab: 'build',   // which part of the pack editor is showing
+
+  // ── Workshop tabs: { id, type: 'lore'|'char'|'preset'|'prompt', itemId, unsaved } ──
   wsItems: [],      // open tabs
   wsActiveId: null, // currently focused tab id
   wsNextId: 1,      // internal tab id counter

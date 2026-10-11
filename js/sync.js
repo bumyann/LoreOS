@@ -16,7 +16,7 @@ import { cancelAutosave, renderWsTabs } from './workshop.js';
 
 export const SYNC_KEYS = [
   'aet_lorebook','aet_tabs','aet_activeTab','aet_nextUid',
-  'aet_charLibrary','aet_presetLibrary',
+  'aet_charLibrary','aet_presetLibrary','aet_promptLibrary',
   'aet_library',
   'aet_tpl_lore','aet_tpl_char','aet_tpl_preset',
   'aet_theme','aet_zoom','aet_css','aet_css_light',
@@ -32,6 +32,7 @@ export const SYNC_MODULES = [
   { key: 'lorelib',   label: 'Lorebook Library',    keys: ['aet_library'] },
   { key: 'chars',     label: 'Character Library',   keys: ['aet_charLibrary'] },
   { key: 'presets',   label: 'Preset Library',      keys: ['aet_presetLibrary'] },
+  { key: 'prompts',   label: 'Prompt Packs',        keys: ['aet_promptLibrary'] },
   { key: 'tpl_lore',  label: 'Lorebook Templates',  keys: ['aet_tpl_lore'] },
   { key: 'tpl_char',  label: 'Character Templates', keys: ['aet_tpl_char'] },
   { key: 'tpl_preset',label: 'Prompt Library',      keys: ['aet_tpl_preset'] },

@@ -34,7 +34,7 @@ export function closeMobSidebar() { if (isMob()) closeSidebar(); }
 
 // ── updateMobNav: show/hide mode-specific action buttons ──
 export function updateMobNav(m) {
-  ['lore','char','preset'].forEach(modeKey => {
+  ['lore','char','preset','prompt'].forEach(modeKey => {
     document.querySelectorAll(`.mob-mode-btn.mob-${modeKey}`).forEach(btn => {
       btn.style.display = (m === modeKey) ? '' : 'none';
     });
@@ -42,7 +42,7 @@ export function updateMobNav(m) {
   // Every editor mode has a sidebar (entries / characters / presets)
   const entriesBtn = g('mobEntries');
   const sep = g('mob-nav-sep');
-  const hasSidebar = ['lore','char','preset'].includes(m);
+  const hasSidebar = ['lore','char','preset','prompt'].includes(m);
   if (entriesBtn) entriesBtn.style.display = hasSidebar ? '' : 'none';
   if (sep) sep.style.display = hasSidebar ? '' : 'none';
 }
@@ -298,6 +298,17 @@ registerMarkup(140, `<!-- MOBILE BOTTOM NAV -->
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetAddPrompt" title="Add Prompt" style="display:none">
     <span class="icon">+</span><span class="mob-nav-lbl">+ Prompt</span>
+  </button>
+
+  <!-- PROMPT actions -->
+  <button class="mob-nav-btn mob-mode-btn mob-prompt hi" id="mobPromptNew" title="New Prompt Pack" style="display:none">
+    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-prompt" id="mobPromptImport" title="Import Prompt Pack" style="display:none">
+    <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-prompt" id="mobPromptExport" title="Export Prompt Pack" style="display:none">
+    <span class="icon">↑</span><span class="mob-nav-lbl">Export</span>
   </button>
 
   <!-- always-visible: settings/theme -->

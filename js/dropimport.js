@@ -13,12 +13,14 @@ export async function classifyDrop(file) {
   const name = (file.name || '').toLowerCase();
   if (name.endsWith('.png')) return { input: 'fileCharInput', mode: 'char' };
   if (name.endsWith('.charx')) return { input: 'fileCharxInput', mode: 'char' };
+  if (name.endsWith('.md') || name.endsWith('.markdown')) return { input: 'filePromptInput', mode: 'prompt' }; // a prompt page
   if (!name.endsWith('.json')) return null;
   let data;
   try { data = JSON.parse(await file.text()); } catch (e) { return null; }
   if (Array.isArray(data)) return { input: 'fileJanitorInput', mode: 'lore' };          // JanitorAI lorebook
   if (!isObj(data)) return null;
   if (data._version) return { input: 'syncImportFile', mode: null };                     // LoreOS backup
+  if (data.format === 'loreos-prompt-pack') return { input: 'filePromptInput', mode: 'prompt' };
   if (data.spec && String(data.spec).startsWith('chara_card')) return { input: 'fileCharInput', mode: 'char' };
   if (isObj(data.data) && ('first_mes' in data.data || 'description' in data.data)) return { input: 'fileCharInput', mode: 'char' };
   if ('first_mes' in data && 'name' in data) return { input: 'fileCharInput', mode: 'char' }; // V1 card
