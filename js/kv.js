@@ -54,6 +54,19 @@ function openDb() {
   });
 }
 
+// Mobile Safari can close an idle database connection (after the app was in the background).
+// Note it, and reopen on the next save instead of failing.
+function watchDb(database) {
+  database.onclose = () => { if (db === database) db = null; };
+  database.onversionchange = () => { try { database.close(); } catch (e) {} if (db === database) db = null; };
+}
+async function ensureDb() {
+  if (db) return db;
+  db = await openDb();
+  watchDb(db);
+  return db;
+}
+
 function loadAll(database) {
   return new Promise((resolve, reject) => {
     const out = new Map();
@@ -76,6 +89,7 @@ export async function kvInit() {
   try { if (localStorage.getItem('aet_kv_off') === '1') { mode = 'ls'; return mode; } } catch (e) {}
   try {
     db = await openDb();
+    watchDb(db);
     const rows = await loadAll(db);
     rows.forEach((v, k) => { if (typeof v === 'string') mem.set(k, v); });
 
@@ -100,7 +114,6 @@ export async function kvInit() {
     setupChannel();
     window.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') kvFlush(); });
     window.addEventListener('pagehide', () => { kvFlush(); });
-    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
     await kvFlush(); // the move above; failures are retried on the next save and the localStorage copy is kept
   } catch (e) {
     console.warn('[LoreOS] large-data store unavailable, using localStorage:', e);
@@ -139,37 +152,38 @@ function reportWriteError(err) {
 
 // Save everything queued. Resolves true when it is safely stored (or nothing was queued).
 export function kvFlush() {
-  if (mode !== 'idb' || !db) return Promise.resolve(true);
+  if (mode !== 'idb') return Promise.resolve(true);
   if (flushing) return flushing.then(() => kvFlush());
   if (!pending.size) return Promise.resolve(true);
   const batch = new Map(pending);
   pending.clear();
-  flushing = new Promise(resolve => {
-    let t;
-    try {
-      t = db.transaction(KV_STORE, 'readwrite');
-      const s = t.objectStore(KV_STORE);
-      batch.forEach((v, k) => { if (v === null) s.delete(k); else s.put(v, k); });
-    } catch (e) {
-      batch.forEach((v, k) => { if (!pending.has(k)) pending.set(k, v); });
-      reportWriteError(e);
-      resolve(false);
-      return;
-    }
-    t.oncomplete = () => {
+  const requeue = () => batch.forEach((v, k) => { if (!pending.has(k)) pending.set(k, v); });
+  const writeOnce = () => new Promise((resolve, reject) => {
+    ensureDb().then(database => {
+      let t;
+      try {
+        t = database.transaction(KV_STORE, 'readwrite');
+        const s = t.objectStore(KV_STORE);
+        batch.forEach((v, k) => { if (v === null) s.delete(k); else s.put(v, k); });
+      } catch (e) { reject(e); return; }
+      t.oncomplete = () => resolve();
+      t.onerror = t.onabort = () => reject(t.error || new Error('write aborted'));
+    }, reject);
+  });
+  flushing = writeOnce()
+    .catch(err => {
+      // A closed connection: drop it, reopen, and try once more
+      if (err && err.name === 'InvalidStateError') { db = null; return writeOnce(); }
+      throw err;
+    })
+    .then(() => {
       batch.forEach((v, k) => {
         try { localStorage.removeItem(k); } catch (e) {} // confirmed in IndexedDB: the old localStorage copy can go
         if (chan) { try { chan.postMessage({ k, v }); } catch (e) {} }
       });
-      resolve(true);
-    };
-    const failed = () => {
-      batch.forEach((v, k) => { if (!pending.has(k)) pending.set(k, v); });
-      reportWriteError(t.error);
-      resolve(false);
-    };
-    t.onerror = failed; t.onabort = failed;
-  }).finally(() => { flushing = null; });
+      return true;
+    }, err => { requeue(); reportWriteError(err); return false; })
+    .finally(() => { flushing = null; });
   return flushing;
 }
 

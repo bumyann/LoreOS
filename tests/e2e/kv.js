@@ -94,6 +94,17 @@ const w=ms=>new Promise(r=>setTimeout(r,ms));
   chk('the older tab copy was kept beside it', (await L(pg,"store.keys().some(k=>k.startsWith('aet_corrupt_aet_library'))"))===true);
   await pg.context().close();
  }
+ // 8. the browser closed the database connection (mobile Safari does this after backgrounding): reopen and save
+ {
+  const {pg,errs}=await newCtx(); await pg.goto(url); await pg.waitForTimeout(800);
+  await pg.evaluate(()=>{ const real=IDBDatabase.prototype.transaction; let once=true; IDBDatabase.prototype.transaction=function(s,m){ if(once && m==='readwrite'){ once=false; throw new DOMException('The database connection is closing.','InvalidStateError'); } return real.apply(this,arguments); }; });
+  const ok=await L(pg,`(async()=>{ charLibrary.rc={id:'rc',name:'Reconnected',card:{data:{name:'Reconnected'}},savedAt:'x'}; saveCharLibrary(); return await kvFlush(); })()`);
+  chk('save succeeds after the connection had been closed', ok===true, ok);
+  await pg.reload(); await pg.waitForTimeout(1200);
+  chk('and it persisted', (await L(pg,"charLibrary.rc ? charLibrary.rc.name : null"))==='Reconnected');
+  chk('no page errors', errs.length===0, errs);
+  await pg.context().close();
+ }
  await b.close(); srv.close();
  console.log(fail.length?'\nFAIL\n'+fail.join('\n'):'\nall large-data store checks passed'); process.exit(fail.length?1:0);
 })();
