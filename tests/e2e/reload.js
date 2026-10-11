@@ -18,6 +18,7 @@ const srv=http.createServer((q,s)=>{let p=q.url.split('?')[0]; if(p==='/')p='/in
    openChar('c1'); openPreset('p1'); wsShowItem('char','c1'); wsShowItem('preset','p1'); await w(300);
    store.set('loreos_notebook',JSON.stringify({activePageId:'j',pages:{j:{id:'j',title:'T',content:'<p>x</p>',updatedAt:'2026-01-01'}}}));
    state.promptLibrary.k1={id:'k1',name:'PromptPack',pack:normalizePack(blankPack()),savedAt:new Date().toISOString()}; savePromptLibrary();
+   state.regexLibrary.r1={id:'r1',name:'RegexSet',set:normalizeSet(blankSet()),savedAt:new Date().toISOString()}; saveRegexLibrary();
    settingsSet({keepFullAvatars:false}); trashPush('char','Gone',{id:'g',name:'Gone',card:{data:{}}},{undo:false});
    wsSaveTabs(); await w(400);
  })()`);
