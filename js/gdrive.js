@@ -31,6 +31,7 @@ export const GDRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.appdata';
 export const GDRIVE_FILE_NAME = 'LoreOS-sync.json';
 export const GDRIVE_PUSH_DELAY = 5000; // ms debounce for auto-push
 export const GDRIVE_LINK_FLAG = 'loreos_gdrive_linked'; // non-sensitive: just "was connected", never the token itself
+export const GDRIVE_HINT_KEY = 'loreos_gdrive_hint';  // last account email, so Google can skip the account picker
 export const GDRIVE_BASE_KEY  = 'aet_gdrive_base';      // Drive file version this device last pushed/pulled
 export const GDRIVE_DIRTY_KEY = 'aet_gdrive_dirty';     // '1' = edited since the last successful sync
 export const GDRIVE_RECHECK_MS = 60000;                 // min gap between "did another device push?" checks
@@ -98,6 +99,8 @@ export function gdriveGsiReady() {
 // Always resolves (never rejects): { access_token, expires_in } on success,
 // { error } if Google refused, or null on timeout / library missing.
 export function gdriveRequestToken(prompt) {
+  let hint = '';
+  try { hint = localStorage.getItem(GDRIVE_HINT_KEY) || ''; } catch (e) {}
   return new Promise(resolve => {
     if (!gdriveGsiReady()) { resolve(null); return; }
     let done = false;
@@ -112,7 +115,7 @@ export function gdriveRequestToken(prompt) {
         // popup blocked / closed, or silent auth needs interaction
         error_callback: err => finish({ error: (err && err.type) || 'popup_failed' }),
       });
-      client.requestAccessToken({ prompt });
+      client.requestAccessToken(hint ? { prompt, hint } : { prompt });
     } catch (e) {
       finish(null);
     }
@@ -183,6 +186,7 @@ export async function gdriveFetchEmail() {
   try {
     const info = await gdriveFetch('https://www.googleapis.com/oauth2/v3/userinfo').then(r => r.json());
     gdriveEmail = info.email || 'connected';
+    if (info.email) { try { localStorage.setItem(GDRIVE_HINT_KEY, info.email); } catch (e) {} }
   } catch (e) {
     gdriveEmail = gdriveEmail || 'connected';
   }
@@ -197,8 +201,10 @@ export function gdriveConnect() {
     toast('Google Sign-In library not loaded yet — try again.', 'warn');
     return;
   }
-  // No `await` before this call: the popup has to open from the click itself
-  gdriveRequestToken('consent').then(async resp => {
+  // No `await` before this call: the popup has to open from the click itself.
+  // prompt '' = Google only asks for consent the first time; with the saved
+  // email hint, reconnecting is a quick tap instead of a full sign-in again.
+  gdriveRequestToken('').then(async resp => {
     if (!resp || resp.error || !resp.access_token) {
       toast('Google auth failed' + (resp && resp.error ? ': ' + resp.error : ' (no response).'), 'err');
       return;
@@ -232,10 +238,10 @@ export async function gdriveTrySilentReconnect(retriesLeft = 10) {
 
   const resp = await gdriveRequestToken('');
   if (!resp || !resp.access_token) {
-    // Google said no (session expired / consent revoked elsewhere): forget the
-    // link so we show a plain Connect button. A timeout (resp === null) might
-    // just be a bad connection, so keep the link and let the next try work.
-    if (resp && resp.error) localStorage.removeItem(GDRIVE_LINK_FLAG);
+    // Google wants a tap (phones block popups that don't come from a tap, and
+    // the browser session may have lapsed). Keep the link, show "Reconnect",
+    // and never forget the account: a failed silent try is not a sign-out.
+    if (resp && resp.error) { gdriveState = 'expired'; gdriveUpdateUI(); }
     return;
   }
   gdriveSetToken(resp);
@@ -257,6 +263,7 @@ export function gdriveDisconnect() {
   gdriveLastError = '';
   clearTimeout(gdrivePushTimer);
   localStorage.removeItem(GDRIVE_LINK_FLAG);
+  localStorage.removeItem(GDRIVE_HINT_KEY);
   // Forget which Drive version we were synced with: a different account's
   // file isn't comparable, so the next connect re-checks from scratch
   try { localStorage.removeItem(GDRIVE_BASE_KEY); } catch (e) {}
@@ -558,7 +565,10 @@ export function gdriveUpdateUI() {
   const status      = g('gdriveStatus');
   const actions     = g('gdriveActions');
 
-  if (connectBtn)  connectBtn.style.display  = connected ? 'none' : '';
+  if (connectBtn) {
+    connectBtn.style.display = connected ? 'none' : '';
+    connectBtn.textContent = (!connected && localStorage.getItem(GDRIVE_LINK_FLAG) === '1') ? 'Reconnect Google Drive' : 'Connect Google Drive';
+  }
   if (disconnBtn)  disconnBtn.style.display  = connected ? '' : 'none';
   if (actions)     actions.style.display     = connected ? 'flex' : 'none';
 
@@ -567,7 +577,7 @@ export function gdriveUpdateUI() {
   if (!connected) {
     if (gdriveState === 'expired') {
       status.innerHTML = `<span class="gdrive-pill" style="color:var(--warn)">● session expired</span> ` +
-        `<span class="gdrive-ts">Your changes are safe on this device. Press Connect to resume syncing.</span>`;
+        `<span class="gdrive-ts">Your changes are safe on this device. Tap Reconnect to resume syncing.</span>`;
     } else {
       status.innerHTML = '';
     }
