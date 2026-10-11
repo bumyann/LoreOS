@@ -105,6 +105,25 @@ const w=ms=>new Promise(r=>setTimeout(r,ms));
   chk('no page errors', errs.length===0, errs);
   await pg.context().close();
  }
+ // 9. Settings > Storage shows the browser's allowance and the Protect button
+ {
+  const stub=`(()=>{ let p=false; const st={estimate:async()=>({quota:2147483648,usage:5242880}),persisted:async()=>p,persist:async()=>{ window.__persistAsked=(window.__persistAsked||0)+1; p=true; return true; }}; Object.defineProperty(navigator,'storage',{value:st,configurable:true}); })();`;
+  const {pg,errs}=await newCtx(stub); await pg.goto(url); await pg.waitForTimeout(800);
+  await L(pg,'openSettings()'); await pg.waitForTimeout(500);
+  const txt=await pg.evaluate(()=>document.getElementById('stgBrowserStore').textContent);
+  chk('shows the allowance and usage', /2\.0 GB/.test(txt) && /5\.0 MB/.test(txt), txt);
+  chk('says not protected + offers the button', /Not protected/.test(txt) && !!(await pg.$('#stgPersistBtn')), txt);
+  await pg.click('#stgPersistBtn'); await pg.waitForTimeout(500);
+  chk('asked the browser once', (await pg.evaluate(()=>window.__persistAsked))===1);
+  const txt2=await pg.evaluate(()=>document.getElementById('stgBrowserStore').textContent);
+  chk('now says protected, button gone', /Protected/.test(txt2) && !/Not protected/.test(txt2) && !(await pg.$('#stgPersistBtn')), txt2);
+  chk('no page errors', errs.length===0, errs);
+  await pg.context().close();
+  const u=await newCtx(`Object.defineProperty(navigator,'storage',{value:undefined,configurable:true});`); await u.pg.goto(url); await u.pg.waitForTimeout(800);
+  await L(u.pg,'openSettings()'); await u.pg.waitForTimeout(400);
+  chk('browsers without the API get a plain note, no errors', /does not say/.test(await u.pg.evaluate(()=>document.getElementById('stgBrowserStore').textContent)) && u.errs.length===0, u.errs);
+  await u.pg.context().close();
+ }
  await b.close(); srv.close();
  console.log(fail.length?'\nFAIL\n'+fail.join('\n'):'\nall large-data store checks passed'); process.exit(fail.length?1:0);
 })();

@@ -498,6 +498,7 @@ export const STORAGE_LABELS = {
 
 export function fmtKB(bytes) {
   const kb = bytes / 1024;
+  if (kb >= 1048576) return (kb / 1048576).toFixed(1) + ' GB';
   return kb >= 1024 ? (kb / 1024).toFixed(1) + ' MB' : Math.round(kb) + ' KB';
 }
 
@@ -527,13 +528,51 @@ export function renderStoragePanel() {
       <div class="stg-storage-meter"><i style="width:${pct.toFixed(1)}%"></i></div>
       <div class="stg-storage-caption">
         ${mode === 'idb'
-          ? `Your libraries live in the large-data store: ${fmtKB(bigTotal)}, no 5 MB limit.<br>Small settings: ${fmtKB(total)} of about ${fmtKB(limit)}.`
+          ? `Your libraries live in the large-data store: ${fmtKB(bigTotal)}. It is not held to the 5 MB limit; your browser's own limit is shown below.<br>Small settings: ${fmtKB(total)} of about ${fmtKB(limit)}.`
           : `${fmtKB(total)} used of about ${fmtKB(limit)} &nbsp;·&nbsp; ${pct.toFixed(0)}%<br><em>Large-data store unavailable in this browser, so everything shares the 5 MB limit.</em>`}
         ${pct > 85 ? '<br><strong>Almost full — saves may start failing.</strong>' : ''}
       </div>
     </div>
+    <div class="stg-browser" id="stgBrowserStore"></div>
     <div class="stg-storage-list">${listHTML}</div>
     ${trashHTML()}`;
+  fillBrowserStorage();
+}
+
+// ── What the browser allows, and whether it may clear LoreOS's data ──
+const isLocalHost = () => /^(localhost|127\.|0\.0\.0\.0|\[::1\]|192\.168\.|10\.)/.test(location.hostname);
+
+export async function fillBrowserStorage() {
+  const el = g('stgBrowserStore');
+  if (!el) return;
+  const s = navigator.storage;
+  if (!s || !s.estimate) {
+    el.innerHTML = '<div class="stg-storage-empty">// This browser does not say how much space it allows.</div>';
+    return;
+  }
+  let est = {}, persisted = null;
+  try { est = await s.estimate(); } catch (e) {}
+  try { if (s.persisted) persisted = await s.persisted(); } catch (e) {}
+  const lines = [];
+  if (est.quota) {
+    lines.push(`Your browser allows about <strong>${fmtKB(est.quota)}</strong> for this site and ${fmtKB(est.usage || 0)} is used (that counts everything the site stores, including the offline copy of the app).`);
+  }
+  if (persisted === true) {
+    lines.push('<span style="color:var(--ok)">● Protected:</span> the browser will not clear LoreOS data to free up space.');
+  } else if (persisted === false) {
+    lines.push('<span style="color:var(--warn)">● Not protected:</span> if the device runs low on space the browser may clear this data (and Safari clears sites that go unvisited for about 7 days, unless added to the Home Screen). Backups and Drive sync are your safety net.');
+    if (s.persist) lines.push('<button class="btn btn-ok btn-sm" id="stgPersistBtn">Protect my data</button>');
+  }
+  if (isLocalHost()) lines.push('<em>Running from a local address: data is kept per address and port, so localhost:8000 and localhost:3000 do not share anything.</em>');
+  el.innerHTML = lines.map(l => `<div class="stg-browser-line">${l}</div>`).join('');
+}
+
+export async function protectData() {
+  let ok = false;
+  try { ok = await navigator.storage.persist(); } catch (e) {}
+  if (ok) toast('LoreOS data is now protected from automatic clearing.', 'ok');
+  else toast("Your browser said no. Chrome decides from how much you use the site: installing LoreOS as an app or bookmarking it helps, and Firefox asks you directly. On iPad, add it to the Home Screen.", 'warn', { ms: 9000 });
+  fillBrowserStorage();
 }
 
 // ── Recently deleted (see trash.js) ──
@@ -559,6 +598,7 @@ export function wireTrashPanel() {
   host.addEventListener('click', async e => {
     const r = e.target.closest('[data-trash-restore]');
     const d = e.target.closest('[data-trash-discard]');
+    if (e.target.id === 'stgPersistBtn') { protectData(); return; }
     if (r) { trashRestore(r.dataset.trashRestore); renderStoragePanel(); }
     else if (d) { trashDiscard(d.dataset.trashDiscard); renderStoragePanel(); }
     else if (e.target.id === 'stgTrashClear') {

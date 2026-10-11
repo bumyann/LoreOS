@@ -547,3 +547,5 @@ input[type=number].fnum::-webkit-inner-spin-button{-webkit-appearance:none;margi
 .stg-trash-kind{color:var(--txm);min-width:5.2rem}
 .stg-trash-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .stg-trash-date{color:var(--txm);font-size:.62rem}
+.stg-browser{margin-top:.7rem;font-family:var(--fx);font-size:.68rem;line-height:1.55;color:var(--txd)}
+.stg-browser-line{margin-bottom:.4rem}
