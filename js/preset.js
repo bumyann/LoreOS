@@ -54,7 +54,8 @@ function openPreset(id) {
 function renderPresetSidebar() {
   const list = g('entryList');
   const count = g('entryCount');
-  const presets = Object.values(presetLibrary).sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
+  // By name, like the character list: sorting by save time made the open preset jump to the top on every autosave
+  const presets = Object.values(presetLibrary).sort((a,b) => (a.name||'').localeCompare(b.name||''));
   count.textContent = `${presets.length} ${presets.length === 1 ? 'preset' : 'presets'}`;
   list.innerHTML = '';
 
@@ -90,7 +91,10 @@ function renderPresetSidebar() {
       const tag = document.createElement('span'); tag.className = 'kw-tag'; tag.textContent = t; meta.append(tag);
     });
     li.append(meta);
-    li.addEventListener('click', () => openPreset(entry.id));
+    li.addEventListener('click', () => {
+      if (!(typeof wsShowItem === 'function' && wsShowItem('preset', entry.id))) openPreset(entry.id);
+      if (typeof closeMobSidebar === 'function') closeMobSidebar();
+    });
     list.append(li);
   });
 }
@@ -123,7 +127,6 @@ function renderPresetEditor() {
   }
   const entry = presetLibrary[activePresetId];
   const p = entry.preset;
-  const esc = t => { const d=document.createElement('div'); d.textContent=t||''; return d.innerHTML; };
 
   ec.className = '';
   ec.innerHTML = `<div class="entry-editor" style="max-width:960px">
@@ -149,9 +152,9 @@ function renderPresetEditor() {
           ${presetSlider('psRepPen','Repetition Penalty',p.repetition_penalty,1,2,0.01)}
           ${presetSlider('psFreqPen','Frequency Penalty',p.frequency_penalty,0,2,0.01)}
           ${presetSlider('psPresPen','Presence Penalty',p.presence_penalty,0,2,0.01)}
-          <div class="fg"><label class="flabel-sm">Max Context</label><input type="number" id="psMaxCtx" class="fnum" style="width:100px" value="${p.openai_max_context}" min="0"></div>
-          <div class="fg"><label class="flabel-sm">Max Tokens</label><input type="number" id="psMaxTok" class="fnum" style="width:100px" value="${p.openai_max_tokens}" min="0"></div>
-          <div class="fg"><label class="flabel-sm">Seed (-1 = random)</label><input type="number" id="psSeed" class="fnum" style="width:100px" value="${p.seed}"></div>
+          <div class="fg"><label class="flabel-sm">Max Context</label><input type="number" id="psMaxCtx" class="fnum" style="width:100px" value="${esc(p.openai_max_context)}" min="0"></div>
+          <div class="fg"><label class="flabel-sm">Max Tokens</label><input type="number" id="psMaxTok" class="fnum" style="width:100px" value="${esc(p.openai_max_tokens)}" min="0"></div>
+          <div class="fg"><label class="flabel-sm">Seed (-1 = random)</label><input type="number" id="psSeed" class="fnum" style="width:100px" value="${esc(p.seed)}"></div>
           <div class="fg"><label class="cb-row"><input type="checkbox" id="psMaxCtxUnlocked" ${p.max_context_unlocked?'checked':''}><span class="flabel-sm">Unlock Max Context</span></label></div>
           <div class="fg"><label class="cb-row"><input type="checkbox" id="psStream" ${p.stream_openai?'checked':''}><span class="flabel-sm">Stream</span></label></div>
           <div class="fg"><label class="cb-row"><input type="checkbox" id="psUseSys" ${p.use_sysprompt?'checked':''}><span class="flabel-sm">Use System Prompt</span></label></div>
@@ -458,19 +461,18 @@ function renderPresetEditor() {
 function presetSlider(id, label, val, min, max, step) {
   return `<div class="fg" style="grid-column:span 1">
     <label class="flabel-sm" style="display:flex;justify-content:space-between">
-      <span>${label}</span><span id="${id}Val" style="color:var(--p)">${val}</span>
+      <span>${label}</span><span id="${id}Val" style="color:var(--p)">${esc(val)}</span>
     </label>
     <div style="display:flex;gap:.4rem;align-items:center">
-      <input type="range" id="${id}Range" min="${min}" max="${max}" step="${step}" value="${val}"
+      <input type="range" id="${id}Range" min="${min}" max="${max}" step="${step}" value="${esc(val)}"
         style="flex:1;accent-color:var(--p)" oninput="g('${id}Val').textContent=this.value;g('${id}Num').value=this.value">
-      <input type="number" id="${id}Num" class="fnum" style="width:60px" min="${min}" max="${max}" step="${step}" value="${val}"
+      <input type="number" id="${id}Num" class="fnum" style="width:60px" min="${min}" max="${max}" step="${step}" value="${esc(val)}"
         oninput="g('${id}Val').textContent=this.value;g('${id}Range').value=this.value">
     </div>
   </div>`;
 }
 
 function presetStringField(id, label, val, tall=false) {
-  const esc = t => { const d=document.createElement('div'); d.textContent=t||''; return d.innerHTML; };
   return `<div class="fg">
     <label class="flabel-sm">${label}</label>
     ${tall

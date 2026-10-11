@@ -327,9 +327,10 @@ function switchMode(newMode) {
     return;
   }
 
-  // Sidebar is only used in lorebook mode — hide it for char/preset (full-width editors)
+  // The sidebar lists whatever the current mode edits: entries, characters or presets
   const sidebar = g('sidebar');
-  if (sidebar) sidebar.style.display = newMode === 'lore' ? '' : 'none';
+  if (sidebar) sidebar.style.display = '';
+  g('sbSearch').value = '';
 
   if (newMode === 'lore') {
     sbTitle.textContent = 'Entries';
@@ -337,10 +338,12 @@ function switchMode(newMode) {
     g('sbSearch').placeholder = 'Search entries...';
     renderList(); renderTabs(); renderEditor();
   } else if (newMode === 'char') {
+    sbTitle.textContent = 'Characters';
     g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search characters...';
     renderCharSidebar(); renderCharEditor();
   } else if (newMode === 'preset') {
+    sbTitle.textContent = 'Presets';
     g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search presets...';
     renderPresetSidebar(); renderPresetEditor();
@@ -634,7 +637,6 @@ function buildEditorHTML(en, uid) {
   const vec = get('vectorized', en.vectorized);
   const act = dis ? 'inactive' : con ? 'constant' : vec ? 'vector' : 'keyword';
 
-  const esc = t => { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; };
   const sel = (v, list) => list.map(([val,lbl]) => `<option value="${val}" ${v==val?'selected':''}>${lbl}</option>`).join('');
   const chk = v => v ? 'checked' : '';
   const tri = t => triggers.includes(t) ? 'checked' : '';
@@ -680,23 +682,23 @@ function buildEditorHTML(en, uid) {
       </div>
       <div class="adv-body" id="eAdvBody-${uid}">
         <div class="adv-grid">
-          <div class="fg"><label class="flabel-sm">Order</label><input type="number" id="eOrder-${uid}" class="fnum" value="${order}" min="0"></div>
+          <div class="fg"><label class="flabel-sm">Order</label><input type="number" id="eOrder-${uid}" class="fnum" value="${esc(order)}" min="0"></div>
           <div class="fg"><label class="flabel-sm">Insertion Position</label>
             <select id="ePos-${uid}" class="fselect">
               ${sel(pos,[[0,'↑Char'],[1,'↓Char'],[2,'↑AN'],[3,'↓AN'],[4,'@D (At Depth)'],[5,'↑EM'],[6,'↓EM'],[7,'Outlet']])}
             </select>
           </div>
           ${pos === 4 ? `
-          <div class="fg"><label class="flabel-sm">Insertion Depth</label><input type="number" id="eDepth-${uid}" class="fnum" value="${depth}" min="0"></div>
+          <div class="fg"><label class="flabel-sm">Insertion Depth</label><input type="number" id="eDepth-${uid}" class="fnum" value="${esc(depth)}" min="0"></div>
           <div class="fg"><label class="flabel-sm">Role</label>
             <select id="eRole-${uid}" class="fselect">
               ${sel(role === null ? 'null' : role, [['null','None'],['0','⚙ System'],['1','👤 User'],['2','🤖 Assistant']])}
             </select>
           </div>` : `
-          <div class="fg"><label class="flabel-sm">Depth</label><input type="number" id="eDepth-${uid}" class="fnum" value="${depth}" min="0"></div>
+          <div class="fg"><label class="flabel-sm">Depth</label><input type="number" id="eDepth-${uid}" class="fnum" value="${esc(depth)}" min="0"></div>
           `}
           ${pos === 7 ? `<div class="fg"><label class="flabel-sm">Outlet Name</label><input id="eOutlet-${uid}" class="finput" value="${esc(outletName)}" placeholder="Outlet name..."></div>` : ''}
-          <div class="fg"><label class="flabel-sm">Scan Depth Override</label><input type="number" id="eScan-${uid}" class="fnum" value="${scanDepth}" min="0" placeholder="global"></div>
+          <div class="fg"><label class="flabel-sm">Scan Depth Override</label><input type="number" id="eScan-${uid}" class="fnum" value="${esc(scanDepth)}" min="0" placeholder="global"></div>
           <div class="fg"><label class="flabel-sm">Case Sensitive</label>
             <select id="eCS-${uid}" class="fselect">${sel(cs===null?'null':String(cs),[['null','Use Global'],['true','Yes'],['false','No']])}</select>
           </div>
@@ -707,23 +709,23 @@ function buildEditorHTML(en, uid) {
             <select id="eUGS-${uid}" class="fselect">${sel(ugs===null?'null':String(ugs),[['null','Use Global'],['true','Yes'],['false','No']])}</select>
           </div>
           <div class="fg"><label class="cb-row"><input type="checkbox" id="eUseProb-${uid}" ${chk(useProb)}><span class="flabel-sm">Use Probability</span></label></div>
-          <div class="fg"><label class="flabel-sm">Probability %</label><input type="number" id="eProb-${uid}" class="fnum" value="${prob}" min="0" max="100"></div>
+          <div class="fg"><label class="flabel-sm">Probability %</label><input type="number" id="eProb-${uid}" class="fnum" value="${esc(prob)}" min="0" max="100"></div>
           <div class="fg"><label class="cb-row"><input type="checkbox" id="eExRec-${uid}" ${chk(exRec)}><span class="flabel-sm">Exclude Recursion</span></label></div>
           <div class="fg"><label class="cb-row"><input type="checkbox" id="ePrvRec-${uid}" ${chk(prvRec)}><span class="flabel-sm">Prevent Recursion</span></label></div>
           <div class="fg"><label class="cb-row"><input type="checkbox" id="eDelRec-${uid}" ${chk(delRec)}><span class="flabel-sm">Delay Until Recursion</span></label></div>
           <div class="fg"><label class="cb-row"><input type="checkbox" id="eIgnBudget-${uid}" ${chk(ignBudget)}><span class="flabel-sm">Ignore Budget</span></label></div>
-          <div class="fg"><label class="flabel-sm">Sticky</label><input type="number" id="eSticky-${uid}" class="fnum" value="${sticky}" min="0"></div>
-          <div class="fg"><label class="flabel-sm">Cooldown</label><input type="number" id="eCooldown-${uid}" class="fnum" value="${cooldown}" min="0"></div>
-          <div class="fg"><label class="flabel-sm">Delay</label><input type="number" id="eDelay-${uid}" class="fnum" value="${delay2}" min="0"></div>
+          <div class="fg"><label class="flabel-sm">Sticky</label><input type="number" id="eSticky-${uid}" class="fnum" value="${esc(sticky)}" min="0"></div>
+          <div class="fg"><label class="flabel-sm">Cooldown</label><input type="number" id="eCooldown-${uid}" class="fnum" value="${esc(cooldown)}" min="0"></div>
+          <div class="fg"><label class="flabel-sm">Delay</label><input type="number" id="eDelay-${uid}" class="fnum" value="${esc(delay2)}" min="0"></div>
           <div class="fg"><label class="flabel-sm">Group</label><input id="eGroup-${uid}" class="finput" value="${esc(group)}" placeholder="Group name..."></div>
-          <div class="fg"><label class="flabel-sm">Group Weight</label><input type="number" id="eGW-${uid}" class="fnum" value="${gw}" min="0"></div>
+          <div class="fg"><label class="flabel-sm">Group Weight</label><input type="number" id="eGW-${uid}" class="fnum" value="${esc(gw)}" min="0"></div>
           <div class="fg"><label class="flabel-sm">Automation ID</label><input id="eAID-${uid}" class="finput" value="${esc(aid)}" placeholder="Automation ID..."></div>
 
           <div class="fg" style="grid-column:1/-1">
             <label class="flabel-sm">Generation Triggers <span class="form-note" style="display:inline">(empty = all)</span></label>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.35rem;margin-top:.35rem">
               ${['Normal','Continue','Impersonate','Swipe','Regenerate','Quiet'].map(t =>
-                `<label class="cb-row"><input type="checkbox" class="trig-cb" data-trigger="${t}" ${tri(t)}><span class="flabel-sm">${t}</span></label>`
+                `<label class="cb-row"><input type="checkbox" class="trig-cb" data-trigger="${esc(t)}" ${tri(t)}><span class="flabel-sm">${t}</span></label>`
               ).join('')}
             </div>
           </div>
@@ -1014,9 +1016,8 @@ function renderSearchResults() {
     const ctx_s = Math.max(0, r.startIndex - 20);
     const ctx_e = Math.min(r.fullText.length, r.startIndex + r.matchText.length + 20);
     const ctx = (ctx_s > 0 ? '…' : '') + r.fullText.substring(ctx_s, ctx_e) + (ctx_e < r.fullText.length ? '…' : '');
-    const esc = t => { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; };
     const div = document.createElement('div'); div.className = 'sr-item';
-    div.innerHTML = `<div class="sr-item-t"><strong>${esc(r.entryName)}</strong> (${r.field})<br><code>${esc(ctx)}</code></div><div class="sr-item-loc">#${r.uid}</div>`;
+    div.innerHTML = `<div class="sr-item-t"><strong>${esc(r.entryName)}</strong> (${esc(r.field)})<br><code>${esc(ctx)}</code></div><div class="sr-item-loc">#${r.uid}</div>`;
     div.addEventListener('click', () => { openInTab(parseInt(r.uid)); searchIdx = i; });
     list.append(div);
   });

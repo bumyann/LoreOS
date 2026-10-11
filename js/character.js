@@ -139,6 +139,21 @@ function renderCharSidebar() {
     const name = document.createElement('div');
     name.className = 'ei-name';
     name.textContent = entry.name || entry.card.data.name || 'Unnamed';
+    // Small avatar so characters are recognisable at a glance
+    if (entry.imageData) {
+      const av = document.createElement('img');
+      av.src = entry.imageData; av.alt = '';
+      av.style.cssText = 'width:26px;height:26px;border-radius:4px;object-fit:cover;flex-shrink:0;margin-right:.45rem';
+      head.style.alignItems = 'center';
+      head.append(av);
+    } else {
+      // Placeholder tile keeps the names lined up with avatar rows
+      const ph = document.createElement('div');
+      ph.textContent = (entry.name || '?').trim().charAt(0).toUpperCase() || '?';
+      ph.style.cssText = 'width:26px;height:26px;border-radius:4px;flex-shrink:0;margin-right:.45rem;display:flex;align-items:center;justify-content:center;background:var(--bg3,#1d2238);color:var(--txm);font-size:.8rem';
+      head.style.alignItems = 'center';
+      head.append(ph);
+    }
     head.append(name);
     li.append(head);
 
@@ -164,7 +179,11 @@ function renderCharSidebar() {
       li.append(kws);
     }
 
-    li.addEventListener('click', () => openChar(entry.id));
+    li.addEventListener('click', () => {
+      // Through the workshop tab bar so the character gets a tab like any other
+      if (!(typeof wsShowItem === 'function' && wsShowItem('char', entry.id))) openChar(entry.id);
+      if (typeof closeMobSidebar === 'function') closeMobSidebar();
+    });
     list.append(li);
   });
 }
@@ -185,7 +204,6 @@ function renderCharEditor() {
   const d = card.data;
   const s = charFormState;
   const get = (k, fb) => s[k] !== undefined ? s[k] : fb;
-  const esc = t => { const div = document.createElement('div'); div.textContent = t || ''; return div.innerHTML; };
 
   const name = get('name', d.name);
   const desc = get('description', d.description);
@@ -439,7 +457,12 @@ function renderCharEditor() {
   function refreshImagePreview() {
     const src = charEntry?.imageData;
     if (src) {
-      imgPreview.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover">`;
+      // Built with the DOM, not an HTML string: the stored image data is not trusted
+      imgPreview.innerHTML = '';
+      const im = document.createElement('img');
+      im.src = src;
+      im.style.cssText = 'width:100%;height:100%;object-fit:cover';
+      imgPreview.append(im);
       imgRemove.style.display = '';
     } else {
       imgPreview.innerHTML = `<span style="font-family:var(--fx);font-size:.65rem;color:var(--txm);text-align:center;padding:.5rem">No image<br>click to upload</span>`;
@@ -568,7 +591,7 @@ function renderAltGreetings(list) {
 // ── Lumiverse variant field UI ──
 
 function renderLumiVariantField(baseId, field, defaultVal, variants, placeholder, minHeight) {
-  const esc2 = t => { const d = document.createElement('div'); d.textContent = t||''; return d.innerHTML; };
+  const esc2 = esc;
   const tabs = [
     `<button class="lumi-vtab active" data-field="${field}" data-idx="-1">Default</button>`,
     ...variants.map((v, i) =>

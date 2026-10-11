@@ -19,6 +19,9 @@ function wireMobile() {
     document.body.style.overflow = '';
   }
 
+  // Lets sidebar lists close the drawer after you pick something (phones only)
+  window.closeMobSidebar = () => { if (isMob()) closeSidebar(); };
+
   backdrop.addEventListener('click', closeSidebar);
   g('mob-sb-close').addEventListener('click', closeSidebar);
 
@@ -29,11 +32,12 @@ function wireMobile() {
         btn.style.display = (m === modeKey) ? '' : 'none';
       });
     });
-    // Hide the entries/sidebar toggle for char and preset — they're full-width, no sidebar
+    // Every editor mode has a sidebar (entries / characters / presets)
     const entriesBtn = g('mobEntries');
     const sep = g('mob-nav-sep');
-    if (entriesBtn) entriesBtn.style.display = (m === 'lore') ? '' : 'none';
-    if (sep) sep.style.display = (m === 'lore') ? '' : 'none';
+    const hasSidebar = ['lore','char','preset'].includes(m);
+    if (entriesBtn) entriesBtn.style.display = hasSidebar ? '' : 'none';
+    if (sep) sep.style.display = hasSidebar ? '' : 'none';
   }
 
   // ── updateMobViewBtns: show/hide view-specific controls ──
@@ -81,11 +85,11 @@ function wireMobile() {
     }
     if (backSep) backSep.style.display = isEditor ? '' : 'none';
 
-    // Sidebar toggle + sep — only show in editor AND only for lorebook mode (char/preset have no sidebar)
+    // Sidebar toggle + sep — only in the editor (all three modes have a sidebar)
     const entriesBtn = g('mobEntries');
     const sep = g('mob-nav-sep');
     const sidebarMode = (typeof mode !== 'undefined') ? mode : 'lore';
-    const showSidebar = isEditor && sidebarMode === 'lore';
+    const showSidebar = isEditor && ['lore','char','preset'].includes(sidebarMode);
     if (entriesBtn) entriesBtn.style.display = showSidebar ? '' : 'none';
     if (sep) sep.style.display = showSidebar ? '' : 'none';
 

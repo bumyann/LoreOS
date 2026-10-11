@@ -761,7 +761,7 @@ function renderTemplateList(m) {
   if (m === 'preset') {
     renderPresetAnchors(list);
     const tpls = tplGet(m);
-    const items = Object.values(tpls).sort((a,b) => b.savedAt.localeCompare(a.savedAt));
+    const items = Object.values(tpls).sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
     if (items.length) {
       list.append(makeSectionHeader('Saved Prompts'));
       renderSavedTemplates(items, m, list);
@@ -778,7 +778,7 @@ function renderTemplateList(m) {
 
   // User-saved templates
   const tpls = tplGet(m);
-  const items = Object.values(tpls).sort((a,b) => b.savedAt.localeCompare(a.savedAt));
+  const items = Object.values(tpls).sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
   if (items.length) {
     list.append(makeSectionHeader('Saved'));
     renderSavedTemplates(items, m, list);
@@ -993,7 +993,7 @@ function openTemplateLibraryFiltered(m, categoryFilter, fieldId) {
 
   // Also show user saved
   const tpls = tplGet(m);
-  const items = Object.values(tpls).sort((a,b) => b.savedAt.localeCompare(a.savedAt));
+  const items = Object.values(tpls).sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
   if (items.length) {
     list.append(makeSectionHeader('Saved'));
     renderSavedTemplates(items, m, list);

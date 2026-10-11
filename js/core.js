@@ -566,13 +566,16 @@ function wireEvents() {
 
 function g(id) { return document.getElementById(id); }
 
-// Escape a value for safe interpolation into an HTML string.
-// Anything that came from an imported file is untrusted — a character
-// card named `<img src=x onerror=...>` should render as text, not run.
+// Escape a value for safe interpolation into an HTML string, in text AND in
+// attribute values (value="..."). Anything that came from an imported file is
+// untrusted — a character card named `<img src=x onerror=...>` should render
+// as text, not run, and a value containing a double quote must not be able to
+// break out of its attribute. (Setting textContent and reading innerHTML back
+// does NOT escape quotes, which is why this is done by hand.)
 function esc(v) {
-  const d = document.createElement('div');
-  d.textContent = (v === null || v === undefined) ? '' : String(v);
-  return d.innerHTML;
+  return ((v === null || v === undefined) ? '' : String(v))
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function closeAllDropdowns() {

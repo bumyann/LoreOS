@@ -6,7 +6,7 @@
 let currentView = null;
 
 // HTML escape helper used throughout router/notebook
-function routerEsc(s) { const d = document.createElement('div'); d.textContent = String(s||''); return d.innerHTML; }
+function routerEsc(s) { return esc(s); }
 
 const VIEWS = ['home', 'library', 'notebook', 'editor', 'laboratory'];
 
@@ -379,7 +379,7 @@ function nbRenderPageList() {
   const pages = Object.values(data.pages).sort((a,b) => (b.updatedAt||"").localeCompare(a.updatedAt||""));
 
   list.innerHTML = pages.length ? pages.map(p => `
-    <div class="nb-page-item ${p.id === _nbActiveId ? 'active' : ''}" data-nb-id="${p.id}">
+    <div class="nb-page-item ${p.id === _nbActiveId ? 'active' : ''}" data-nb-id="${routerEsc(p.id)}">
       <span class="nb-page-title">${routerEsc(p.title || 'Untitled')}</span>
       <span class="nb-page-date">${p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : ''}</span>
     </div>
