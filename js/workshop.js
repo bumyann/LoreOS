@@ -12,6 +12,7 @@ import { currentView, navigateTo } from './router.js';
 import { state, WS_MAX_TABS } from './state.js';
 import { loreActiveLibName, loreSyncToLib } from './storage.js';
 import { closeModal, esc, g, openModal, toast } from './util.js';
+import { registerMarkup } from './util.js';
 
 // ═══════════════════════════════════════════════════════
 // WORKSHOP TABS
@@ -435,3 +436,25 @@ export function applyMode(newMode) {
     renderPresetSidebar(); renderPresetEditor();
   }
 }
+
+
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(270, `<!-- WORKSHOP TAB PICKER MODAL -->
+<div id="wsPickerModal" class="modal">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-head"><h2>Open Item</h2><button class="modal-x" data-close="wsPickerModal">×</button></div>
+    <div class="modal-body">
+      <div style="display:flex;gap:.3rem;margin-bottom:.75rem" id="wsPickerTypeTabs">
+        <button class="ws-picker-type active" data-type="lore">Lorebook</button>
+        <button class="ws-picker-type" data-type="char">Character</button>
+        <button class="ws-picker-type" data-type="preset">Preset</button>
+      </div>
+      <div id="wsPickerList" class="lib-list" style="max-height:300px"></div>
+    </div>
+  </div>
+</div>`);
+

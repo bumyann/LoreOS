@@ -51,6 +51,7 @@ const ASSETS = [
   'js/mobile.js',
   'js/router.js',
   'js/pwa.js',
+  'js/help.js',
   'js/main.js',
   'vendor/lz-string.min.js',
   'vendor/jszip.min.js',

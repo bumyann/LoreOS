@@ -5,6 +5,7 @@
 import { openInTab, renderEditor, renderList, renderTabs } from './lorebook.js';
 import { state } from './state.js';
 import { askConfirm, esc, g, toast } from './util.js';
+import { registerMarkup } from './util.js';
 
 // ═══════════════════════════════════════════════════════
 // SEARCH & REPLACE
@@ -99,3 +100,44 @@ export async function doReplaceAll() {
   renderList(); renderTabs(); renderEditor();
   toast(`Replaced ${n} occurrence${n===1?'':'s'}.`, 'ok');
 }
+
+
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(80, `<!-- SEARCH & REPLACE MODAL -->
+<div id="srModal" class="modal">
+  <div class="modal-box lg">
+    <div class="modal-head"><h2>Find &amp; Replace</h2><button class="modal-x" data-close="srModal">×</button></div>
+    <div class="modal-body">
+      <div class="sr-opts">
+        <div class="fg"><label class="flabel">Find</label><input type="text" id="srFind" class="finput" placeholder="Search text..." autocomplete="off"></div>
+        <div class="fg"><label class="flabel">Replace with</label><input type="text" id="srReplace" class="finput" placeholder="Replacement..." autocomplete="off"></div>
+        <div class="fg"><label class="flabel">Search in</label>
+          <select id="srScope" class="fselect">
+            <option value="content">Content Only</option>
+            <option value="keywords">Keywords Only</option>
+            <option value="names">Entry Names Only</option>
+            <option value="all">All Fields</option>
+          </select>
+        </div>
+        <label class="cb-row"><input type="checkbox" id="srCase"><span class="flabel-sm">Match Case</span></label>
+        <label class="cb-row"><input type="checkbox" id="srWhole"><span class="flabel-sm">Whole Words Only</span></label>
+        <label class="cb-row"><input type="checkbox" id="srRegex"><span class="flabel-sm">Use Regex</span></label>
+      </div>
+      <div class="sr-actions">
+        <button class="btn btn-p" id="srFindAll">Find All</button>
+        <button class="btn btn-s" id="srReplaceOne">Replace Next</button>
+        <button class="btn btn-err" id="srReplaceAll">Replace All</button>
+      </div>
+      <div id="srResults" style="display:none" class="sr-results">
+        <div id="srResultsHead" class="sr-rhead"></div>
+        <div id="srResultsList" class="sr-list"></div>
+      </div>
+      <div class="modal-foot"><button class="btn btn-s" data-close="srModal">Close</button></div>
+    </div>
+  </div>
+</div>`);
+

@@ -9,6 +9,7 @@ import { state } from './state.js';
 import { libGet, libSet, loreActiveLibName, loreLinkToLib, saveToStorage } from './storage.js';
 import { askConfirm, askInput, closeModal, esc, g, openModal, toast } from './util.js';
 import { renderWsTabs, wsDropItem, wsShowItem } from './workshop.js';
+import { registerMarkup } from './util.js';
 
 export function openLibrary() {
   g('libModalTitle').textContent = 'Lorebook Library';
@@ -119,3 +120,29 @@ export async function libDelete(name) {
   renderLibraryList();
   toast(`Deleted "${name}".`, 'info');
 }
+
+
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(120, `<!-- LIBRARY MODAL -->
+<div id="libModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2 id="libModalTitle">Lorebook Library</h2><button class="modal-x" data-close="libModal">×</button></div>
+    <div class="modal-body">
+      <div id="libList" class="lib-list"></div>
+      <div class="lib-save-row">
+        <input type="text" id="libNewName" class="lib-new-in" placeholder="Save current as...">
+        <button class="btn btn-ok" id="libSaveBtn">Save</button>
+      </div>
+      <div id="libSelective" style="display:flex;gap:.4rem;margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--bd);flex-wrap:wrap">
+        <button class="btn btn-s btn-sm" id="libExportSelBtn">⬇ Export Library</button>
+        <button class="btn btn-s btn-sm" id="libImportSelBtn">⬆ Import Library</button>
+        <input type="file" id="libImportSelFile" accept=".json" style="display:none">
+      </div>
+    </div>
+  </div>
+</div>`);
+

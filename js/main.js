@@ -35,11 +35,12 @@ import * as m_gdrive from './gdrive.js';
 import * as m_mobile from './mobile.js';
 import * as m_router from './router.js';
 import * as m_pwa from './pwa.js';
+import './help.js'; // registers the help dialog's markup
 import { setupOffline } from './pwa.js';
 import { state } from './state.js';
 import { loadFromStorage, loadPrefs } from './storage.js';
 import { openEntryPicker, openTemplateLibrary, wireTplLibrary } from './templates.js';
-import { closeAllDropdowns, closeModal, g, openModal, toast } from './util.js';
+import { closeAllDropdowns, closeModal, g, injectMarkup, openModal, toast } from './util.js';
 import { openWsPicker, renderWsPickerList, switchMode, wireAutosave, wsRestoreTabs } from './workshop.js';
 
 // ═══════════════════════════════════════════════════════
@@ -81,6 +82,7 @@ export function initStep(name, fn) {
 // and the router runs after the editors exist. initStep isolates each one so a
 // failure in one module can't stop the rest of the app from starting.
 function startApp() {
+  initStep('markup',       injectMarkup); // dialogs etc. owned by the modules, before anything looks for them
   initStep('prefs',        loadPrefs);
   initStep('events',       wireEvents);
   initStep('autosave',     wireAutosave);

@@ -13,6 +13,7 @@ import { toggleTheme } from './settings.js';
 import { state } from './state.js';
 import { openEntryPicker, openTemplateLibrary } from './templates.js';
 import { closeModal, g, openModal, toast } from './util.js';
+import { registerMarkup } from './util.js';
 
 export const isMob = () => window.innerWidth <= 700;
 
@@ -206,3 +207,157 @@ export function wireMobile() {
   });
 
 }
+
+
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(140, `<!-- MOBILE BOTTOM NAV -->
+<nav id="mob-nav">
+  <!-- view nav buttons (always visible on mobile, hidden when in editor) -->
+  <button class="mob-nav-btn mob-view-btn" id="mobGoHome" title="Home">
+    <span class="icon">⌂</span><span class="mob-nav-lbl">Home</span>
+  </button>
+  <button class="mob-nav-btn mob-view-btn" id="mobGoLibrary" title="Library">
+    <span class="icon">✦</span><span class="mob-nav-lbl">Library</span>
+  </button>
+  <button class="mob-nav-btn mob-view-btn" id="mobGoNotebook" title="Journal">
+    <span class="icon">✦</span><span class="mob-nav-lbl">Journal</span>
+  </button>
+  <button class="mob-nav-btn mob-view-btn" id="mobGoEditor" title="Workshop">
+    <span class="icon">✦</span><span class="mob-nav-lbl">Workshop</span>
+  </button>
+  <div id="mob-nav-sep-views" style="width:1px;background:var(--bd);margin:.3rem .1rem;flex-shrink:0;align-self:stretch;"></div>
+
+  <!-- always-visible: sidebar toggle (editor only) -->
+  <button class="mob-nav-btn mob-editor-only" id="mobEntries" title="Sidebar" style="display:none">
+    <span class="icon">☰</span><span class="mob-nav-lbl">Sidebar</span>
+  </button>
+  <div id="mob-nav-sep" style="display:none"></div>
+
+  <!-- LORE actions -->
+  <button class="mob-nav-btn mob-mode-btn mob-lore hi" id="mobNewEntry" title="New Entry">
+    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobImport" title="Import">
+    <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobExport" title="Export">
+    <span class="icon">↑</span><span class="mob-nav-lbl">Export</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobSearch" title="Find & Replace">
+    <span class="icon">✦</span><span class="mob-nav-lbl">Search</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobLibrary" title="Library">
+    <span class="icon">✦</span><span class="mob-nav-lbl">Library</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobLoreTemplates" title="Templates">
+    <span class="icon">✦</span><span class="mob-nav-lbl">Templates</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobLoreSettings" title="LB Settings">
+    <span class="icon">✦</span><span class="mob-nav-lbl">Global</span>
+  </button>
+
+  <!-- CHAR actions -->
+  <button class="mob-nav-btn mob-mode-btn mob-char hi" id="mobCharNew" title="New Character" style="display:none">
+    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharImport" title="Import Card" style="display:none">
+    <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharExport" title="Export Card" style="display:none">
+    <span class="icon">↑</span><span class="mob-nav-lbl">Export</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharLibrary" title="Character Library" style="display:none">
+    <span class="icon">✦</span><span class="mob-nav-lbl">Library</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharAttach" title="Attach Lorebook" style="display:none">
+    <span class="icon">✦</span><span class="mob-nav-lbl">Attach LB</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharPronouns" title="Pronouns & Nouns" style="display:none">
+    <span class="icon">✦</span><span class="mob-nav-lbl">Pronouns</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharTemplates" title="Templates" style="display:none">
+    <span class="icon">✦</span><span class="mob-nav-lbl">Templates</span>
+  </button>
+
+  <!-- PRESET actions -->
+  <button class="mob-nav-btn mob-mode-btn mob-preset hi" id="mobPresetNew" title="New Preset" style="display:none">
+    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetImport" title="Import Preset" style="display:none">
+    <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetLibrary" title="Preset Library" style="display:none">
+    <span class="icon">✦</span><span class="mob-nav-lbl">Library</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetPromptLib" title="Prompt Library" style="display:none">
+    <span class="icon">✦</span><span class="mob-nav-lbl">Prompts</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetAddPrompt" title="Add Prompt" style="display:none">
+    <span class="icon">+</span><span class="mob-nav-lbl">+ Prompt</span>
+  </button>
+
+  <!-- always-visible: settings/theme -->
+  <div id="mob-nav-sep2" style="width:1px;background:var(--bd);margin:.3rem .1rem;flex-shrink:0;align-self:stretch;"></div>
+  <button class="mob-nav-btn" id="mobTheme" title="Toggle theme">
+    <span class="icon">◑</span><span class="mob-nav-lbl">Theme</span>
+  </button>
+  <button class="mob-nav-btn" id="mobSettings" title="Settings">
+    <span class="icon">⚙</span><span class="mob-nav-lbl">Settings</span>
+  </button>
+</nav>`);
+
+registerMarkup(150, `<!-- Mobile import/export pickers (unchanged) -->
+<div id="mobImportModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2>Import</h2><button class="modal-x" data-close="mobImportModal">×</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
+      <button class="btn btn-p" id="mobImportBtn" style="width:100%;justify-content:center;padding:.65rem">SillyTavern</button>
+      <button class="btn btn-s" id="mobImportJanitorPasteBtn" style="width:100%;justify-content:center;padding:.65rem">JanitorAI</button>
+      <button class="btn btn-s" id="mobImportSaucepanBtn" style="width:100%;justify-content:center;padding:.65rem">SaucepanAI</button>
+      <button class="btn btn-s" id="mobImportMergeBtn" style="width:100%;justify-content:center;padding:.65rem">Import for Merge</button>
+    </div>
+  </div>
+</div>`);
+
+registerMarkup(160, `<div id="mobExportModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2>Export</h2><button class="modal-x" data-close="mobExportModal">×</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
+      <button class="btn btn-p" id="mobExportJsonBtn" style="width:100%;justify-content:center;padding:.65rem">SillyTavern</button>
+      <button class="btn btn-s" id="mobExportJanitorBtn" style="width:100%;justify-content:center;padding:.65rem">JanitorAI</button>
+      <button class="btn btn-s" id="mobExportSaucepanBtn" style="width:100%;justify-content:center;padding:.65rem">SaucepanAI</button>
+      <button class="btn btn-s" id="mobExportTxtBtn" style="width:100%;justify-content:center;padding:.65rem">Export as Text</button>
+      <button class="btn btn-s" id="mobExportPubBtn" style="width:100%;justify-content:center;padding:.65rem">Export for Public Pages</button>
+      <button class="btn btn-err" id="mobClearBtn" style="width:100%;justify-content:center;padding:.65rem">Clear Editor</button>
+    </div>
+  </div>
+</div>`);
+
+registerMarkup(170, `<div id="mobCharImportModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2>Import Card</h2><button class="modal-x" data-close="mobCharImportModal">×</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
+      <button class="btn btn-p" id="mobCharImportJsonBtn" style="width:100%;justify-content:center;padding:.65rem">Import JSON Card</button>
+      <button class="btn btn-s" id="mobCharImportPngBtn" style="width:100%;justify-content:center;padding:.65rem">Import PNG Card</button>
+    </div>
+  </div>
+</div>`);
+
+registerMarkup(180, `<div id="mobCharExportModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2>Export Card</h2><button class="modal-x" data-close="mobCharExportModal">×</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
+      <button class="btn btn-p" id="mobCharExportJsonBtn" style="width:100%;justify-content:center;padding:.65rem">V3 JSON</button>
+      <button class="btn btn-s" id="mobCharExportV2JsonBtn" style="width:100%;justify-content:center;padding:.65rem">V2 JSON</button>
+      <button class="btn btn-s" id="mobCharExportV3PngBtn" style="width:100%;justify-content:center;padding:.65rem">V3 PNG</button>
+      <button class="btn btn-s" id="mobCharExportPngBtn" style="width:100%;justify-content:center;padding:.65rem">V2 PNG</button>
+      <button class="btn btn-s" id="mobCharExportSaucepanBtn" style="width:100%;justify-content:center;padding:.65rem">Companion (SaucepanAI)</button>
+      <button class="btn btn-s" id="mobCharExportCharxBtn" style="width:100%;justify-content:center;padding:.65rem">.charx (Lumiverse)</button>
+    </div>
+  </div>
+</div>`);
+

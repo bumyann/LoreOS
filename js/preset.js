@@ -10,6 +10,7 @@ import { state } from './state.js';
 import { savePresetLibrary } from './storage.js';
 import { askConfirm, closeModal, dlFile, esc, g, openModal, safeFileName, toast } from './util.js';
 import { commitActiveEditor, wsDropItem, wsMarkSaved, wsShowItem } from './workshop.js';
+import { registerMarkup } from './util.js';
 
 // ── Blank preset matching ST chat completion format ──
 export function blankPreset() {
@@ -857,3 +858,12 @@ export function openPresetLibrary() {
   g('libSaveBtn').parentElement.style.display = 'none';
   openModal('libModal');
 }
+
+
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(60, `<input type="file" id="filePresetInput" accept=".json" style="display:none">`);
+

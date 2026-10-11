@@ -2,6 +2,17 @@
 // UTIL — small helpers every module uses: DOM lookup, HTML escaping, dialogs, toasts, downloads.
 // ═══════════════════════════════════════════════════════
 
+// Markup registry. Each feature module registers the dialogs and fixed elements it
+// owns (with a number giving their order on the page); main.js injects them all
+// once, before anything is wired up.
+const _markup = [];
+export function registerMarkup(order, html) { _markup.push({ order, html }); }
+export function injectMarkup() {
+  _markup.sort((a, b) => a.order - b.order);
+  document.body.insertAdjacentHTML('beforeend', _markup.map(m => m.html).join('\n'));
+  _markup.length = 0;
+}
+
 export function g(id) { return document.getElementById(id); }
 
 // File name from a user-facing name. Keeps letters from any language and emoji
@@ -138,3 +149,56 @@ export function copyToClipboard(text) {
     return ok;
   }
 }
+
+
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(70, `<!-- Notifications -->
+<div id="notifs"></div>`);
+
+registerMarkup(230, `<!-- CUSTOM INPUT MODAL -->
+<div id="inputModal" class="modal">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-head"><h2 id="inputModalTitle">Input</h2></div>
+    <div class="modal-body">
+      <input type="text" id="inputModalField" class="finput" style="width:100%;margin-bottom:1rem">
+      <div class="modal-foot">
+        <button class="btn btn-s" id="inputModalCancel">Cancel</button>
+        <button class="btn btn-p" id="inputModalOk">OK</button>
+      </div>
+    </div>
+  </div>
+</div>`);
+
+registerMarkup(240, `<!-- RENAME MODAL -->
+<div id="renameModal" class="modal">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-head"><h2 id="renameModalTitle">Rename</h2></div>
+    <div class="modal-body">
+      <p id="renameModalMsg" style="font-family:var(--fx);font-size:.75rem;color:var(--txd);margin-bottom:.75rem"></p>
+      <input type="text" id="renameModalInput" class="finput" style="margin-bottom:.75rem">
+      <div class="modal-foot">
+        <button class="btn btn-s" id="renameCancelBtn">Cancel</button>
+        <button class="btn btn-p" id="renameOkBtn">Rename</button>
+      </div>
+    </div>
+  </div>
+</div>`);
+
+registerMarkup(280, `<!-- CONFIRM MODAL -->
+<div id="confirmModal" class="modal">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-head"><h2>Confirm</h2></div>
+    <div class="modal-body">
+      <p id="confirmMsg" style="font-size:.85rem;color:var(--txd);line-height:1.6;margin-bottom:1rem"></p>
+      <div class="modal-foot">
+        <button class="btn btn-s" id="confirmCancelBtn">Cancel</button>
+        <button class="btn btn-err" id="confirmOkBtn">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>`);
+

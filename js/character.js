@@ -10,6 +10,7 @@ import { state } from './state.js';
 import { saveCharLibrary } from './storage.js';
 import { askConfirm, askInput, closeAllDropdowns, closeModal, dlFile, esc, g, openModal, safeFileName, toast } from './util.js';
 import { commitActiveEditor, wsDropItem, wsMarkSaved, wsShowItem } from './workshop.js';
+import { registerMarkup } from './util.js';
 
 // Active format picker state: 'st' | 'saucepan' | 'lumiverse'
 export let charActiveFormat = 'st';
@@ -1585,3 +1586,16 @@ export function closeCharLibraryModal() {
 }
 
 // Preset editor — stub pending full build (sampler settings + prompt list)
+
+
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(30, `<input type="file" id="fileCharInput" accept=".json,.png" style="display:none">`);
+
+registerMarkup(40, `<input type="file" id="fileCharxInput" accept=".charx" style="display:none">`);
+
+registerMarkup(50, `<input type="file" id="fileCharCompanionInput" accept=".json" style="display:none">`);
+

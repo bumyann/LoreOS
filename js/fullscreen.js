@@ -4,6 +4,7 @@
 
 import { attachFieldUndoRedo } from './history.js';
 import { closeModal, g, openModal, toast } from './util.js';
+import { registerMarkup } from './util.js';
 
 export let fullscreenTargetId = null;
 
@@ -59,3 +60,28 @@ export function wireFullscreen() {
 // Storage: 'aet_tpl_lore' and 'aet_tpl_char'
 // lore templates: { id: { id, name, content, savedAt } }
 // char templates: { id: { id, name, field?, content, savedAt } }
+
+
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(200, `<!-- FULLSCREEN FIELD MODAL -->
+<div id="fullscreenModal" class="modal">
+  <div class="modal-box" style="max-width:860px">
+    <div class="modal-head">
+      <h2 id="fullscreenTitle">Edit Field</h2>
+      <button class="modal-x" id="fullscreenClose">×</button>
+    </div>
+    <div class="modal-body">
+      <span id="fullscreenMeta"></span>
+      <textarea id="fullscreenTA"></textarea>
+      <div class="modal-foot">
+        <button class="btn btn-s" id="fullscreenCancel">Cancel</button>
+        <button class="btn btn-p" id="fullscreenApply">Apply</button>
+      </div>
+    </div>
+  </div>
+</div>`);
+

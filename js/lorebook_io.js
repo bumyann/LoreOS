@@ -8,6 +8,7 @@ import { rebuildEntries, reportRebuild } from './lorebook_model.js';
 import { state } from './state.js';
 import { saveToStorage } from './storage.js';
 import { closeModal, dlFile, g, openModal, safeFileName, toast } from './util.js';
+import { registerMarkup } from './util.js';
 
 // ═══════════════════════════════════════════════════════
 // IMPORT / EXPORT
@@ -518,3 +519,110 @@ export function exportSaucepanJson() {
   dlFile(JSON.stringify(out, null, 2), fn, 'application/json');
   toast('Exported as SaucepanAI lorebook.', 'ok');
 }
+
+
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(0, `<!-- Hidden file inputs -->
+<input type="file" id="fileInput" accept=".json" style="display:none">`);
+
+registerMarkup(10, `<input type="file" id="fileMergeInput" accept=".json" style="display:none">`);
+
+registerMarkup(20, `<input type="file" id="fileSaucepanInput" accept=".json" style="display:none">`);
+
+registerMarkup(90, `<!-- MERGE MODAL -->
+<div id="mergeModal" class="modal">
+  <div class="modal-box lg">
+    <div class="modal-head"><h2>Merge Entries</h2><button class="modal-x" data-close="mergeModal">×</button></div>
+    <div class="modal-body">
+      <div class="merge-info">
+        <p><strong>Current:</strong> <span id="mergeCurrent"></span></p>
+        <p><strong>From:</strong> <span id="mergeFrom"></span></p>
+        <p class="merge-note">Select entries to import. UIDs renumber automatically.</p>
+      </div>
+      <div class="merge-top">
+        <button class="btn btn-s btn-sm" id="mergeSelAll">Select All</button>
+        <button class="btn btn-s btn-sm" id="mergeDeselAll">Deselect All</button>
+        <span class="merge-count-lbl" id="mergeCountLbl">0 selected</span>
+      </div>
+      <div id="mergeList" class="merge-list"></div>
+      <div class="merge-bot">
+        <button class="btn btn-s" data-close="mergeModal">Cancel</button>
+        <button class="btn btn-ok" id="mergeConfirm">Merge Selected</button>
+      </div>
+    </div>
+  </div>
+</div>`);
+
+registerMarkup(100, `<!-- EXPORT TEXT MODAL -->
+<div id="expTxtModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2>Export as Text</h2><button class="modal-x" data-close="expTxtModal">×</button></div>
+    <div class="modal-body">
+      <div class="exp-opts">
+        <h3>Include in export</h3>
+        <label class="cb-row"><input type="checkbox" id="etTitles" checked><span class="flabel-sm">Entry Titles</span></label>
+        <label class="cb-row"><input type="checkbox" id="etContent" checked><span class="flabel-sm">Entry Content</span></label>
+        <label class="cb-row"><input type="checkbox" id="etPrimary" checked><span class="flabel-sm">Primary Keywords</span></label>
+        <label class="cb-row"><input type="checkbox" id="etSecondary" checked><span class="flabel-sm">Secondary Keywords &amp; Logic</span></label>
+        <label class="cb-row"><input type="checkbox" id="etConstants" checked><span class="flabel-sm">Constant/Extension Indicators</span></label>
+        <label class="cb-row"><input type="checkbox" id="etComments"><span class="flabel-sm">Comments/Notes</span></label>
+        <label class="cb-row"><input type="checkbox" id="etOrder"><span class="flabel-sm">Order Numbers</span></label>
+        <div class="fg" style="margin-top:.5rem"><label class="flabel-sm">Filename</label><input type="text" id="etFilename" class="finput" placeholder="lorebook-backup"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-p" id="etExport">Export .txt</button>
+        <button class="btn btn-s" data-close="expTxtModal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>`);
+
+registerMarkup(110, `<!-- EXPORT PUBLIC MODAL -->
+<div id="expPubModal" class="modal">
+  <div class="modal-box lg">
+    <div class="modal-head"><h2>Export for Public Pages</h2><button class="modal-x" data-close="expPubModal">×</button></div>
+    <div class="modal-body">
+      <div class="exp-opts">
+        <h3>Markdown options</h3>
+        <label class="cb-row"><input type="checkbox" id="epDisabled"><span class="flabel-sm">Include disabled entries</span></label>
+        <label class="cb-row"><input type="checkbox" id="epKeywords"><span class="flabel-sm">Include keyword tags</span></label>
+        <label class="cb-row"><input type="checkbox" id="epStatus" checked><span class="flabel-sm">Show status badges</span></label>
+        <div class="fg" style="margin-top:.5rem"><label class="flabel-sm">Filename (.md)</label><input type="text" id="epFilename" class="finput" placeholder="lorebook-public"></div>
+      </div>
+      <div id="epPreview" class="pub-prev" style="display:none"></div>
+      <div class="modal-foot">
+        <button class="btn btn-s" id="epPreviewBtn">Preview</button>
+        <button class="btn btn-p" id="epExport">Download .md</button>
+        <button class="btn btn-s" data-close="expPubModal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>`);
+
+registerMarkup(310, `<!-- JANITORAI PASTE MODAL -->
+<div id="janitorPasteModal" class="modal">
+  <div class="modal-box" style="max-width:600px">
+    <div class="modal-head"><h2>Import JanitorAI Lorebook</h2><button class="modal-x" data-close="janitorPasteModal">×</button></div>
+    <div class="modal-body">
+      <div style="font-family:var(--fx);font-size:.72rem;color:var(--txm);letter-spacing:.4px;line-height:1.7;margin-bottom:.75rem">
+        JanitorAI doesn't have an export button. To get your lorebook data:<br>
+        1. Open the character card on JanitorAI<br>
+        2. View the raw card source / inspect the lorebook JSON<br>
+        3. Copy the full JSON array and paste it below.
+      </div>
+      <div class="fg">
+        <label class="flabel">Paste JSON here</label>
+        <textarea id="janitorPasteTA" class="ftextarea" style="min-height:220px;font-family:var(--fp);font-size:.82rem" placeholder="[ { &quot;comment&quot;: &quot;Entry name&quot;, &quot;key&quot;: [...], &quot;content&quot;: &quot;...&quot; }, ... ]"></textarea>
+      </div>
+      <div class="modal-foot" style="margin-top:.75rem">
+        <button class="btn btn-s" data-close="janitorPasteModal">Cancel</button>
+        <button class="btn btn-p" id="janitorPasteConfirmBtn">Import</button>
+      </div>
+    </div>
+  </div>
+</div>`);
+

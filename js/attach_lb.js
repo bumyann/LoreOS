@@ -9,6 +9,7 @@ import { renderPromptList } from './preset.js';
 import { state } from './state.js';
 import { libGet, saveCharLibrary, savePresetLibrary } from './storage.js';
 import { askInput, esc, g, openModal, toast } from './util.js';
+import { registerMarkup } from './util.js';
 
 export function updateLbStatus(entry) {
   const statusEl = g('chLbStatus');
@@ -327,3 +328,26 @@ export async function renameVar(oldName) {
 export function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(220, `<!-- ATTACH LOREBOOK MODAL -->
+<div id="attachLbModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2>Attach Lorebook</h2><button class="modal-x" data-close="attachLbModal">×</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
+      <p style="font-family:var(--fx);font-size:.75rem;color:var(--txm);letter-spacing:.3px">Attach a lorebook to this character. It gets embedded in the card JSON and ST will offer to import it alongside the card.</p>
+      <div id="attachLbLibList" class="lib-list" style="max-height:240px"></div>
+      <div style="display:flex;gap:.4rem;padding-top:.65rem;border-top:1px solid var(--bd)">
+        <button class="btn btn-s" id="attachLbUploadBtn" style="flex:1">Upload Lorebook JSON</button>
+        <button class="btn btn-err btn-sm" id="attachLbDetachBtn">Detach</button>
+      </div>
+      <input type="file" id="attachLbFileInput" accept=".json" style="display:none">
+    </div>
+  </div>
+</div>`);
+

@@ -9,6 +9,7 @@ import { renderPromptList, ST_SPECIAL, syncPromptOrder } from './preset.js';
 import { state } from './state.js';
 import { safeSet } from './storage.js';
 import { askConfirm, closeModal, esc, g, openModal, toast } from './util.js';
+import { registerMarkup } from './util.js';
 
 export let tplMode = 'lore';
 export let tplTargetFieldId = null;
@@ -948,3 +949,44 @@ export function wireTplLibrary() {
     createEntry();
   });
 }
+
+
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(210, `<!-- TEMPLATE LIBRARY MODAL -->
+<div id="tplModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2 id="tplModalTitle">Templates</h2><button class="modal-x" data-close="tplModal">×</button></div>
+    <div class="modal-body">
+      <div id="tplList" class="tpl-list"></div>
+      <div class="tpl-save-row">
+        <input type="text" id="tplNewName" placeholder="Template name...">
+        <textarea id="tplNewContent" style="width:100%;min-height:80px;background:var(--sf);border:1px solid var(--bd);border-radius:3px;color:var(--tx);font-family:var(--fb);font-size:.82rem;padding:.45rem .6rem;resize:vertical;line-height:1.6" placeholder="Paste or write template content here... (leave blank to save from focused field)"></textarea>
+        <div style="display:flex;gap:.4rem">
+          <button class="btn btn-ok" id="tplSaveBtn" style="flex:1">Save Template</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:.4rem;margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--bd);flex-wrap:wrap">
+        <button class="btn btn-s btn-sm" id="tplExportSelBtn">⬇ Export Templates</button>
+        <button class="btn btn-s btn-sm" id="tplImportSelBtn">⬆ Import Templates</button>
+        <input type="file" id="tplImportSelFile" accept=".json" style="display:none">
+      </div>
+    </div>
+  </div>
+</div>`);
+
+registerMarkup(320, `<!-- ENTRY TYPE PICKER MODAL -->
+<div id="entryPickerModal" class="modal">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-head"><h2>New Entry</h2><button class="modal-x" data-close="entryPickerModal">×</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:.5rem">
+      <button class="btn btn-ok" id="pickerBlank" style="justify-content:center;padding:.65rem">✦ Blank Entry</button>
+      <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);letter-spacing:1px;padding:.3rem 0 .1rem">// or start from a template</div>
+      <div id="pickerCategories" style="display:flex;flex-direction:column;gap:.3rem"></div>
+    </div>
+  </div>
+</div>`);
+

@@ -11,6 +11,7 @@ import { loreSnapshotSoon, safeSet, saveToStorage } from './storage.js';
 import { openEntryPicker } from './templates.js';
 import { askConfirm, closeModal, esc, g, openModal, toast } from './util.js';
 import { commitActiveEditor } from './workshop.js';
+import { registerMarkup } from './util.js';
 
 export function createEntry() {
   const uid = state.nextUid++;
@@ -734,3 +735,42 @@ export function applyLoreSettings() {
   closeModal('loreSettingsModal');
   toast('Lorebook settings updated.', 'ok');
 }
+
+
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(130, `<!-- LOREBOOK SETTINGS MODAL -->
+<div id="loreSettingsModal" class="modal">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-head"><h2>Global Lorebook Settings</h2><button class="modal-x" data-close="loreSettingsModal">×</button></div>
+    <div class="modal-body">
+      <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);margin-bottom:.75rem;line-height:1.6;letter-spacing:.3px">
+        These settings are embedded in the exported lorebook JSON and read by SillyTavern.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.65rem">
+        <div class="fg">
+          <label class="flabel">Scan Depth</label>
+          <input type="number" id="lsScanDepth" class="finput" min="0" max="100" placeholder="2">
+          <span class="form-note">How many recent messages to scan for keywords (0 = all).</span>
+        </div>
+        <div class="fg">
+          <label class="flabel">Token Budget</label>
+          <input type="number" id="lsTokenBudget" class="finput" min="0" placeholder="2048">
+          <span class="form-note">Max tokens the lorebook can inject.</span>
+        </div>
+        <label class="cb-row"><input type="checkbox" id="lsCaseSensitive"><span class="flabel-sm">Case Sensitive</span></label>
+        <label class="cb-row"><input type="checkbox" id="lsMatchWholeWords"><span class="flabel-sm">Match Whole Words</span></label>
+        <label class="cb-row"><input type="checkbox" id="lsUseGroupScoring"><span class="flabel-sm">Use Group Scoring</span></label>
+        <label class="cb-row"><input type="checkbox" id="lsRecursiveScanning"><span class="flabel-sm">Recursive Scanning</span></label>
+      </div>
+      <div class="modal-foot" style="margin-top:1rem">
+        <button class="btn btn-s" data-close="loreSettingsModal">Cancel</button>
+        <button class="btn btn-p" id="lsApplyBtn">Apply</button>
+      </div>
+    </div>
+  </div>
+</div>`);
+

@@ -12,6 +12,7 @@ import { cancelLoreSnapshot, safeSet } from './storage.js';
 import { renderTemplateList } from './templates.js';
 import { closeModal, dlFile, g, openModal, toast } from './util.js';
 import { cancelAutosave, renderWsTabs } from './workshop.js';
+import { registerMarkup } from './util.js';
 
 export const SYNC_KEYS = [
   'aet_lorebook','aet_tabs','aet_activeTab','aet_nextUid',
@@ -415,3 +416,46 @@ export function currentTplMode() {
   if (title.includes('Prompt')) return 'tpl_preset';
   return 'tpl_lore';
 }
+
+
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(290, `<!-- BACKUP HISTORY MODAL -->
+<div id="syncHistoryModal" class="modal">
+  <div class="modal-box lg">
+    <div class="modal-head"><h2>Backup History</h2><button class="modal-x" data-close="syncHistoryModal">×</button></div>
+    <div class="modal-body">
+      <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);margin-bottom:.6rem">
+        Last 10 snapshots — saved on each export or import. Restore to roll back to any point.
+      </div>
+      <div id="syncHistoryList" class="lib-list"></div>
+    </div>
+  </div>
+</div>`);
+
+registerMarkup(300, `<!-- IMPORT CHECKLIST MODAL -->
+<div id="syncImportModal" class="modal">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-head"><h2 id="syncImportTitle">Import Backup</h2><button class="modal-x" data-close="syncImportModal">×</button></div>
+    <div class="modal-body">
+      <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);margin-bottom:.65rem" id="syncImportMeta"></div>
+      <div style="font-family:var(--fx);font-size:.72rem;color:var(--txd);margin-bottom:.4rem">Select what to restore:</div>
+      <div id="syncImportChecks" style="display:flex;flex-direction:column;gap:.35rem;margin-bottom:.75rem"></div>
+      <div style="display:flex;gap:.4rem;margin-bottom:.5rem">
+        <button class="btn btn-s btn-sm" id="syncImportCheckAll">All</button>
+        <button class="btn btn-s btn-sm" id="syncImportCheckNone">None</button>
+      </div>
+      <div style="font-family:var(--fx);font-size:.65rem;color:var(--warn);margin-bottom:.75rem">
+        ⚠ Selected data will overwrite what's currently in your browser. This cannot be undone.
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-s" data-close="syncImportModal">Cancel</button>
+        <button class="btn btn-ok" id="syncImportConfirmBtn">Restore</button>
+      </div>
+    </div>
+  </div>
+</div>`);
+

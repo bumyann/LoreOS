@@ -5,6 +5,7 @@
 
 import { state } from './state.js';
 import { copyToClipboard, g, toast } from './util.js';
+import { registerMarkup } from './util.js';
 
 // ── Pronoun/noun tool globals — must live here so wireEvents can reference PT ──
 export const PT = {
@@ -398,3 +399,61 @@ export function ptRefreshManual() {
   PT_nounTokens = tokenizeForNouns(text);
   renderNounDisplay(PT_nounTokens);
 }
+
+
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(190, `<!-- PRONOUN + NOUN TOOL -->
+<div id="pronounTool">
+  <div class="pt-head">
+    <span class="pt-title">Pronoun &amp; Noun Converter</span>
+    <button class="btn-icon btn" id="ptClose" style="width:1.7rem;height:1.7rem;font-size:.85rem;flex-shrink:0">✕</button>
+  </div>
+  <div class="pt-body">
+    <div class="pt-source-row">
+      <span class="pt-source-lbl">Source:</span>
+      <button class="pt-src-btn active" data-src="they">they/them</button>
+      <button class="pt-src-btn" data-src="he">he/him</button>
+      <button class="pt-src-btn" data-src="she">she/her</button>
+    </div>
+    <div class="pt-target-row">
+      <span class="pt-source-lbl">Convert to:</span>
+      <button class="pt-tgt-btn active" data-tgt="macro">→ macros</button>
+      <button class="pt-tgt-btn" data-tgt="he">→ he/him</button>
+      <button class="pt-tgt-btn" data-tgt="she">→ she/her</button>
+      <button class="pt-tgt-btn" data-tgt="they">→ they/them</button>
+    </div>
+    <div class="pt-manual-legend">
+      <span><span class="pt-legend-dot" style="background:rgba(232,121,160,.6)"></span>they/them</span>
+      <span><span class="pt-legend-dot" style="background:rgba(121,180,232,.6)"></span>he/him</span>
+      <span><span class="pt-legend-dot" style="background:rgba(136,201,138,.6)"></span>she/her</span>
+      <span><span class="pt-legend-dot" style="background:rgba(240,192,96,.6)"></span>ambiguous</span>
+      <span><span class="pt-legend-dot" style="background:rgba(136,201,138,.35)"></span>converted</span>
+    </div>
+    <div id="ptManualDisplay" class="pt-manual-wrap">// focus a text field in the character editor to begin</div>
+    <div class="pt-actions-row" style="margin-top:.4rem">
+      <button class="btn btn-s btn-sm" id="ptManualRefresh">Refresh</button>
+      <button class="btn btn-p btn-sm" id="ptManualApply">Apply to field</button>
+      <button class="btn btn-s btn-sm" id="ptManualCopy">Copy result</button>
+      <span style="font-family:var(--fx);font-size:.65rem;color:var(--txm);margin-left:auto">click words to convert</span>
+    </div>
+    <div class="pt-noun-section">
+      <div class="pt-noun-row">
+        <span class="pt-source-lbl">Nouns→</span>
+        <button class="pt-tgt-btn active" data-noun-tgt="masc">→ masc</button>
+        <button class="pt-tgt-btn" data-noun-tgt="fem">→ fem</button>
+        <button class="pt-tgt-btn" data-noun-tgt="neutral">→ neutral</button>
+      </div>
+      <div id="ptNounDisplay" class="pt-manual-wrap" style="min-height:3rem">// refresh pronouns above to also scan nouns</div>
+      <div class="pt-actions-row" style="margin-top:.4rem">
+        <button class="btn btn-s btn-sm" id="ptNounApply">Apply nouns to field</button>
+        <button class="btn btn-s btn-sm" id="ptNounCopy">Copy noun result</button>
+        <span style="font-family:var(--fx);font-size:.65rem;color:var(--txm);margin-left:auto">click words to convert</span>
+      </div>
+    </div>
+  </div>
+</div>`);
+
