@@ -35,6 +35,11 @@ export const VIEWS = [
   { id: 'saved', label: 'The saved message' },
 ];
 
+// The empty script a new set starts with. It is dropped when scripts are copied or imported in.
+export function isBlankScript(s) {
+  return !!s && !String(s.findRegex || '').trim() && !String(s.replaceString || '') && (!s.scriptName || s.scriptName === 'New script') && !(s.lumiverse && s.lumiverse.actions && s.lumiverse.actions.length);
+}
+
 export function newId() {
   try { if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID(); } catch (e) { /* insecure context */ }
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
@@ -176,6 +181,7 @@ export function runPipeline(scripts, text, { placement = 2, view = 'display', ch
   const steps = scripts.map(s => {
     const base = { id: s.id, name: s.scriptName, applied: false, count: 0, error: '', matches: [] };
     if (!appliesTo(s, placement, view)) return { ...base, skipped: s.disabled ? 'off' : 'not for this text' };
+    if (!String(s.findRegex || '').trim()) return { ...base, skipped: 'no pattern yet' };
     try {
       const input = cur;
       const r = runScript(s, cur, { char, user });
@@ -278,7 +284,7 @@ export function parseRegexJson(text) {
   const looksLikeScript = o => isObj(o) && ('findRegex' in o || 'scriptName' in o || 'find_regex' in o);
   const conv = list => list.filter(isObj).map(x => (isLumiScript(x) ? lumiToScript(x) : x));
   if (isObj(data) && data.format === SET_FORMAT && isObj(data.set)) {
-    return { name: str(data.name) || 'Imported regex set', set: normalizeSet(data.set) };
+    return { name: str(data.name) || 'Imported regex set', set: normalizeSet(data.set), isSet: true };
   }
   let list = null, name = '';
   if (isObj(data) && data.type === LUMI_REGEX_TYPE && Array.isArray(data.scripts)) { list = data.scripts; name = 'Lumiverse regex scripts'; }
@@ -287,7 +293,7 @@ export function parseRegexJson(text) {
   else if (isObj(data) && isObj(data.extensions) && Array.isArray(data.extensions.regex_scripts)) list = data.extensions.regex_scripts;
   else if (isObj(data) && Array.isArray(data.regex_scripts)) list = data.regex_scripts;
   if (!list || !list.length) throw new Error('No regex scripts found in that file.');
-  return { name: name || 'Imported regex scripts', set: normalizeSet({ scripts: conv(list) }) };
+  return { name: name || 'Imported regex scripts', set: normalizeSet({ scripts: conv(list) }), isSet: false };
 }
 
 export function looksLikeRegexJson(data) {

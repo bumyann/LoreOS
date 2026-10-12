@@ -661,3 +661,4 @@ textarea.bad{border-color:var(--err,#e0707f)}
 .lv-var code,.lv-edit code{font-size:.68rem;color:var(--txm)}
 .lv-edit{display:flex;flex-direction:column;gap:.55rem;border-top:1px dashed var(--bd);padding-top:.7rem}
 .lv-defs>summary{cursor:pointer;font-size:.74rem;color:var(--txm)}
+.rx-pick-list{display:flex;flex-direction:column;gap:.3rem;max-height:240px;overflow:auto;padding:.4rem .5rem;border:1px solid var(--bd);border-radius:3px;background:var(--bg)}

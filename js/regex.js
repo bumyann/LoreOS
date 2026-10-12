@@ -7,7 +7,7 @@
 import { itemHistoryPush, openItemHistory } from './history.js';
 import { closeMobSidebar } from './mobile.js';
 import {
-  PLACEMENTS, SUBSTITUTE_MODES, VIEWS, blankScript, blankSet, highlight, normalizeSet, newId, parseRegexJson,
+  PLACEMENTS, SUBSTITUTE_MODES, VIEWS, blankScript, blankSet, highlight, isBlankScript, normalizeSet, newId, parseRegexJson,
   lumiRegexFileJson, runPipeline, scriptToJson, scriptsForEmbedding, setToJson,
 } from './regex_model.js';
 import { state } from './state.js';
@@ -21,9 +21,13 @@ export function regexId() { return 'x' + Date.now() + Math.floor(Math.random() *
 // ═══════════════════════════════════════════════════════
 // LIBRARY
 // ═══════════════════════════════════════════════════════
-export function createRegex(name = 'New regex set', set = null) {
+// opts.single: one script on its own, shown without any set controls (it becomes a set when a second script is added)
+export function createRegex(name = 'New regex set', set = null, opts = {}) {
   const id = regexId();
-  state.regexLibrary[id] = { id, name, set: normalizeSet(set || blankSet()), savedAt: new Date().toISOString() };
+  const ns = normalizeSet(set || blankSet());
+  const single = !!opts.single && ns.scripts.length === 1;
+  if (single && name === 'New regex set') name = ns.scripts[0].scriptName || 'New script';
+  state.regexLibrary[id] = { id, name, set: ns, savedAt: new Date().toISOString(), ...(single ? { single: true } : {}) };
   saveRegexLibrary();
   renderRegexSidebar();
   if (!wsShowItem('regex', id)) openRegex(id);
@@ -44,11 +48,11 @@ export function duplicateRegex(id) {
   const src = state.regexLibrary[id]; if (!src) return;
   const set = JSON.parse(JSON.stringify(src.set));
   set.scripts.forEach(s => { s.id = newId(); });
-  createRegex((src.name || 'Untitled') + ' (Copy)', set);
+  createRegex((src.name || 'Untitled') + ' (Copy)', set, { single: !!src.single });
 }
 
 export async function deleteRegex(id) {
-  if (!await askConfirm('Delete this regex set? You can bring it back from Settings > Storage > Recently deleted.')) return;
+  if (!await askConfirm('Delete this regex ' + (state.regexLibrary[id] && state.regexLibrary[id].single ? 'script' : 'set') + '? You can bring it back from Settings > Storage > Recently deleted.')) return;
   if (state.regexLibrary[id]) trashPush('regex', state.regexLibrary[id].name || 'Unnamed set', state.regexLibrary[id]);
   delete state.regexLibrary[id];
   wsDropItem('regex', id);
@@ -75,12 +79,12 @@ function touch() { state.regexUnsaved = true; }
 export function renderRegexSidebar() {
   const list = g('entryList'), count = g('entryCount');
   const sets = Object.values(state.regexLibrary).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  count.textContent = `${sets.length} ${sets.length === 1 ? 'set' : 'sets'}`;
+  count.textContent = `${sets.length} ${sets.length === 1 ? 'item' : 'items'}`;
   list.innerHTML = '';
   if (!sets.length) {
     const li = document.createElement('li');
     li.style.cssText = 'padding:1.2rem .75rem;text-align:center;font-family:var(--fx);font-size:.75rem;color:var(--txm);letter-spacing:1px';
-    li.textContent = 'no regex sets yet';
+    li.textContent = 'no regex scripts or sets yet';
     list.append(li); return;
   }
   sets.forEach(entry => {
@@ -88,7 +92,7 @@ export function renderRegexSidebar() {
     li.className = 'ei' + (entry.id === state.activeRegexId ? ' open' : '');
     const head = document.createElement('div'); head.className = 'ei-head';
     const emoji = document.createElement('span'); emoji.className = 'ei-emoji'; emoji.textContent = '⌕';
-    const name = document.createElement('div'); name.className = 'ei-name'; name.textContent = entry.name || 'Untitled set';
+    const name = document.createElement('div'); name.className = 'ei-name'; name.textContent = entry.name || (entry.single ? 'Untitled script' : 'Untitled set');
     head.append(emoji, name); li.append(head);
     const acts = document.createElement('div'); acts.className = 'ei-acts';
     [['⧉', 'Duplicate', () => duplicateRegex(entry.id), ''], ['✕', 'Delete', () => deleteRegex(entry.id), 'del']].forEach(([lbl, title, fn, cls]) => {
@@ -100,7 +104,7 @@ export function renderRegexSidebar() {
     li.append(acts);
     const meta = document.createElement('div'); meta.className = 'ei-kws';
     const sc = (entry.set && entry.set.scripts) || [];
-    [`${sc.length} script${sc.length === 1 ? '' : 's'}`, `${sc.filter(s => !s.disabled).length} on`].forEach(t => {
+    [entry.single ? 'script' : `set · ${sc.length} script${sc.length === 1 ? '' : 's'}`, `${sc.filter(s => !s.disabled).length} on`].forEach(t => {
       const tag = document.createElement('span'); tag.className = 'kw-tag'; tag.textContent = t; meta.append(tag);
     });
     li.append(meta);
@@ -139,28 +143,36 @@ export function renderRegexEditor() {
   const cur = current();
   if (!cur) {
     ec.className = '';
-    ec.innerHTML = `<div class="empty-state"><div>// select or create a regex set</div><button class="btn btn-ok" id="rxNewAlt">+ New Regex Set</button></div>`;
+    ec.innerHTML = `<div class="empty-state"><div>// select or create a regex script or set</div><button class="btn btn-ok" id="rxNewAlt">+ New Regex Set</button><button class="btn btn-s" id="rxNewScriptAlt">+ New Regex Script</button></div>`;
     g('rxNewAlt').onclick = () => createRegex();
+    g('rxNewScriptAlt').onclick = () => createRegex('New regex set', null, { single: true });
     return;
   }
   const { entry, set } = cur;
+  if (entry.single && set.scripts.length !== 1) delete entry.single; // grew or emptied: it is a set now
+  const single = !!entry.single;
   ec.className = '';
   ec.innerHTML = '';
   const wrap = h('div', { class: 'pr-wrap' });
   wrap.append(h('div', { class: 'pr-top' },
-    h('input', { id: 'rxName', class: 'finput pr-name', value: entry.name || '', placeholder: 'Set name', oninput: e => { entry.name = e.target.value; touch(); } }),
+    h('input', { id: 'rxName', class: 'finput pr-name', value: entry.name || '', placeholder: single ? 'Script name' : 'Set name', oninput: e => {
+      entry.name = e.target.value;
+      if (single) { set.scripts[0].scriptName = e.target.value; const n = ec.querySelector('[data-rx-name]'); if (n) n.textContent = e.target.value || 'Unnamed script'; const ni = ec.querySelector('[data-rx-name-input]'); if (ni) ni.value = e.target.value; }
+      touch(); } }),
     h('div', { class: 'pr-top-acts' },
       h('button', { class: 'btn btn-p btn-sm', id: 'rxSaveBtn', onclick: () => saveRegex() }, 'Save'),
       h('button', { class: 'btn btn-s btn-sm', onclick: () => openItemHistory('regex', entry.id) }, 'History'))));
-  wrap.append(h('p', { class: 'pr-help' }, 'Scripts run top to bottom, each one on the result of the one before. Open a script to edit it; the tester shows what the whole set does to your sample text.'));
+  wrap.append(h('p', { class: 'pr-help' }, single
+    ? 'One regex script on its own. Edit it below and try it in the tester. Add a second script and this becomes a set.'
+    : 'Scripts run top to bottom, each one on the result of the one before. Open a script to edit it; the tester shows what the whole set does to your sample text.'));
   wrap.append(toolsRow(entry, set));
 
   const grid = h('div', { class: 'pr-build rx-grid' });
   const list = h('div', { class: 'rx-scripts', id: 'rxScripts' });
-  set.scripts.forEach((s, i) => list.append(scriptCard(s, i, set)));
+  set.scripts.forEach((s, i) => list.append(scriptCard(s, i, set, entry, single)));
   list.append(h('button', { class: 'btn btn-ok btn-sm', id: 'rxAddScript', onclick: () => {
-    const s = blankScript(); set.scripts.push(s); state.regexOpen = s.id; touch(); renderRegexEditor();
-  } }, '+ Add a script'));
+    const s = blankScript(); set.scripts.push(s); delete entry.single; state.regexOpen = s.id; touch(); renderRegexEditor();
+  } }, single ? '+ Add another script (makes this a set)' : '+ Add a script'));
   grid.append(list, testerPanel(set));
   wrap.append(grid);
   ec.append(wrap);
@@ -194,7 +206,7 @@ function toolsRow(entry, set) {
     fromSel, h('button', { class: 'btn btn-s btn-sm', id: 'rxFromBtn', onclick: () => {
       const o = owners.find(x => x.key === fromSel.value); if (!o) { toast('Pick a character or preset first.', 'warn'); return; }
       const added = normalizeSet({ scripts: scriptsForEmbedding(o.scripts) }).scripts;
-      set.scripts.push(...added); touch();
+      set.scripts = [...set.scripts.filter(s => !isBlankScript(s)), ...added]; delete entry.single; touch();
       toast(`Copied ${added.length} script${added.length === 1 ? '' : 's'} from ${o.label.replace(/^\w+: /, '')}.`, 'ok');
       renderRegexEditor();
     } }, 'Copy in'),
@@ -223,7 +235,7 @@ export function sendTo(key, set) {
 }
 
 // ── A script card ──
-function scriptCard(s, i, set) {
+function scriptCard(s, i, set, entry, single) {
   const open = state.regexOpen === s.id;
   const badge = h('span', { class: 'rx-badge', 'data-rx-badge': s.id }, '');
   const summary = h('summary', { class: s.disabled ? 'rx-off' : '' },
@@ -258,7 +270,7 @@ function scriptCard(s, i, set) {
 
   det.append(h('div', { class: 'pr-module-body' },
     h('div', { class: 'pr-row' }, h('input', { class: 'finput', value: s.scriptName, placeholder: 'Script name', 'data-rx-name-input': s.id,
-      oninput: e => { s.scriptName = e.target.value; touch(); const n = det.querySelector('[data-rx-name]'); if (n) n.textContent = s.scriptName || 'Unnamed script'; } })),
+      oninput: e => { s.scriptName = e.target.value; if (single) { entry.name = s.scriptName; const top = g('rxName'); if (top) top.value = s.scriptName; } touch(); const n = det.querySelector('[data-rx-name]'); if (n) n.textContent = s.scriptName || 'Unnamed script'; } })),
     h('label', { class: 'pr-lbl' }, 'Find'), find,
     h('div', { class: 'rx-err', 'data-rx-err': s.id }),
     h('label', { class: 'pr-lbl' }, 'Replace with'), repl,
@@ -276,14 +288,15 @@ function scriptCard(s, i, set) {
     h('div', { class: 'pr-lbl' }, 'What this script matches in the sample'),
     h('div', { class: 'rx-preview', 'data-rx-preview': s.id }),
     h('div', { class: 'pr-row' },
-      h('button', { class: 'btn btn-s btn-sm', onclick: () => { swap(set.scripts, i, i - 1); touch(); renderRegexEditor(); }, disabled: i === 0 }, '↑'),
-      h('button', { class: 'btn btn-s btn-sm', onclick: () => { swap(set.scripts, i, i + 1); touch(); renderRegexEditor(); }, disabled: i === set.scripts.length - 1 }, '↓'),
-      h('button', { class: 'btn btn-s btn-sm', onclick: () => {
+      single ? '' : h('button', { class: 'btn btn-s btn-sm', onclick: () => { swap(set.scripts, i, i - 1); touch(); renderRegexEditor(); }, disabled: i === 0 }, '↑'),
+      single ? '' : h('button', { class: 'btn btn-s btn-sm', onclick: () => { swap(set.scripts, i, i + 1); touch(); renderRegexEditor(); }, disabled: i === set.scripts.length - 1 }, '↓'),
+      single ? '' : h('button', { class: 'btn btn-s btn-sm', onclick: () => {
         const copy = { ...JSON.parse(JSON.stringify(s)), id: newId(), scriptName: s.scriptName + ' (copy)' };
         set.scripts.splice(i + 1, 0, copy); state.regexOpen = copy.id; touch(); renderRegexEditor();
       } }, 'Duplicate'),
       h('button', { class: 'btn btn-s btn-sm', onclick: () => exportRegexScript(s.id) }, 'Export (SillyTavern)'),
-      h('button', { class: 'btn btn-err btn-sm', onclick: async () => {
+      h('button', { class: 'btn btn-s btn-sm', onclick: () => exportRegexScriptLumi(s.id) }, 'Export (Lumiverse)'),
+      single ? '' : h('button', { class: 'btn btn-err btn-sm', onclick: async () => {
         if (!await askConfirm(`Delete the script "${s.scriptName}"?`)) return;
         set.scripts = set.scripts.filter(x => x.id !== s.id); touch(); renderRegexEditor();
       } }, 'Delete'))));
@@ -435,10 +448,11 @@ async function runTest() {
 // IMPORT / EXPORT
 // ═══════════════════════════════════════════════════════
 export function importRegexText(text, filename = '') {
-  const { name, set } = parseRegexJson(text);
-  const id = createRegex(name || filename.replace(/\.[^.]+$/, '') || 'Imported set', set);
+  const { name, set, isSet } = parseRegexJson(text);
+  const single = !isSet && set.scripts.length === 1;
+  const id = createRegex(single ? (set.scripts[0].scriptName || name) : (name || filename.replace(/\.[^.]+$/, '') || 'Imported set'), set, { single });
   const n = state.regexLibrary[id].set.scripts.length;
-  toast(`Imported ${n} script${n === 1 ? '' : 's'}.`, 'ok');
+  toast(single ? 'Imported the script.' : `Imported ${n} script${n === 1 ? '' : 's'} as a set.`, 'ok');
   return id;
 }
 
@@ -460,6 +474,63 @@ export function exportRegexScript(scriptId) {
   const fn = 'regex-' + safeFileName(s.scriptName, 'script') + '.json';
   dlFile(scriptToJson(s), fn, 'application/json');
   toast('Exported ' + fn, 'ok');
+}
+
+export function exportRegexScriptLumi(scriptId) {
+  commitActiveEditor();
+  const cur = current(); if (!cur) { toast('Open a regex script or set first.', 'warn'); return; }
+  const s = cur.set.scripts.find(x => x.id === (scriptId || state.regexOpen));
+  if (!s) { toast('Open a script first (click its name), then export.', 'warn'); return; }
+  const fn = 'regex-' + safeFileName(s.scriptName, 'script') + '-lumiverse.json';
+  dlFile(lumiRegexFileJson([s]), fn, 'application/json');
+  toast('Exported ' + fn, 'ok');
+}
+
+// ── Import scripts from a preset or a character ──
+// Pick the source, tick the scripts, and they become a new set, a single script, or join the open set.
+export function openImportFrom(kind) {
+  const owners = embeddedOwners().filter(o => o.key.startsWith(kind + ':') && o.scripts.length);
+  if (!owners.length) { toast(kind === 'preset' ? 'No preset has regex scripts yet.' : 'No character has regex scripts yet.', 'info'); return; }
+  const body = g('rxPickBody'); body.innerHTML = '';
+  g('rxPickTitle').textContent = kind === 'preset' ? 'Import from a preset' : 'Import from a character';
+  const sel = h('select', { class: 'fselect', id: 'rxPickSrc' }, owners.map(o => h('option', { value: o.key }, `${o.label.replace(/^\w+: /, '')} (${o.scripts.length})`)));
+  const listBox = h('div', { class: 'rx-pick-list', id: 'rxPickList' });
+  const btns = h('div', { class: 'pr-row' });
+  const bNew = h('button', { class: 'btn btn-p btn-sm', id: 'rxPickNew' }, 'Import as a new set');
+  const bOne = h('button', { class: 'btn btn-s btn-sm', id: 'rxPickOne' }, 'As a single script');
+  const bAdd = h('button', { class: 'btn btn-s btn-sm', id: 'rxPickAdd' }, 'Add to the open set');
+  btns.append(bNew, bOne, bAdd);
+  body.append(sel, listBox, btns);
+  const chosen = () => {
+    const o = owners.find(x => x.key === sel.value);
+    const ticks = [...listBox.querySelectorAll('input[type=checkbox]')];
+    return { o, list: o.scripts.filter((_, i) => ticks[i] && ticks[i].checked) };
+  };
+  const refresh = () => {
+    const { list } = chosen();
+    bNew.disabled = !list.length; bOne.disabled = list.length !== 1; bAdd.disabled = !list.length || !current();
+    bAdd.style.display = current() ? '' : 'none';
+  };
+  const fill = () => {
+    const o = owners.find(x => x.key === sel.value); listBox.innerHTML = '';
+    o.scripts.forEach(s => {
+      const nm = (s && (s.scriptName || s.name)) || 'Unnamed script';
+      listBox.append(h('label', { class: 'cb-row' }, h('input', { type: 'checkbox', checked: true, onchange: refresh }), h('span', { class: 'flabel-sm' }, nm)));
+    });
+    refresh();
+  };
+  sel.onchange = fill; fill();
+  const make = list => scriptsForEmbedding(list);
+  bNew.onclick = () => { const { o, list } = chosen(); const set = normalizeSet({ scripts: make(list) }); closeModal('rxPickModal'); createRegex(o.label.replace(/^\w+: /, '') + ' regex', set); toast(`Imported ${set.scripts.length} script${set.scripts.length === 1 ? '' : 's'} as a new set.`, 'ok'); };
+  bOne.onclick = () => { const { list } = chosen(); const set = normalizeSet({ scripts: make(list) }); closeModal('rxPickModal'); createRegex(set.scripts[0].scriptName, set, { single: true }); toast('Imported the script.', 'ok'); };
+  bAdd.onclick = () => {
+    const cur = current(); if (!cur) return;
+    const { list } = chosen(); const added = normalizeSet({ scripts: make(list) }).scripts;
+    cur.set.scripts = [...cur.set.scripts.filter(s => !isBlankScript(s)), ...added]; delete cur.entry.single;
+    touch(); closeModal('rxPickModal'); renderRegexEditor();
+    toast(`Added ${added.length} script${added.length === 1 ? '' : 's'}.`, 'ok');
+  };
+  openModal('rxPickModal');
 }
 
 export async function exportRegexZip() {
@@ -503,14 +574,23 @@ export function exportRegexSet() {
 export function wireRegexActions() {
   const on = (id, fn) => { const el = g(id); if (el) el.onclick = fn; };
   on('regexNewBtn', () => createRegex());
+  on('regexNewScriptBtn', () => createRegex('New regex set', null, { single: true }));
   on('regexImportBtn', () => g('fileRegexInput').click());
+  on('regexImportPresetBtn', () => openImportFrom('preset'));
+  on('regexImportCharBtn', () => openImportFrom('char'));
+  on('regexExportScriptLumiBtn', () => exportRegexScriptLumi());
   on('regexExportScriptBtn', () => exportRegexScript());
   on('regexExportZipBtn', () => exportRegexZip());
   on('regexExportSetBtn', () => exportRegexSet());
   on('regexExportLumiBtn', () => exportRegexLumiverse());
   const fi = g('fileRegexInput'); if (fi) fi.onchange = handleRegexImport;
   on('mobRegexNew', () => createRegex());
-  on('mobRegexImport', () => g('fileRegexInput').click());
+  on('mobRegexImport', () => openModal('mobRegexImportModal'));
+  on('mobRegexImportFile', () => { closeModal('mobRegexImportModal'); g('fileRegexInput').click(); });
+  on('mobRegexImportPreset', () => { closeModal('mobRegexImportModal'); openImportFrom('preset'); });
+  on('mobRegexImportChar', () => { closeModal('mobRegexImportModal'); openImportFrom('char'); });
+  on('mobRegexNewScript', () => createRegex('New regex set', null, { single: true }));
+  on('mobRegexExportScriptLumi', () => { closeModal('mobRegexExportModal'); exportRegexScriptLumi(); });
   on('mobRegexExport', () => openModal('mobRegexExportModal'));
   on('mobRegexExportScript', () => { closeModal('mobRegexExportModal'); exportRegexScript(); });
   on('mobRegexExportZip', () => { closeModal('mobRegexExportModal'); exportRegexZip(); });
@@ -519,11 +599,29 @@ export function wireRegexActions() {
 }
 
 registerMarkup(75, `<input type="file" id="fileRegexInput" accept=".json" multiple style="display:none">`);
+registerMarkup(185, `<div id="mobRegexImportModal" class="modal">
+  <div class="modal-box" style="max-width:340px">
+    <div class="modal-head"><h2>Import Regex</h2><button class="modal-x" data-close="mobRegexImportModal">×</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
+      <button class="btn btn-p" id="mobRegexImportFile" style="width:100%;justify-content:center;padding:.65rem">From a file (JSON)</button>
+      <button class="btn btn-s" id="mobRegexImportPreset" style="width:100%;justify-content:center;padding:.65rem">From a preset</button>
+      <button class="btn btn-s" id="mobRegexImportChar" style="width:100%;justify-content:center;padding:.65rem">From a character</button>
+      <button class="btn btn-s" id="mobRegexNewScript" style="width:100%;justify-content:center;padding:.65rem" data-close="mobRegexImportModal">+ New single script</button>
+    </div>
+  </div>
+</div>`);
+registerMarkup(184, `<div id="rxPickModal" class="modal">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-head"><h2 id="rxPickTitle">Import</h2><button class="modal-x" data-close="rxPickModal">×</button></div>
+    <div class="modal-body" id="rxPickBody" style="display:flex;flex-direction:column;gap:.7rem"></div>
+  </div>
+</div>`);
 registerMarkup(186, `<div id="mobRegexExportModal" class="modal">
   <div class="modal-box" style="max-width:340px">
     <div class="modal-head"><h2>Export Regex</h2><button class="modal-x" data-close="mobRegexExportModal">×</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
       <button class="btn btn-p" id="mobRegexExportScript" style="width:100%;justify-content:center;padding:.65rem">Open script (SillyTavern)</button>
+      <button class="btn btn-s" id="mobRegexExportScriptLumi" style="width:100%;justify-content:center;padding:.65rem">Open script (Lumiverse)</button>
       <button class="btn btn-s" id="mobRegexExportZip" style="width:100%;justify-content:center;padding:.65rem">All scripts (.zip)</button>
       <button class="btn btn-s" id="mobRegexExportLumi" style="width:100%;justify-content:center;padding:.65rem">Lumiverse regex scripts (JSON)</button>
       <button class="btn btn-s" id="mobRegexExportSet" style="width:100%;justify-content:center;padding:.65rem">LoreOS set (JSON)</button>

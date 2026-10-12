@@ -167,7 +167,7 @@ export function renderDashboard(el) {
 
   // Regex sets
   Object.values(state.regexLibrary || {}).forEach(s => {
-    recentItems.push({ type: 'regex set', icon: '⌕', name: s.name || 'Untitled set', savedAt: s.savedAt, action: () => { navigateTo('editor'); setTimeout(() => { switchMode('regex'); openRegex(s.id); }, 80); } });
+    recentItems.push({ type: s.single ? 'regex script' : 'regex set', icon: '⌕', name: s.name || 'Untitled set', savedAt: s.savedAt, action: () => { navigateTo('editor'); setTimeout(() => { switchMode('regex'); openRegex(s.id); }, 80); } });
   });
 
   // Sort by savedAt desc, take top 6
