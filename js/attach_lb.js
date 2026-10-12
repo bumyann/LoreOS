@@ -18,13 +18,13 @@ export function updateLbStatus(entry) {
   if (cb && cb.entries && Object.keys(cb.entries).length > 0) {
     const count = Object.keys(cb.entries).length;
     if (sources.length > 1) {
-      statusEl.innerHTML = `🌐 <strong>${sources.length} lorebooks merged</strong> — ${count} ${count === 1 ? 'entry' : 'entries'} total`;
+      statusEl.innerHTML = `⌖ <strong>${sources.length} lorebooks merged</strong> — ${count} ${count === 1 ? 'entry' : 'entries'} total`;
     } else {
       const name = sources.length === 1 ? sources[0].name : (cb.name || 'Unnamed lorebook');
-      statusEl.innerHTML = `🌐 <strong>${esc(name)}</strong> — ${count} ${count === 1 ? 'entry' : 'entries'} attached`;
+      statusEl.innerHTML = `⌖ <strong>${esc(name)}</strong> — ${count} ${count === 1 ? 'entry' : 'entries'} attached`;
     }
   } else {
-    statusEl.textContent = '🌐 No lorebook attached';
+    statusEl.textContent = '⌖ No lorebook attached';
   }
 }
 

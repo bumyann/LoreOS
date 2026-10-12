@@ -804,7 +804,7 @@ registerMarkup(250, `<!-- SETTINGS MODAL (still accessible via ⚙ and settings 
         <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
           <button class="btn btn-p btn-sm" id="syncExportBtn">⬇ Export Backup</button>
           <button class="btn btn-s btn-sm" id="syncImportBtn">⬆ Import Backup</button>
-          <button class="btn btn-s btn-sm" id="syncHistoryBtn">🕓 History</button>
+          <button class="btn btn-s btn-sm" id="syncHistoryBtn">↺ History</button>
           <input type="file" id="syncImportFile" accept=".json" style="display:none">
         </div>
         <div class="sync-status" id="syncStatus" style="margin-top:.4rem"></div>

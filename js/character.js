@@ -339,7 +339,7 @@ export function renderCharEditor() {
     </div>
 
     <div class="attach-lb-panel"${isSauce ? ' style="display:none"' : ''}>
-      <div class="attach-lb-status" id="chLbStatus">🌐 No lorebook attached</div>
+      <div class="attach-lb-status" id="chLbStatus">⌖ No lorebook attached</div>
       <div class="attach-lb-acts">
         <button class="btn btn-s btn-sm" id="chLbManageBtn">Manage Attached Lorebook</button>
       </div>
@@ -932,7 +932,7 @@ export function openCharLibrary() {
         <span class="lib-meta">${date}</span>
         <div class="lib-acts">
           <button class="btn btn-s btn-sm lib-load">Load</button>
-          <button class="btn btn-s btn-sm lib-hist lib-item-hist" title="Version history">🕓</button>
+          <button class="btn btn-s btn-sm lib-hist lib-item-hist" title="Version history">↺</button>
           <button class="btn btn-err btn-sm lib-del">✕</button>
         </div>`;
       item.querySelector('.lib-name').addEventListener('click', () => { openChar(entry.id); closeModal('libModal'); });

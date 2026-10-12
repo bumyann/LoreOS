@@ -40,7 +40,7 @@ export function renderLibraryList() {
       <div class="lib-acts">
         <button class="btn btn-s btn-sm lib-load">Load</button>
         <button class="btn btn-s btn-sm lib-rename">Rename</button>
-        <button class="btn btn-s btn-sm lib-hist lib-item-hist" title="Version history">🕓</button>
+        <button class="btn btn-s btn-sm lib-hist lib-item-hist" title="Version history">↺</button>
         <button class="btn btn-err btn-sm lib-del">✕</button>
       </div>`;
     item.querySelector('.lib-name').addEventListener('click', () => libLoad(book.name));

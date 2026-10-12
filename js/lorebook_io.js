@@ -184,7 +184,7 @@ export function doExportTxt() {
   Object.values(state.lorebook.entries).sort((a,b)=>(a.order ?? 999)-(b.order ?? 999)).forEach((en,i) => {
     let h = opts.titles ? `## ${i+1}. ${en.comment || 'Untitled Entry'}` : `## ${i+1}.`;
     if (opts.constants) {
-      const ind = [en.constant?'🔵':'', en.vectorized?'🔗':'', (en.selective&&en.keysecondary?.length)?'🟢':''].filter(Boolean);
+      const ind = [en.constant?'◆':'', en.vectorized?'◈':'', (en.selective&&en.keysecondary?.length)?'●':''].filter(Boolean);
       if (ind.length) h += ' ' + ind.join(' ');
     }
     if (opts.order) h += ` (Order: ${en.order})`;

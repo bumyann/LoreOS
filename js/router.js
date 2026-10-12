@@ -117,12 +117,12 @@ export function renderGetStarted(el) {
       </div>
       <div class="home-cards">
         <div class="home-card">
-          <div class="home-card-icon">📖</div>
+          <div class="home-card-icon">❖</div>
           <div class="home-card-title">Lorebook Editor</div>
           <div class="home-card-desc">Build and edit ST-format lorebooks with keyword triggers, merge tools, and batch export.</div>
         </div>
         <div class="home-card">
-          <div class="home-card-icon">🎭</div>
+          <div class="home-card-icon">☺</div>
           <div class="home-card-title">Character Cards</div>
           <div class="home-card-desc">Create V3 character cards, embed lorebooks, convert pronouns to macros, export as PNG.</div>
         </div>
@@ -132,7 +132,7 @@ export function renderGetStarted(el) {
           <div class="home-card-desc">Edit SillyTavern chat completion presets with full prompt list support and drag-to-reorder.</div>
         </div>
         <div class="home-card">
-          <div class="home-card-icon">📋</div>
+          <div class="home-card-icon">⚙</div>
           <div class="home-card-title">Template Library</div>
           <div class="home-card-desc">22+ built-in templates for characters, lorebooks, and NPCs. Save your own for reuse.</div>
         </div>
@@ -149,12 +149,12 @@ export function renderDashboard(el) {
   // Lorebooks
   const lb = libGet();
   Object.values(lb).forEach(s => {
-    recentItems.push({ type: 'lorebook', icon: '📖', name: s.name || 'Untitled Lorebook', savedAt: s.savedAt, action: () => { navigateTo('editor'); setTimeout(() => { switchMode('lore'); libLoad(s.name); }, 80); } });
+    recentItems.push({ type: 'lorebook', icon: '❖', name: s.name || 'Untitled Lorebook', savedAt: s.savedAt, action: () => { navigateTo('editor'); setTimeout(() => { switchMode('lore'); libLoad(s.name); }, 80); } });
   });
   // Characters
   const ch = typeof state.charLibrary !== 'undefined' ? state.charLibrary : {};
   Object.values(ch).forEach(s => {
-    recentItems.push({ type: 'character', icon: '🎭', name: s.name || 'Unnamed Character', savedAt: s.savedAt, action: () => { navigateTo('editor'); setTimeout(() => { switchMode('char'); openChar(s.id); }, 80); } });
+    recentItems.push({ type: 'character', icon: '☺', name: s.name || 'Unnamed Character', savedAt: s.savedAt, action: () => { navigateTo('editor'); setTimeout(() => { switchMode('char'); openChar(s.id); }, 80); } });
   });
   // Presets
   const pr = typeof state.presetLibrary !== 'undefined' ? state.presetLibrary : {};
@@ -200,7 +200,7 @@ export function renderDashboard(el) {
           <button class="btn btn-s dash-act" data-new="preset">⚙ New Preset</button>
           <button class="btn btn-s dash-act" data-new="prompt">✎ New Prompt Pack</button>
           <button class="btn btn-s dash-act" data-new="regex">⌕ New Regex Set</button>
-          <button class="btn btn-s dash-act" data-go="library">📚 Library</button>
+          <button class="btn btn-s dash-act" data-go="library">▤ Library</button>
         </div>
       </div>
       <div class="dash-section">
@@ -232,7 +232,7 @@ export function renderLaboratoryView() {
   if (!el) return;
   el.innerHTML = `
     <div class="lab-stub">
-      <div class="lab-stub-icon">🔬</div>
+      <div class="lab-stub-icon">⚗</div>
       <div class="lab-stub-title">Laboratory</div>
       <div class="lab-stub-desc">Tools for understanding and debugging your AI creations.<br>Token inspector, lorebook trigger viewer, prompt conflict detector — coming soon.</div>
     </div>

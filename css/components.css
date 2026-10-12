@@ -673,7 +673,8 @@ textarea.bad{border-color:var(--err,#e0707f)}
 .libx-rail{display:flex;flex-direction:column;gap:.15rem;position:sticky;top:0}
 .libx-rail-h{font-family:var(--fx);font-size:.62rem;letter-spacing:1px;text-transform:uppercase;color:var(--txm);margin:.7rem 0 .2rem;display:flex;align-items:center;justify-content:space-between}
 .libx-rail-item{display:flex;align-items:center;gap:.4rem;width:100%;text-align:left;background:none;border:1px solid transparent;border-radius:3px;color:var(--txd);font-family:var(--fx);font-size:.74rem;padding:.3rem .5rem;cursor:pointer;min-height:30px}
-.libx-rail-item span{margin-left:auto;color:var(--txm);font-size:.65rem}
+.libx-rail-item>span:last-child{margin-left:auto;color:var(--txm);font-size:.65rem}
+.libx-rail-item .libx-sym{display:inline-block;width:1.1em;text-align:center}
 .libx-rail-item:hover{background:var(--sf);border-color:var(--bd)}
 .libx-rail-item.active{background:var(--sf2);border-color:var(--bdb);color:var(--tx)}
 .libx-dot{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;flex-shrink:0}
@@ -714,3 +715,25 @@ textarea.bad{border-color:var(--err,#e0707f)}
   .libx-search{max-width:none;flex-basis:100%;order:5}
   .libx-grid{grid-template-columns:1fr}
 }
+.libx-sym{font-variant-emoji:text}
+.libx-banner{height:130px;border-radius:4px;border:1px solid var(--bd);background:linear-gradient(135deg,var(--sf2),var(--bg3));background-size:cover;background-position:center;display:flex;align-items:flex-end;overflow:hidden}
+.libx-banner.has{height:170px}
+.libx-banner-bar{width:100%;display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.5rem .7rem;background:linear-gradient(0deg,rgba(6,8,16,.82),rgba(6,8,16,0));flex-wrap:wrap}
+.libx-banner-acts{display:flex;gap:.35rem}
+.libx-crumbs{display:flex;align-items:center;gap:.3rem;flex-wrap:wrap}
+.libx-crumb{background:none;border:none;color:var(--txd);font-family:var(--fx);font-size:.76rem;cursor:pointer;padding:.2rem .3rem;border-radius:3px;min-height:30px}
+.libx-crumb:hover{background:var(--sf);color:var(--tx)}
+.libx-crumb.here{color:var(--tx);font-weight:600}
+.libx-sep{color:var(--txm)}
+.libx-crumb-acts{margin-left:auto;display:flex;gap:.35rem;flex-wrap:wrap}
+.libx-folders{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.5rem}
+.libx-folder{display:flex;align-items:center;gap:.5rem;padding:.55rem .7rem;background:var(--bg2);border:1px solid var(--bd);border-radius:4px;color:var(--tx);font-family:var(--fx);font-size:.8rem;cursor:pointer;text-align:left;min-height:40px}
+.libx-folder:hover{border-color:var(--bdb)}
+.libx-folder-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.libx-folder-n{color:var(--txm);font-size:.68rem}
+.libx-symgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:.25rem;max-height:150px;overflow:auto;padding:.3rem;border:1px solid var(--bd);border-radius:3px;background:var(--bg)}
+.libx-symbtn{background:var(--sf);border:1px solid var(--bd);border-radius:3px;color:var(--tx);font-size:1.05rem;min-height:36px;cursor:pointer;font-variant-emoji:text}
+.libx-symbtn:hover{border-color:var(--bdb)}
+.libx-symbtn.on{background:var(--sf2);border-color:var(--p);color:var(--p)}
+
+.libx-worldhead .ftextarea{min-height:64px;height:64px;resize:vertical}

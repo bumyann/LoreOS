@@ -3,8 +3,9 @@
 // it never touches the items themselves, only points at them.
 //
 //   aet_meta = { v: 1,
-//     worlds: { [id]: { id, name, color, note, createdAt } },
-//     items:  { "kind:id": { world, tags: [], pinned, note, opened, name } } }
+//     worlds:  { [id]: { id, name, color, note, banner, createdAt } },
+//     folders: { [id]: { id, world, parent, name } },   // subfolders inside a world, nested as deep as you like
+//     items:   { "kind:id": { world, folder, tags: [], pinned, note, opened, name, symbol, image } } }
 //
 // kind is one of: lore, char, preset, prompt, regex, persona.
 // Every item has a stable id. Characters, presets, packs and sets always had one. Saved lorebooks are
@@ -49,26 +50,45 @@ export function loreNameById(id, lib = libGet()) {
 }
 
 // ── The stored record ──
+const MAX_IMG = 700000; // characters of data URL kept per picture
+const cleanImg = v => (typeof v === 'string' && v.startsWith('data:image/') && v.length <= MAX_IMG ? v : '');
+const cleanSym = v => (typeof v === 'string' ? Array.from(v.replace(/[\uFE0E\uFE0F]/g, '').trim()).slice(0, 2).join('') : '');
 export function normalizeMeta(m) {
   const o = isObj(m) ? m : {};
   const worlds = {};
   Object.entries(isObj(o.worlds) ? o.worlds : {}).forEach(([id, w]) => {
     if (!isObj(w)) return;
-    worlds[id] = { id, name: String(w.name || 'Untitled world').slice(0, 60), color: typeof w.color === 'string' ? w.color : '', note: typeof w.note === 'string' ? w.note : '', createdAt: w.createdAt || '' };
+    worlds[id] = { id, name: String(w.name || 'Untitled world').slice(0, 60), color: typeof w.color === 'string' ? w.color : '', note: typeof w.note === 'string' ? w.note : '', banner: cleanImg(w.banner), createdAt: w.createdAt || '' };
+  });
+  const folders = {};
+  Object.entries(isObj(o.folders) ? o.folders : {}).forEach(([id, f]) => {
+    if (!isObj(f) || !worlds[f.world]) return;
+    folders[id] = { id, world: f.world, parent: typeof f.parent === 'string' ? f.parent : null, name: String(f.name || 'Folder').slice(0, 60) };
+  });
+  // a folder's parent must exist, sit in the same world, and not lead back to itself
+  Object.values(folders).forEach(f => {
+    if (f.parent && (!folders[f.parent] || folders[f.parent].world !== f.world)) f.parent = null;
+    let hops = 0, p = f.parent;
+    while (p && hops++ < 60) p = folders[p] ? folders[p].parent : null;
+    if (hops >= 60) f.parent = null;
   });
   const items = {};
   Object.entries(isObj(o.items) ? o.items : {}).forEach(([k, r]) => {
     if (!isObj(r)) return;
+    const world = typeof r.world === 'string' && worlds[r.world] ? r.world : null;
     items[k] = {
-      world: typeof r.world === 'string' && worlds[r.world] ? r.world : null,
+      world,
+      folder: world && typeof r.folder === 'string' && folders[r.folder] && folders[r.folder].world === world ? r.folder : null,
       tags: cleanTags(r.tags),
       pinned: !!r.pinned,
       note: typeof r.note === 'string' ? r.note : '',
       opened: typeof r.opened === 'string' ? r.opened : '',
       name: typeof r.name === 'string' ? r.name : '',
+      symbol: cleanSym(r.symbol),
+      image: cleanImg(r.image),
     };
   });
-  return { v: 1, worlds, items };
+  return { v: 1, worlds, folders, items };
 }
 export function cleanTags(list) {
   const src = Array.isArray(list) ? list : typeof list === 'string' ? list.split(',') : [];
@@ -88,9 +108,9 @@ export function metaGet() {
 }
 export function metaSet(m) { return safeSet(META_KEY, JSON.stringify(normalizeMeta(m))); }
 
-const isEmptyRecord = r => !r.world && !r.tags.length && !r.pinned && !r.note && !r.opened;
+const isEmptyRecord = r => !r.world && !r.folder && !r.tags.length && !r.pinned && !r.note && !r.opened && !r.symbol && !r.image;
 export function recordOf(m, kind, id) {
-  return m.items[itemKey(kind, id)] || { world: null, tags: [], pinned: false, note: '', opened: '', name: '' };
+  return m.items[itemKey(kind, id)] || { world: null, folder: null, tags: [], pinned: false, note: '', opened: '', name: '', symbol: '', image: '' };
 }
 // Change one item's record. `patch` keys: world, tags, pinned, note, opened, name.
 export function patchItem(m, kind, id, patch) {
@@ -98,6 +118,8 @@ export function patchItem(m, kind, id, patch) {
   const next = { ...recordOf(m, kind, id), ...patch };
   next.tags = cleanTags(next.tags);
   if (next.world && !m.worlds[next.world]) next.world = null;
+  if (!next.world || !next.folder || !m.folders[next.folder] || m.folders[next.folder].world !== next.world) next.folder = null; // a folder belongs to one world
+  next.symbol = cleanSym(next.symbol); next.image = cleanImg(next.image);
   if (isEmptyRecord(next)) delete m.items[k]; else m.items[k] = next;
   return m;
 }
@@ -119,8 +141,37 @@ export function addWorld(m, name, color = '') {
 }
 export function removeWorld(m, id) {
   delete m.worlds[id];
-  Object.keys(m.items).forEach(k => { if (m.items[k].world === id) { m.items[k].world = null; if (isEmptyRecord(m.items[k])) delete m.items[k]; } });
+  Object.keys(m.folders).forEach(f => { if (m.folders[f].world === id) delete m.folders[f]; });
+  Object.keys(m.items).forEach(k => { if (m.items[k].world === id) { m.items[k].world = null; m.items[k].folder = null; if (isEmptyRecord(m.items[k])) delete m.items[k]; } });
   return m;
+}
+
+// ── Folders inside a world ──
+export function addFolder(m, world, parent, name) {
+  if (!m.worlds[world]) return null;
+  const id = newUid('f');
+  m.folders[id] = { id, world, parent: parent && m.folders[parent] && m.folders[parent].world === world ? parent : null, name: String(name || 'New folder').trim().slice(0, 60) || 'New folder' };
+  return id;
+}
+// Deleting a folder keeps what is inside: its items and subfolders move up one level
+export function removeFolder(m, id) {
+  const f = m.folders[id]; if (!f) return m;
+  Object.values(m.folders).forEach(c => { if (c.parent === id) c.parent = f.parent; });
+  Object.keys(m.items).forEach(k => { if (m.items[k].folder === id) m.items[k].folder = f.parent; });
+  delete m.folders[id];
+  return m;
+}
+export function folderPath(m, id) {
+  const out = []; let cur = id, hops = 0;
+  while (cur && m.folders[cur] && hops++ < 60) { out.unshift(m.folders[cur]); cur = m.folders[cur].parent; }
+  return out;
+}
+export const childFolders = (m, world, parent) => Object.values(m.folders).filter(f => f.world === world && (f.parent || null) === (parent || null)).sort((a, b) => a.name.localeCompare(b.name));
+// ids of a folder and everything below it
+export function folderTree(m, id) {
+  const out = [id];
+  Object.values(m.folders).forEach(f => { if (f.parent === id) out.push(...folderTree(m, f.id)); });
+  return out;
 }
 
 // ── Reading back ──

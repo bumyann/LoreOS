@@ -64,6 +64,7 @@ const ASSETS = [
   'js/lumiverse.js',
   'js/loom_vars.js',
   'js/meta.js',
+  'js/symbols.js',
   'js/persona.js',
   'js/library_view.js',
   'js/regex_worker.js',

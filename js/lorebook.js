@@ -193,7 +193,8 @@ export function renderList() {
 
     const emoji = document.createElement('span');
     emoji.className = 'ei-emoji';
-    emoji.textContent = en.disable ? '⚫' : en.constant ? '🔵' : en.vectorized ? '🔗' : '🟢';
+    emoji.textContent = en.disable ? '○' : en.constant ? '◆' : en.vectorized ? '◈' : '●';
+    emoji.style.color = en.disable ? 'var(--txm)' : en.constant ? 'var(--p)' : en.vectorized ? '#c9a0dc' : 'var(--ok)';
 
     const name = document.createElement('div');
     name.className = 'ei-name';
@@ -322,7 +323,7 @@ export function renderTabs() {
     const en = state.lorebook.entries[uid];
     if (!en && uid !== 'help-tab') return;
     const isUnsaved = state.unsaved.has(uid);
-    const emoji = en ? (en.disable?'⚫':en.constant?'🔵':en.vectorized?'🔗':'🟢') : '📖';
+    const emoji = en ? (en.disable?'○':en.constant?'◆':en.vectorized?'◈':'●') : '❖';
     const label = (isUnsaved ? '● ' : '') + emoji + ' ' + (en ? (en.comment || 'Untitled') : 'Help');
 
     const tab = document.createElement('button');
@@ -436,7 +437,7 @@ export function buildEditorHTML(en, uid) {
         <div style="flex:0 0 auto">
           <label class="flabel">Activation</label>
           <select id="eAct-${uid}" class="fselect" style="min-width:60px">
-            ${sel(act,[['constant','🔵 Constant'],['keyword','🟢 Keyword'],['vector','🔗 Vector'],['inactive','⚫ Inactive']])}
+            ${sel(act,[['constant','◆ Constant'],['keyword','● Keyword'],['vector','◈ Vector'],['inactive','○ Inactive']])}
           </select>
         </div>
         <div style="flex:1">
@@ -481,7 +482,7 @@ export function buildEditorHTML(en, uid) {
           <div class="fg"><label class="flabel-sm">Insertion Depth</label><input type="number" id="eDepth-${uid}" class="fnum" value="${esc(depth)}" min="0"></div>
           <div class="fg"><label class="flabel-sm">Role</label>
             <select id="eRole-${uid}" class="fselect">
-              ${sel(role === null ? 'null' : role, [['null','None'],['0','⚙ System'],['1','👤 User'],['2','🤖 Assistant']])}
+              ${sel(role === null ? 'null' : role, [['null','None'],['0','System'],['1','User'],['2','Assistant']])}
             </select>
           </div>` : `
           <div class="fg"><label class="flabel-sm">Depth</label><input type="number" id="eDepth-${uid}" class="fnum" value="${esc(depth)}" min="0"></div>

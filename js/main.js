@@ -65,6 +65,7 @@ import * as m_character_io from './character_io.js';
 import * as m_lumiverse from './lumiverse.js';
 import * as m_loom_vars from './loom_vars.js';
 import * as m_meta from './meta.js';
+import * as m_symbols from './symbols.js';
 import * as m_persona from './persona.js';
 import * as m_library_view from './library_view.js';
 import * as m_avatar from './avatar.js';
@@ -376,7 +377,7 @@ export function wireEvents() {
 // through to the shared state object.
 // ═══════════════════════════════════════════════════════
 const LoreOS = {};
-[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa, m_character_io, m_avatar, m_templates_data, m_dropimport, m_header_fit, m_trash, m_kv, m_prompt, m_prompt_model, m_logo, m_regex, m_regex_model, m_lumiverse, m_loom_vars, m_meta, m_persona, m_library_view].forEach(ns => {
+[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa, m_character_io, m_avatar, m_templates_data, m_dropimport, m_header_fit, m_trash, m_kv, m_prompt, m_prompt_model, m_logo, m_regex, m_regex_model, m_lumiverse, m_loom_vars, m_meta, m_persona, m_library_view, m_symbols].forEach(ns => {
   Object.keys(ns).forEach(k => {
     if (!(k in LoreOS)) Object.defineProperty(LoreOS, k, { get: () => ns[k], enumerable: true, configurable: true });
   });

@@ -16,7 +16,7 @@
  chk('rename keeps id', lib2['Alpha Prime'] && lib2['Alpha Prime'].id===alphaId && !lib2.Alpha);
  chk('loreNameById finds the new name', loreNameById(alphaId)==='Alpha Prime');
  // ── meta layer ──
- chk('garbage meta normalises', JSON.stringify(normalizeMeta({worlds:5,items:{a:5,'lore:x':{tags:['A','a',' b ',''],world:'nope'}}}))===JSON.stringify({v:1,worlds:{},items:{'lore:x':{world:null,tags:['A','b'],pinned:false,note:'',opened:'',name:''}}}));
+ { const nm=normalizeMeta({worlds:5,folders:3,items:{a:5,'lore:x':{tags:['A','a',' b ',''],world:'nope',folder:'zz',symbol:'✦\uFE0F',image:'javascript:1'}}}); chk('garbage meta normalises', JSON.stringify(nm.worlds)==='{}' && JSON.stringify(nm.folders)==='{}' && Object.keys(nm.items).join()==='lore:x' && nm.items['lore:x'].tags.join()==='A,b' && nm.items['lore:x'].world===null && nm.items['lore:x'].folder===null && nm.items['lore:x'].symbol==='✦' && nm.items['lore:x'].image===''); }
  let m=metaGet(); const wid=addWorld(m,'Celestalis','#8a9bd2');
  patchItem(m,'lore',alphaId,{world:wid,tags:'wip, fantasy',pinned:true,note:'n'}); metaSet(m);
  m=metaGet(); const r0=recordOf(m,'lore',alphaId);
@@ -87,7 +87,7 @@
  document.getElementById('libxDeleteWorld').click(); await w(200); document.getElementById('confirmOkBtn').click(); await w(400);
  chk('deleting a world keeps its items', names().length===9 && recordOf(metaGet(),'char','c1').world===null && recordOf(metaGet(),'char','c1').tags.length===2, [names().length]);
  // persona from the library
- document.querySelector('[data-new="persona"]').click(); await w(400);
+ document.querySelector('[data-libnew="persona"]').click(); await w(400);
  chk('new persona opens its dialog', document.getElementById('personaModal').classList.contains('open') && Object.keys(state.personaLibrary).length===2);
  type(document.getElementById('personaName'),'Detective'); type(document.getElementById('personaDesc'),'Hard-boiled.'); await w(700);
  const np=state.personaLibrary[state.activePersonaId];

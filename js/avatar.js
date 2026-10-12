@@ -62,3 +62,31 @@ export function downscaleAvatar(dataUrl, force = false) {
     img.src = dataUrl;
   });
 }
+
+// Shrinks any picture to fit a box (always, unlike avatars) and returns a WebP data URL. Used for the
+// small pictures on Library items and the wide banners on worlds. Resolves '' when the file is not an image.
+export function resizeImage(dataUrl, maxW, maxH = maxW, quality = 0.82) {
+  return new Promise(resolve => {
+    if (!dataUrl) { resolve(''); return; }
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth, h = img.naturalHeight;
+        if (!w || !h) { resolve(''); return; }
+        const scale = Math.min(1, maxW / w, maxH / h);
+        const tw = Math.max(1, Math.round(w * scale)), th = Math.max(1, Math.round(h * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = tw; canvas.height = th;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, tw, th);
+        let out = canvas.toDataURL('image/webp', quality);
+        if (!out || out.indexOf('data:image/webp') !== 0) out = canvas.toDataURL('image/jpeg', quality);
+        resolve(out);
+      } catch (e) { resolve(''); }
+    };
+    img.onerror = () => resolve('');
+    img.src = dataUrl;
+  });
+}
+export const readFileAsDataUrl = file => new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.onerror = () => reject(r.error); r.readAsDataURL(file); });

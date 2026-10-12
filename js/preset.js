@@ -99,7 +99,7 @@ export function renderPresetSidebar() {
 
     const meta = document.createElement('div'); meta.className = 'ei-kws';
     const p = entry.preset;
-    [`🌡 ${p.temperature}`,`prompts: ${(p.prompts||[]).length}`].forEach(t => {
+    [`temp ${p.temperature}`,`prompts: ${(p.prompts||[]).length}`].forEach(t => {
       const tag = document.createElement('span'); tag.className = 'kw-tag'; tag.textContent = t; meta.append(tag);
     });
     li.append(meta);
@@ -202,7 +202,7 @@ export function renderPresetEditor() {
 
     <!-- PROMPT STRING FIELDS -->
     <div class="adv">
-      <div class="adv-head" id="psStringsHead"><span class="adv-title">📝 Prompt Strings</span><span class="adv-arr" id="psStringsArr">▶</span></div>
+      <div class="adv-head" id="psStringsHead"><span class="adv-title">✎ Prompt Strings</span><span class="adv-arr" id="psStringsArr">▶</span></div>
       <div class="adv-body" id="psStringsBody">
         <div style="display:flex;flex-direction:column;gap:.65rem">
           ${presetStringField('psAssistPrefill','Assistant Prefill',p.assistant_prefill)}
@@ -225,7 +225,7 @@ export function renderPresetEditor() {
     <!-- PROMPTS LIST -->
     <div class="adv open" style="border:1px solid var(--bdb)">
       <div class="adv-head open" id="psPromptsHead" style="flex-wrap:wrap;gap:.4rem">
-        <span class="adv-title" style="color:var(--p)">📋 Prompts <span style="color:var(--txm);font-size:.7em">(drag to reorder)</span></span>
+        <span class="adv-title" style="color:var(--p)">☰ Prompts <span style="color:var(--txm);font-size:.7em">(drag to reorder)</span></span>
         <div style="display:flex;gap:.3rem;margin-left:auto;flex-wrap:wrap">
           <button class="btn btn-s btn-sm" id="psScrollBot">⬇ Jump to Bottom</button>
           <button class="btn btn-s btn-sm" id="psCollapseAll">▶ Collapse All</button>
@@ -248,7 +248,7 @@ export function renderPresetEditor() {
     <!-- VARIABLES PANEL -->
     <div class="adv">
       <div class="adv-head" id="psVarsHead">
-        <span class="adv-title">🔡 Variables <span style="color:var(--txm);font-size:.7em">(setvar/getvar)</span></span>
+        <span class="adv-title">⌗ Variables <span style="color:var(--txm);font-size:.7em">(setvar/getvar)</span></span>
         <div style="display:flex;gap:.3rem;align-items:center">
           <button class="btn btn-s btn-sm" id="psScanVars">Scan</button>
           <span class="adv-arr" id="psVarsArr">▶</span>
@@ -514,18 +514,18 @@ export function presetStringField(id, label, val, tall=false) {
 
 // ST special identifiers — fixed positions, ST injects these automatically
 export const ST_SPECIAL = {
-  'main':               { label: '🔧 Main Prompt',           desc: 'ST main system prompt' },
-  'nsfw':               { label: '🔞 NSFW',                  desc: 'NSFW/adult content block' },
-  'jailbreak':          { label: '🔓 Jailbreak',             desc: 'Jailbreak / post-history block' },
-  'dialogueExamples':   { label: '💬 Dialogue Examples',     desc: 'Example messages block' },
-  'chatHistory':        { label: '📜 Chat History',          desc: 'Chat messages inject here' },
-  'enhanceDefinitions': { label: '📖 Enhance Definitions',   desc: 'Definition enhancement block' },
-  'charDescription':    { label: '👤 Char Description',      desc: 'Character description field' },
-  'charPersonality':    { label: '🎭 Char Personality',      desc: 'Character personality field' },
-  'scenario':           { label: '🎬 Scenario',              desc: 'Scenario field' },
-  'personaDescription': { label: '🪞 Persona Description',   desc: 'User persona description' },
-  'worldInfoBefore':    { label: '🌍 World Info — Before',   desc: 'World info before char' },
-  'worldInfoAfter':     { label: '🌍 World Info — After',    desc: 'World info after char' },
+  'main':               { label: '✦ Main Prompt',           desc: 'ST main system prompt' },
+  'nsfw':               { label: '⛧ NSFW',                  desc: 'NSFW/adult content block' },
+  'jailbreak':          { label: '⚿ Jailbreak',             desc: 'Jailbreak / post-history block' },
+  'dialogueExamples':   { label: '❝ Dialogue Examples',     desc: 'Example messages block' },
+  'chatHistory':        { label: '☰ Chat History',          desc: 'Chat messages inject here' },
+  'enhanceDefinitions': { label: '❖ Enhance Definitions',   desc: 'Definition enhancement block' },
+  'charDescription':    { label: '☺ Char Description',      desc: 'Character description field' },
+  'charPersonality':    { label: '☻ Char Personality',      desc: 'Character personality field' },
+  'scenario':           { label: '◧ Scenario',              desc: 'Scenario field' },
+  'personaDescription': { label: '◍ Persona Description',   desc: 'User persona description' },
+  'worldInfoBefore':    { label: '↑ World Info — Before',   desc: 'World info before char' },
+  'worldInfoAfter':     { label: '↓ World Info — After',    desc: 'World info after char' },
 };
 
 // Which prompts are collapsed (by identifier)
@@ -879,7 +879,7 @@ export function openPresetLibrary() {
         <span class="lib-meta">${(entry.preset.prompts||[]).length} prompts · ${date}</span>
         <div class="lib-acts">
           <button class="btn btn-p btn-sm lib-load">Load</button>
-          <button class="btn btn-s btn-sm lib-hist lib-item-hist" title="Version history">🕓</button>
+          <button class="btn btn-s btn-sm lib-hist lib-item-hist" title="Version history">↺</button>
           <button class="btn btn-err btn-sm lib-del">✕</button>
         </div>`;
       item.querySelector('.lib-name').addEventListener('click', () => { openPreset(entry.id); closeModal('libModal'); });
