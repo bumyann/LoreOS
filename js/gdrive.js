@@ -402,10 +402,10 @@ export async function gdriveReconcile({ onConnect = false } = {}) {
     }
     if (gdriveIsDirty()) {
       gdriveState = 'conflict';
-      toast('Drive and this device both have changes. Auto-sync is paused so nothing gets overwritten — use Pull to see Drive\'s version, or Push Now to overwrite it.', 'warn');
+      // no pop-up: a small dot on Settings and the status line in Settings say so
     } else {
       gdriveState = 'behind';
-      toast('Another device pushed newer data to Drive. Use Pull to bring it in.', 'warn');
+      // no pop-up: a small dot on Settings and the status line in Settings say so
     }
     gdriveUpdateUI();
   } catch (e) {
@@ -572,7 +572,15 @@ export async function gdrivePull() {
 // ═══════════════════════════════════════════════════════
 // UI
 // ═══════════════════════════════════════════════════════
+// A quiet dot on the Settings buttons while Drive has something to look at (instead of a pop-up)
+function gdriveUpdateBadge() {
+  const attn = !!gdriveToken && (gdriveState === 'behind' || gdriveState === 'conflict');
+  const tip = gdriveState === 'conflict' ? 'Drive and this device both changed. Open Settings to sort it out.' : 'Drive has newer data from another device. Open Settings to pull it in.';
+  document.querySelectorAll('.nav-item[data-view="settings"], #mobSettings').forEach(el => { el.classList.toggle('sync-attn', attn); if (attn) el.title = tip; else el.title = 'Settings'; });
+}
+
 export function gdriveUpdateUI() {
+  gdriveUpdateBadge();
   const connected   = !!gdriveToken;
   const connectBtn  = g('gdriveConnectBtn');
   const disconnBtn  = g('gdriveDisconnectBtn');

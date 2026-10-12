@@ -82,6 +82,7 @@ const GSI = `window.google={accounts:{oauth2:{initTokenClient:cfg=>({requestAcce
   await B.pg.evaluate(() => { window.LoreOS.store.set('aet_charLibrary', JSON.stringify({ z: { id: 'z', name: 'Zed', card: {}, savedAt: 'x' } })); localStorage.setItem('aet_gdrive_base', '1'); localStorage.setItem('aet_gdrive_dirty', '1'); });
   await B.ev(`gdriveReconcile()`); await w(500);
   chk('B detects conflict', (await B.ev(`gdriveState`)) === 'conflict', await B.ev(`gdriveState`));
+  chk('conflict shows a quiet dot on Settings, no pop-up', await B.pg.evaluate(() => document.querySelector('.nav-item[data-view="settings"]').classList.contains('sync-attn') && !/another device|both have changes/i.test(document.getElementById('notifs').textContent)));
   const r = await B.ev(`gdrivePush()`);
   chk('B normal push refused, nothing overwritten', r.ok === false && r.reason === 'conflict' && /Alice/.test(Object.values(drive.files)[0].content) && !/Zed/.test(Object.values(drive.files)[0].content), r);
   // clean device behind => 'behind', not overwritten

@@ -773,3 +773,17 @@ textarea.bad{border-color:var(--err,#e0707f)}
 .libx-book.pinned .libx-acts{right:22px}
 @media (hover:none){.libx-book .libx-acts{opacity:1}}
 @media (max-width:760px){.libx-books{--bw:calc((100vw - 28px - 56px) / 3);--bh:178px;column-gap:10px;grid-template-columns:repeat(3,var(--bw))}.libx-book .libx-cover{margin-left:15px}.libx-book .libx-info{padding-left:15px}}
+
+.sync-attn{position:relative}
+.sync-attn::after{content:'';position:absolute;top:6px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 2px var(--bg2)}
+
+/* books: the cover takes most of the book; the title and category sit at the bottom */
+.libx-book{display:flex;flex-direction:column}
+.libx-book .libx-cover{margin:7px 7px 0 16px;flex:1;min-height:0;height:auto}
+.libx-book .libx-thumb{font-size:3rem}
+.libx-book .libx-info{flex:0 0 auto;padding:6px 8px 8px 16px;gap:.12rem;justify-content:flex-end}
+.libx-book .libx-name{min-height:0;font-size:.74rem}
+.libx-book .libx-meta{display:flex;align-items:center;gap:.35rem}
+.libx-wdot{display:inline-block;width:.5rem;height:.5rem;border-radius:50%;flex-shrink:0}
+.libx-extra{display:none}
+@media (max-width:760px){.libx-book .libx-cover{margin-left:14px}.libx-book .libx-info{padding-left:14px}.libx-book .libx-thumb{font-size:2.4rem}}

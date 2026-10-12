@@ -129,11 +129,9 @@ function bookHtml(r, m, i) {
     <div class="libx-cover"><div class="libx-thumb">${thumb(r)}</div></div>
     <div class="libx-info">
       <div class="libx-name">${esc(r.name || 'Untitled')}</div>
-      <div class="libx-meta"><span class="libx-kind">${esc(r.kindLabel)}</span></div>
-      ${w ? `<div class="libx-world"><i style="background:${esc(w.color || '#8a9bd2')}"></i>${esc(w.name)}</div>` : ''}
-      ${r.rec.tags.length ? `<div class="libx-tags">${r.rec.tags.slice(0, 2).map(t => `<span class="libx-tag" data-tag="${esc(t)}">${esc(t)}</span>`).join('')}${r.rec.tags.length > 2 ? `<span class="libx-more">+${r.rec.tags.length - 2}</span>` : ''}</div>` : ''}
-      ${r.rec.note ? `<div class="libx-note">${esc(r.rec.note)}</div>` : ''}
+      <div class="libx-meta"><span class="libx-kind">${esc(r.kindLabel)}</span>${w ? `<i class="libx-wdot" style="background:${esc(w.color || '#8a9bd2')}" title="${esc(w.name)}"></i>` : ''}</div>
     </div>
+    <div class="libx-extra" aria-hidden="true">${esc(r.rec.tags.join(' '))} ${esc(r.rec.note)} ${w ? esc(w.name) : ''}</div>
     <div class="libx-acts">
       <button class="libx-icon-btn" data-act="pin" title="${r.rec.pinned ? 'Unpin' : 'Pin to the favourites shelf'}" aria-pressed="${r.rec.pinned}">${r.rec.pinned ? '★' : '☆'}</button>
       <button class="libx-icon-btn" data-act="details" title="World, folder, tags, picture and notes">⋯</button>
