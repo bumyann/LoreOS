@@ -86,7 +86,7 @@ export function handleCharCompanionImport(e) {
   e.target.value = '';
 }
 
-export function importCharCard(data, filename, imageData = null) {
+export function importCharCard(data, filename, imageData = null, extra = null) {
   let card;
   // Handle both wrapped (spec_version) and raw V1-style flat cards
   if (data.spec && data.data) {
@@ -120,6 +120,9 @@ export function importCharCard(data, filename, imageData = null) {
 
   card.id = charId();
   state.charLibrary[card.id] = { id: card.id, name: card.data.name, card, imageData, savedAt: new Date().toISOString() };
+  // Everything else a .charx carried (sprites, alternate avatars, modules...) rides along untouched
+  if (extra && extra.charxFiles && extra.charxFiles.length) state.charLibrary[card.id].charxFiles = extra.charxFiles;
+  if (extra && extra.lumiModules) state.charLibrary[card.id].lumiModules = extra.lumiModules;
 
   // Resize the avatar before it ever reaches storage, then save.
   Promise.resolve(downscaleAvatar(imageData)).then(small => {
@@ -227,6 +230,65 @@ export function exportCharJsonV2(id, { janitor = false } = {}) {
 // Requires JSZip (loaded via CDN)
 // ═══════════════════════════════════════════════════════
 
+const MIME_BY_EXT = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', avif: 'image/avif', json: 'application/json', mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', mp4: 'video/mp4', webm: 'video/webm' };
+const extOf = p => (String(p).split('.').pop() || '').toLowerCase();
+
+// Where an asset URI points inside the archive ("embeded://assets/x.png" is the spec's own spelling)
+function assetPath(uri) {
+  const m = String(uri || '').match(/^embed(?:e)?d:\/\/(.+)$/i);
+  return m ? m[1].replace(/^\/+/, '') : '';
+}
+
+// Read a .charx: the card, its main picture, and every other file kept as it was.
+export async function readCharx(buf) {
+  const zip = await JSZip.loadAsync(buf);
+  const cardFile = zip.file('card.json');
+  if (!cardFile) throw new Error('.charx is missing card.json');
+  const cardData = JSON.parse(await cardFile.async('string'));
+  const d = cardData.data || (cardData.data = {});
+
+  // Main picture: the card's own icon asset, else the usual path, else any image under assets/icon
+  let iconPath = '';
+  (Array.isArray(d.assets) ? d.assets : []).forEach(a => {
+    if (!iconPath && a && a.type === 'icon' && assetPath(a.uri) && zip.file(assetPath(a.uri))) iconPath = assetPath(a.uri);
+  });
+  if (!iconPath && zip.file('assets/icon/image/main.png')) iconPath = 'assets/icon/image/main.png';
+  if (!iconPath) { const f = Object.keys(zip.files).find(n => /^assets\/icon\/.+\.(png|jpe?g|webp|gif)$/i.test(n)); if (f) iconPath = f; }
+  let imageData = null;
+  if (iconPath) {
+    const b64 = await zip.file(iconPath).async('base64');
+    imageData = 'data:' + (MIME_BY_EXT[extOf(iconPath)] || 'image/png') + ';base64,' + b64;
+  }
+
+  let lumiModules = null;
+  const lumiFile = zip.file('lumiverse_modules.json');
+  if (lumiFile) { try { lumiModules = JSON.parse(await lumiFile.async('string')); } catch (e) { lumiModules = null; } }
+
+  // Every other file, byte for byte (the main picture is kept as the avatar instead)
+  const charxFiles = [];
+  for (const name of Object.keys(zip.files)) {
+    const f = zip.files[name];
+    if (f.dir || name === 'card.json' || name === 'lumiverse_modules.json' || name === iconPath) continue;
+    charxFiles.push({ path: name, data: await f.async('base64') });
+  }
+  return { cardData, imageData, lumiModules, charxFiles, iconPath };
+}
+
+// What a .charx carried, in words
+export function describeCharx(r) {
+  const bits = [];
+  const n = (re) => r.charxFiles.filter(f => re.test(f.path)).length;
+  const emo = n(/emotion|expression|sprite/i), other = r.charxFiles.length - emo;
+  if (emo) bits.push(emo + ' expression sprite' + (emo === 1 ? '' : 's'));
+  if (other > 0) bits.push(other + ' other file' + (other === 1 ? '' : 's'));
+  const book = r.cardData.data && r.cardData.data.character_book;
+  if (book && (book.entries || []).length) bits.push('a lorebook (' + book.entries.length + ' entries)');
+  const rx = r.cardData.data && r.cardData.data.extensions && r.cardData.data.extensions.regex_scripts;
+  if (Array.isArray(rx) && rx.length) bits.push(rx.length + ' regex script' + (rx.length === 1 ? '' : 's'));
+  if (r.lumiModules) bits.push('Lumiverse modules');
+  return bits;
+}
+
 export function handleCharxImport(e) {
   const file = e.target.files[0]; if (!file) return;
   if (typeof JSZip === 'undefined') {
@@ -234,31 +296,18 @@ export function handleCharxImport(e) {
   }
   const r = new FileReader();
   r.onload = ev => {
-    JSZip.loadAsync(ev.target.result).then(zip => {
-      const cardFile = zip.file('card.json');
-      if (!cardFile) { toast('.charx missing card.json', 'err'); return; }
-
-      const imgFile  = zip.file('assets/icon/image/main.png');
-      const lumiFile = zip.file('lumiverse_modules.json');
-      const cardPromise = cardFile.async('string').then(JSON.parse);
-      const imgPromise  = imgFile
-        ? imgFile.async('base64').then(b64 => 'data:image/png;base64,' + b64)
-        : Promise.resolve(null);
-      const lumiPromise = lumiFile
-        ? lumiFile.async('string').then(JSON.parse).catch(() => null)
-        : Promise.resolve(null);
-
-      Promise.all([cardPromise, imgPromise, lumiPromise]).then(([cardData, imageData, lumiModules]) => {
-        // Merge lumiverse_modules alternate_fields into extensions._lumiverse
-        if (lumiModules && lumiModules.alternate_fields) {
-          if (!cardData.data) cardData.data = {};
-          if (!cardData.data.extensions) cardData.data.extensions = {};
-          cardData.data.extensions._lumiverse = { alternate_fields: lumiModules.alternate_fields };
-        }
-        importCharCard(cardData, file.name, imageData);
-        toast('Imported .charx: ' + (cardData.data && cardData.data.name || file.name), 'ok');
-      }).catch(err => toast('.charx parse error: ' + err.message, 'err'));
-    }).catch(err => toast('.charx zip error: ' + err.message, 'err'));
+    readCharx(ev.target.result).then(res => {
+      const { cardData, imageData, lumiModules, charxFiles } = res;
+      // Alternate fields stay readable in the card too
+      if (lumiModules && lumiModules.alternate_fields) {
+        if (!cardData.data) cardData.data = {};
+        if (!cardData.data.extensions) cardData.data.extensions = {};
+        cardData.data.extensions._lumiverse = { alternate_fields: lumiModules.alternate_fields };
+      }
+      importCharCard(cardData, file.name, imageData, { charxFiles, lumiModules });
+      const bits = describeCharx(res);
+      toast('Imported .charx: ' + (cardData.data && cardData.data.name || file.name) + (bits.length ? ' (with ' + bits.join(', ') + ')' : ''), 'ok');
+    }).catch(err => toast('.charx import error: ' + err.message, 'err'));
   };
   r.readAsArrayBuffer(file);
   e.target.value = '';
@@ -274,15 +323,23 @@ export function exportCharCharx(id) {
   commitBeforeExport(id);
 
   const zip = new JSZip();
-  zip.file('card.json', JSON.stringify(toV3Card(entry.card), null, 2));
+  const v3 = toV3Card(entry.card);
+  if (entry.imageData) {
+    // The main picture always goes to assets/icon/image/main.png, so the card's icon entry must say so
+    const rest = (Array.isArray(v3.data.assets) ? v3.data.assets : []).filter(a => !(a && a.type === 'icon'));
+    v3.data.assets = [{ type: 'icon', uri: 'embeded://assets/icon/image/main.png', name: 'main', ext: 'png' }, ...rest];
+  }
+  zip.file('card.json', JSON.stringify(v3, null, 2));
 
   const name = safeFileName(entry.card.data.name, 'character');
 
-  // Write lumiverse_modules.json if any alternate_fields exist
+  // Everything the file came with goes back in, untouched
+  (entry.charxFiles || []).forEach(f => zip.file(f.path, f.data, { base64: true }));
   const lumiAltFields = entry.card.data?.extensions?._lumiverse?.alternate_fields;
   const hasLumiVariants = lumiAltFields && Object.values(lumiAltFields).some(arr => arr && arr.length > 0);
-  if (hasLumiVariants) {
-    const lumiModules = { version: 1, alternate_fields: lumiAltFields };
+  if (entry.lumiModules || hasLumiVariants) {
+    const lumiModules = { version: 1, ...(entry.lumiModules || {}) };
+    if (hasLumiVariants) lumiModules.alternate_fields = lumiAltFields;
     zip.file('lumiverse_modules.json', JSON.stringify(lumiModules, null, 2));
   }
 
@@ -293,7 +350,7 @@ export function exportCharCharx(id) {
       a.href = url; a.download = name + '.charx';
       document.body.append(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
-      toast('Exported .charx: ' + name, 'ok');
+      toast('Exported .charx: ' + name + (entry.charxFiles && entry.charxFiles.length ? ' (with ' + entry.charxFiles.length + ' extra files)' : ''), 'ok');
     }).catch(err => toast('.charx export error: ' + err.message, 'err'));
   };
 

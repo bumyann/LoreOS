@@ -37,6 +37,7 @@ const T=[
  ['prompt-packs', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['ui-logo-home-tabs', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['regex-sets', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
+ ['charx-lossless', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['text-roundtrip', o=>o.fail.length===0],
  ['xss-everywhere',   o=>o.hits.length===0],
  ['lorebook-import-keys',   o=>o.fail.length===0],
