@@ -662,7 +662,7 @@ export async function optimiseStoredAvatars() {
 // here and injected into the page by main.js, in page order, before the app is
 // wired up.
 // ═══════════════════════════════════════════════════════
-registerMarkup(250, `<!-- SETTINGS MODAL (still accessible via ⚙ and settings view) -->
+registerMarkup(250, `<!-- SETTINGS MODAL (still accessible via ⚙︎ and settings view) -->
 <div id="settingsModal" class="modal">
   <div class="modal-box lg" style="max-width:680px">
     <div class="modal-head"><h2>Settings</h2><button class="modal-x" data-close="settingsModal">×</button></div>
@@ -777,7 +777,7 @@ registerMarkup(250, `<!-- SETTINGS MODAL (still accessible via ⚙ and settings 
       </div>
 
       <div class="settings-section" id="gdriveSyncSection">
-        <div class="settings-section-title">☁ Google Drive Sync</div>
+        <div class="settings-section-title">☁︎ Google Drive Sync</div>
         <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);line-height:1.6;margin-bottom:.5rem">
           Auto-syncs your data to a hidden app folder in your Drive — not visible in your files, only accessible by LoreOS.<br>
           Your data goes directly to your Drive, never through our servers.

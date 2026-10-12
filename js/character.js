@@ -314,7 +314,7 @@ export function renderCharEditor() {
 
     <div class="adv">
       <div class="adv-head" id="chAdvHead">
-        <span class="adv-title">⚙ Advanced (System Prompt, Notes, Metadata)</span>
+        <span class="adv-title">⚙︎ Advanced (System Prompt, Notes, Metadata)</span>
         <span class="adv-arr" id="chAdvArr">▶</span>
       </div>
       <div class="adv-body" id="chAdvBody">

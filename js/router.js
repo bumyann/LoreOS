@@ -6,6 +6,8 @@
 import { createChar, openChar } from './character.js';
 import { libLoad } from './library.js';
 import { renderLibraryView } from './library_view.js';
+import { homeGet, renderHomeDashboard } from './home.js';
+import { allLibraryItems } from './meta.js';
 import { openPersona } from './persona.js';
 import { createEntry } from './lorebook.js';
 import { updateMobViewBtns } from './mobile.js';
@@ -87,17 +89,11 @@ export function renderHomeView() {
   const el = document.getElementById('home-content');
   if (!el) return;
 
-  // Check if returning user (has any data)
-  const lb_data = libGet();
-  const hasLorebooks = Object.keys(lb_data).length > 0;
-  const hasChars = Object.keys(typeof state.charLibrary !== 'undefined' ? state.charLibrary : {}).length > 0;
-  const hasPresets = Object.keys(typeof state.presetLibrary !== 'undefined' ? state.presetLibrary : {}).length > 0;
-  const hasPrompts = Object.keys(state.promptLibrary || {}).length > 0;
-  const hasRegex = Object.keys(state.regexLibrary || {}).length > 0;
-  const isReturning = hasLorebooks || hasChars || hasPresets || hasPrompts || hasRegex;
+  // A returning user has something in a library, or on the inspiration board
+  const isReturning = allLibraryItems().length > 0 || homeGet().board.length > 0;
 
   if (isReturning) {
-    renderDashboard(el);
+    renderHomeDashboard(el);
   } else {
     renderGetStarted(el);
   }
@@ -111,8 +107,8 @@ export function renderGetStarted(el) {
       <div class="home-hero-actions">
         <button class="btn btn-ok home-cta" data-new="lore">✦ New Lorebook Entry</button>
         <button class="btn btn-p home-cta" data-new="char">+ New Character</button>
-        <button class="btn btn-s home-cta" data-new="preset">⚙ New Preset</button>
-        <button class="btn btn-s home-cta" data-new="prompt">✎ New Prompt Pack</button>
+        <button class="btn btn-s home-cta" data-new="preset">⚙︎ New Preset</button>
+        <button class="btn btn-s home-cta" data-new="prompt">✎︎ New Prompt Pack</button>
         <button class="btn btn-s home-cta" data-new="regex">⌕ New Regex Set</button>
       </div>
       <div class="home-cards">
@@ -122,17 +118,17 @@ export function renderGetStarted(el) {
           <div class="home-card-desc">Build and edit ST-format lorebooks with keyword triggers, merge tools, and batch export.</div>
         </div>
         <div class="home-card">
-          <div class="home-card-icon">☺</div>
+          <div class="home-card-icon">☺︎</div>
           <div class="home-card-title">Character Cards</div>
           <div class="home-card-desc">Create V3 character cards, embed lorebooks, convert pronouns to macros, export as PNG.</div>
         </div>
         <div class="home-card">
-          <div class="home-card-icon">⚙</div>
+          <div class="home-card-icon">⚙︎</div>
           <div class="home-card-title">Preset Editor</div>
           <div class="home-card-desc">Edit SillyTavern chat completion presets with full prompt list support and drag-to-reorder.</div>
         </div>
         <div class="home-card">
-          <div class="home-card-icon">⚙</div>
+          <div class="home-card-icon">⚙︎</div>
           <div class="home-card-title">Template Library</div>
           <div class="home-card-desc">22+ built-in templates for characters, lorebooks, and NPCs. Save your own for reuse.</div>
         </div>
@@ -140,90 +136,6 @@ export function renderGetStarted(el) {
       <div class="home-footer-note">// built for SillyTavern · JanitorAI · SaucepanAI &nbsp;·&nbsp; all data stays in your browser &nbsp;·&nbsp; <a href="https://loreos.net/legal.html" target="_blank" style="color:var(--txm);text-decoration:none;border-bottom:1px solid var(--bd)">privacy & terms</a></div>
     </div>
   `;
-}
-
-export function renderDashboard(el) {
-  // Gather recent items across all libraries
-  const recentItems = [];
-
-  // Lorebooks
-  const lb = libGet();
-  Object.values(lb).forEach(s => {
-    recentItems.push({ type: 'lorebook', icon: '❖', name: s.name || 'Untitled Lorebook', savedAt: s.savedAt, action: () => { navigateTo('editor'); setTimeout(() => { switchMode('lore'); libLoad(s.name); }, 80); } });
-  });
-  // Characters
-  const ch = typeof state.charLibrary !== 'undefined' ? state.charLibrary : {};
-  Object.values(ch).forEach(s => {
-    recentItems.push({ type: 'character', icon: '☺', name: s.name || 'Unnamed Character', savedAt: s.savedAt, action: () => { navigateTo('editor'); setTimeout(() => { switchMode('char'); openChar(s.id); }, 80); } });
-  });
-  // Presets
-  const pr = typeof state.presetLibrary !== 'undefined' ? state.presetLibrary : {};
-  Object.values(pr).forEach(s => {
-    recentItems.push({ type: 'preset', icon: '⚙', name: s.name || 'Untitled Preset', savedAt: s.savedAt, action: () => { navigateTo('editor'); setTimeout(() => { switchMode('preset'); openPreset(s.id); }, 80); } });
-  });
-
-  // Prompt packs
-  Object.values(state.promptLibrary || {}).forEach(s => {
-    recentItems.push({ type: 'prompt pack', icon: '✎', name: s.name || 'Untitled pack', savedAt: s.savedAt, action: () => { navigateTo('editor'); setTimeout(() => { switchMode('prompt'); openPrompt(s.id); }, 80); } });
-  });
-
-  // Regex sets
-  Object.values(state.regexLibrary || {}).forEach(s => {
-    recentItems.push({ type: s.single ? 'regex script' : 'regex set', icon: '⌕', name: s.name || 'Untitled set', savedAt: s.savedAt, action: () => { navigateTo('editor'); setTimeout(() => { switchMode('regex'); openRegex(s.id); }, 80); } });
-  });
-
-  // Personas
-  Object.values(state.personaLibrary || {}).forEach(s => {
-    recentItems.push({ type: 'persona', icon: '☺', name: s.name || 'Untitled persona', savedAt: s.savedAt, action: () => openPersona(s.id) });
-  });
-
-  // Sort by savedAt desc, take top 6
-  recentItems.sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
-  const recent = recentItems.slice(0, 6);
-
-  const recentHTML = recent.length ? recent.map((item, i) => `
-    <div class="dash-recent-item" data-recent-idx="${i}">
-      <span class="dash-recent-icon">${item.icon}</span>
-      <span class="dash-recent-name">${routerEsc(item.name)}</span>
-      <span class="dash-recent-type">${item.type}</span>
-      <span class="dash-recent-date">${item.savedAt ? new Date(item.savedAt).toLocaleDateString() : ''}</span>
-    </div>
-  `).join('') : `<div class="dash-empty">nothing yet</div>`;
-
-  el.innerHTML = `
-    <div class="dashboard">
-      <div class="dash-section">
-        <div class="dash-section-title">Quick Actions</div>
-        <div class="dash-actions">
-          <button class="btn btn-ok dash-act" data-new="lore">✦ New Entry</button>
-          <button class="btn btn-p dash-act" data-new="char">+ New Character</button>
-          <button class="btn btn-s dash-act" data-new="preset">⚙ New Preset</button>
-          <button class="btn btn-s dash-act" data-new="prompt">✎ New Prompt Pack</button>
-          <button class="btn btn-s dash-act" data-new="regex">⌕ New Regex Set</button>
-          <button class="btn btn-s dash-act" data-go="library">▤ Library</button>
-        </div>
-      </div>
-      <div class="dash-section">
-        <div class="dash-section-title">Recent</div>
-        <div class="dash-recent" id="dash-recent-list">${recentHTML}</div>
-      </div>
-      <div class="dash-overview">
-        <div class="dash-stat"><span class="dash-stat-num">${Object.keys((typeof libGet==='function')?libGet():{}).length}</span><span class="dash-stat-lbl">lorebooks</span></div>
-        <div class="dash-stat"><span class="dash-stat-num">${Object.keys(ch).length}</span><span class="dash-stat-lbl">characters</span></div>
-        <div class="dash-stat"><span class="dash-stat-num">${Object.keys(pr).length}</span><span class="dash-stat-lbl">presets</span></div>
-        <div class="dash-stat"><span class="dash-stat-num">${Object.keys(state.promptLibrary || {}).length}</span><span class="dash-stat-lbl">prompt packs</span></div>
-        <div class="dash-stat"><span class="dash-stat-num">${Object.keys(state.regexLibrary || {}).length}</span><span class="dash-stat-lbl">regex</span></div>
-        <div class="dash-stat"><span class="dash-stat-num">${Object.keys(state.personaLibrary || {}).length}</span><span class="dash-stat-lbl">personas</span></div>
-      </div>
-      <div class="home-footer-note">// all data stays in your browser &nbsp;·&nbsp; <a href="https://loreos.net/legal.html" target="_blank" style="color:var(--txm);text-decoration:none;border-bottom:1px solid var(--bd)">privacy & terms</a></div>
-    </div>
-  `;
-
-  // Wire recent item clicks after render
-  recent.forEach((item, i) => {
-    const el2 = el.querySelector(`[data-recent-idx="${i}"]`);
-    if (el2) el2.addEventListener('click', item.action);
-  });
 }
 
 // ─── LABORATORY VIEW ─────────────────────────────────

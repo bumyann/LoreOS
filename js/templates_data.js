@@ -14,7 +14,7 @@ export const BUILTIN_TEMPLATES = {
     {
       category: "Basic",
       items: [
-        { name: "✎ Standalone Character Card", hint: "Full card for bots without a lorebook. Everything lives in the card.", content: `# OVERVIEW
+        { name: "✎︎ Standalone Character Card", hint: "Full card for bots without a lorebook. Everything lives in the card.", content: `# OVERVIEW
 - Full Name:
 - Aliases/Nicknames:
 - Social Media Handle:
@@ -321,7 +321,7 @@ export const BUILTIN_TEMPLATES = {
 - How they hurt people without meaning to:
 
 - What they look for in people without realising it:` },
-        { name: "☻ Private Relationships", hint: "One per NPC. Add their name and relationship terms as keywords.", keys: ["mother", "father", "family"], content: `# [NAME] — [RELATIONSHIP TYPE]
+        { name: "☻︎ Private Relationships", hint: "One per NPC. Add their name and relationship terms as keywords.", keys: ["mother", "father", "family"], content: `# [NAME] — [RELATIONSHIP TYPE]
 
 - Who they are:
 
@@ -356,7 +356,7 @@ export const BUILTIN_TEMPLATES = {
 - How it affects their behaviour without anyone knowing why:
 
 - Physical evidence or tells:` },
-        { name: "♥ {{user}} Dynamic", keys: ["{{user}}", "you and me", "us", "together", "our", "between us", "with you", "what you mean", "you make me"], content: `# {{user}} DYNAMIC
+        { name: "♥︎ {{user}} Dynamic", keys: ["{{user}}", "you and me", "us", "together", "our", "between us", "with you", "what you mean", "you make me"], content: `# {{user}} DYNAMIC
 
 - Pre-established dynamic:
 
@@ -473,7 +473,7 @@ export const BUILTIN_TEMPLATES = {
 ## RELEVANCE TO CHARACTERS // [OPTIONAL]
 
 ## NOTES` },
-        { name: "⚔ Faction / Clan Entry", hint: "Groups with structure, history, and internal logic.", content: `# LORE TITLE
+        { name: "⚔︎ Faction / Clan Entry", hint: "Groups with structure, history, and internal logic.", content: `# LORE TITLE
 
 ## OVERVIEW
 
@@ -494,7 +494,7 @@ export const BUILTIN_TEMPLATES = {
 ## RELATIONSHIP TO OTHER FACTIONS // [OPTIONAL]
 
 ## NOTES` },
-        { name: "⌂ Institution Entry", hint: "Schools, academies, formal programmes, ranked systems.", content: `# LORE TITLE
+        { name: "⌂︎ Institution Entry", hint: "Schools, academies, formal programmes, ranked systems.", content: `# LORE TITLE
 
 ## OVERVIEW
 
@@ -558,7 +558,7 @@ export const BUILTIN_TEMPLATES = {
     {
       category: "NPC Lorebook",
       items: [
-        { name: "☺ NPC Profile", hint: "Public wiki page. Keywords: name, nicknames, role/title, affiliation.", content: `# IDENTITY
+        { name: "☺︎ NPC Profile", hint: "Public wiki page. Keywords: name, nicknames, role/title, affiliation.", content: `# IDENTITY
 - Name:
 - Aliases/Nicknames:
 - Gender & Pronouns:

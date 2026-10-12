@@ -82,7 +82,7 @@ export function renderPresetSidebar() {
     const li = document.createElement('li');
     li.className = 'ei' + (entry.id === state.activePresetId ? ' open' : '');
     const head = document.createElement('div'); head.className = 'ei-head';
-    const emoji = document.createElement('span'); emoji.className = 'ei-emoji'; emoji.textContent = '⚙';
+    const emoji = document.createElement('span'); emoji.className = 'ei-emoji'; emoji.textContent = '⚙︎';
     const name = document.createElement('div'); name.className = 'ei-name';
     name.textContent = entry.name || 'Untitled Preset';
     head.append(emoji, name); li.append(head);
@@ -202,7 +202,7 @@ export function renderPresetEditor() {
 
     <!-- PROMPT STRING FIELDS -->
     <div class="adv">
-      <div class="adv-head" id="psStringsHead"><span class="adv-title">✎ Prompt Strings</span><span class="adv-arr" id="psStringsArr">▶</span></div>
+      <div class="adv-head" id="psStringsHead"><span class="adv-title">✎︎ Prompt Strings</span><span class="adv-arr" id="psStringsArr">▶</span></div>
       <div class="adv-body" id="psStringsBody">
         <div style="display:flex;flex-direction:column;gap:.65rem">
           ${presetStringField('psAssistPrefill','Assistant Prefill',p.assistant_prefill)}
@@ -520,8 +520,8 @@ export const ST_SPECIAL = {
   'dialogueExamples':   { label: '❝ Dialogue Examples',     desc: 'Example messages block' },
   'chatHistory':        { label: '☰ Chat History',          desc: 'Chat messages inject here' },
   'enhanceDefinitions': { label: '❖ Enhance Definitions',   desc: 'Definition enhancement block' },
-  'charDescription':    { label: '☺ Char Description',      desc: 'Character description field' },
-  'charPersonality':    { label: '☻ Char Personality',      desc: 'Character personality field' },
+  'charDescription':    { label: '☺︎ Char Description',      desc: 'Character description field' },
+  'charPersonality':    { label: '☻︎ Char Personality',      desc: 'Character personality field' },
   'scenario':           { label: '◧ Scenario',              desc: 'Scenario field' },
   'personaDescription': { label: '◍ Persona Description',   desc: 'User persona description' },
   'worldInfoBefore':    { label: '↑ World Info — Before',   desc: 'World info before char' },

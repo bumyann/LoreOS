@@ -38,6 +38,13 @@ const srv=http.createServer((q,s)=>{let p=q.url.split('?')[0]; if(p==='/')p='/in
   // lorebook entry of the menu goes to the editor
   await openLibrary(); await pg.click('#libxNewBtn'); await pg.waitForTimeout(150); await pg.click('#libxNewDd [data-libnew="lore"]'); await pg.waitForTimeout(500);
   chk(label+': New lorebook opens the lorebook editor', await pg.evaluate(()=>window.LoreOS.state.mode==='lore'));
+  // Home's + Add menu (also drawn after start-up)
+  await pg.evaluate(()=>window.LoreOS.navigateTo('home')); await pg.waitForTimeout(300);
+  await pg.click('#hbAddBtn'); await pg.waitForTimeout(150);
+  chk(label+': Home + Add opens its menu', await pg.evaluate(()=>getComputedStyle(document.querySelector('#hbAddDd .dd-menu')).display==='block'));
+  await pg.click('#hbAddDd [data-hbnew="note"]'); await pg.waitForTimeout(250);
+  chk(label+': Home note editor opens', await pg.evaluate(()=>document.getElementById('hbModal').classList.contains('open')));
+  await pg.click('#hbModal .modal-x'); await pg.waitForTimeout(150);
   chk(label+': no page errors', errs.length===0);
   if (errs.length) console.log(label, errs.slice(0,3));
   await pg.context().close();

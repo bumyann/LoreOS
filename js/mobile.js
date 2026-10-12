@@ -218,7 +218,7 @@ registerMarkup(140, `<!-- MOBILE BOTTOM NAV -->
 <nav id="mob-nav">
   <!-- view nav buttons (always visible on mobile, hidden when in editor) -->
   <button class="mob-nav-btn mob-view-btn" id="mobGoHome" title="Home">
-    <span class="icon">⌂</span><span class="mob-nav-lbl">Home</span>
+    <span class="icon">⌂︎</span><span class="mob-nav-lbl">Home</span>
   </button>
   <button class="mob-nav-btn mob-view-btn" id="mobGoLibrary" title="Library">
     <span class="icon">✦</span><span class="mob-nav-lbl">Library</span>
@@ -328,7 +328,7 @@ registerMarkup(140, `<!-- MOBILE BOTTOM NAV -->
     <span class="icon">◑</span><span class="mob-nav-lbl">Theme</span>
   </button>
   <button class="mob-nav-btn" id="mobSettings" title="Settings">
-    <span class="icon">⚙</span><span class="mob-nav-lbl">Settings</span>
+    <span class="icon">⚙︎</span><span class="mob-nav-lbl">Settings</span>
   </button>
 </nav>`);
 

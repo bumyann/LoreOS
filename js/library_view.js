@@ -105,6 +105,7 @@ export function openLibraryItem(row) {
 const fmtDate = iso => { try { return iso ? new Date(iso).toLocaleDateString() : ''; } catch (e) { return ''; } };
 const pluralize = (n, one, many) => n + ' ' + (n === 1 ? one : many);
 
+export function bookThumb(r) { return thumb(r); }
 function thumb(r) {
   if (r.rec.image) return `<img src="${esc(r.rec.image)}" alt="" loading="lazy">`;
   if (r.kind === 'char' && r.entry.imageData) return `<img src="${esc(r.entry.imageData)}" alt="" loading="lazy">`;

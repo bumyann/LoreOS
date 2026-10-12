@@ -95,7 +95,7 @@ export function renderPromptSidebar() {
     const li = document.createElement('li');
     li.className = 'ei' + (entry.id === state.activePromptId ? ' open' : '');
     const head = document.createElement('div'); head.className = 'ei-head';
-    const emoji = document.createElement('span'); emoji.className = 'ei-emoji'; emoji.textContent = '✎';
+    const emoji = document.createElement('span'); emoji.className = 'ei-emoji'; emoji.textContent = '✎︎';
     const name = document.createElement('div'); name.className = 'ei-name'; name.textContent = entry.name || 'Untitled pack';
     head.append(emoji, name); li.append(head);
     const acts = document.createElement('div'); acts.className = 'ei-acts';

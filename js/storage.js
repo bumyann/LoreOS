@@ -119,6 +119,7 @@ const STORAGE_SHAPES = {
   aet_regexLibrary:  v => isObj(v),
   aet_personaLibrary: v => isObj(v),
   aet_meta:          v => isObj(v),
+  aet_home:          v => isObj(v),
   aet_library:       v => isObj(v),
   aet_tpl_lore:      v => isObj(v),
   aet_tpl_char:      v => isObj(v),

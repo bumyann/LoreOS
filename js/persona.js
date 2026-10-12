@@ -76,7 +76,7 @@ export function flushPersona() { if (saveTimer) { clearTimeout(saveTimer); saveT
 function paintAvatar() {
   const e = cur(); const box = g('personaAvatar'); if (!e || !box) return;
   box.innerHTML = '';
-  if (e.persona.avatar) { const im = document.createElement('img'); im.src = e.persona.avatar; im.alt = ''; box.append(im); } else box.textContent = '☺';
+  if (e.persona.avatar) { const im = document.createElement('img'); im.src = e.persona.avatar; im.alt = ''; box.append(im); } else box.textContent = '☺︎';
   g('personaAvatarClear').style.display = e.persona.avatar ? '' : 'none';
 }
 

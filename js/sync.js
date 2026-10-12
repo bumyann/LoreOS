@@ -16,7 +16,7 @@ import { cancelAutosave, renderWsTabs } from './workshop.js';
 
 export const SYNC_KEYS = [
   'aet_lorebook','aet_tabs','aet_activeTab','aet_nextUid',
-  'aet_charLibrary','aet_presetLibrary','aet_promptLibrary','aet_regexLibrary','aet_personaLibrary','aet_meta',
+  'aet_charLibrary','aet_presetLibrary','aet_promptLibrary','aet_regexLibrary','aet_personaLibrary','aet_meta','aet_home',
   'aet_library',
   'aet_tpl_lore','aet_tpl_char','aet_tpl_preset',
   'aet_theme','aet_zoom','aet_css','aet_css_light',
@@ -35,6 +35,7 @@ export const SYNC_MODULES = [
   { key: 'prompts',   label: 'Prompt Packs',        keys: ['aet_promptLibrary'] },
   { key: 'regex',     label: 'Regex Sets',          keys: ['aet_regexLibrary'] },
   { key: 'personas',  label: 'Personas',            keys: ['aet_personaLibrary'] },
+  { key: 'home',      label: 'Home board',          keys: ['aet_home'] },
   { key: 'meta',      label: 'Library organisation (worlds, tags, pins)', keys: ['aet_meta'] },
   { key: 'tpl_lore',  label: 'Lorebook Templates',  keys: ['aet_tpl_lore'] },
   { key: 'tpl_char',  label: 'Character Templates', keys: ['aet_tpl_char'] },

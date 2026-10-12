@@ -29,7 +29,7 @@ registerMarkup(260, `<!-- HELP MODAL -->
           </ul>
         </div>
         <div>
-          <div style="font-family:var(--fp);font-size:.95rem;color:var(--p);letter-spacing:1.5px;margin-bottom:.5rem;padding-bottom:.3rem;border-bottom:1px solid var(--bd)">☺ Character</div>
+          <div style="font-family:var(--fp);font-size:.95rem;color:var(--p);letter-spacing:1.5px;margin-bottom:.5rem;padding-bottom:.3rem;border-bottom:1px solid var(--bd)">☺︎ Character</div>
           <ul style="list-style:none;display:flex;flex-direction:column;gap:.35rem">
             <li><strong>Import JSON or PNG</strong> — reads card data from tEXt chunk</li>
             <li><strong>Export PNG</strong> — embeds card JSON (V3) into your image</li>
@@ -39,7 +39,7 @@ registerMarkup(260, `<!-- HELP MODAL -->
           </ul>
         </div>
         <div>
-          <div style="font-family:var(--fp);font-size:.95rem;color:var(--p);letter-spacing:1.5px;margin-bottom:.5rem;padding-bottom:.3rem;border-bottom:1px solid var(--bd)">⚙ Preset</div>
+          <div style="font-family:var(--fp);font-size:.95rem;color:var(--p);letter-spacing:1.5px;margin-bottom:.5rem;padding-bottom:.3rem;border-bottom:1px solid var(--bd)">⚙︎ Preset</div>
           <ul style="list-style:none;display:flex;flex-direction:column;gap:.35rem">
             <li><strong>Import</strong> — loads any ST chat completion preset JSON</li>
             <li><strong>Prompt Library</strong> — ST system anchors + saved prompts</li>

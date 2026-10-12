@@ -467,7 +467,7 @@ export function buildEditorHTML(en, uid) {
     </div>
     <div class="adv">
       <div class="adv-head" data-uid="${uid}">
-        <span class="adv-title">⚙ Advanced Settings</span>
+        <span class="adv-title">⚙︎ Advanced Settings</span>
         <span class="adv-arr" id="eAdvArr-${uid}">▶</span>
       </div>
       <div class="adv-body" id="eAdvBody-${uid}">
