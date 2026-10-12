@@ -26,10 +26,10 @@ export function toggleTheme() {
 // Default colour values for both modes
 export const DEFAULT_THEMES = {
   dark: {
-    '--p':'#9d8fcc','--ph':'#7d6fac','--a':'#c4b8e8','--a2':'#e8e4f5',
-    '--bg':'#0d1121','--bg2':'#111829','--bg3':'#161f33',
-    '--sf':'#1c2740','--sf2':'#22304d',
-    '--tx':'#e8e4f5','--txd':'#b0a8d0','--txm':'#8f87b8'
+    '--p':'#8a9bd2','--ph':'#6677ad','--a':'#b9c6ea','--a2':'#e6ebf8',
+    '--bg':'#080b16','--bg2':'#0c1020','--bg3':'#11162b',
+    '--sf':'#151b2f','--sf2':'#1d2540',
+    '--tx':'#e2e7f5','--txd':'#aab4d0','--txm':'#8c96b8'
   },
   pink: {
     '--p':'#b87090','--ph':'#96587a','--a':'#c4849a','--a2':'#f5eaee',
@@ -68,7 +68,7 @@ export function applyCustomTheme() {
   COLOUR_VARS.forEach(v => {
     if (vars[v]) target.style.setProperty(v, vars[v]);
   });
-  const p = vars['--p'] || (isPink ? '#b87090' : '#9d8fcc');
+  const p = vars['--p'] || (isPink ? '#b87090' : '#8a9bd2');
   const pgAlpha = isPink ? '.2' : '.25';
   target.style.setProperty('--pg', hexToRgba(p, pgAlpha));
 }
@@ -301,7 +301,7 @@ export function renderThemeSlots() {
     row.className = 'theme-slot';
     const swatch = document.createElement('div');
     swatch.className = 'theme-slot-swatch';
-    swatch.style.background = themeData.dark?.['--p'] || '#9d8fcc';
+    swatch.style.background = themeData.dark?.['--p'] || '#8a9bd2';
     const label = document.createElement('span');
     label.className = 'theme-slot-name';
     label.textContent = name;

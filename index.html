@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LoreOS</title>
 <meta name="description" content="Lorebook, character card, and preset editor for SillyTavern, JanitorAI & SaucepanAI">
-<meta name="theme-color" content="#9d8fcc">
+<meta name="theme-color" content="#8a9bd2">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -339,17 +339,17 @@
 if (location.protocol === 'file:') {
   document.addEventListener('DOMContentLoaded', function () {
     var d = document.createElement('div');
-    d.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0d1121;color:#e8e4f5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;padding:2rem;text-align:center;line-height:1.6';
+    d.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#080b16;color:#e2e7f5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;padding:2rem;text-align:center;line-height:1.6';
     d.innerHTML = '<div style="max-width:30rem"><h2 style="margin:0 0 .75rem">LoreOS needs a local server</h2>' +
       '<p>Browsers block this kind of app when it is opened straight from a file.</p>' +
       '<p><b>Windows:</b> double-click <code>start.bat</code><br><b>Mac / Linux:</b> run <code>bash start.sh</code><br>' +
-      'or just use <a href="https://loreos.net" style="color:#9d8fcc">loreos.net</a>.</p></div>';
+      'or just use <a href="https://loreos.net" style="color:#8a9bd2">loreos.net</a>.</p></div>';
     document.body.appendChild(d);
   });
 }
 </script>
 <!-- App code: native ES modules. main.js imports the rest and starts the app. -->
 <script type="module" src="js/main.js"></script>
-<noscript><div style="padding:2rem;font-family:sans-serif;color:#e8e4f5">LoreOS needs JavaScript.</div></noscript>
+<noscript><div style="padding:2rem;font-family:sans-serif;color:#e2e7f5">LoreOS needs JavaScript.</div></noscript>
 </body>
 </html>

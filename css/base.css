@@ -3,13 +3,13 @@
 
 /* ─── PINK THEME (default) ─── */
 :root{
-  --p:#9d8fcc;--ph:#7d6fac;--pg:rgba(157,143,204,.25);
-  --a:#c4b8e8;--a2:#e8e4f5;
+  --p:#8a9bd2;--ph:#6677ad;--pg:rgba(138,155,210,.22);
+  --a:#b9c6ea;--a2:#e6ebf8;
   --ok:#7ec87f;--err:#e87878;--warn:#f0c060;
-  --bg:#0d1121;--bg2:#111829;--bg3:#161f33;
-  --sf:#1c2740;--sf2:#22304d;
-  --bd:rgba(157,143,204,.18);--bdb:rgba(157,143,204,.45);
-  --tx:#e8e4f5;--txd:#b0a8d0;--txm:#8f87b8;
+  --bg:#080b16;--bg2:#0c1020;--bg3:#11162b;
+  --sf:#151b2f;--sf2:#1d2540;
+  --bd:rgba(138,155,210,.16);--bdb:rgba(138,155,210,.42);
+  --tx:#e2e7f5;--txd:#aab4d0;--txm:#8c96b8;
   --sh:0 2px 8px rgba(0,0,0,.6);--shg:0 0 14px var(--pg);
   --fp:'VT323',monospace;--fx:'Pixelify Sans',monospace;--fb:'Noto Sans',sans-serif;
   --nav-w:200px;
