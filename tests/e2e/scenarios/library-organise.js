@@ -46,6 +46,12 @@
  document.getElementById('libxBannerBtn').click(); await w(400);
  const wr=Object.values(metaGet().worlds)[0];
  chk('banner stored and shown', wr.banner===PIC && /url\(/.test(document.querySelector('.libx-banner').getAttribute('style')||'') && /Change banner/.test(document.getElementById('libxBannerBtn').textContent));
+ chk('world colour swatches shown', document.querySelectorAll('#libxWorldColors [data-wcolor]').length===12);
+ document.querySelector('#libxWorldColors [data-wcolor="#c46c6c"]').click(); await w(300);
+ chk('swatch changes the world colour everywhere', Object.values(metaGet().worlds)[0].color==='#c46c6c' && /rgb\(196, 108, 108\)/.test(document.querySelector('.libx-worldname .libx-dot').style.background) && /rgb\(196, 108, 108\)/.test(document.querySelector('.libx-rail-item.active .libx-dot').style.background));
+ { const wp=document.getElementById('libxWorldColorPick'); wp.value='#12ab34'; wp.dispatchEvent(new Event('change')); await w(300); }
+ chk('custom colour works too', Object.values(metaGet().worlds)[0].color==='#12ab34');
+ chk('bad colours are dropped', normalizeMeta({worlds:{a:{name:'A',color:'red'}}}).worlds.a.color==='');
  document.getElementById('libxBannerClear').click(); await w(300); chk('banner removed', Object.values(metaGet().worlds)[0].banner==='');
  // folders
  document.getElementById('libxAddFolder').click(); await answer('Series A'); await w(300);

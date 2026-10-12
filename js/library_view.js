@@ -34,6 +34,7 @@ const OWN_PICTURE = new Set(['char', 'persona']);
 const KIND_COLOR = { char: '#6b82c4', lore: '#9a78c8', preset: '#5aa0b4', prompt: '#c0a060', regex: '#6cb490', persona: '#c47e9c' };
 // The order the shelves stand in
 export const SHELF_ORDER = ['char', 'lore', 'preset', 'prompt', 'regex', 'persona'];
+export const BOOK_COLORS = ['#6b82c4', '#9a78c8', '#5aa0b4', '#c0a060', '#6cb490', '#c47e9c', '#c46c6c', '#c8884c', '#8a8f9c', '#4f5f8f', '#7a5a8e', '#3f7a6a'];
 const WORLD_COLORS = ['#8a9bd2', '#c9a0dc', '#7ec8b0', '#e0b070', '#e08a8a', '#9ac0e8', '#b8c870', '#d49ab8'];
 const SORTS = [['recent', 'Recently used'], ['name', 'Name'], ['type', 'Type'], ['oldest', 'Oldest']];
 const VIEW_KEY = 'loreos_libview';
@@ -188,6 +189,7 @@ function worldHeadHtml(w, m, rows) {
       </div>
     </div>
     <textarea class="ftextarea" id="libxWorldNote" placeholder="Notes about this world: the premise, the rules, what is where..." aria-label="World notes">${esc(w.note || '')}</textarea>
+    <div class="pr-row" style="align-items:center"><span class="flabel-sm">Colour</span><div class="libx-colorgrid" id="libxWorldColors" role="group" aria-label="World colour">${BOOK_COLORS.map(c => `<button type="button" class="libx-swatch${(w.color || '').toLowerCase() === c ? ' on' : ''}" data-wcolor="${c}" style="background:${c}" aria-label="Colour ${c}"></button>`).join('')}</div><input type="color" id="libxWorldColorPick" value="${esc(w.color || '#8a9bd2')}" aria-label="Custom world colour" title="Any colour"></div>
     <div class="pr-row"><button class="btn btn-s btn-sm" id="libxRenameWorld">Rename</button><button class="btn btn-err btn-sm" id="libxDeleteWorld">Delete world</button><span class="rx-none">Deleting a world keeps everything in it.</span></div>
   </div>
   <div class="libx-crumbs" aria-label="Folders">
@@ -304,6 +306,10 @@ function wire(el, shown) {
   // world header
   const wn = el.querySelector('#libxWorldNote');
   if (wn) { let wt = null; wn.oninput = () => { clearTimeout(wt); wt = setTimeout(() => { const mm = metaGet(); if (mm.worlds[view.world]) { mm.worlds[view.world].note = wn.value; metaSet(mm); } }, 400); }; }
+  const setWorldColor = c => { const mm = metaGet(); if (mm.worlds[view.world]) { mm.worlds[view.world].color = c; metaSet(mm); } refresh(); };
+  el.querySelectorAll('[data-wcolor]').forEach(b => b.onclick = () => setWorldColor(b.dataset.wcolor));
+  const wcp = el.querySelector('#libxWorldColorPick');
+  if (wcp) wcp.onchange = () => setWorldColor(wcp.value);
   const rw = el.querySelector('#libxRenameWorld');
   if (rw) rw.onclick = async () => { const mm = metaGet(); const w = mm.worlds[view.world]; if (!w) return; const n = await askInput('Rename this world:', w.name); if (n && n.trim()) { w.name = n.trim().slice(0, 60); metaSet(mm); refresh(); } };
   const dw = el.querySelector('#libxDeleteWorld');
@@ -369,7 +375,6 @@ function newThing(kind) {
 // ── Details: world, folder, tags, picture, symbol, note ──
 let detailRow = null;
 let detailDraft = { image: '', symbol: '', color: '' };
-export const BOOK_COLORS = ['#6b82c4', '#9a78c8', '#5aa0b4', '#c0a060', '#6cb490', '#c47e9c', '#c46c6c', '#c8884c', '#8a8f9c', '#4f5f8f', '#7a5a8e', '#3f7a6a'];
 
 function folderOptions(m, worldId, selected) {
   const opts = ['<option value="">No folder (top level)</option>'];

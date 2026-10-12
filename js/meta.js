@@ -59,7 +59,7 @@ export function normalizeMeta(m) {
   const worlds = {};
   Object.entries(isObj(o.worlds) ? o.worlds : {}).forEach(([id, w]) => {
     if (!isObj(w)) return;
-    worlds[id] = { id, name: String(w.name || 'Untitled world').slice(0, 60), color: typeof w.color === 'string' ? w.color : '', note: typeof w.note === 'string' ? w.note : '', banner: cleanImg(w.banner), createdAt: w.createdAt || '' };
+    worlds[id] = { id, name: String(w.name || 'Untitled world').slice(0, 60), color: cleanColor(w.color), note: typeof w.note === 'string' ? w.note : '', banner: cleanImg(w.banner), createdAt: w.createdAt || '' };
   });
   const folders = {};
   Object.entries(isObj(o.folders) ? o.folders : {}).forEach(([id, f]) => {
