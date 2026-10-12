@@ -30,6 +30,8 @@ export const KIND_INFO = {
 };
 // Characters and personas always show their own picture; the rest can be given one, or a symbol
 const OWN_PICTURE = new Set(['char', 'persona']);
+// The default cover colour of each kind of book
+const KIND_COLOR = { char: '#6b82c4', lore: '#9a78c8', preset: '#5aa0b4', prompt: '#c0a060', regex: '#6cb490', persona: '#c47e9c' };
 // The order the shelves stand in
 export const SHELF_ORDER = ['char', 'lore', 'preset', 'prompt', 'regex', 'persona'];
 const WORLD_COLORS = ['#8a9bd2', '#c9a0dc', '#7ec8b0', '#e0b070', '#e08a8a', '#9ac0e8', '#b8c870', '#d49ab8'];
@@ -123,7 +125,7 @@ function bookHtml(r, m, i) {
   const w = r.rec.world && m.worlds[r.rec.world];
   const fp = r.rec.folder ? folderPath(m, r.rec.folder).map(f => f.name).join(' › ') : '';
   const tip = [r.name, r.kindLabel, w ? w.name + (fp ? ' › ' + fp : '') : '', r.rec.tags.join(', '), r.rec.note].filter(Boolean).join(' · ');
-  return `<div class="libx-card libx-book kind-${r.kind}${r.rec.pinned ? ' pinned' : ''}" data-i="${i}" tabindex="0" role="button" title="${esc(tip)}" aria-label="Open ${esc(r.name)}">
+  return `<div class="libx-card libx-book kind-${r.kind}${r.rec.pinned ? ' pinned' : ''}${r.rec.color ? ' colored' : ''}"${r.rec.color ? ` style="--bk:${esc(r.rec.color)}"` : ''} data-i="${i}" tabindex="0" role="button" title="${esc(tip)}" aria-label="Open ${esc(r.name)}">
     <div class="libx-cover"><div class="libx-thumb">${thumb(r)}</div></div>
     <div class="libx-info">
       <div class="libx-name">${esc(r.name || 'Untitled')}</div>
@@ -151,7 +153,7 @@ export function shelfGroups(shown, v = view) {
 function shelvesHtml(shown, m, idx) {
   return shelfGroups(shown).map(gr => `
     <section class="libx-shelf" data-shelf="${gr.key}" aria-label="${esc(gr.label)}">
-      <div class="libx-plate"><span class="libx-sym">${esc(sym(gr.icon))}</span><span class="libx-plate-name">${esc(gr.label)}</span><span class="libx-plate-n">${gr.rows.length}</span></div>
+      <div class="libx-plate"><span class="libx-plate-name">${esc(gr.label)}</span><span class="libx-plate-n">${gr.rows.length}</span></div>
       <div class="libx-books">${gr.rows.map(r => bookHtml(r, m, idx.get(r))).join('')}</div>
     </section>`).join('');
 }
@@ -159,7 +161,7 @@ function shelvesHtml(shown, m, idx) {
 function cardHtml(r, m, i) {
   const w = r.rec.world && m.worlds[r.rec.world];
   const fp = r.rec.folder ? folderPath(m, r.rec.folder).map(f => f.name).join(' › ') : '';
-  return `<div class="libx-card${r.rec.pinned ? ' pinned' : ''}" data-i="${i}" tabindex="0" role="button" aria-label="Open ${esc(r.name)}">
+  return `<div class="libx-card${r.rec.pinned ? ' pinned' : ''}${r.rec.color ? ' colored' : ''}"${r.rec.color ? ` style="--bk:${esc(r.rec.color)}"` : ''} data-i="${i}" tabindex="0" role="button" aria-label="Open ${esc(r.name)}">
     <div class="libx-thumb">${thumb(r)}</div>
     <div class="libx-info">
       <div class="libx-name" title="${esc(r.name)}">${esc(r.name || 'Untitled')}</div>
@@ -368,7 +370,8 @@ function newThing(kind) {
 
 // ── Details: world, folder, tags, picture, symbol, note ──
 let detailRow = null;
-let detailDraft = { image: '', symbol: '' };
+let detailDraft = { image: '', symbol: '', color: '' };
+export const BOOK_COLORS = ['#6b82c4', '#9a78c8', '#5aa0b4', '#c0a060', '#6cb490', '#c47e9c', '#c46c6c', '#c8884c', '#8a8f9c', '#4f5f8f', '#7a5a8e', '#3f7a6a'];
 
 function folderOptions(m, worldId, selected) {
   const opts = ['<option value="">No folder (top level)</option>'];
@@ -380,8 +383,16 @@ function folderOptions(m, worldId, selected) {
   }
   return opts.join('');
 }
+function paintColor() {
+  if (!detailRow) return;
+  const own = KIND_COLOR[detailRow.kind];
+  g('libxColorGrid').querySelectorAll('[data-color]').forEach(b => b.classList.toggle('on', b.dataset.color === detailDraft.color));
+  g('libxColorPick').value = detailDraft.color || own;
+  g('libxColorClear').style.display = detailDraft.color ? '' : 'none';
+}
 function paintPicture() {
   if (!detailRow) return;
+  paintColor();
   const own = detailRow && OWN_PICTURE.has(detailRow.kind);
   g('libxPicBox').style.display = own ? 'none' : '';
   g('libxPicOwn').style.display = own ? '' : 'none';
@@ -396,7 +407,7 @@ function openDetails(row) {
   detailRow = row;
   const m = metaGet();
   const rec = recordOf(m, row.kind, row.id);
-  detailDraft = { image: rec.image || '', symbol: rec.symbol || '' };
+  detailDraft = { image: rec.image || '', symbol: rec.symbol || '', color: rec.color || '' };
   g('libxDetailTitle').textContent = row.name || 'Untitled';
   g('libxDetailWorld').innerHTML = '<option value="">No world</option>' + Object.values(m.worlds).sort((a, b) => a.name.localeCompare(b.name)).map(w => `<option value="${esc(w.id)}"${rec.world === w.id ? ' selected' : ''}>${esc(w.name)}</option>`).join('') + '<option value="__new">+ New world...</option>';
   g('libxDetailFolder').innerHTML = folderOptions(m, rec.world, rec.folder);
@@ -410,6 +421,7 @@ function openDetails(row) {
 function saveDetails() {
   if (!detailRow) return;
   const patch = { tags: cleanTags(g('libxDetailTags').value), note: g('libxDetailNote').value, name: detailRow.name };
+  patch.color = detailDraft.color;
   if (!OWN_PICTURE.has(detailRow.kind)) { patch.image = detailDraft.image; patch.symbol = detailDraft.symbol; }
   const w = g('libxDetailWorld').value;
   if (w !== '__new') patch.world = w || null;
@@ -430,6 +442,7 @@ export function wireLibraryView() {
     // the world changed: keep the other fields, then redraw the folder list for the new world
     updateItem(detailRow.kind, detailRow.id, {
       world: w || null, folder: null, tags: cleanTags(g('libxDetailTags').value), note: g('libxDetailNote').value, name: detailRow.name,
+      color: detailDraft.color,
       ...(OWN_PICTURE.has(detailRow.kind) ? {} : { image: detailDraft.image, symbol: detailDraft.symbol }),
     });
     openDetails(detailRow);
@@ -444,6 +457,10 @@ export function wireLibraryView() {
     }
     saveDetails();
   };
+  g('libxColorGrid').innerHTML = BOOK_COLORS.map(c => `<button type="button" class="libx-swatch" data-color="${c}" style="background:${c}" aria-label="Colour ${c}"></button>`).join('');
+  g('libxColorGrid').addEventListener('click', e => { const b = e.target.closest('[data-color]'); if (!b) return; detailDraft.color = b.dataset.color; saveDetails(); paintColor(); });
+  g('libxColorPick').addEventListener('input', e => { detailDraft.color = e.target.value; saveDetails(); paintColor(); });
+  g('libxColorClear').onclick = () => { detailDraft.color = ''; saveDetails(); paintColor(); };
   g('libxPicBtn').onclick = async () => { const img = await pick('image/*', 240, 240); if (img) { detailDraft.image = img; saveDetails(); paintPicture(); } };
   g('libxPicClear').onclick = () => { detailDraft.image = ''; saveDetails(); paintPicture(); };
   g('libxSymClear').onclick = () => { detailDraft.symbol = ''; saveDetails(); paintPicture(); };
@@ -460,6 +477,12 @@ registerMarkup(189, `<div id="libxDetailModal" class="modal">
   <div class="modal-box" style="max-width:500px">
     <div class="modal-head"><h2 id="libxDetailTitle">Details</h2><button class="modal-x" data-close="libxDetailModal">×</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
+      <label class="pr-lbl">Book colour</label>
+      <div class="pr-row" style="align-items:center">
+        <div id="libxColorGrid" class="libx-colorgrid" role="group" aria-label="Pick a colour"></div>
+        <input type="color" id="libxColorPick" aria-label="Custom colour" title="Any colour">
+        <button class="btn btn-s btn-sm" id="libxColorClear" type="button">Default</button>
+      </div>
       <div id="libxPicBox" style="display:flex;flex-direction:column;gap:.5rem">
         <label class="pr-lbl">Picture or symbol</label>
         <div class="pr-row" style="align-items:center">

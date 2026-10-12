@@ -5,7 +5,7 @@
 //   aet_meta = { v: 1,
 //     worlds:  { [id]: { id, name, color, note, banner, createdAt } },
 //     folders: { [id]: { id, world, parent, name } },   // subfolders inside a world, nested as deep as you like
-//     items:   { "kind:id": { world, folder, tags: [], pinned, note, opened, name, symbol, image } } }
+//     items:   { "kind:id": { world, folder, tags: [], pinned, note, opened, name, symbol, image, color } } }
 //
 // kind is one of: lore, char, preset, prompt, regex, persona.
 // Every item has a stable id. Characters, presets, packs and sets always had one. Saved lorebooks are
@@ -52,6 +52,7 @@ export function loreNameById(id, lib = libGet()) {
 // ── The stored record ──
 const MAX_IMG = 700000; // characters of data URL kept per picture
 const cleanImg = v => (typeof v === 'string' && v.startsWith('data:image/') && v.length <= MAX_IMG ? v : '');
+const cleanColor = v => (typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v.trim()) ? v.trim().toLowerCase() : '');
 const cleanSym = v => (typeof v === 'string' ? Array.from(v.replace(/[\uFE0E\uFE0F]/g, '').trim()).slice(0, 2).join('') : '');
 export function normalizeMeta(m) {
   const o = isObj(m) ? m : {};
@@ -86,6 +87,7 @@ export function normalizeMeta(m) {
       name: typeof r.name === 'string' ? r.name : '',
       symbol: cleanSym(r.symbol),
       image: cleanImg(r.image),
+      color: cleanColor(r.color),
     };
   });
   return { v: 1, worlds, folders, items };
@@ -108,9 +110,9 @@ export function metaGet() {
 }
 export function metaSet(m) { return safeSet(META_KEY, JSON.stringify(normalizeMeta(m))); }
 
-const isEmptyRecord = r => !r.world && !r.folder && !r.tags.length && !r.pinned && !r.note && !r.opened && !r.symbol && !r.image;
+const isEmptyRecord = r => !r.world && !r.folder && !r.tags.length && !r.pinned && !r.note && !r.opened && !r.symbol && !r.image && !r.color;
 export function recordOf(m, kind, id) {
-  return m.items[itemKey(kind, id)] || { world: null, folder: null, tags: [], pinned: false, note: '', opened: '', name: '', symbol: '', image: '' };
+  return m.items[itemKey(kind, id)] || { world: null, folder: null, tags: [], pinned: false, note: '', opened: '', name: '', symbol: '', image: '', color: '' };
 }
 // Change one item's record. `patch` keys: world, tags, pinned, note, opened, name.
 export function patchItem(m, kind, id, patch) {
@@ -119,7 +121,7 @@ export function patchItem(m, kind, id, patch) {
   next.tags = cleanTags(next.tags);
   if (next.world && !m.worlds[next.world]) next.world = null;
   if (!next.world || !next.folder || !m.folders[next.folder] || m.folders[next.folder].world !== next.world) next.folder = null; // a folder belongs to one world
-  next.symbol = cleanSym(next.symbol); next.image = cleanImg(next.image);
+  next.symbol = cleanSym(next.symbol); next.image = cleanImg(next.image); next.color = cleanColor(next.color);
   if (isEmptyRecord(next)) delete m.items[k]; else m.items[k] = next;
   return m;
 }

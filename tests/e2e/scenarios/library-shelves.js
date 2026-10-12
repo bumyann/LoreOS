@@ -28,7 +28,17 @@
  // click a book, details on a book
  book('L1').querySelector('[data-act="details"]').click(); await w(250);
  chk('details open from a book', document.getElementById('libxDetailModal').classList.contains('open') && document.getElementById('libxDetailTitle').textContent==='L1');
+ chk('colour controls in the dialog', document.querySelectorAll('#libxColorGrid [data-color]').length===12 && !!document.getElementById('libxColorPick'));
+ document.querySelector('#libxColorGrid [data-color="#c46c6c"]').click(); await w(200);
+ chk('swatch saves the colour', recordOf(metaGet(),'lore',JSON.parse(store.get('aet_library')).L1.id).color==='#c46c6c');
+ const cp=document.getElementById('libxColorPick'); cp.value='#12ab34'; cp.dispatchEvent(new Event('input',{bubbles:true})); await w(200);
+ chk('custom colour saves', recordOf(metaGet(),'lore',JSON.parse(store.get('aet_library')).L1.id).color==='#12ab34');
  document.getElementById('libxDetailDone').click(); await w(300);
+ chk('the book takes the colour', /--bk:\s*#12ab34/.test(book('L1').getAttribute('style')||'') && book('L1').classList.contains('colored') && !/--bk/.test(book('L2').getAttribute('style')||''), book('L1').getAttribute('style'));
+ book('L1').querySelector('[data-act="details"]').click(); await w(250); document.getElementById('libxColorClear').click(); await w(200); document.getElementById('libxDetailDone').click(); await w(300);
+ chk('Default puts the category colour back', !book('L1').classList.contains('colored') && recordOf(metaGet(),'lore',JSON.parse(store.get('aet_library')).L1.id).color==='');
+ chk('colours are validated', normalizeMeta({worlds:{},items:{'lore:a':{color:'red'},'lore:b':{color:'#ABCDEF'},'lore:c':{color:'url(x)'}}}).items['lore:b'].color==='#abcdef' && normalizeMeta({items:{'lore:a':{color:'red',tags:['x']}}}).items['lore:a'].color==='');
+ chk('shelf plates carry no symbol', !document.querySelector('.libx-plate .libx-sym') && !/[❖☺⚙✎⌕☻★]/.test(document.querySelector('.libx-plate').textContent), document.querySelector('.libx-plate').textContent);
  book('Pre').click(); await w(700);
  chk('clicking a book opens it in its editor', state.mode==='preset' && state.activePresetId==='p1', [state.mode,state.activePresetId]);
  navigateTo('library'); await w(400);

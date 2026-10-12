@@ -747,6 +747,11 @@ textarea.bad{border-color:var(--err,#e0707f)}
 .libx-books{--bw:128px;--bh:188px;--board:13px;display:grid;grid-template-columns:repeat(auto-fill,var(--bw));grid-auto-rows:calc(var(--bh) + var(--board));column-gap:14px;padding:0 14px;margin-top:20px;border-radius:3px;
   background:repeating-linear-gradient(to bottom,transparent 0,transparent var(--bh),color-mix(in srgb,var(--sf2) 85%,#fff 6%) var(--bh),var(--sf) calc(var(--bh) + 3px),color-mix(in srgb,var(--bg) 70%,#000) calc(var(--bh) + var(--board)));
   box-shadow:inset 0 -14px 14px -14px rgba(0,0,0,.5)}
+.libx-colorgrid{display:flex;flex-wrap:wrap;gap:.3rem;flex:1}
+.libx-swatch{width:26px;height:26px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0}
+.libx-swatch.on{border-color:var(--tx);box-shadow:0 0 0 2px var(--bg)}
+#libxColorPick{width:34px;height:30px;padding:0;border:1px solid var(--bd);border-radius:3px;background:none;cursor:pointer}
+.libx-card.colored:not(.libx-book){border-left:4px solid var(--bk)}
 .libx-book{--bk:#6f7fb8;position:relative;display:block;width:var(--bw);height:var(--bh);padding:0;border:1px solid color-mix(in srgb,var(--bk) 55%,transparent);border-radius:3px 7px 7px 3px;overflow:hidden;cursor:pointer;
   background:linear-gradient(145deg,color-mix(in srgb,var(--bk) 42%,var(--bg2)),color-mix(in srgb,var(--bk) 18%,var(--bg)));
   box-shadow:inset 9px 0 0 rgba(0,0,0,.28),inset 10px 0 0 rgba(255,255,255,.08),3px 4px 8px rgba(0,0,0,.45);transition:transform .14s ease,box-shadow .14s ease}
