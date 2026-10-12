@@ -14,7 +14,7 @@ export const BUILTIN_TEMPLATES = {
     {
       category: "Basic",
       items: [
-        { name: "📝 Standalone Character Card", hint: "Full card for bots without a lorebook. Everything lives in the card.", content: `# OVERVIEW
+        { name: "✎ Standalone Character Card", hint: "Full card for bots without a lorebook. Everything lives in the card.", content: `# OVERVIEW
 - Full Name:
 - Aliases/Nicknames:
 - Social Media Handle:
@@ -108,7 +108,7 @@ export const BUILTIN_TEMPLATES = {
 # NOTES
 -
 -` },
-        { name: "💬 Example Dialogues", hint: "Style anchors by mood. Keep the NOT VERBATIM header.", content: `# EXAMPLE DIALOGUES
+        { name: "❝ Example Dialogues", hint: "Style anchors by mood. Keep the NOT VERBATIM header.", content: `# EXAMPLE DIALOGUES
 (FOR REFERENCE ONLY — NOT VERBATIM)
 
 ## GREETING {{user}}
@@ -151,7 +151,7 @@ export const BUILTIN_TEMPLATES = {
     {
       category: "Advanced",
       items: [
-        { name: "📚 Lorebook-Paired Card", hint: "Lean card; the depth goes in the Character Lorebook entries.", content: `# OVERVIEW
+        { name: "❖ Lorebook-Paired Card", hint: "Lean card; the depth goes in the Character Lorebook entries.", content: `# OVERVIEW
 - Full Name:
 - Aliases/Nicknames:
 - Social Media Handle:
@@ -236,7 +236,7 @@ export const BUILTIN_TEMPLATES = {
     {
       category: "Character Lorebook",
       items: [
-        { name: "📖 Backstory", keys: ["past", "childhood", "before", "history", "how did you", "grew up", "back then", "where are you from", "origins", "upbringing"], content: `# BACKSTORY
+        { name: "☰ Backstory", keys: ["past", "childhood", "before", "history", "how did you", "grew up", "back then", "where are you from", "origins", "upbringing"], content: `# BACKSTORY
 
 - Early environment:
 
@@ -247,7 +247,7 @@ export const BUILTIN_TEMPLATES = {
 - What was normal for them that wouldn't be for others:
 
 - What was missing:` },
-        { name: "💭 Core Memories", keys: ["remember", "memory", "never forgot", "that day", "back when", "still think about", "haunts", "can't forget", "scarred"], content: `# CORE MEMORIES
+        { name: "◌ Core Memories", keys: ["remember", "memory", "never forgot", "that day", "back when", "still think about", "haunts", "can't forget", "scarred"], content: `# CORE MEMORIES
 // each entry is a specific moment, not a period or summary
 // write with sensory detail
 
@@ -256,7 +256,7 @@ export const BUILTIN_TEMPLATES = {
 - Memory — [label]:
 
 - Memory — [label]:` },
-        { name: "🧠 Psychological Core", keys: ["think", "believe", "why do you", "how do you see yourself", "what do you think of yourself", "mindset", "perspective", "worldview"], content: `# PSYCHOLOGICAL CORE
+        { name: "◈ Psychological Core", keys: ["think", "believe", "why do you", "how do you see yourself", "what do you think of yourself", "mindset", "perspective", "worldview"], content: `# PSYCHOLOGICAL CORE
 
 - Self-concept:
 
@@ -271,7 +271,7 @@ export const BUILTIN_TEMPLATES = {
 - What they need that they'd never ask for:
 
 - What they fear becoming:` },
-        { name: "💢 Emotional Mechanics", keys: ["feel", "emotion", "upset", "hurt", "angry", "scared", "nervous", "overwhelmed", "reaction", "feeling", "emotional"], content: `# EMOTIONAL MECHANICS
+        { name: "✺ Emotional Mechanics", keys: ["feel", "emotion", "upset", "hurt", "angry", "scared", "nervous", "overwhelmed", "reaction", "feeling", "emotional"], content: `# EMOTIONAL MECHANICS
 
 - Emotional baseline:
 
@@ -289,7 +289,7 @@ export const BUILTIN_TEMPLATES = {
 - How they process emotion:
 
 - How they show what they're not saying:` },
-        { name: "🔄 Behaviour Patterns", keys: ["always", "habit", "pattern", "tend to", "keeps doing", "why do you always", "notice", "compulsive", "reflex"], content: `# BEHAVIOUR PATTERNS
+        { name: "↻ Behaviour Patterns", keys: ["always", "habit", "pattern", "tend to", "keeps doing", "why do you always", "notice", "compulsive", "reflex"], content: `# BEHAVIOUR PATTERNS
 
 - Under pressure:
 
@@ -304,7 +304,7 @@ export const BUILTIN_TEMPLATES = {
 - How they fill silence:
 
 - What they always do when [specific trigger]:` },
-        { name: "🤝 Relational Patterns", keys: ["relationship", "trust", "close", "attachment", "let in", "push away", "distance", "people"], content: `# RELATIONAL PATTERNS
+        { name: "⇄ Relational Patterns", keys: ["relationship", "trust", "close", "attachment", "let in", "push away", "distance", "people"], content: `# RELATIONAL PATTERNS
 
 - Attachment in practice:
 
@@ -321,7 +321,7 @@ export const BUILTIN_TEMPLATES = {
 - How they hurt people without meaning to:
 
 - What they look for in people without realising it:` },
-        { name: "👥 Private Relationships", hint: "One per NPC. Add their name and relationship terms as keywords.", keys: ["mother", "father", "family"], content: `# [NAME] — [RELATIONSHIP TYPE]
+        { name: "☻ Private Relationships", hint: "One per NPC. Add their name and relationship terms as keywords.", keys: ["mother", "father", "family"], content: `# [NAME] — [RELATIONSHIP TYPE]
 
 - Who they are:
 
@@ -334,7 +334,7 @@ export const BUILTIN_TEMPLATES = {
 - What [NAME] represents to [CHARACTER] unconsciously:
 
 - Current state:` },
-        { name: "🎭 The Mask", keys: ["really", "actually", "underneath", "not saying", "hiding", "what you really", "true", "pretend"], content: `# THE MASK
+        { name: "◐ The Mask", keys: ["really", "actually", "underneath", "not saying", "hiding", "what you really", "true", "pretend"], content: `# THE MASK
 
 - What they present as:
 
@@ -345,7 +345,7 @@ export const BUILTIN_TEMPLATES = {
 - What would have to happen for it to drop:
 
 - What they're most afraid of someone seeing:` },
-        { name: "🔒 Secrets & Hidden Lore", keys: ["secret", "truth", "hiding", "real reason", "never told", "lied", "no one knows", "what really happened", "concealing"], content: `# SECRETS
+        { name: "⚿ Secrets & Hidden Lore", keys: ["secret", "truth", "hiding", "real reason", "never told", "lied", "no one knows", "what really happened", "concealing"], content: `# SECRETS
 
 - What they're hiding and from whom:
 
@@ -356,7 +356,7 @@ export const BUILTIN_TEMPLATES = {
 - How it affects their behaviour without anyone knowing why:
 
 - Physical evidence or tells:` },
-        { name: "💞 {{user}} Dynamic", keys: ["{{user}}", "you and me", "us", "together", "our", "between us", "with you", "what you mean", "you make me"], content: `# {{user}} DYNAMIC
+        { name: "♥ {{user}} Dynamic", keys: ["{{user}}", "you and me", "us", "together", "our", "between us", "with you", "what you mean", "you make me"], content: `# {{user}} DYNAMIC
 
 - Pre-established dynamic:
 
@@ -373,7 +373,7 @@ export const BUILTIN_TEMPLATES = {
 - What they want from {{user}} that they haven't named:
 
 - Where the unresolved feeling lives:` },
-        { name: "🔥 Intimacy Layer", hint: "Flag as NSFW on platforms that support it.", keys: ["touch", "close", "intimate", "want", "desire", "body", "hold", "need", "bedroom", "skin", "kiss", "physical"], content: `# INTIMACY
+        { name: "♨ Intimacy Layer", hint: "Flag as NSFW on platforms that support it.", keys: ["touch", "close", "intimate", "want", "desire", "body", "hold", "need", "bedroom", "skin", "kiss", "physical"], content: `# INTIMACY
 
 - What intimacy means to them emotionally:
 
@@ -388,13 +388,13 @@ export const BUILTIN_TEMPLATES = {
 - What their body does before their mind catches up:
 
 - Specific behaviours only visible in intimate contexts:` },
-        { name: "🎤 Voice Anchor", hint: "Always-on / constant, lowest insertion order, 3 sentences max.", content: `[CHARACTER] speaks [cadence]. They tend to [one verbal habit]. They rarely say [something they avoid]. A typical line: "[example]."` },
+        { name: "♪ Voice Anchor", hint: "Always-on / constant, lowest insertion order, 3 sentences max.", content: `[CHARACTER] speaks [cadence]. They tend to [one verbal habit]. They rarely say [something they avoid]. A typical line: "[example]."` },
       ]
     },
     {
       category: "General Lorebook",
       items: [
-        { name: "🌌 Cosmological Entry", hint: "Planes, realms, universal mechanics, existence rules.", content: `# LORE TITLE
+        { name: "✦ Cosmological Entry", hint: "Planes, realms, universal mechanics, existence rules.", content: `# LORE TITLE
 
 ## WHAT IT IS
 // 2–4 sentences — what is it, where does it exist, what is its fundamental nature?
@@ -414,7 +414,7 @@ export const BUILTIN_TEMPLATES = {
 ## RELATIONSHIP TO OTHER PLANES/CONCEPTS // [OPTIONAL]
 
 ## NOTES` },
-        { name: "🧬 Species Entry", hint: "Any named species or category of being.", content: `# LORE TITLE
+        { name: "⌬ Species Entry", hint: "Any named species or category of being.", content: `# LORE TITLE
 
 ## WHAT THEY ARE
 // 2–3 sentences — mortal or immortal? origin? what makes them distinct at a glance?
@@ -437,7 +437,7 @@ export const BUILTIN_TEMPLATES = {
 ## HOW THEY FIT IN THE WORLD
 
 ## NOTES` },
-        { name: "🕍 Belief System Entry", hint: "Faiths, deities, religious mechanics, practices.", content: `# LORE TITLE
+        { name: "✧ Belief System Entry", hint: "Faiths, deities, religious mechanics, practices.", content: `# LORE TITLE
 
 ## OVERVIEW
 // 2–4 sentences — what does this system hold to be true? who/what do they worship?
@@ -457,7 +457,7 @@ export const BUILTIN_TEMPLATES = {
 ## RELATIONSHIP TO OTHER FAITHS // [OPTIONAL]
 
 ## NOTES` },
-        { name: "📜 Historical Event Entry", hint: "World-shaping events, eras, disasters.", content: `# LORE TITLE
+        { name: "❡ Historical Event Entry", hint: "World-shaping events, eras, disasters.", content: `# LORE TITLE
 
 ## WHAT HAPPENED
 
@@ -473,7 +473,7 @@ export const BUILTIN_TEMPLATES = {
 ## RELEVANCE TO CHARACTERS // [OPTIONAL]
 
 ## NOTES` },
-        { name: "⚔️ Faction / Clan Entry", hint: "Groups with structure, history, and internal logic.", content: `# LORE TITLE
+        { name: "⚔ Faction / Clan Entry", hint: "Groups with structure, history, and internal logic.", content: `# LORE TITLE
 
 ## OVERVIEW
 
@@ -494,7 +494,7 @@ export const BUILTIN_TEMPLATES = {
 ## RELATIONSHIP TO OTHER FACTIONS // [OPTIONAL]
 
 ## NOTES` },
-        { name: "🏛️ Institution Entry", hint: "Schools, academies, formal programmes, ranked systems.", content: `# LORE TITLE
+        { name: "⌂ Institution Entry", hint: "Schools, academies, formal programmes, ranked systems.", content: `# LORE TITLE
 
 ## OVERVIEW
 
@@ -511,7 +511,7 @@ export const BUILTIN_TEMPLATES = {
 ## CULTURE & SOCIAL LIFE
 
 ## NOTES` },
-        { name: "📍 Location Entry", hint: "Physical spaces: rooms, buildings, towns, campuses.", content: `# LORE TITLE
+        { name: "⌖ Location Entry", hint: "Physical spaces: rooms, buildings, towns, campuses.", content: `# LORE TITLE
 
 ## WHAT IT IS
 
@@ -527,7 +527,7 @@ export const BUILTIN_TEMPLATES = {
 // what does this place mean beyond its stated purpose?
 
 ## NOTES` },
-        { name: "📊 Social System Entry", hint: "Class structures, cultural norms, group rules, hierarchies.", content: `# LORE TITLE
+        { name: "▤ Social System Entry", hint: "Class structures, cultural norms, group rules, hierarchies.", content: `# LORE TITLE
 
 ## OVERVIEW
 
@@ -558,7 +558,7 @@ export const BUILTIN_TEMPLATES = {
     {
       category: "NPC Lorebook",
       items: [
-        { name: "👤 NPC Profile", hint: "Public wiki page. Keywords: name, nicknames, role/title, affiliation.", content: `# IDENTITY
+        { name: "☺ NPC Profile", hint: "Public wiki page. Keywords: name, nicknames, role/title, affiliation.", content: `# IDENTITY
 - Name:
 - Aliases/Nicknames:
 - Gender & Pronouns:
@@ -600,7 +600,7 @@ export const BUILTIN_TEMPLATES = {
 // cross-bot consistency flags
 -
 -` },
-        { name: "🔗 Relationship Entry", hint: "How this bot privately sees an NPC. Keywords: NPC name + bot name; secondary: bot name.", content: `# RELATIONSHIP OVERVIEW
+        { name: "↔ Relationship Entry", hint: "How this bot privately sees an NPC. Keywords: NPC name + bot name; secondary: bot name.", content: `# RELATIONSHIP OVERVIEW
 [BOT NAME] — [NPC NAME]
 - Dynamic Type: // rivals, estranged, one-sided, complicated allies, something unspoken
 
@@ -628,7 +628,7 @@ export const BUILTIN_TEMPLATES = {
 
 # HOW THIS RELATIONSHIP HAS CHANGED [BOT]
 // one or two lines — don't over-explain` },
-        { name: "🌊 NPC Depth Entry", hint: "Private depth for NPCs users pursue. Add the NPC name to the keywords.", keys: ["feelings", "closer", "pursue", "interested in", "what is she really", "beneath", "actually like"], content: `# [NPC NAME] — BENEATH THE SURFACE
+        { name: "≈ NPC Depth Entry", hint: "Private depth for NPCs users pursue. Add the NPC name to the keywords.", keys: ["feelings", "closer", "pursue", "interested in", "what is she really", "beneath", "actually like"], content: `# [NPC NAME] — BENEATH THE SURFACE
 
 - Core belief about the world:
 

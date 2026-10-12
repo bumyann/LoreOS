@@ -40,7 +40,7 @@
  state.presetLibrary.p1={id:'p1',name:'My Preset',preset:{prompts:[]},savedAt:new Date(Date.now()-9*86400000).toISOString()};
  state.promptLibrary.k1={id:'k1',name:'Pack One',pack:{modules:[]},savedAt:new Date(Date.now()-8*86400000).toISOString()};
  state.regexLibrary.r1={id:'r1',name:'Bold',single:true,set:{scripts:[{id:'s'}]},savedAt:new Date(Date.now()-7*86400000).toISOString()};
- navigateTo('library'); await w(500);
+ setLibraryLayout('list'); navigateTo('library'); await w(500);
  const names=()=>[...document.querySelectorAll('.libx-card .libx-name')].map(e=>e.textContent);
  const total=names().length;
  chk('every kind shows up', ['Mira','My Preset','Pack One','Bold','Cartographer','Alpha Prime','Beta'].every(n=>names().includes(n)) && total===9, names());

@@ -30,14 +30,16 @@ export const KIND_INFO = {
 };
 // Characters and personas always show their own picture; the rest can be given one, or a symbol
 const OWN_PICTURE = new Set(['char', 'persona']);
+// The order the shelves stand in
+export const SHELF_ORDER = ['char', 'lore', 'preset', 'prompt', 'regex', 'persona'];
 const WORLD_COLORS = ['#8a9bd2', '#c9a0dc', '#7ec8b0', '#e0b070', '#e08a8a', '#9ac0e8', '#b8c870', '#d49ab8'];
 const SORTS = [['recent', 'Recently used'], ['name', 'Name'], ['type', 'Type'], ['oldest', 'Oldest']];
 const VIEW_KEY = 'loreos_libview';
 
 // What the view is showing (kept across visits)
-const view = { type: 'all', world: null, folder: null, tag: null, q: '', sort: 'recent', filtersOpen: false };
+const view = { type: 'all', world: null, folder: null, tag: null, q: '', sort: 'recent', layout: 'shelves', filtersOpen: false };
 try { Object.assign(view, JSON.parse(localStorage.getItem(VIEW_KEY) || '{}'), { q: '', filtersOpen: false }); } catch (e) { /* first run */ }
-const saveView = () => { try { localStorage.setItem(VIEW_KEY, JSON.stringify({ type: view.type, world: view.world, folder: view.folder, tag: view.tag, sort: view.sort })); } catch (e) { /* private mode */ } };
+const saveView = () => { try { localStorage.setItem(VIEW_KEY, JSON.stringify({ type: view.type, world: view.world, folder: view.folder, tag: view.tag, sort: view.sort, layout: view.layout })); } catch (e) { /* private mode */ } };
 
 // ── Items with their organisation attached ──
 export function libraryRows() {
@@ -116,6 +118,44 @@ function summaryOf(r) {
   return '';
 }
 
+// A book standing on a shelf: cover art or symbol, the title, what it is, and where it belongs
+function bookHtml(r, m, i) {
+  const w = r.rec.world && m.worlds[r.rec.world];
+  const fp = r.rec.folder ? folderPath(m, r.rec.folder).map(f => f.name).join(' › ') : '';
+  const tip = [r.name, r.kindLabel, w ? w.name + (fp ? ' › ' + fp : '') : '', r.rec.tags.join(', '), r.rec.note].filter(Boolean).join(' · ');
+  return `<div class="libx-card libx-book kind-${r.kind}${r.rec.pinned ? ' pinned' : ''}" data-i="${i}" tabindex="0" role="button" title="${esc(tip)}" aria-label="Open ${esc(r.name)}">
+    <div class="libx-cover"><div class="libx-thumb">${thumb(r)}</div></div>
+    <div class="libx-info">
+      <div class="libx-name">${esc(r.name || 'Untitled')}</div>
+      <div class="libx-meta"><span class="libx-kind">${esc(r.kindLabel)}</span></div>
+      ${w ? `<div class="libx-world"><i style="background:${esc(w.color || '#8a9bd2')}"></i>${esc(w.name)}</div>` : ''}
+      ${r.rec.tags.length ? `<div class="libx-tags">${r.rec.tags.slice(0, 2).map(t => `<span class="libx-tag" data-tag="${esc(t)}">${esc(t)}</span>`).join('')}${r.rec.tags.length > 2 ? `<span class="libx-more">+${r.rec.tags.length - 2}</span>` : ''}</div>` : ''}
+      ${r.rec.note ? `<div class="libx-note">${esc(r.rec.note)}</div>` : ''}
+    </div>
+    <div class="libx-acts">
+      <button class="libx-icon-btn" data-act="pin" title="${r.rec.pinned ? 'Unpin' : 'Pin to the favourites shelf'}" aria-pressed="${r.rec.pinned}">${r.rec.pinned ? '★' : '☆'}</button>
+      <button class="libx-icon-btn" data-act="details" title="World, folder, tags, picture and notes">⋯</button>
+    </div>
+  </div>`;
+}
+
+// One shelf per category, with a brass plate; favourites get the top shelf
+export function shelfGroups(shown, v = view) {
+  const groups = [];
+  const filtering = (v.q || '').trim() || v.tag || v.world || v.type !== 'all';
+  if (!filtering) { const fav = shown.filter(r => r.rec.pinned); if (fav.length) groups.push({ key: 'pinned', label: 'Favourites', icon: '★', rows: fav }); }
+  if (v.type === 'pinned') return [{ key: 'pinned', label: 'Favourites', icon: '★', rows: shown }];
+  SHELF_ORDER.forEach(k => { const rs = shown.filter(r => r.kind === k); if (rs.length) groups.push({ key: k, label: KIND_INFO[k].plural, icon: KIND_INFO[k].icon, rows: rs }); });
+  return groups;
+}
+function shelvesHtml(shown, m, idx) {
+  return shelfGroups(shown).map(gr => `
+    <section class="libx-shelf" data-shelf="${gr.key}" aria-label="${esc(gr.label)}">
+      <div class="libx-plate"><span class="libx-sym">${esc(sym(gr.icon))}</span><span class="libx-plate-name">${esc(gr.label)}</span><span class="libx-plate-n">${gr.rows.length}</span></div>
+      <div class="libx-books">${gr.rows.map(r => bookHtml(r, m, idx.get(r))).join('')}</div>
+    </section>`).join('');
+}
+
 function cardHtml(r, m, i) {
   const w = r.rec.world && m.worlds[r.rec.world];
   const fp = r.rec.folder ? folderPath(m, r.rec.folder).map(f => f.name).join(' › ') : '';
@@ -192,6 +232,7 @@ export function renderLibraryView() {
           <button class="dd-item" data-libnew="regex">${sym(KIND_SYMBOL.regex)} Regex set</button><button class="dd-item" data-libnew="regexscript">${sym(KIND_SYMBOL.regex)} Regex script</button>
           <button class="dd-item" data-libnew="persona">${sym(KIND_SYMBOL.persona)} Persona</button><button class="dd-item" data-libnew="personafile">Import a persona (JSON)</button>
         </div></div>
+      <div class="libx-layout" role="group" aria-label="Layout"><button class="btn btn-s btn-sm${view.layout === 'shelves' ? ' on' : ''}" id="libxLayoutShelves" aria-pressed="${view.layout === 'shelves'}">Shelves</button><button class="btn btn-s btn-sm${view.layout === 'list' ? ' on' : ''}" id="libxLayoutList" aria-pressed="${view.layout === 'list'}">List</button></div>
       <button class="btn btn-s btn-sm libx-filter-toggle" id="libxFilterToggle" aria-expanded="${view.filtersOpen}">Filters</button>
     </div>
     <div class="libx-body">
@@ -208,9 +249,9 @@ export function renderLibraryView() {
       <main class="libx-main">
         ${curWorld ? worldHeadHtml(curWorld, m, rows) : ''}
         ${view.tag ? `<div class="libx-filterline">Tag: <b>${esc(view.tag)}</b> <button class="btn btn-s btn-sm" id="libxClearTag">Clear</button></div>` : ''}
-        ${shown.length ? `
+        ${shown.length ? (view.layout === 'list' ? `
           ${pinned.length ? `<div class="libx-sec">★ Pinned</div><div class="libx-grid">${pinned.map(r => cardHtml(r, m, idx.get(r))).join('')}</div><div class="libx-sec">Everything else</div>` : ''}
-          <div class="libx-grid">${rest.map(r => cardHtml(r, m, idx.get(r))).join('')}</div>`
+          <div class="libx-grid">${rest.map(r => cardHtml(r, m, idx.get(r))).join('')}</div>` : shelvesHtml(shown, m, idx))
           : curWorld ? '<div class="lib-view-empty">nothing here yet<br><span style="font-size:.7rem;opacity:.6">use + New, or open an item\'s ⋯ and pick this world or folder</span></div>'
           : `<div class="lib-view-empty">${rows.length ? 'nothing matches that<br><span style="font-size:.7rem;opacity:.6">try another search or clear the filters</span>' : 'nothing in your library yet<br><span style="font-size:.7rem;opacity:.6">use + New to start something, or drop a file anywhere to import it</span>'}</div>`}
       </main>
@@ -220,6 +261,7 @@ export function renderLibraryView() {
 }
 
 function refresh() { renderLibraryView(); }
+export function setLibraryLayout(l) { view.layout = l === 'list' ? 'list' : 'shelves'; saveView(); }
 const setWorld = id => { view.world = id; view.folder = null; view.type = 'all'; view.tag = null; view.filtersOpen = false; saveView(); };
 
 // A picture file turned into a small data URL, or '' (and a message) when it is not an image
@@ -244,6 +286,8 @@ function wire(el, shown) {
   let t = null;
   q.addEventListener('input', () => { view.q = q.value; clearTimeout(t); t = setTimeout(() => { refresh(); const n = document.getElementById('libxSearch'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 160); });
   el.querySelector('#libxSort').onchange = e => { view.sort = e.target.value; saveView(); refresh(); };
+  el.querySelector('#libxLayoutShelves').onclick = () => { view.layout = 'shelves'; saveView(); refresh(); };
+  el.querySelector('#libxLayoutList').onclick = () => { view.layout = 'list'; saveView(); refresh(); };
   el.querySelector('#libxFilterToggle').onclick = () => { view.filtersOpen = !view.filtersOpen; refresh(); };
   el.querySelectorAll('[data-type]').forEach(b => b.onclick = () => { view.type = b.dataset.type; view.world = null; view.folder = null; view.tag = null; view.filtersOpen = false; saveView(); refresh(); });
   el.querySelectorAll('[data-world]').forEach(b => b.onclick = () => { setWorld(b.dataset.world); refresh(); });
@@ -337,6 +381,7 @@ function folderOptions(m, worldId, selected) {
   return opts.join('');
 }
 function paintPicture() {
+  if (!detailRow) return;
   const own = detailRow && OWN_PICTURE.has(detailRow.kind);
   g('libxPicBox').style.display = own ? 'none' : '';
   g('libxPicOwn').style.display = own ? '' : 'none';

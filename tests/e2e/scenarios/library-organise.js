@@ -19,7 +19,7 @@
  state.presetLibrary.p1={id:'p1',name:'Preset One',preset:{prompts:[]},savedAt:new Date(Date.now()-86400000).toISOString()};
  state.promptLibrary.k1={id:'k1',name:'Pack One',pack:{modules:[]},savedAt:new Date(Date.now()-2*86400000).toISOString()};
  state.charLibrary.c1={id:'c1',name:'Mira',card:{data:{name:'Mira'}},imageData:PIC,savedAt:new Date().toISOString()};
- navigateTo('library'); await w(400);
+ setLibraryLayout('list'); navigateTo('library'); await w(400);
  const cardOf=n=>[...document.querySelectorAll('.libx-card')].find(c=>c.querySelector('.libx-name').textContent===n);
  const names=()=>[...document.querySelectorAll('.libx-card .libx-name')].map(e=>e.textContent);
  // picture + symbol on a non-character
