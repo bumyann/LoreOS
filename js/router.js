@@ -5,6 +5,8 @@
 
 import { createChar, openChar } from './character.js';
 import { libLoad } from './library.js';
+import { renderLibraryView } from './library_view.js';
+import { openPersona } from './persona.js';
 import { createEntry } from './lorebook.js';
 import { updateMobViewBtns } from './mobile.js';
 import { createPreset, openPreset } from './preset.js';
@@ -170,6 +172,11 @@ export function renderDashboard(el) {
     recentItems.push({ type: s.single ? 'regex script' : 'regex set', icon: '⌕', name: s.name || 'Untitled set', savedAt: s.savedAt, action: () => { navigateTo('editor'); setTimeout(() => { switchMode('regex'); openRegex(s.id); }, 80); } });
   });
 
+  // Personas
+  Object.values(state.personaLibrary || {}).forEach(s => {
+    recentItems.push({ type: 'persona', icon: '☺', name: s.name || 'Untitled persona', savedAt: s.savedAt, action: () => openPersona(s.id) });
+  });
+
   // Sort by savedAt desc, take top 6
   recentItems.sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
   const recent = recentItems.slice(0, 6);
@@ -205,7 +212,8 @@ export function renderDashboard(el) {
         <div class="dash-stat"><span class="dash-stat-num">${Object.keys(ch).length}</span><span class="dash-stat-lbl">characters</span></div>
         <div class="dash-stat"><span class="dash-stat-num">${Object.keys(pr).length}</span><span class="dash-stat-lbl">presets</span></div>
         <div class="dash-stat"><span class="dash-stat-num">${Object.keys(state.promptLibrary || {}).length}</span><span class="dash-stat-lbl">prompt packs</span></div>
-        <div class="dash-stat"><span class="dash-stat-num">${Object.keys(state.regexLibrary || {}).length}</span><span class="dash-stat-lbl">regex sets</span></div>
+        <div class="dash-stat"><span class="dash-stat-num">${Object.keys(state.regexLibrary || {}).length}</span><span class="dash-stat-lbl">regex</span></div>
+        <div class="dash-stat"><span class="dash-stat-num">${Object.keys(state.personaLibrary || {}).length}</span><span class="dash-stat-lbl">personas</span></div>
       </div>
       <div class="home-footer-note">// all data stays in your browser &nbsp;·&nbsp; <a href="https://loreos.net/legal.html" target="_blank" style="color:var(--txm);text-decoration:none;border-bottom:1px solid var(--bd)">privacy & terms</a></div>
     </div>
@@ -215,74 +223,6 @@ export function renderDashboard(el) {
   recent.forEach((item, i) => {
     const el2 = el.querySelector(`[data-recent-idx="${i}"]`);
     if (el2) el2.addEventListener('click', item.action);
-  });
-}
-
-// ─── LIBRARY VIEW ────────────────────────────────────
-export function renderLibraryView() {
-  const el = document.getElementById('library-content');
-  if (!el) return;
-
-  const lb = libGet();
-  const ch = typeof state.charLibrary !== 'undefined' ? state.charLibrary : {};
-  const pr = typeof state.presetLibrary !== 'undefined' ? state.presetLibrary : {};
-
-  const allItems = [];
-  Object.values(lb).forEach(s => allItems.push({ type: 'lorebook', icon: '📖', typeLabel: 'Lorebook', name: s.name || 'Untitled', savedAt: s.savedAt, id: s.id, mode: 'lore', openFn: () => libLoad(s.name) }));
-  Object.values(ch).forEach(s => allItems.push({ type: 'character', icon: '🎭', typeLabel: 'Character', name: s.name || 'Unnamed', savedAt: s.savedAt, id: s.id, mode: 'char', openFn: () => openChar(s.id) }));
-  Object.values(pr).forEach(s => allItems.push({ type: 'preset', icon: '⚙', typeLabel: 'Preset', name: s.name || 'Untitled', savedAt: s.savedAt, id: s.id, mode: 'preset', openFn: () => openPreset(s.id) }));
-  allItems.sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
-
-  const filterState = el._filterState || 'all';
-
-  const tabs = [
-    { key: 'all', label: 'All' },
-    { key: 'lorebook', label: '📖 Lorebooks' },
-    { key: 'character', label: '🎭 Characters' },
-    { key: 'preset', label: '⚙ Presets' },
-  ];
-
-  const filtered = filterState === 'all' ? allItems : allItems.filter(i => i.type === filterState);
-
-  el.innerHTML = `
-    <div class="library-wrap">
-      <div class="lib-view-header">
-        <div class="lib-view-title">Library</div>
-        <div class="lib-filter-tabs">
-          ${tabs.map(t => `<button class="lib-filter-tab ${filterState === t.key ? 'active' : ''}" data-filter="${t.key}">${t.label}</button>`).join('')}
-        </div>
-      </div>
-      <div class="lib-grid" id="lib-grid">
-        ${filtered.length ? filtered.map((item, i) => `
-          <div class="lib-card" data-lib-idx="${i}">
-            <div class="lib-card-icon">${item.icon}</div>
-            <div class="lib-card-info">
-              <div class="lib-card-name">${routerEsc(item.name)}</div>
-              <div class="lib-card-meta"><span class="lib-card-type">${item.typeLabel}</span>${item.savedAt ? ' · ' + new Date(item.savedAt).toLocaleDateString() : ''}</div>
-            </div>
-            <button class="btn btn-p btn-sm lib-card-open" data-lib-idx="${i}">Open →</button>
-          </div>
-        `).join('') : `<div class="lib-view-empty">nothing in your library yet<br><span style="font-size:.7rem;opacity:.6">create something in the editor to see it here</span></div>`}
-      </div>
-    </div>
-  `;
-
-  // Wire filter tabs
-  el.querySelectorAll('.lib-filter-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      el._filterState = btn.dataset.filter;
-      renderLibraryView();
-    });
-  });
-
-  // Wire open buttons
-  filtered.forEach((item, i) => {
-    el.querySelectorAll(`[data-lib-idx="${i}"]`).forEach(btn => {
-      btn.addEventListener('click', () => {
-        navigateTo('editor');
-        setTimeout(() => { switchMode(item.mode); item.openFn(); }, 80);
-      });
-    });
   });
 }
 

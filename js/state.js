@@ -47,6 +47,10 @@ export const state = {
   promptUnsaved: false,
   promptTab: 'build',   // which part of the pack editor is showing
 
+  // ── Personas: { id: { id, name, persona, savedAt } } (see persona.js) ──
+  personaLibrary: {},
+  activePersonaId: null,
+
   // ── Regex sets: { id: { id, name, set, savedAt } } (see regex_model.js) ──
   regexLibrary: {},
   activeRegexId: null,
