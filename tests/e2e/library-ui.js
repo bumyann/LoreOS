@@ -45,6 +45,45 @@ const srv=http.createServer((q,s)=>{let p=q.url.split('?')[0]; if(p==='/')p='/in
   await pg.click('#hbAddDd [data-hbnew="note"]'); await pg.waitForTimeout(250);
   chk(label+': Home note editor opens', await pg.evaluate(()=>document.getElementById('hbModal').classList.contains('open')));
   await pg.click('#hbModal .modal-x'); await pg.waitForTimeout(150);
+  // Home board: drag a card to rearrange (mouse on desktop, press-and-hold on touch)
+  await pg.evaluate(()=>{ const L=window.LoreOS; L.homeSet({board:['a','b','c'].map((id,i)=>({id,type:'note',title:'Card '+id.toUpperCase(),text:'text '+id+' '.repeat(1)+'x'.repeat(40+i*30)}))}); L.navigateTo('home'); L.renderHomeView(); });
+  await pg.waitForTimeout(400);
+  const order=()=>pg.evaluate(()=>window.LoreOS.homeGet().board.map(c=>c.id).join(''));
+  const box=async id=>{ const b=await pg.locator('[data-card="'+id+'"]').first().boundingBox(); await pg.locator('[data-card="'+id+'"]').first().scrollIntoViewIfNeeded(); return await pg.locator('[data-card="'+id+'"]').first().boundingBox(); };
+  chk(label+': board starts a,b,c', await order()==='abc');
+  if (!vp.hasTouch) {
+    const bc=await box('c'), ba=await box('a');
+    await pg.mouse.move(bc.x+bc.width/2, bc.y+bc.height/2); await pg.mouse.down();
+    await pg.mouse.move(bc.x+bc.width/2-20, bc.y+bc.height/2-20, {steps:4});
+    chk(label+': a ghost follows the pointer while dragging', await pg.evaluate(()=>!!document.querySelector('.hb-ghost') && !!document.querySelector('.hb-dragging')));
+    await pg.mouse.move(ba.x+ba.width/2, ba.y+4, {steps:12}); await pg.mouse.up(); await pg.waitForTimeout(300);
+    chk(label+': dragging C above A reorders to c,a,b', await order()==='cab', await order());
+    chk(label+': the drop did not open the editor, ghost is gone', await pg.evaluate(()=>!document.getElementById('hbModal').classList.contains('open') && !document.querySelector('.hb-ghost')));
+    // a plain click still edits
+    await pg.click('[data-card="b"]'); await pg.waitForTimeout(250);
+    chk(label+': a plain click still opens the editor', await pg.evaluate(()=>document.getElementById('hbModal').classList.contains('open')));
+    await pg.click('#hbModal .modal-x'); await pg.waitForTimeout(150);
+    // escape cancels a drag
+    const b2=await box('b'), a2=await box('c');
+    await pg.mouse.move(b2.x+b2.width/2, b2.y+b2.height/2); await pg.mouse.down(); await pg.mouse.move(a2.x+a2.width/2, a2.y+4, {steps:10}); await pg.keyboard.press('Escape'); await pg.mouse.up(); await pg.waitForTimeout(300);
+    chk(label+': Escape cancels the drag', await order()==='cab' && await pg.evaluate(()=>!document.querySelector('.hb-ghost')), await order());
+    // keyboard: Alt+Arrow
+    await pg.focus('[data-card="a"]'); await pg.keyboard.press('Alt+ArrowLeft'); await pg.waitForTimeout(300);
+    chk(label+': Alt+Left moves a card earlier and keeps focus', await order()==='acb', await order());
+  } else {
+    const cdp=await pg.context().newCDPSession(pg);
+    const touch=(type,x,y)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{x,y,id:1}]});
+    const bc=await box('c'), ba=await box('a');
+    const cx=bc.x+bc.width/2, cy=bc.y+bc.height/2;
+    await touch('touchStart',cx,cy); await pg.waitForTimeout(450);
+    for (let i=1;i<=12;i++) { await touch('touchMove',cx,cy+(ba.y+4-cy)*i/12); await pg.waitForTimeout(25); }
+    await touch('touchEnd',0,0); await pg.waitForTimeout(400);
+    chk(label+': press-and-hold then drag reorders on touch', await order()==='cab', await order());
+    // a quick swipe is a scroll, not a drag
+    const bb=await box('b'); const sx=bb.x+bb.width/2, sy=bb.y+bb.height/2;
+    await touch('touchStart',sx,sy); for (let i=1;i<=6;i++) { await touch('touchMove',sx,sy-12*i); await pg.waitForTimeout(15); } await touch('touchEnd',0,0); await pg.waitForTimeout(300);
+    chk(label+': a quick swipe does not rearrange', await order()==='cab', await order());
+  }
   chk(label+': no page errors', errs.length===0);
   if (errs.length) console.log(label, errs.slice(0,3));
   await pg.context().close();

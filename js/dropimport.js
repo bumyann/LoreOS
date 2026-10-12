@@ -65,6 +65,8 @@ export function wireDropImport() {
   window.addEventListener('drop', e => {
     if (!hasFiles(e)) return;
     e.preventDefault(); depth = 0; show(false);
+    // Areas that take drops themselves (the Home board) handle their own files
+    if (e.target.closest && e.target.closest('[data-drop-own]')) return;
     // Dropping onto a text box or a file picker keeps its normal behaviour
     if (e.target.closest && e.target.closest('input[type=file]')) return;
     handleDrop(e.dataTransfer.files);

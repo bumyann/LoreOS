@@ -103,7 +103,9 @@ export function renderHomeDashboard(el) {
         <div class="hb-head"><div class="dash-section-title">Inspiration</div>
           <div class="dd" id="hbAddDd"><button class="btn btn-s btn-sm dd-btn" id="hbAddBtn" aria-haspopup="true">+ Add</button>
             <div class="dd-menu"><button class="dd-item" data-hbnew="image">Image</button><button class="dd-item" data-hbnew="note">Note</button><button class="dd-item" data-hbnew="link">Link</button></div></div></div>
-        ${home.board.length ? `<div class="home-board" id="homeBoard">${home.board.map(cardHtml).join('')}</div>` : '<div class="dash-empty">A board for anything that sparks an idea: pictures, notes, links. Use + Add.</div>'}
+        <div class="hb-zone" id="hbZone" data-drop-own>
+        ${home.board.length ? `<div class="home-board" id="homeBoard">${home.board.map(cardHtml).join('')}</div>` : '<div class="dash-empty">A board for anything that sparks an idea: pictures, notes, links. Use + Add, or drop pictures here.</div>'}
+        </div>
       </div>
       <div class="dash-overview">
         <div class="dash-stat"><span class="dash-stat-num">${counts('lore')}</span><span class="dash-stat-lbl">lorebooks</span></div>
@@ -127,8 +129,135 @@ export function renderHomeDashboard(el) {
   el.querySelectorAll('[data-hbnew]').forEach(b => b.onclick = () => { closeAllDropdowns(); openCardEditor(null, b.dataset.hbnew); });
   el.querySelectorAll('[data-card]').forEach(n => {
     const edit = () => openCardEditor(n.dataset.card);
-    n.addEventListener('click', e => { if (e.target.closest('a')) return; edit(); });
-    n.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === n) edit(); });
+    n.addEventListener('click', e => { if (e.target.closest('a') || justDragged) return; edit(); });
+    n.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.target === n) { edit(); return; }
+      // Alt + arrow keys move the card without a mouse
+      if (e.altKey && e.target === n && /^Arrow(Left|Up|Right|Down)$/.test(e.key)) {
+        e.preventDefault();
+        const id = n.dataset.card, h = homeGet();
+        if (moveCard(h, id, /Left|Up/.test(e.key) ? -1 : 1)) { homeSet(h); rerender(); const again = document.querySelector('[data-card="' + id + '"]'); if (again) again.focus(); }
+      }
+    });
+  });
+  const board = el.querySelector('#homeBoard');
+  if (board) wireBoardDrag(board);
+  wireBoardDrop(el.querySelector('#hbZone'));
+}
+
+// ── Rearranging: drag a card (mouse: just drag; touch: press and hold, then drag) ──
+let justDragged = false;
+export function reorderBoard(order) {
+  const home = homeGet();
+  const byId = new Map(home.board.map(c => [c.id, c]));
+  const next = order.map(id => byId.get(id)).filter(Boolean);
+  home.board.forEach(c => { if (!next.includes(c)) next.push(c); });
+  home.board = next;
+  return homeSet(home);
+}
+function wireBoardDrag(board) {
+  let st = null;
+  const THRESH = 6, HOLD_MS = 280;
+  const scroller = board.closest('.view-scroll') || document.scrollingElement;
+  let rafId = 0, lastY = 0;
+  const cleanup = () => {
+    if (!st) return;
+    clearTimeout(st.timer); cancelAnimationFrame(rafId);
+    if (st.ghost) st.ghost.remove();
+    st.card.classList.remove('hb-dragging'); board.classList.remove('dragging');
+    document.removeEventListener('pointermove', onMove); document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', onCancel); document.removeEventListener('keydown', onKey);
+    st = null;
+  };
+  const startDrag = () => {
+    if (!st || st.dragging) return;
+    st.dragging = true;
+    const r = st.card.getBoundingClientRect();
+    st.offX = st.x - r.left; st.offY = st.y - r.top;
+    const ghost = st.card.cloneNode(true);
+    ghost.classList.add('hb-ghost'); ghost.removeAttribute('data-card'); ghost.removeAttribute('tabindex');
+    ghost.style.width = r.width + 'px'; ghost.style.left = r.left + 'px'; ghost.style.top = r.top + 'px';
+    document.body.append(ghost); st.ghost = ghost;
+    st.card.classList.add('hb-dragging'); board.classList.add('dragging');
+    if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) { /* not available */ } }
+    const tick = () => {
+      if (!st || !st.dragging) return;
+      const box = scroller.getBoundingClientRect ? scroller.getBoundingClientRect() : { top: 0, bottom: innerHeight };
+      if (lastY < box.top + 70) scroller.scrollBy(0, -14); else if (lastY > box.bottom - 70) scroller.scrollBy(0, 14);
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+  };
+  const onMove = e => {
+    if (!st || e.pointerId !== st.id) return;
+    lastY = e.clientY;
+    if (!st.dragging) {
+      const moved = Math.hypot(e.clientX - st.x, e.clientY - st.y);
+      if (st.type === 'mouse' || st.type === 'pen') { if (moved > THRESH) startDrag(); }
+      else if (moved > 10) { cleanup(); return; } // moved before the hold finished: it is a scroll
+      if (!st || !st.dragging) return;
+    }
+    e.preventDefault();
+    st.ghost.style.left = (e.clientX - st.offX) + 'px'; st.ghost.style.top = (e.clientY - st.offY) + 'px';
+    const hit = document.elementFromPoint(e.clientX, e.clientY);
+    const t = hit && hit.closest ? hit.closest('.hb-card') : null;
+    if (t && t !== st.card && board.contains(t)) {
+      const r = t.getBoundingClientRect();
+      board.insertBefore(st.card, e.clientY < r.top + r.height / 2 ? t : t.nextSibling);
+    }
+  };
+  const onUp = e => {
+    if (!st || e.pointerId !== st.id) return;
+    const was = st.dragging;
+    if (was) {
+      const order = [...board.querySelectorAll('.hb-card[data-card]')].map(c => c.dataset.card);
+      cleanup(); justDragged = true; setTimeout(() => { justDragged = false; }, 80);
+      reorderBoard(order);
+    } else cleanup();
+  };
+  const onCancel = () => { const was = st && st.dragging; cleanup(); if (was) rerender(); };
+  const onKey = e => { if (e.key === 'Escape' && st && st.dragging) { cleanup(); rerender(); } };
+  board.addEventListener('pointerdown', e => {
+    const card = e.target.closest('.hb-card');
+    if (!card || e.target.closest('a') || (e.pointerType === 'mouse' && e.button !== 0) || st) return;
+    st = { card, x: e.clientX, y: e.clientY, id: e.pointerId, type: e.pointerType, dragging: false, timer: null };
+    lastY = e.clientY;
+    if (st.type !== 'mouse' && st.type !== 'pen') st.timer = setTimeout(startDrag, HOLD_MS);
+    document.addEventListener('pointermove', onMove, { passive: false }); document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onCancel); document.addEventListener('keydown', onKey);
+  });
+  // once a touch drag has begun the page must not scroll under the finger
+  board.addEventListener('touchmove', e => { if (st && st.dragging && e.cancelable) e.preventDefault(); }, { passive: false });
+  board.addEventListener('contextmenu', e => { if (st) e.preventDefault(); });
+  board.addEventListener('dragstart', e => e.preventDefault()); // no native picture dragging
+}
+
+// ── Dropping picture files on the board makes image cards ──
+async function addPictureFiles(files) {
+  const imgs = [...files].filter(f => /^image\//.test(f.type));
+  if (!imgs.length) { toast('Drop pictures here to add them to the board.', 'info'); return 0; }
+  const home = homeGet();
+  let added = 0, skipped = 0;
+  for (const f of imgs) {
+    const out = await resizeImage(await readFileAsDataUrl(f), 640, 640);
+    if (!out || out.length > MAX_IMG) { skipped++; continue; }
+    home.board.unshift(normalizeCard({ id: homeId(), type: 'image', title: f.name.replace(/\.[^.]+$/, '').slice(0, 60), image: out, createdAt: new Date().toISOString() }));
+    added++;
+  }
+  if (added) homeSet(home);
+  toast(added ? `Added ${added} picture${added === 1 ? '' : 's'} to the board.` + (skipped ? ` ${skipped} could not be used.` : '') : 'Those pictures could not be used.', added ? 'ok' : 'warn');
+  return added;
+}
+export { addPictureFiles };
+function wireBoardDrop(zone) {
+  if (!zone) return;
+  const hasFiles = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+  zone.addEventListener('dragover', e => { if (hasFiles(e)) { e.preventDefault(); zone.classList.add('over'); } });
+  zone.addEventListener('dragleave', e => { if (!zone.contains(e.relatedTarget)) zone.classList.remove('over'); });
+  zone.addEventListener('drop', async e => {
+    if (!hasFiles(e)) return;
+    e.preventDefault(); zone.classList.remove('over');
+    await addPictureFiles(e.dataTransfer.files); rerender();
   });
 }
 

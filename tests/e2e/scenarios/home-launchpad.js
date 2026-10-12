@@ -55,6 +55,24 @@
  const undo=[...document.querySelectorAll('.notif button, .notif .notif-act')].find(b=>/Undo/.test(b.textContent)); if(undo) undo.click(); await w(400);
  chk('undo brings it back', homeGet().board.some(c=>c.id==='img1'));
  chk('no emoji on Home', !/[\u{1F300}-\u{1FAFF}]/u.test(document.getElementById('home-content').innerHTML));
+ // dropping picture files on the board makes image cards (and is not imported as a character card)
+ const blob=await new Promise(r=>cv.toBlob(r,'image/png')); const charsBefore=Object.keys(state.charLibrary).length; const boardBefore=homeGet().board.length;
+ const dropFiles=files=>{ const dt=new DataTransfer(); files.forEach(f=>dt.items.add(f)); document.getElementById('hbZone').dispatchEvent(new DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); };
+ dropFiles([new File([blob],'moodboard shot.png',{type:'image/png'})]); await w(700);
+ const nb=homeGet().board;
+ chk('a dropped picture becomes the first image card', nb.length===boardBefore+1 && nb[0].type==='image' && nb[0].title==='moodboard shot' && !!nb[0].image, nb.map(c=>c.type));
+ chk('and was not imported as a character', Object.keys(state.charLibrary).length===charsBefore && !document.getElementById('dropHint').classList.contains('on'));
+ dropFiles([new File(['hello'],'notes.txt',{type:'text/plain'})]); await w(400);
+ chk('other files are not added', homeGet().board.length===boardBefore+1);
+ chk('the drop zone is marked for the app-wide importer to leave alone', !!document.querySelector('#hbZone[data-drop-own]'));
+ // keyboard move
+ renderHomeView(); await w(250);
+ const ids=homeGet().board.map(c=>c.id); const second=document.querySelector('[data-card="'+ids[1]+'"]'); second.focus();
+ second.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',altKey:true,bubbles:true,cancelable:true})); await w(300);
+ chk('Alt+Left moves a card earlier', homeGet().board[0].id===ids[1] && document.activeElement===document.querySelector('[data-card="'+ids[1]+'"]'), homeGet().board.map(c=>c.id));
+ // reorderBoard
+ const cur=homeGet().board.map(c=>c.id); reorderBoard([...cur].reverse()); chk('reorderBoard writes the new order', homeGet().board.map(c=>c.id).join()===[...cur].reverse().join());
+ reorderBoard(['nope',cur[0]]); chk('reorderBoard keeps cards it was not told about', homeGet().board.length===cur.length && homeGet().board[0].id===cur[0]);
  // a user with only a board still sees the dashboard
  state.charLibrary={}; navigateTo('home'); renderHomeView(); await w(300);
  chk('board alone is enough for the dashboard', !!document.getElementById('homeBoard') && !document.querySelector('.home-hero'));
