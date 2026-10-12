@@ -649,3 +649,15 @@ input[type=number].fnum::-webkit-inner-spin-button{-webkit-appearance:none;margi
 .rx-step.skip{color:var(--txm);opacity:.8}
 .rx-tester{position:sticky;top:0}
 @media (max-width:900px){.rx-tester{position:static}}
+
+/* Lumiverse regex actions + Loom preset settings */
+.rx-actions{border:1px dashed var(--bd);border-radius:3px;padding:.4rem .55rem;margin:.2rem 0}
+.rx-actions>summary{cursor:pointer;font-size:.78rem;color:var(--txd)}
+.rx-act{display:flex;flex-direction:column;gap:.4rem;padding:.5rem;margin:.4rem 0;background:var(--bg);border:1px solid var(--bd);border-radius:3px}
+.rx-act-f{display:flex;flex-direction:column;gap:.15rem;flex:1;min-width:0}
+textarea.bad{border-color:var(--err,#e0707f)}
+.lv-block{display:flex;flex-direction:column;gap:.55rem;padding:.6rem;border:1px solid var(--bd);border-radius:3px;background:var(--sf)}
+.lv-var{display:flex;flex-direction:column;gap:.25rem}
+.lv-var code,.lv-edit code{font-size:.68rem;color:var(--txm)}
+.lv-edit{display:flex;flex-direction:column;gap:.55rem;border-top:1px dashed var(--bd);padding-top:.7rem}
+.lv-defs>summary{cursor:pointer;font-size:.74rem;color:var(--txm)}

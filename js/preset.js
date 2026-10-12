@@ -7,6 +7,7 @@ import { openFullscreen } from './fullscreen.js';
 import { itemHistoryPush, itemUndoGet, itemUndoPush, openItemHistory, syncItemUndoButtons, wireFieldUndoRedo } from './history.js';
 import { closeMobSidebar } from './mobile.js';
 import { state } from './state.js';
+import { hasLoom, openLoomVars, variableBlocks } from './loom_vars.js';
 import { looksLikeLoomPreset, loomToPreset, presetToLoom } from './lumiverse.js';
 import { savePresetLibrary } from './storage.js';
 import { registerTrashRestorer, trashPush } from './trash.js';
@@ -265,7 +266,8 @@ export function renderPresetEditor() {
       <button class="btn btn-s item-ur-btn" id="psUndoBtn" title="Undo last change" disabled>↩ Undo</button>
       <button class="btn btn-s item-ur-btn" id="psRedoBtn" title="Redo" disabled>Redo ↪</button>
       <button class="btn btn-s" id="psExportBtn">Export JSON</button>
-      <button class="btn btn-s" id="psExportLoomBtn">Export for Lumiverse</button>
+      <button class="btn btn-s" id="psExportLoomBtn">Export Loom Preset</button>
+      ${hasLoom(p) ? `<button class="btn btn-s" id="psLoomVarsBtn">Preset settings (${variableBlocks(p).reduce((n, b) => n + b.defs.length, 0)})</button>` : ''}
       <button class="btn btn-err" id="psDeleteBtn">Delete Preset</button>
     </div>
   </div>`;
@@ -439,6 +441,7 @@ export function renderPresetEditor() {
   g('psSaveBtn').addEventListener('click', savePreset);
   g('psExportBtn').addEventListener('click', exportPreset);
   g('psExportLoomBtn').addEventListener('click', exportPresetLoom);
+  if (g('psLoomVarsBtn')) g('psLoomVarsBtn').addEventListener('click', openLoomVars);
   g('psDeleteBtn').addEventListener('click', () => deletePreset(state.activePresetId));
 
   // Item-level undo/redo
@@ -830,7 +833,7 @@ export function exportPresetLoom() {
   savePreset(); // save first to capture any unsaved edits
   const fn = safeFileName(entry.preset.name, 'preset') + '.lumiverse.json';
   dlFile(JSON.stringify(presetToLoom(entry.preset), null, 2), fn, 'application/json');
-  toast('Exported for Lumiverse: ' + fn, 'ok');
+  toast('Exported Loom Preset: ' + fn, 'ok');
 }
 
 export function handlePresetImport(e) {
@@ -842,8 +845,8 @@ export function handlePresetImport(e) {
       let loomNote = '';
       if (looksLikeLoomPreset(p)) {
         const r = loomToPreset(p); p = r.preset;
-        loomNote = ' (Lumiverse preset: ' + r.notes.blocks + ' blocks' + (r.notes.regex ? ', ' + r.notes.regex + ' regex scripts' : '') + ')';
-        if (r.notes.macros.length) setTimeout(() => toast('These Lumiverse macros may not work in SillyTavern: ' + r.notes.macros.slice(0, 6).map(m => '{{' + m + '}}').join(', ') + (r.notes.macros.length > 6 ? ' and ' + (r.notes.macros.length - 6) + ' more' : ''), 'warn', { ms: 9000 }), 1200);
+        loomNote = ' (Loom Preset: ' + r.notes.blocks + ' blocks' + (r.notes.regex ? ', ' + r.notes.regex + ' regex scripts' : '') + (r.notes.settings ? ', ' + r.notes.settings + ' preset settings' : '') + ')';
+        if (r.notes.macros.length) setTimeout(() => toast('These Loom macros may not work in SillyTavern: ' + r.notes.macros.slice(0, 6).map(m => '{{' + m + '}}').join(', ') + (r.notes.macros.length > 6 ? ' and ' + (r.notes.macros.length - 6) + ' more' : ''), 'warn', { ms: 9000 }), 1200);
       }
       if (!p || typeof p !== 'object' || Array.isArray(p) || (!Array.isArray(p.prompts) && p.temperature === undefined)) { toast('Doesn\'t look like an ST preset.', 'err'); return; }
       if (!p.name) p.name = file.name.replace(/\.json$/i, '');

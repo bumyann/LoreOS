@@ -62,6 +62,7 @@ const ASSETS = [
   'js/regex.js',
   'js/regex_model.js',
   'js/lumiverse.js',
+  'js/loom_vars.js',
   'js/regex_worker.js',
   'js/router.js',
   'js/pwa.js',

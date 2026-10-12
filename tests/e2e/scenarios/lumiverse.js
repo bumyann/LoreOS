@@ -61,5 +61,51 @@
  const md=janitorGreetingsMd({name:'Ragi',alternate_greetings:[{title:'Rain',message:'It rains.'},'Second'] });
  chk('greetings md lists them from 2', /## 2\. Rain/.test(md) && /It rains\./.test(md) && /## 3\. Greeting 3/.test(md) && /Second/.test(md), md);
  chk('no md when no alternates', janitorGreetingsMd({name:'x',alternate_greetings:[]})==='' && janitorGreetingsMd({name:'x',alternate_greetings:[{title:'',message:' '}]})==='');
+ // ── regex actions (interactive buttons) ──
+ const actRx={version:1,type:'lumiverse_regex_scripts',scripts:[{name:'Scene',find_regex:'<scene>(.+?)</scene>',replace_string:'<button type="button" data-regex-action="pick">$1</button>',actions:[{id:'pick',type:'send',multi_select:false,cost:'1',limit:'3',title:'Choose: $1',subtitle:'Scene',content:'I choose $1.'}],flags:'gi',placement:['ai_output','memory'],scope:'global',scope_id:null,target:['display'],min_depth:null,max_depth:null,trim_strings:[],run_on_edit:true,substitute_macros:'after',disabled:false,sort_order:0,description:'',metadata:{},folder:'',script_id:'s1',owner_extension_identifier:null}]};
+ const aid=importRegexText(JSON.stringify(actRx),'act.json'); await w(300);
+ const as=state.regexLibrary[aid].set.scripts[0];
+ chk('actions kept on the script', as.lumiverse.actions.length===1 && as.lumiverse.actions[0].id==='pick');
+ switchMode('regex'); openRegex(aid); await w(500);
+ state.regexOpen=as.id; renderRegexEditor(); await w(300);
+ const panel=document.querySelector('[data-rx-actions="'+as.id+'"]');
+ chk('actions panel shows the action', !!panel && panel.querySelectorAll('.rx-act').length===1 && !panel.querySelector('.rx-err'), panel&&panel.innerHTML.slice(0,120));
+ panel.querySelector('textarea').value='I pick $1!'; panel.querySelector('textarea').dispatchEvent(new Event('input',{bubbles:true}));
+ chk('editing writes into the action', as.lumiverse.actions[0].content==='I pick $1!');
+ document.querySelector('[data-rx-add-action="'+as.id+'"]').click(); await w(300);
+ chk('add button action adds action and button', as.lumiverse.actions.length===2 && /data-regex-action="action-2"/.test(as.replaceString), as.lumiverse.actions.length);
+ const ab=JSON.parse(lumiRegexFileJson(state.regexLibrary[aid].set.scripts)).scripts[0];
+ chk('actions + unknown place + macro mode survive export', ab.actions.length===2 && ab.actions[0].cost==='1' && ab.placement.join()==='ai_output,memory' && ab.substitute_macros==='after' && ab.script_id==='s1', ab);
+ // ── Loom preset settings (prompt variables) ──
+ const vloom={name:'Vars',schemaVersion:1,blocks:[
+  {id:'k1',name:'Lens',content:'{{var::lens}} {{var::words}}',role:'system',enabled:true,position:'pre_history',depth:0,marker:null,variables:[
+    {id:'v1',name:'lens',label:'Lens',type:'select',defaultValue:'o1',options:[{id:'o1',label:'A',value:'alpha'},{id:'o2',label:'B',value:'beta'}]},
+    {id:'v2',name:'words',label:'Words',type:'slider',defaultValue:200,min:100,max:900,step:50},
+    {id:'v3',name:'nsfw',label:'NSFW',type:'switch',defaultValue:1},
+    {id:'v4',name:'tags',label:'Tags',type:'multiselect',defaultValue:['t1'],separator:', ',options:[{id:'t1',label:'1',value:'x'},{id:'t2',label:'2',value:'y'}]}]},
+  {id:'k2',name:'Off block',content:'z',role:'system',enabled:false,position:'pre_history',depth:0,marker:null,variables:[{id:'v9',name:'hidden',label:'Hidden',type:'text',defaultValue:''}]}],
+  promptVariables:{k1:{words:300}}};
+ const lr=loomToPreset(vloom); chk('settings counted on import', lr.notes.settings===5, lr.notes.settings);
+ handlePresetImport({target:{files:[new File([JSON.stringify(vloom)],'vars.json')],value:''}}); await w(700);
+ const pid=state.activePresetId; const vp=state.presetLibrary[pid].preset;
+ chk('settings button on a Loom preset', !!document.getElementById('psLoomVarsBtn') && /\(5\)/.test(document.getElementById('psLoomVarsBtn').textContent));
+ document.getElementById('psLoomVarsBtn').click(); await w(300);
+ const body=document.getElementById('loomVarsBody');
+ chk('only variables of switched-on blocks are shown', body.querySelectorAll('[data-lv-var]').length===4 && !body.querySelector('[data-lv-var="hidden"]'), body.querySelectorAll('[data-lv-var]').length);
+ chk('saved value beats default', body.querySelector('[data-lv-var="words"] input[type=number]').value==='300');
+ const sel=body.querySelector('[data-lv-var="lens"] select'); sel.value='o2'; sel.dispatchEvent(new Event('change',{bubbles:true}));
+ const sw=body.querySelector('[data-lv-var="nsfw"] input'); sw.checked=false; sw.dispatchEvent(new Event('change',{bubbles:true}));
+ const chip=body.querySelectorAll('[data-lv-var="tags"] input')[1]; chip.checked=true; chip.dispatchEvent(new Event('change',{bubbles:true}));
+ const pv=vp.extensions.lumiverse.promptVariables.k1;
+ chk('picks are stored on the preset', pv.lens==='o2' && pv.nsfw===0 && pv.tags.join()==='t1,t2' && pv.words===300, pv);
+ const lv2=presetToLoom(JSON.parse(JSON.stringify(vp)));
+ chk('picks + definitions export back to Loom', lv2.promptVariables.k1.lens==='o2' && lv2.blocks[0].variables.length===4 && lv2.blocks[0].variables[1].max===900, lv2.promptVariables);
+ chk('resolve: dropdown, switch, multi-select', resolveVar(vloom.blocks[0].variables[0],'o2')==='beta' && resolveVar(vloom.blocks[0].variables[2],0)==='0' && resolveVar(vloom.blocks[0].variables[3],['t2','t1'])==='x, y');
+ document.getElementById('lvAddBtn').click(); await w(300);
+ chk('add a setting to a block', vp.prompts.find(p=>p.name==='Lens').lumiverse.rest.variables.length===5 && state.presetLibrary[pid].preset.prompts.length===2);
+ document.getElementById('loomVarsReset').click(); await w(200);
+ chk('reset clears the picks', !vp.extensions.lumiverse.promptVariables.k1);
+ closeModal('loomVarsModal');
+ chk('plain preset has no settings button', (()=>{ openPreset(ids[0]); return true; })() );
  return out;
 })()

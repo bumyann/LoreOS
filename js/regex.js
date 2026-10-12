@@ -272,6 +272,7 @@ function scriptCard(s, i, set) {
       h('select', { class: 'fselect', title: 'Macros in the pattern', onchange: e => { s.substituteRegex = Number(e.target.value); touch(); scheduleTest(); } },
         SUBSTITUTE_MODES.map(m => h('option', { value: m.id, selected: s.substituteRegex === m.id }, m.label))),
       depth('minDepth', 'Min depth'), depth('maxDepth', 'Max depth')),
+    actionsPanel(s),
     h('div', { class: 'pr-lbl' }, 'What this script matches in the sample'),
     h('div', { class: 'rx-preview', 'data-rx-preview': s.id }),
     h('div', { class: 'pr-row' },
@@ -286,6 +287,53 @@ function scriptCard(s, i, set) {
         if (!await askConfirm(`Delete the script "${s.scriptName}"?`)) return;
         set.scripts = set.scripts.filter(x => x.id !== s.id); touch(); renderRegexEditor();
       } }, 'Delete'))));
+  return det;
+}
+
+// ── Interactive buttons (Lumiverse regex actions) ──
+// A Lumiverse script can turn parts of a message into buttons. The replacement text marks a button with
+// data-regex-action="the-action-id", and the script's `actions` list says what a click does.
+// SillyTavern ignores this, so the list is kept on the script and goes back out with Lumiverse exports.
+const ACTION_TYPES = [['send', 'Send a message'], ['append', 'Add hidden guidance'], ['effects', 'Only run effects']];
+function actionsOf(s) { return s.lumiverse && Array.isArray(s.lumiverse.actions) ? s.lumiverse.actions : []; }
+function setActions(s, list) { if (!s.lumiverse || typeof s.lumiverse !== 'object') s.lumiverse = {}; s.lumiverse.actions = list; }
+function actionsPanel(s) {
+  const list = actionsOf(s);
+  const det = h('details', { class: 'rx-actions', 'data-rx-actions': s.id });
+  det.open = list.length > 0;
+  det.append(h('summary', {}, 'Interactive buttons (Lumiverse)' + (list.length ? ' · ' + list.length : '')));
+  det.append(h('div', { class: 'rx-none' }, 'Mark a button in the replacement with data-regex-action="id". Titles, content, cost and limit can use $1, $2 and so on from the match. SillyTavern ignores buttons.'));
+  list.forEach((a, k) => {
+    const upd = (key, val) => { a[key] = val; touch(); };
+    const fld = (label, key, ph, tall) => h('label', { class: 'rx-act-f' }, h('span', { class: 'flabel-sm' }, label),
+      h(tall ? 'textarea' : 'input', { class: tall ? 'ftextarea' : 'finput', style: tall ? 'min-height:54px' : '', placeholder: ph || '', value: a[key] === undefined ? '' : String(a[key]),
+        oninput: e => upd(key, e.target.value) }));
+    const used = new RegExp('data-regex-action\\s*=\\s*["\']' + String(a.id || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '["\']').test(s.replaceString || '');
+    const box = h('div', { class: 'rx-act', 'data-rx-act': String(a.id) },
+      h('div', { class: 'pr-row' },
+        h('input', { class: 'finput rx-mono', value: a.id || '', placeholder: 'id', title: 'Matches data-regex-action in the replacement', oninput: e => upd('id', e.target.value) }),
+        h('select', { class: 'fselect', onchange: e => { upd('type', e.target.value); } }, ACTION_TYPES.map(([v, l]) => h('option', { value: v, selected: a.type === v }, l))),
+        h('label', { class: 'cb-row' }, h('input', { type: 'checkbox', checked: !!a.multi_select, onchange: e => upd('multi_select', e.target.checked) }), h('span', { class: 'flabel-sm' }, 'Multi-select')),
+        h('button', { class: 'btn btn-err btn-sm', onclick: () => { setActions(s, list.filter((_, j) => j !== k)); touch(); renderRegexEditor(); } }, 'Remove')),
+      used ? '' : h('div', { class: 'rx-err', style: 'display:block' }, 'No button in the replacement uses this id yet.'),
+      h('div', { class: 'pr-row' }, fld('Cost', 'cost', '1 or $3'), fld('Limit', 'limit', '3 or $2')),
+      fld('Title', 'title', 'Choose: $3'), fld('Subtitle', 'subtitle', 'Scene: $1'), fld('Content', 'content', 'I choose to $3.', true));
+    if (a.effects !== undefined || a.type === 'effects') {
+      const fx = h('textarea', { class: 'ftextarea rx-mono', style: 'min-height:54px', placeholder: '[{"type":"set_state","key":"seen","value":"yes"}]',
+        oninput: e => { try { a.effects = JSON.parse(e.target.value || '[]'); e.target.classList.remove('bad'); touch(); } catch (err) { e.target.classList.add('bad'); } } });
+      fx.value = JSON.stringify(a.effects || [], null, 1);
+      box.append(h('label', { class: 'pr-lbl' }, 'Effects (JSON: set_state, fork, draft)'), fx);
+    }
+    det.append(box);
+  });
+  det.append(h('div', { class: 'pr-row' },
+    h('button', { class: 'btn btn-s btn-sm', 'data-rx-add-action': s.id, onclick: () => {
+      const ids = new Set(list.map(a => a.id)); let n = list.length + 1; while (ids.has('action-' + n)) n++;
+      const id = 'action-' + n;
+      setActions(s, [...list, { id, type: 'send', multi_select: false, cost: '1', limit: '', title: '', subtitle: '', content: '' }]);
+      s.replaceString = (s.replaceString || '') + '<button type="button" data-regex-action="' + id + '">Click me</button>';
+      touch(); renderRegexEditor();
+    } }, '+ Add a button action')));
   return det;
 }
 

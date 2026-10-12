@@ -122,7 +122,7 @@ export function loomToPreset(d) {
   ext.regex_scripts = rx;
   ext.lumiverse = lumi;
   preset.extensions = ext;
-  return { preset, notes: { blocks: prompts.length, regex: rx.length, macros: foreignMacros(raw) } };
+  return { preset, notes: { blocks: prompts.length, regex: rx.length, settings: raw.reduce((n, b) => n + (Array.isArray(b.variables) ? b.variables.length : 0), 0), macros: foreignMacros(raw) } };
 }
 
 // A LoreOS preset back to a Lumiverse one (everything that was kept on import goes back as it was)

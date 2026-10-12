@@ -257,7 +257,7 @@ export function scriptToLumi(s, index = 0) {
     placement, scope: keep.scope || 'global', scope_id: keep.scope_id === undefined ? null : keep.scope_id, target,
     min_depth: s.minDepth, max_depth: s.maxDepth, trim_strings: s.trimStrings || [],
     run_on_edit: !!s.runOnEdit,
-    substitute_macros: LUMI_SUBST_REV[s.substituteRegex] || 'none',
+    substitute_macros: (typeof keep.substitute_macros === 'string' && (LUMI_SUBST[keep.substitute_macros] || 0) === (s.substituteRegex || 0)) ? keep.substitute_macros : (LUMI_SUBST_REV[s.substituteRegex] || 'none'),
     disabled: !!s.disabled,
     sort_order: keep.sort_order === undefined ? index : keep.sort_order,
     description: keep.description || '', metadata: keep.metadata || {}, script_id: keep.script_id_blank ? '' : s.id,

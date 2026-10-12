@@ -25,6 +25,7 @@ import { wirePromptActions } from './prompt.js';
 import * as m_prompt from './prompt.js';
 import * as m_logo from './logo.js';
 import { wireRegexActions } from './regex.js';
+import { wireLoomVars } from './loom_vars.js';
 import * as m_regex from './regex.js';
 import * as m_regex_model from './regex_model.js';
 import * as m_prompt_model from './prompt_model.js';
@@ -59,6 +60,7 @@ import * as m_router from './router.js';
 import * as m_pwa from './pwa.js';
 import * as m_character_io from './character_io.js';
 import * as m_lumiverse from './lumiverse.js';
+import * as m_loom_vars from './loom_vars.js';
 import * as m_avatar from './avatar.js';
 import * as m_templates_data from './templates_data.js';
 import './help.js'; // registers the help dialog's markup
@@ -114,6 +116,7 @@ function startApp() {
   initStep('drop import',  wireDropImport);
   initStep('prompt actions', wirePromptActions);
   initStep('regex actions', wireRegexActions);
+  initStep('loom settings', wireLoomVars);
   initStep('router',       initRouter);
   initStep('workshop tabs', wsRestoreTabs);
   initStep('pronoun tool', wirePronounTool);
@@ -364,7 +367,7 @@ export function wireEvents() {
 // through to the shared state object.
 // ═══════════════════════════════════════════════════════
 const LoreOS = {};
-[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa, m_character_io, m_avatar, m_templates_data, m_dropimport, m_header_fit, m_trash, m_kv, m_prompt, m_prompt_model, m_logo, m_regex, m_regex_model, m_lumiverse].forEach(ns => {
+[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa, m_character_io, m_avatar, m_templates_data, m_dropimport, m_header_fit, m_trash, m_kv, m_prompt, m_prompt_model, m_logo, m_regex, m_regex_model, m_lumiverse, m_loom_vars].forEach(ns => {
   Object.keys(ns).forEach(k => {
     if (!(k in LoreOS)) Object.defineProperty(LoreOS, k, { get: () => ns[k], enumerable: true, configurable: true });
   });
