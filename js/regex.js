@@ -8,7 +8,7 @@ import { itemHistoryPush, openItemHistory } from './history.js';
 import { closeMobSidebar } from './mobile.js';
 import {
   PLACEMENTS, SUBSTITUTE_MODES, VIEWS, blankScript, blankSet, highlight, normalizeSet, newId, parseRegexJson,
-  runPipeline, scriptToJson, scriptsForEmbedding, setToJson,
+  lumiRegexFileJson, runPipeline, scriptToJson, scriptsForEmbedding, setToJson,
 } from './regex_model.js';
 import { state } from './state.js';
 import { saveCharLibrary, savePresetLibrary, saveRegexLibrary } from './storage.js';
@@ -432,6 +432,15 @@ export async function exportRegexZip() {
   toast('Exported ' + fn, 'ok');
 }
 
+export function exportRegexLumiverse() {
+  commitActiveEditor();
+  const cur = current(); if (!cur) { toast('Open a regex set first.', 'warn'); return; }
+  if (!cur.set.scripts.length) { toast('This set has no scripts yet.', 'warn'); return; }
+  const fn = safeFileName(cur.entry.name, 'regex-set') + '-lumiverse-regex.json';
+  dlFile(lumiRegexFileJson(cur.set.scripts), fn, 'application/json');
+  toast('Exported ' + fn, 'ok');
+}
+
 export function exportRegexSet() {
   commitActiveEditor();
   const cur = current(); if (!cur) { toast('Open a regex set first.', 'warn'); return; }
@@ -450,6 +459,7 @@ export function wireRegexActions() {
   on('regexExportScriptBtn', () => exportRegexScript());
   on('regexExportZipBtn', () => exportRegexZip());
   on('regexExportSetBtn', () => exportRegexSet());
+  on('regexExportLumiBtn', () => exportRegexLumiverse());
   const fi = g('fileRegexInput'); if (fi) fi.onchange = handleRegexImport;
   on('mobRegexNew', () => createRegex());
   on('mobRegexImport', () => g('fileRegexInput').click());
@@ -457,6 +467,7 @@ export function wireRegexActions() {
   on('mobRegexExportScript', () => { closeModal('mobRegexExportModal'); exportRegexScript(); });
   on('mobRegexExportZip', () => { closeModal('mobRegexExportModal'); exportRegexZip(); });
   on('mobRegexExportSet', () => { closeModal('mobRegexExportModal'); exportRegexSet(); });
+  on('mobRegexExportLumi', () => { closeModal('mobRegexExportModal'); exportRegexLumiverse(); });
 }
 
 registerMarkup(75, `<input type="file" id="fileRegexInput" accept=".json" multiple style="display:none">`);
@@ -466,6 +477,7 @@ registerMarkup(186, `<div id="mobRegexExportModal" class="modal">
     <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
       <button class="btn btn-p" id="mobRegexExportScript" style="width:100%;justify-content:center;padding:.65rem">Open script (SillyTavern)</button>
       <button class="btn btn-s" id="mobRegexExportZip" style="width:100%;justify-content:center;padding:.65rem">All scripts (.zip)</button>
+      <button class="btn btn-s" id="mobRegexExportLumi" style="width:100%;justify-content:center;padding:.65rem">Lumiverse regex scripts (JSON)</button>
       <button class="btn btn-s" id="mobRegexExportSet" style="width:100%;justify-content:center;padding:.65rem">LoreOS set (JSON)</button>
     </div>
   </div>

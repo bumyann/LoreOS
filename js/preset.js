@@ -7,6 +7,7 @@ import { openFullscreen } from './fullscreen.js';
 import { itemHistoryPush, itemUndoGet, itemUndoPush, openItemHistory, syncItemUndoButtons, wireFieldUndoRedo } from './history.js';
 import { closeMobSidebar } from './mobile.js';
 import { state } from './state.js';
+import { looksLikeLoomPreset, loomToPreset, presetToLoom } from './lumiverse.js';
 import { savePresetLibrary } from './storage.js';
 import { registerTrashRestorer, trashPush } from './trash.js';
 import { askConfirm, closeModal, dlFile, esc, g, openModal, registerMarkup, safeFileName, toast } from './util.js';
@@ -264,6 +265,7 @@ export function renderPresetEditor() {
       <button class="btn btn-s item-ur-btn" id="psUndoBtn" title="Undo last change" disabled>↩ Undo</button>
       <button class="btn btn-s item-ur-btn" id="psRedoBtn" title="Redo" disabled>Redo ↪</button>
       <button class="btn btn-s" id="psExportBtn">Export JSON</button>
+      <button class="btn btn-s" id="psExportLoomBtn">Export for Lumiverse</button>
       <button class="btn btn-err" id="psDeleteBtn">Delete Preset</button>
     </div>
   </div>`;
@@ -436,6 +438,7 @@ export function renderPresetEditor() {
 
   g('psSaveBtn').addEventListener('click', savePreset);
   g('psExportBtn').addEventListener('click', exportPreset);
+  g('psExportLoomBtn').addEventListener('click', exportPresetLoom);
   g('psDeleteBtn').addEventListener('click', () => deletePreset(state.activePresetId));
 
   // Item-level undo/redo
@@ -822,19 +825,33 @@ export function exportPreset() {
   toast('Exported: ' + fn, 'ok');
 }
 
+export function exportPresetLoom() {
+  const entry = state.presetLibrary[state.activePresetId]; if (!entry) return;
+  savePreset(); // save first to capture any unsaved edits
+  const fn = safeFileName(entry.preset.name, 'preset') + '.lumiverse.json';
+  dlFile(JSON.stringify(presetToLoom(entry.preset), null, 2), fn, 'application/json');
+  toast('Exported for Lumiverse: ' + fn, 'ok');
+}
+
 export function handlePresetImport(e) {
   const file = e.target.files[0]; if (!file) return;
   const r = new FileReader();
   r.onload = ev => {
     try {
-      const p = JSON.parse(ev.target.result);
+      let p = JSON.parse(ev.target.result);
+      let loomNote = '';
+      if (looksLikeLoomPreset(p)) {
+        const r = loomToPreset(p); p = r.preset;
+        loomNote = ' (Lumiverse preset: ' + r.notes.blocks + ' blocks' + (r.notes.regex ? ', ' + r.notes.regex + ' regex scripts' : '') + ')';
+        if (r.notes.macros.length) setTimeout(() => toast('These Lumiverse macros may not work in SillyTavern: ' + r.notes.macros.slice(0, 6).map(m => '{{' + m + '}}').join(', ') + (r.notes.macros.length > 6 ? ' and ' + (r.notes.macros.length - 6) + ' more' : ''), 'warn', { ms: 9000 }), 1200);
+      }
       if (!p || typeof p !== 'object' || Array.isArray(p) || (!Array.isArray(p.prompts) && p.temperature === undefined)) { toast('Doesn\'t look like an ST preset.', 'err'); return; }
       if (!p.name) p.name = file.name.replace(/\.json$/i, '');
       const id = presetId();
       state.presetLibrary[id] = { id, name: p.name, preset: p, savedAt: new Date().toISOString() };
       savePresetLibrary(); renderPresetSidebar();
       if (!wsShowItem('preset', id)) openPreset(id);
-      toast('Imported: ' + p.name, 'ok');
+      toast('Imported: ' + p.name + loomNote, 'ok');
     } catch(err) { toast('Import error: ' + err.message, 'err'); console.error(err); }
   };
   r.readAsText(file);

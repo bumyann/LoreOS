@@ -61,6 +61,7 @@ const ASSETS = [
   'js/prompt_model.js',
   'js/regex.js',
   'js/regex_model.js',
+  'js/lumiverse.js',
   'js/regex_worker.js',
   'js/router.js',
   'js/pwa.js',

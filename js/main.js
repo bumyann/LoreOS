@@ -10,7 +10,7 @@ import { libSaveCurrent, openLibrary } from './library.js';
 import { applyLoreSettings, changeZoom, clearEditor, clearSelection, closeTab, createEntry, handleSbSearch, openLoreSettings, renderEditor, renderTabs, saveEntry, toggleView } from './lorebook.js';
 import { doExportPublic, doExportTxt, executeMerge, exportJanitorJson, exportJson, exportSaucepanJson, handleImport, handleJanitorImport, handleJanitorPaste, handleMergeImport, handleSaucepanImport, openJanitorPasteModal, openPublicExport, previewPublic, renderMergeList } from './lorebook_io.js';
 import { wireMobile } from './mobile.js';
-import { createPreset, exportPreset, handlePresetImport, makeBlankPrompt, openPresetLibrary, renderPromptList, savePreset, syncPromptOrder } from './preset.js';
+import { createPreset, exportPreset, exportPresetLoom, handlePresetImport, makeBlankPrompt, openPresetLibrary, renderPromptList, savePreset, syncPromptOrder } from './preset.js';
 import { PT, ptRefreshManual, wirePronounTool } from './pronoun.js';
 import { setupOffline } from './pwa.js';
 import { initRouter } from './router.js';
@@ -58,6 +58,7 @@ import * as m_mobile from './mobile.js';
 import * as m_router from './router.js';
 import * as m_pwa from './pwa.js';
 import * as m_character_io from './character_io.js';
+import * as m_lumiverse from './lumiverse.js';
 import * as m_avatar from './avatar.js';
 import * as m_templates_data from './templates_data.js';
 import './help.js'; // registers the help dialog's markup
@@ -212,6 +213,7 @@ export function wireEvents() {
   if (g('charHdrExportCharxBtn')) g('charHdrExportCharxBtn').onclick = () => exportCharCharx(state.activeCharId);
   // Header export button (preset)
   if (g('presetHdrExportBtn')) g('presetHdrExportBtn').onclick = () => exportPreset();
+  if (g('presetHdrExportLoomBtn')) g('presetHdrExportLoomBtn').onclick = () => exportPresetLoom();
   g('newEntryBtnAlt').onclick = openEntryPicker;
   g('helpBtn').onclick = () => openModal('helpModal');
   g('mob-topbar-help').onclick = () => openModal('helpModal');
@@ -362,7 +364,7 @@ export function wireEvents() {
 // through to the shared state object.
 // ═══════════════════════════════════════════════════════
 const LoreOS = {};
-[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa, m_character_io, m_avatar, m_templates_data, m_dropimport, m_header_fit, m_trash, m_kv, m_prompt, m_prompt_model, m_logo, m_regex, m_regex_model].forEach(ns => {
+[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa, m_character_io, m_avatar, m_templates_data, m_dropimport, m_header_fit, m_trash, m_kv, m_prompt, m_prompt_model, m_logo, m_regex, m_regex_model, m_lumiverse].forEach(ns => {
   Object.keys(ns).forEach(k => {
     if (!(k in LoreOS)) Object.defineProperty(LoreOS, k, { get: () => ns[k], enumerable: true, configurable: true });
   });

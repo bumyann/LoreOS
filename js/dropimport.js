@@ -3,6 +3,7 @@
 // The file is sniffed (PNG / .charx / JSON content) and handed to the SAME file
 // input the Import menus use, so every check and confirmation still applies.
 // ═══════════════════════════════════════════════════════
+import { looksLikeLoomPreset } from './lumiverse.js';
 import { looksLikeRegexJson } from './regex_model.js';
 import { switchMode } from './workshop.js';
 import { g, toast } from './util.js';
@@ -29,6 +30,7 @@ export async function classifyDrop(file) {
   if (Array.isArray(data.starting_scenarios) || ('persona' in data && 'name' in data)) return { input: 'fileCharCompanionInput', mode: 'char' };
   if (Array.isArray(data.content)) return { input: 'fileSaucepanInput', mode: 'lore' };  // SaucepanAI lorebook
   if (data.entries !== undefined) return { input: 'fileInput', mode: 'lore' };           // SillyTavern lorebook
+  if (looksLikeLoomPreset(data)) return { input: 'filePresetInput', mode: 'preset' };       // Lumiverse (Loom) preset
   if (Array.isArray(data.prompts) || 'openai_max_context' in data || 'temperature' in data) return { input: 'filePresetInput', mode: 'preset' };
   return null;
 }

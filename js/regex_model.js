@@ -63,6 +63,7 @@ const numOrNull = v => (v === null || v === undefined || v === '' || !Number.isF
 
 // Accepts anything that looks like a script (including older exports) and returns a complete one
 export function normalizeScript(s) {
+  if (isLumiScript(s)) return lumiToScript(s); // a Lumiverse script, wherever it turned up
   const o = isObj(s) ? s : {};
   const placement = (Array.isArray(o.placement) ? o.placement : [])
     .map(Number).filter(n => PLACEMENTS.some(p => p.id === n));
@@ -202,26 +203,96 @@ export function highlight(text, matches) {
 // ── Import / export ──
 export const SET_FORMAT = 'loreos-regex-set';
 
-// Any of: one script, a list of scripts, { regex_scripts: [...] } (as inside a card or preset), a LoreOS set
+// ── Lumiverse regex scripts ──
+// Lumiverse keeps the pattern and its flags apart, names the places a script runs in words, and
+// lists "display" / "prompt" as targets. {name, find_regex, replace_string, flags, placement: ["ai_output"],
+// target: ["display"], substitute_macros: "none"|"raw"|"escaped", trim_strings, run_on_edit, disabled, ...}
+export const LUMI_REGEX_TYPE = 'lumiverse_regex_scripts';
+const LUMI_PLACEMENT = { user_input: 1, ai_output: 2, slash_command: 3, world_info: 5, reasoning: 6 };
+const LUMI_PLACEMENT_REV = Object.fromEntries(Object.entries(LUMI_PLACEMENT).map(([k, v]) => [v, k]));
+const LUMI_SUBST = { none: 0, raw: 1, escaped: 2 };
+const LUMI_SUBST_REV = ['none', 'raw', 'escaped'];
+export const isLumiScript = o => isObj(o) && 'find_regex' in o;
+
+export function lumiToScript(o) {
+  const placement = [], extraPlacement = [];
+  (Array.isArray(o.placement) ? o.placement : []).forEach(x => { if (x in LUMI_PLACEMENT) placement.push(LUMI_PLACEMENT[x]); else extraPlacement.push(x); });
+  const target = Array.isArray(o.target) ? o.target : [];
+  const disp = target.includes('display'), prom = target.includes('prompt');
+  const keep = { ...o };
+  ['name', 'find_regex', 'replace_string', 'flags', 'placement', 'trim_strings', 'run_on_edit', 'disabled', 'min_depth', 'max_depth', 'substitute_macros', 'script_id'].forEach(k => delete keep[k]);
+  if (o.script_id === '') keep.script_id_blank = true;
+  keep.target = target; keep.placement_other = extraPlacement; keep.substitute_macros = o.substitute_macros;
+  return normalizeScript({
+    id: str(o.script_id) || newId(),
+    scriptName: str(o.name) || 'Unnamed script',
+    findRegex: str(o.find_regex) ? '/' + o.find_regex + '/' + str(o.flags) : '',
+    replaceString: str(o.replace_string),
+    trimStrings: o.trim_strings,
+    placement,
+    disabled: !!o.disabled,
+    markdownOnly: disp && !prom,
+    promptOnly: prom && !disp,
+    runOnEdit: o.run_on_edit === undefined ? true : !!o.run_on_edit,
+    substituteRegex: LUMI_SUBST[o.substitute_macros] || 0,
+    minDepth: o.min_depth, maxDepth: o.max_depth,
+    lumiverse: keep,
+  });
+}
+
+export function scriptToLumi(s, index = 0) {
+  const keep = isObj(s.lumiverse) ? s.lumiverse : {};
+  const m = String(s.findRegex || '').match(/^\/([\s\S]*)\/([a-z]*)$/);
+  const placement = (s.placement || []).map(n => LUMI_PLACEMENT_REV[n]).filter(Boolean).concat(Array.isArray(keep.placement_other) ? keep.placement_other : []);
+  let target;
+  if (s.markdownOnly && !s.promptOnly) target = ['display'];
+  else if (s.promptOnly && !s.markdownOnly) target = ['prompt'];
+  else target = Array.isArray(keep.target) && keep.target.length && !(keep.target.length === 1 && (s.markdownOnly || s.promptOnly)) ? keep.target : ['display', 'prompt'];
+  const out = {
+    name: s.scriptName,
+    find_regex: m ? m[1] : String(s.findRegex || ''),
+    replace_string: s.replaceString || '',
+    actions: [], ...keep,
+    flags: m ? m[2] : '',
+    placement, scope: keep.scope || 'global', scope_id: keep.scope_id === undefined ? null : keep.scope_id, target,
+    min_depth: s.minDepth, max_depth: s.maxDepth, trim_strings: s.trimStrings || [],
+    run_on_edit: !!s.runOnEdit,
+    substitute_macros: LUMI_SUBST_REV[s.substituteRegex] || 'none',
+    disabled: !!s.disabled,
+    sort_order: keep.sort_order === undefined ? index : keep.sort_order,
+    description: keep.description || '', metadata: keep.metadata || {}, script_id: keep.script_id_blank ? '' : s.id,
+  };
+  delete out.placement_other; delete out.script_id_blank;
+  return out;
+}
+
+export function lumiRegexFileJson(scripts) {
+  return JSON.stringify({ version: 1, type: LUMI_REGEX_TYPE, scripts: scripts.map(scriptToLumi), exported_at: Math.floor(Date.now() / 1000) }, null, 2);
+}
+
+// Any of: one script, a list of scripts, { regex_scripts: [...] } (as inside a card or preset), a LoreOS set,
+// or a Lumiverse regex file / preset / card module
 export function parseRegexJson(text) {
   let data;
   try { data = JSON.parse(text); } catch (e) { throw new Error('That file is not valid JSON.'); }
-  const looksLikeScript = o => isObj(o) && ('findRegex' in o || 'scriptName' in o);
+  const looksLikeScript = o => isObj(o) && ('findRegex' in o || 'scriptName' in o || 'find_regex' in o);
+  const conv = list => list.filter(isObj).map(x => (isLumiScript(x) ? lumiToScript(x) : x));
   if (isObj(data) && data.format === SET_FORMAT && isObj(data.set)) {
     return { name: str(data.name) || 'Imported regex set', set: normalizeSet(data.set) };
   }
   let list = null, name = '';
-  if (Array.isArray(data) && data.length && data.every(looksLikeScript)) list = data;
-  else if (looksLikeScript(data)) { list = [data]; name = str(data.scriptName); }
+  if (isObj(data) && data.type === LUMI_REGEX_TYPE && Array.isArray(data.scripts)) { list = data.scripts; name = 'Lumiverse regex scripts'; }
+  else if (Array.isArray(data) && data.length && data.every(looksLikeScript)) list = data;
+  else if (looksLikeScript(data)) { list = [data]; name = str(data.scriptName || data.name); }
   else if (isObj(data) && isObj(data.extensions) && Array.isArray(data.extensions.regex_scripts)) list = data.extensions.regex_scripts;
   else if (isObj(data) && Array.isArray(data.regex_scripts)) list = data.regex_scripts;
   if (!list || !list.length) throw new Error('No regex scripts found in that file.');
-  return { name: name || 'Imported regex scripts', set: normalizeSet({ scripts: list }) };
+  return { name: name || 'Imported regex scripts', set: normalizeSet({ scripts: conv(list) }) };
 }
 
 export function looksLikeRegexJson(data) {
-  const looks = o => !!o && typeof o === 'object' && !Array.isArray(o) && 'findRegex' in o;
-  return looks(data) || (Array.isArray(data) && data.length > 0 && data.every(looks)) || (data && data.format === SET_FORMAT);
+  const looks = o => !!o && typeof o === 'object' && !Array.isArray(o) && ('findRegex' in o || 'find_regex' in o);
+  return looks(data) || (Array.isArray(data) && data.length > 0 && data.every(looks)) || (data && (data.format === SET_FORMAT || data.type === LUMI_REGEX_TYPE));
 }
 
 // What goes into a card or preset (fresh ids so a script can be sent more than once)

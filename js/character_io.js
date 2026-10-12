@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════
 
 import { downscaleAvatar } from './avatar.js';
+import { lumiToScript, normalizeScript, scriptToLumi } from './regex_model.js';
 import { charId, normalizeCharCard, openChar, renderCharSidebar, saveChar } from './character.js';
 import { state } from './state.js';
 import { saveCharLibrary } from './storage.js';
@@ -167,6 +168,21 @@ export function toJanitorData(d) {
   return { ...d, description: d.creator_notes || '', personality: def };
 }
 
+// JanitorAI only reads the first message from an imported card, so the other greetings come as a
+// markdown file next to it, ready to paste in.
+export function janitorGreetingsMd(d) {
+  const list = (d.alternate_greetings || []).map(g => (typeof g === 'object' && g ? { title: g.title || '', message: g.message || '' } : { title: '', message: g || '' })).filter(g => g.message.trim());
+  if (!list.length) return '';
+  return '# ' + (d.name || 'Character') + ': alternate greetings\n\n'
+    + 'JanitorAI only imports the first message from a card. Paste these in by hand.\n\n'
+    + list.map((g, i) => '---\n\n## ' + (i + 2) + '. ' + (g.title || 'Greeting ' + (i + 2)) + '\n\n' + g.message.trim() + '\n').join('\n');
+}
+export function downloadJanitorGreetings(d) {
+  const md = janitorGreetingsMd(d); if (!md) return;
+  // a moment after the card, so browsers treat it as a second download rather than a duplicate
+  setTimeout(() => { dlFile(md, safeFileName(d.name, 'character') + '_janitor_greetings.md', 'text/markdown'); toast('Also saved the ' + (d.alternate_greetings || []).length + ' alternate greeting(s) as a .md to paste into JanitorAI.', 'info'); }, 500);
+}
+
 export function toV2Card(d) {
   return {
     spec: 'chara_card_v2',
@@ -222,6 +238,7 @@ export function exportCharJsonV2(id, { janitor = false } = {}) {
   const fn = safeFileName(d.name, 'character') + (janitor ? '_janitor' : '_v2') + '.json';
   dlFile(JSON.stringify(v2card, null, 2), fn, 'application/json');
   toast((janitor ? 'Exported for JanitorAI: ' : 'Exported V2: ') + fn, 'ok');
+  if (janitor) downloadJanitorGreetings(d);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -283,7 +300,7 @@ export function describeCharx(r) {
   if (other > 0) bits.push(other + ' other file' + (other === 1 ? '' : 's'));
   const book = r.cardData.data && r.cardData.data.character_book;
   if (book && (book.entries || []).length) bits.push('a lorebook (' + book.entries.length + ' entries)');
-  const rx = r.cardData.data && r.cardData.data.extensions && r.cardData.data.extensions.regex_scripts;
+  const rx = (r.cardData.data && r.cardData.data.extensions && r.cardData.data.extensions.regex_scripts) || (r.lumiModules && r.lumiModules.regex_scripts);
   if (Array.isArray(rx) && rx.length) bits.push(rx.length + ' regex script' + (rx.length === 1 ? '' : 's'));
   if (r.lumiModules) bits.push('Lumiverse modules');
   return bits;
@@ -298,6 +315,16 @@ export function handleCharxImport(e) {
   r.onload = ev => {
     readCharx(ev.target.result).then(res => {
       const { cardData, imageData, lumiModules, charxFiles } = res;
+      // Character-bound regexes from a Lumiverse file become the card's own regex scripts (same place SillyTavern keeps them)
+      if (lumiModules && Array.isArray(lumiModules.regex_scripts) && lumiModules.regex_scripts.length) {
+        if (!cardData.data) cardData.data = {};
+        if (!cardData.data.extensions) cardData.data.extensions = {};
+        const have = Array.isArray(cardData.data.extensions.regex_scripts) ? cardData.data.extensions.regex_scripts : [];
+        const key = x => (x.scriptName || x.name || '') + '\u0000' + (x.findRegex || x.find_regex || '');
+        const seen = new Set(have.map(key));
+        const fresh = lumiModules.regex_scripts.filter(x => x && typeof x === 'object').map(x => lumiToScript(x)).filter(x => !seen.has(key(x)));
+        cardData.data.extensions.regex_scripts = [...have, ...fresh];
+      }
       // Alternate fields stay readable in the card too
       if (lumiModules && lumiModules.alternate_fields) {
         if (!cardData.data) cardData.data = {};
@@ -337,9 +364,13 @@ export function exportCharCharx(id) {
   (entry.charxFiles || []).forEach(f => zip.file(f.path, f.data, { base64: true }));
   const lumiAltFields = entry.card.data?.extensions?._lumiverse?.alternate_fields;
   const hasLumiVariants = lumiAltFields && Object.values(lumiAltFields).some(arr => arr && arr.length > 0);
-  if (entry.lumiModules || hasLumiVariants) {
+  const cardRegex = entry.card.data?.extensions?.regex_scripts;
+  const hasCardRegex = Array.isArray(cardRegex) && cardRegex.length > 0;
+  if (entry.lumiModules || hasLumiVariants || hasCardRegex) {
     const lumiModules = { version: 1, ...(entry.lumiModules || {}) };
     if (hasLumiVariants) lumiModules.alternate_fields = lumiAltFields;
+    // The card's regex scripts travel in both places: the card (SillyTavern) and the modules file (Lumiverse)
+    if (hasCardRegex) lumiModules.regex_scripts = cardRegex.map((x, i) => { const o = scriptToLumi(normalizeScript(x), i); o.metadata = { source: 'charx_bundle', ...(o.metadata || {}) }; return o; });
     zip.file('lumiverse_modules.json', JSON.stringify(lumiModules, null, 2));
   }
 
@@ -423,6 +454,7 @@ export function openCharPngExport(id, forceV2 = true, { janitor = false } = {}) 
       document.body.append(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
       toast((janitor ? 'JanitorAI' : forceV2 ? 'V2' : 'V3') + ' PNG card exported!', 'ok');
+      if (janitor) downloadJanitorGreetings(entry.card.data);
     } catch(err) { toast('PNG export error: ' + err.message, 'err'); console.error(err); }
   };
 
