@@ -49,7 +49,8 @@ const srv=http.createServer((q,s)=>{let p=q.url.split('?')[0]; if(p==='/')p='/in
   await pg.evaluate(()=>{ const L=window.LoreOS; L.homeSet({board:['a','b','c'].map((id,i)=>({id,type:'note',title:'Card '+id.toUpperCase(),text:'text '+id+' '.repeat(1)+'x'.repeat(40+i*30)}))}); L.navigateTo('home'); L.renderHomeView(); });
   await pg.waitForTimeout(400);
   const order=()=>pg.evaluate(()=>window.LoreOS.homeGet().board.map(c=>c.id).join(''));
-  const box=async id=>{ const b=await pg.locator('[data-card="'+id+'"]').first().boundingBox(); await pg.locator('[data-card="'+id+'"]').first().scrollIntoViewIfNeeded(); return await pg.locator('[data-card="'+id+'"]').first().boundingBox(); };
+  // bring the whole board into view first, so measuring one card cannot scroll another one away
+  const box=async id=>{ await pg.locator('#homeBoard').scrollIntoViewIfNeeded(); await pg.waitForTimeout(120); return await pg.locator('[data-card="'+id+'"]').first().boundingBox(); };
   chk(label+': board starts a,b,c', await order()==='abc');
   if (!vp.hasTouch) {
     const bc=await box('c'), ba=await box('a');
