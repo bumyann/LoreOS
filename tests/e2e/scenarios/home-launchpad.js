@@ -25,6 +25,7 @@
  navigateTo('home'); renderHomeView(); await w(300);
  // ── quick actions panel ──
  chk('quick actions are a side panel with six buttons and the Library', !!document.querySelector('.dash-side .qa-list') && document.querySelectorAll('.dash-side .qa-btn[data-new]').length===6 && !!document.querySelector('.dash-side [data-go="library"]'));
+ chk('icon-only: no visible text, but each has a tooltip and an accessible name', [...document.querySelectorAll('.dash-side .qa-btn')].every(b=>b.getAttribute('aria-label') && b.dataset.tip && getComputedStyle(b.querySelector('.qa-lbl')).position==='absolute' && b.getBoundingClientRect().width<=48));
  chk('buttons carry a symbol, a label and a hint', [...document.querySelectorAll('.dash-side .qa-btn[data-new]')].every(b=>b.querySelector('.qa-ico').textContent.trim() && b.querySelector('.qa-lbl').textContent.trim() && b.querySelector('.qa-hint').textContent.trim()));
  document.querySelector('.qa-btn[data-new="persona"]').click(); await w(500);
  chk('New Persona opens the persona dialog', document.getElementById('personaModal').classList.contains('open') && Object.keys(state.personaLibrary).length>=1);
