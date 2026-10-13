@@ -6,7 +6,7 @@ const srv=http.createServer((q,s)=>{let p=q.url.split('?')[0]; if(p==='/')p='/in
 (async()=>{
  const b=await chromium.launch({executablePath:process.env.CHROMIUM||'/opt/pw-browsers/chromium',args:['--no-sandbox']});
  const fails=[]; const chk=(n,c)=>{ if(!c) fails.push(n); };
- for (const vp of [{width:1280,height:900},{width:390,height:844,hasTouch:true,isMobile:true}]) {
+ for (const vp of [{width:1280,height:900},{width:390,height:844,hasTouch:true,isMobile:true}].filter(v=>!process.env.VP||(process.env.VP==='phone')===!!v.hasTouch)) {
   const label=vp.width+'px';
   const pg=await (await b.newContext({viewport:vp,hasTouch:!!vp.hasTouch,isMobile:!!vp.isMobile})).newPage(); await pg.addInitScript(init);
   const errs=[]; pg.on('pageerror',e=>errs.push(e.message));
@@ -50,7 +50,8 @@ const srv=http.createServer((q,s)=>{let p=q.url.split('?')[0]; if(p==='/')p='/in
   await pg.waitForTimeout(400);
   const order=()=>pg.evaluate(()=>window.LoreOS.homeGet().board.map(c=>c.id).join(''));
   // bring the whole board into view first, so measuring one card cannot scroll another one away
-  const box=async id=>{ await pg.locator('#homeBoard').scrollIntoViewIfNeeded(); await pg.waitForTimeout(120); return await pg.locator('[data-card="'+id+'"]').first().boundingBox(); };
+  // (centred, so the phone's bottom bar is not on top of a card)
+  const box=async id=>{ await pg.evaluate(()=>document.getElementById('homeBoard').scrollIntoView({block:'center'})); await pg.waitForTimeout(150); return await pg.locator('[data-card="'+id+'"]').first().boundingBox(); };
   chk(label+': board starts a,b,c', await order()==='abc');
   if (!vp.hasTouch) {
     const bc=await box('c'), ba=await box('a');
