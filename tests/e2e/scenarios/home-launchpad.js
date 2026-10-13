@@ -33,6 +33,25 @@
  document.querySelector('.qa-btn[data-go="library"]').click(); await w(300);
  chk('Open Library goes to the Library', document.getElementById('view-library').classList.contains('view-active'));
  navigateTo('home'); renderHomeView(); await w(300);
+ // ── recent: faces on top, everything else below; stats in one scrollable row ──
+ state.presetLibrary={p9:{id:'p9',name:'Some Preset',preset:{prompts:[]},savedAt:new Date().toISOString()}}; state.personaLibrary={u9:{id:'u9',name:'A Persona',persona:{title:'',description:'',avatar:''},savedAt:new Date().toISOString()}};
+ renderHomeView(); await w(300);
+ const rowsEl=[...document.querySelectorAll('#dash-recent-list .dash-hrow')];
+ chk('recent has a row of portrait cards and a row of tiles', rowsEl.length===2 && rowsEl[0].classList.contains('dash-covers') && rowsEl[1].classList.contains('dash-tilerow'), rowsEl.map(r=>r.className));
+ chk('characters and personas are cards with the name below the art', [...rowsEl[0].querySelectorAll('.dash-cover')].length>=3 && /A Persona/.test(rowsEl[0].textContent) && !/Some Preset/.test(rowsEl[0].textContent) && !!rowsEl[0].querySelector('.dash-cover-art + .dash-recent-name'));
+ chk('presets and the rest are tiles in the lower row', /Some Preset/.test(rowsEl[1].textContent) && !/Newest/.test(rowsEl[1].textContent));
+ chk('rows scroll sideways inside themselves', rowsEl.every(r=>getComputedStyle(r).overflowX==='auto'));
+ chk('stats are one scrollable row', getComputedStyle(document.querySelector('.dash-overview')).flexWrap==='nowrap' && getComputedStyle(document.querySelector('.dash-overview')).overflowX==='auto');
+ document.querySelector('#dash-recent-list .dash-cover').click(); await w(700);
+ chk('a portrait card opens its item', state.mode==='char' || document.getElementById('personaModal').classList.contains('open'), state.mode);
+ closeModal('personaModal'); navigateTo('home'); renderHomeView(); await w(300);
+ // ── rail is quiet until hover ──
+ { const b=document.querySelector('.qa-btn[data-new="preset"]'); const rest=getComputedStyle(b).color; const hov=getComputedStyle(b).getPropertyValue('--qa-h').trim();
+   chk('rail icons share the app colour and keep the category colour for hover', hov==='#5aa0b4' && rest!=='rgb(90, 160, 180)' && getComputedStyle(document.querySelector('.qa-btn[data-new="char"]')).color===rest, [rest,hov]); }
+ // ── navigation uses symbols, not sparkles ──
+ const navIcons=[...document.querySelectorAll('.nav-item-icon')].slice(0,5).map(e=>e.textContent.replace(/\uFE0E/g,''));
+ chk('desktop nav has distinct symbols', navIcons.join('')==='⌂▤❡⚒⚗' && !navIcons.includes('✦'), navIcons);
+ chk('phone nav too', !/✦/.test(document.getElementById('mob-nav').textContent), [...document.querySelectorAll('#mob-nav .icon')].slice(0,5).map(e=>e.textContent));
  // ── board ──
  chk('empty board explains itself', /sparks an idea/.test(document.getElementById('home-content').textContent));
  document.querySelector('[data-hbnew="note"]').click(); await w(250);

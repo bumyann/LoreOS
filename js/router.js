@@ -105,7 +105,7 @@ export function renderGetStarted(el) {
       <div class="home-hero-title">LoreOS</div>
       <div class="home-hero-tagline">// lorebooks. characters. presets. prompts. all in one place.</div>
       <div class="home-hero-actions">
-        <button class="btn btn-ok home-cta" data-new="lore">✦ New Lorebook Entry</button>
+        <button class="btn btn-ok home-cta" data-new="lore">❖︎ New Lorebook Entry</button>
         <button class="btn btn-p home-cta" data-new="char">+ New Character</button>
         <button class="btn btn-s home-cta" data-new="preset">⚙︎ New Preset</button>
         <button class="btn btn-s home-cta" data-new="prompt">✎︎ New Prompt Pack</button>

@@ -70,15 +70,30 @@ export function renderHomeDashboard(el) {
   const { rows, m } = libraryRows();
   const home = homeGet();
   const byUsed = [...rows].sort((a, b) => (b.used || '').localeCompare(a.used || ''));
-  const recent = byUsed.slice(0, 6);
+  const recent = byUsed.slice(0, 24);
   const pinned = rows.filter(r => r.rec.pinned).sort((a, b) => (b.used || '').localeCompare(a.used || ''));
   const counts = k => rows.filter(r => r.kind === k).length;
+  // Characters and personas have faces: they get portrait cards, with the name underneath.
+  // Everything else is a compact tile with its symbol.
+  const faces = new Set(['char', 'persona']);
+  const cover = (r, i, attr) => `<div class="dash-recent-item dash-cover" data-kind="${esc(r.kindLabel)}" ${attr}="${i}" tabindex="0" role="button"${r.rec.color ? ` style="--bk:${esc(r.rec.color)}"` : ''}>
+      <span class="dash-cover-art">${bookThumb(r)}</span>
+      <span class="dash-recent-name">${esc(r.name || 'Untitled')}</span>
+      <span class="dash-cover-kind">${esc(r.kindLabel)}</span>
+    </div>`;
   const tile = (r, i, attr) => `<div class="dash-recent-item" data-kind="${esc(r.kindLabel)}" ${attr}="${i}" tabindex="0" role="button"${r.rec.color ? ` style="--bk:${esc(r.rec.color)}"` : ''}>
       <span class="dash-recent-thumb">${bookThumb(r)}</span>
       <span class="dash-recent-name">${esc(r.name || 'Untitled')}</span>
       <span class="dash-recent-type">${esc(r.kindLabel)}</span>
       <span class="dash-recent-date">${esc(fmtDate(r.used))}</span>
     </div>`;
+  // two scrollable rows: faces on top, the rest below
+  const rowsHtml = (list, attr, limit) => {
+    const withIdx = list.map((r, i) => ({ r, i }));
+    const top = withIdx.filter(x => faces.has(x.r.kind)).slice(0, limit), rest = withIdx.filter(x => !faces.has(x.r.kind)).slice(0, limit);
+    return (top.length ? `<div class="dash-hrow dash-covers" role="list">${top.map(x => cover(x.r, x.i, attr)).join('')}</div>` : '')
+      + (rest.length ? `<div class="dash-hrow dash-tilerow" role="list">${rest.map(x => tile(x.r, x.i, attr)).join('')}</div>` : '');
+  };
   const last = recent[0];
 
   const QA = [
@@ -92,10 +107,10 @@ export function renderHomeDashboard(el) {
     <div class="dashboard home-layout">
      <div class="dash-main">
       ${last ? `<div class="dash-continue"><div><div class="dash-continue-k">Jump back in</div><div class="dash-continue-n">${esc(last.name || 'Untitled')}</div><div class="dash-continue-m">${esc(last.kindLabel)} · ${esc(fmtDate(last.used))}</div></div><button class="btn btn-p" id="homeContinue">Continue →</button></div>` : ''}
-      ${pinned.length ? `<div class="dash-section"><div class="dash-section-title">Favourites</div><div class="dash-recent dash-tiles" id="dash-pinned-list">${pinned.slice(0, 8).map((r, i) => tile(r, i, 'data-pin-idx')).join('')}</div></div>` : ''}
+      ${pinned.length ? `<div class="dash-section"><div class="dash-section-title">Favourites</div><div class="dash-recent" id="dash-pinned-list">${rowsHtml(pinned, 'data-pin-idx', 12)}</div></div>` : ''}
       <div class="dash-section">
         <div class="dash-section-title">Recent</div>
-        <div class="dash-recent dash-tiles" id="dash-recent-list">${recent.length ? recent.map((r, i) => tile(r, i, 'data-recent-idx')).join('') : '<div class="dash-empty">nothing yet</div>'}</div>
+        <div class="dash-recent" id="dash-recent-list">${recent.length ? rowsHtml(recent, 'data-recent-idx', 12) : '<div class="dash-empty">nothing yet</div>'}</div>
       </div>
       <div class="dash-section">
         <div class="hb-head"><div class="dash-section-title">Inspiration</div>
@@ -105,7 +120,7 @@ export function renderHomeDashboard(el) {
         ${home.board.length ? `<div class="home-board" id="homeBoard">${home.board.map(cardHtml).join('')}</div>` : '<div class="dash-empty">A board for anything that sparks an idea: pictures, notes, links. Use + Add, or drop pictures here.</div>'}
         </div>
       </div>
-      <div class="dash-overview">
+      <div class="dash-overview" role="list">
         <div class="dash-stat"><span class="dash-stat-num">${counts('lore')}</span><span class="dash-stat-lbl">lorebooks</span></div>
         <div class="dash-stat"><span class="dash-stat-num">${counts('char')}</span><span class="dash-stat-lbl">characters</span></div>
         <div class="dash-stat"><span class="dash-stat-num">${counts('preset')}</span><span class="dash-stat-lbl">presets</span></div>

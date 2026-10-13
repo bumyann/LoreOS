@@ -221,13 +221,13 @@ registerMarkup(140, `<!-- MOBILE BOTTOM NAV -->
     <span class="icon">⌂︎</span><span class="mob-nav-lbl">Home</span>
   </button>
   <button class="mob-nav-btn mob-view-btn" id="mobGoLibrary" title="Library">
-    <span class="icon">✦</span><span class="mob-nav-lbl">Library</span>
+    <span class="icon">▤︎</span><span class="mob-nav-lbl">Library</span>
   </button>
   <button class="mob-nav-btn mob-view-btn" id="mobGoNotebook" title="Journal">
-    <span class="icon">✦</span><span class="mob-nav-lbl">Journal</span>
+    <span class="icon">❡︎</span><span class="mob-nav-lbl">Journal</span>
   </button>
   <button class="mob-nav-btn mob-view-btn" id="mobGoEditor" title="Workshop">
-    <span class="icon">✦</span><span class="mob-nav-lbl">Workshop</span>
+    <span class="icon">⚒︎</span><span class="mob-nav-lbl">Workshop</span>
   </button>
   <div id="mob-nav-sep-views" style="width:1px;background:var(--bd);margin:.3rem .1rem;flex-shrink:0;align-self:stretch;"></div>
 
@@ -239,7 +239,7 @@ registerMarkup(140, `<!-- MOBILE BOTTOM NAV -->
 
   <!-- LORE actions -->
   <button class="mob-nav-btn mob-mode-btn mob-lore hi" id="mobNewEntry" title="New Entry">
-    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
+    <span class="icon">+</span><span class="mob-nav-lbl">New</span>
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobImport" title="Import">
     <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
@@ -248,21 +248,21 @@ registerMarkup(140, `<!-- MOBILE BOTTOM NAV -->
     <span class="icon">↑</span><span class="mob-nav-lbl">Export</span>
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobSearch" title="Find & Replace">
-    <span class="icon">✦</span><span class="mob-nav-lbl">Search</span>
+    <span class="icon">⌕︎</span><span class="mob-nav-lbl">Search</span>
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobLibrary" title="Library">
-    <span class="icon">✦</span><span class="mob-nav-lbl">Library</span>
+    <span class="icon">▤︎</span><span class="mob-nav-lbl">Library</span>
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobLoreTemplates" title="Templates">
-    <span class="icon">✦</span><span class="mob-nav-lbl">Templates</span>
+    <span class="icon">◫︎</span><span class="mob-nav-lbl">Templates</span>
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-lore" id="mobLoreSettings" title="LB Settings">
-    <span class="icon">✦</span><span class="mob-nav-lbl">Global</span>
+    <span class="icon">⚙︎</span><span class="mob-nav-lbl">Global</span>
   </button>
 
   <!-- CHAR actions -->
   <button class="mob-nav-btn mob-mode-btn mob-char hi" id="mobCharNew" title="New Character" style="display:none">
-    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
+    <span class="icon">+</span><span class="mob-nav-lbl">New</span>
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharImport" title="Import Card" style="display:none">
     <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
@@ -271,30 +271,30 @@ registerMarkup(140, `<!-- MOBILE BOTTOM NAV -->
     <span class="icon">↑</span><span class="mob-nav-lbl">Export</span>
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharLibrary" title="Character Library" style="display:none">
-    <span class="icon">✦</span><span class="mob-nav-lbl">Library</span>
+    <span class="icon">▤︎</span><span class="mob-nav-lbl">Library</span>
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharAttach" title="Attach Lorebook" style="display:none">
-    <span class="icon">✦</span><span class="mob-nav-lbl">Attach LB</span>
+    <span class="icon">⌖︎</span><span class="mob-nav-lbl">Attach LB</span>
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharPronouns" title="Pronouns & Nouns" style="display:none">
-    <span class="icon">✦</span><span class="mob-nav-lbl">Pronouns</span>
+    <span class="icon">⇄︎</span><span class="mob-nav-lbl">Pronouns</span>
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-char" id="mobCharTemplates" title="Templates" style="display:none">
-    <span class="icon">✦</span><span class="mob-nav-lbl">Templates</span>
+    <span class="icon">◫︎</span><span class="mob-nav-lbl">Templates</span>
   </button>
 
   <!-- PRESET actions -->
   <button class="mob-nav-btn mob-mode-btn mob-preset hi" id="mobPresetNew" title="New Preset" style="display:none">
-    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
+    <span class="icon">+</span><span class="mob-nav-lbl">New</span>
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetImport" title="Import Preset" style="display:none">
     <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetLibrary" title="Preset Library" style="display:none">
-    <span class="icon">✦</span><span class="mob-nav-lbl">Library</span>
+    <span class="icon">▤︎</span><span class="mob-nav-lbl">Library</span>
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetPromptLib" title="Prompt Library" style="display:none">
-    <span class="icon">✦</span><span class="mob-nav-lbl">Prompts</span>
+    <span class="icon">☰︎</span><span class="mob-nav-lbl">Prompts</span>
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-preset" id="mobPresetAddPrompt" title="Add Prompt" style="display:none">
     <span class="icon">+</span><span class="mob-nav-lbl">+ Prompt</span>
@@ -302,7 +302,7 @@ registerMarkup(140, `<!-- MOBILE BOTTOM NAV -->
 
   <!-- PROMPT actions -->
   <button class="mob-nav-btn mob-mode-btn mob-prompt hi" id="mobPromptNew" title="New Prompt Pack" style="display:none">
-    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
+    <span class="icon">+</span><span class="mob-nav-lbl">New</span>
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-prompt" id="mobPromptImport" title="Import Prompt Pack" style="display:none">
     <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
@@ -313,7 +313,7 @@ registerMarkup(140, `<!-- MOBILE BOTTOM NAV -->
 
   <!-- REGEX actions -->
   <button class="mob-nav-btn mob-mode-btn mob-regex hi" id="mobRegexNew" title="New Regex Set" style="display:none">
-    <span class="icon">✦</span><span class="mob-nav-lbl">New</span>
+    <span class="icon">+</span><span class="mob-nav-lbl">New</span>
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-regex" id="mobRegexImport" title="Import Regex" style="display:none">
     <span class="icon">↓</span><span class="mob-nav-lbl">Import</span>
