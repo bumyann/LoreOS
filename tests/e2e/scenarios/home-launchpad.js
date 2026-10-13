@@ -23,6 +23,15 @@
  document.querySelector('#dash-pinned-list .dash-recent-item').click(); await w(700);
  chk('a favourite opens too', state.activeCharId==='c1', state.activeCharId);
  navigateTo('home'); renderHomeView(); await w(300);
+ // ── quick actions panel ──
+ chk('quick actions are a side panel with six buttons and the Library', !!document.querySelector('.dash-side .qa-list') && document.querySelectorAll('.dash-side .qa-btn[data-new]').length===6 && !!document.querySelector('.dash-side [data-go="library"]'));
+ chk('buttons carry a symbol, a label and a hint', [...document.querySelectorAll('.dash-side .qa-btn[data-new]')].every(b=>b.querySelector('.qa-ico').textContent.trim() && b.querySelector('.qa-lbl').textContent.trim() && b.querySelector('.qa-hint').textContent.trim()));
+ document.querySelector('.qa-btn[data-new="persona"]').click(); await w(500);
+ chk('New Persona opens the persona dialog', document.getElementById('personaModal').classList.contains('open') && Object.keys(state.personaLibrary).length>=1);
+ closeModal('personaModal');
+ document.querySelector('.qa-btn[data-go="library"]').click(); await w(300);
+ chk('Open Library goes to the Library', document.getElementById('view-library').classList.contains('view-active'));
+ navigateTo('home'); renderHomeView(); await w(300);
  // ── board ──
  chk('empty board explains itself', /sparks an idea/.test(document.getElementById('home-content').textContent));
  document.querySelector('[data-hbnew="note"]').click(); await w(250);

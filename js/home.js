@@ -8,6 +8,7 @@
 import { readFileAsDataUrl, resizeImage } from './avatar.js';
 import { BOOK_COLORS, bookThumb, libraryRows, openLibraryItem } from './library_view.js';
 import { navigateTo } from './router.js';
+import { KIND_SYMBOL, sym } from './symbols.js';
 import { safeSet } from './storage.js';
 import { store } from './kv.js';
 import { registerTrashRestorer, trashPush } from './trash.js';
@@ -80,20 +81,16 @@ export function renderHomeDashboard(el) {
     </div>`;
   const last = recent[0];
 
+  const QA = [
+    ['char', 'New Character', 'A card for a bot', 'char'], ['lore', 'New Entry', 'Lorebook entry', 'lore'], ['preset', 'New Preset', 'Chat completion', 'preset'],
+    ['prompt', 'New Prompt Pack', 'For Janitor, Saucepan', 'prompt'], ['regex', 'New Regex Set', 'Find and replace', 'regex'], ['persona', 'New Persona', 'Who you are', 'persona'],
+  ];
+  const qaBtn = ([kind, label, hint, color]) => `<button class="qa-btn qa-${color} dash-act" data-new="${kind}"><span class="qa-ico">${esc(sym(KIND_SYMBOL[color]))}</span><span class="qa-txt"><span class="qa-lbl">${esc(label)}</span><span class="qa-hint">${esc(hint)}</span></span><span class="qa-go" aria-hidden="true">+</span></button>`;
+
   el.innerHTML = `
-    <div class="dashboard">
+    <div class="dashboard home-layout">
+     <div class="dash-main">
       ${last ? `<div class="dash-continue"><div><div class="dash-continue-k">Jump back in</div><div class="dash-continue-n">${esc(last.name || 'Untitled')}</div><div class="dash-continue-m">${esc(last.kindLabel)} · ${esc(fmtDate(last.used))}</div></div><button class="btn btn-p" id="homeContinue">Continue →</button></div>` : ''}
-      <div class="dash-section">
-        <div class="dash-section-title">Quick Actions</div>
-        <div class="dash-actions">
-          <button class="btn btn-ok dash-act" data-new="lore">✦ New Entry</button>
-          <button class="btn btn-p dash-act" data-new="char">+ New Character</button>
-          <button class="btn btn-s dash-act" data-new="preset">⚙︎ New Preset</button>
-          <button class="btn btn-s dash-act" data-new="prompt">✎︎ New Prompt Pack</button>
-          <button class="btn btn-s dash-act" data-new="regex">⌕ New Regex Set</button>
-          <button class="btn btn-s dash-act" data-go="library">▤ Library</button>
-        </div>
-      </div>
       ${pinned.length ? `<div class="dash-section"><div class="dash-section-title">Favourites</div><div class="dash-recent dash-tiles" id="dash-pinned-list">${pinned.slice(0, 8).map((r, i) => tile(r, i, 'data-pin-idx')).join('')}</div></div>` : ''}
       <div class="dash-section">
         <div class="dash-section-title">Recent</div>
@@ -116,6 +113,12 @@ export function renderHomeDashboard(el) {
         <div class="dash-stat"><span class="dash-stat-num">${counts('persona')}</span><span class="dash-stat-lbl">personas</span></div>
       </div>
       <div class="home-footer-note">// all data stays in your browser &nbsp;·&nbsp; <a href="https://loreos.net/legal.html" target="_blank" rel="noopener" style="color:var(--txm);text-decoration:none;border-bottom:1px solid var(--bd)">privacy &amp; terms</a></div>
+     </div>
+     <aside class="dash-side" aria-label="Quick actions">
+      <div class="dash-section-title">Quick Actions</div>
+      <div class="qa-list">${QA.map(qaBtn).join('')}</div>
+      <button class="qa-btn qa-lib" data-go="library"><span class="qa-ico">${esc(sym('▤'))}</span><span class="qa-txt"><span class="qa-lbl">Open Library</span><span class="qa-hint">Everything on shelves</span></span><span class="qa-go" aria-hidden="true">›</span></button>
+     </aside>
     </div>`;
 
   const open = r => () => openLibraryItem(r);

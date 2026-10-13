@@ -8,7 +8,7 @@ import { libLoad } from './library.js';
 import { renderLibraryView } from './library_view.js';
 import { homeGet, renderHomeDashboard } from './home.js';
 import { allLibraryItems } from './meta.js';
-import { openPersona } from './persona.js';
+import { createPersona, openPersona } from './persona.js';
 import { createEntry } from './lorebook.js';
 import { updateMobViewBtns } from './mobile.js';
 import { createPreset, openPreset } from './preset.js';
@@ -192,6 +192,7 @@ export function initRouter() {
     const mk = e.target.closest('[data-new]');
     if (mk) {
       const kind = mk.dataset.new;
+      if (kind === 'persona') { openPersona(createPersona()); return; } // personas open in their own dialog
       navigateTo('editor');
       setTimeout(() => {
         switchMode(kind);
