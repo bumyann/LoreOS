@@ -22,15 +22,24 @@ import { askInput } from './util.js';
 export const GEN_KEY = 'loreos_imagegen';
 export const SIZES = [['Square', 1024, 1024], ['Portrait', 768, 1024], ['Landscape', 1024, 768], ['Wide', 1280, 720], ['Tall', 720, 1280]];
 export const POLLINATIONS_MODELS = ['flux', 'turbo', 'gptimage'];
-export const PROVIDERS = [['pollinations', 'Pollinations (free)'], ['openai', 'OpenAI-compatible'], ['swarmui', 'SwarmUI'], ['comfyui', 'ComfyUI']];
+export const PROVIDERS = [['pollinations', 'Pollinations (free, no account)'], ['pollen', 'Pollinations account (your pollen)'], ['openai', 'OpenAI-compatible'], ['swarmui', 'SwarmUI'], ['comfyui', 'ComfyUI']];
 export const KEY_NAME = 'openai';
+export const POLLEN_KEY = 'pollen';
+export const keyNameFor = provider => (provider === 'pollen' ? POLLEN_KEY : KEY_NAME);
+export const KEYED = ['openai', 'pollen'];
+export const POLLEN_BASE = 'https://gen.pollinations.ai';
+// The App Key (a publishable pk_ key, made at enter.pollinations.ai/keys) that identifies LoreOS when people connect their account.
+// It is public by design. Leave it empty until one is registered; self-hosters can type their own in the dialog.
+export const DEFAULT_POLLEN_CLIENT = '';
+export const POLLEN_MODELS = ['black-forest-labs/flux.1-schnell', 'black-forest-labs/flux.2-pro', 'openai/gpt-image-1-mini', 'google/gemini-3.1-flash-image', 'bytedance/seedream-5.0-lite', 'qwen/qwen-image-2.1', 'tongyi-mai/z-image-turbo'];
 export const DEFAULTS = Object.freeze({
   provider: 'pollinations', model: 'flux', size: 0, suffix: '', negative: '', steps: 25, cfg: 6,
   baseUrl: 'https://api.openai.com/v1', openaiModel: 'gpt-image-1',
   swarmUrl: 'http://localhost:7801', swarmModel: '',
   comfyUrl: 'http://127.0.0.1:8188', comfyCkpt: '', comfyWorkflow: '',
+  pollenModel: 'black-forest-labs/flux.1-schnell', pollenEditModel: 'openai/gpt-image-1-mini', pollenClient: DEFAULT_POLLEN_CLIENT, pollenBudget: 5,
 });
-const TEXT_KEYS = ['model', 'suffix', 'negative', 'baseUrl', 'openaiModel', 'swarmUrl', 'swarmModel', 'comfyUrl', 'comfyCkpt'];
+const TEXT_KEYS = ['model', 'suffix', 'negative', 'baseUrl', 'openaiModel', 'swarmUrl', 'swarmModel', 'comfyUrl', 'comfyCkpt', 'pollenModel', 'pollenEditModel', 'pollenClient'];
 
 export function loadGenSettings() {
   let o = {};
@@ -43,6 +52,8 @@ export function loadGenSettings() {
   const steps = Number(o.steps), cfg = Number(o.cfg);
   if (Number.isFinite(steps)) out.steps = Math.max(1, Math.min(150, Math.round(steps)));
   if (Number.isFinite(cfg)) out.cfg = Math.max(0, Math.min(30, Math.round(cfg * 10) / 10));
+  const bud = Number(o.pollenBudget); if (Number.isFinite(bud) && bud > 0) out.pollenBudget = Math.min(1000, Math.round(bud * 100) / 100);
+  if (!/^pk_[A-Za-z0-9_-]{4,200}$/.test(out.pollenClient)) out.pollenClient = DEFAULT_POLLEN_CLIENT;
   return out;
 }
 // An earlier version kept the key in these settings. Move it to the secrets store and take it out.
@@ -124,11 +135,11 @@ async function viaPollinations({ prompt, settings, fetchFn, signal, seed }) {
   if (!/^image\//.test(blob.type)) throw new Error('Pollinations did not send a picture.');
   return blobToDataUrl(blob);
 }
-async function viaOpenAi({ prompt, settings, apiKey, fetchFn, signal, image, strength }) {
+async function viaOpenAi({ prompt, settings, apiKey, fetchFn, signal, image, strength, missingKey }) {
   const base = cleanBase(settings.baseUrl);
   if (!isHttp(base)) throw new Error('Set the endpoint address (it starts with https://).');
   checkEndpoint(base);
-  if (!String(apiKey || '').trim()) throw new Error('Add your API key first.');
+  if (!String(apiKey || '').trim()) throw new Error(missingKey || 'Add your API key first.');
   const { w, h } = sizeOf(settings);
   const common = { credentials: 'omit', referrerPolicy: 'no-referrer', cache: 'no-store', redirect: 'error', signal };
   let res;
@@ -213,8 +224,14 @@ async function viaComfy({ prompt, settings, fetchFn, signal, seed, image, streng
   throw new Error('ComfyUI took too long.');
 }
 
-const ROUTES = { pollinations: viaPollinations, openai: viaOpenAi, swarmui: viaSwarm, comfyui: viaComfy };
-const urlOf = s => s.provider === 'openai' ? s.baseUrl : s.provider === 'swarmui' ? s.swarmUrl : s.provider === 'comfyui' ? s.comfyUrl : 'https://image.pollinations.ai';
+// Pollinations with the user's own account: the OpenAI-compatible endpoints at gen.pollinations.ai
+function viaPollen(a) {
+  const s = a.settings, editing = !!a.image;
+  return viaOpenAi({ ...a, settings: { ...s, baseUrl: POLLEN_BASE + '/v1', openaiModel: (editing ? s.pollenEditModel : s.pollenModel) || DEFAULT_MODEL_FALLBACK }, missingKey: 'Connect your Pollinations account first (or paste a key).' });
+}
+const DEFAULT_MODEL_FALLBACK = 'black-forest-labs/flux.1-schnell';
+const ROUTES = { pollinations: viaPollinations, pollen: viaPollen, openai: viaOpenAi, swarmui: viaSwarm, comfyui: viaComfy };
+const urlOf = s => s.provider === 'openai' ? s.baseUrl : s.provider === 'pollen' ? POLLEN_BASE : s.provider === 'swarmui' ? s.swarmUrl : s.provider === 'comfyui' ? s.comfyUrl : 'https://image.pollinations.ai';
 
 // Make a picture from a prompt. Returns a data URL.
 export async function generateImage({ prompt, settings, apiKey = '', fetchFn = (...a) => fetch(...a), signal, seed = Math.floor(Math.random() * 1e9), sleep }) {
@@ -223,13 +240,73 @@ export async function generateImage({ prompt, settings, apiKey = '', fetchFn = (
   catch (e) { throw Object.assign(new Error(explainNetworkError(e, urlOf(settings))), { name: e && e.name }); }
 }
 // Change a picture with a prompt (picture to picture). Not every provider can.
-export const CAN_EDIT = { pollinations: false, openai: true, swarmui: true, comfyui: true };
+export const CAN_EDIT = { pollinations: false, pollen: true, openai: true, swarmui: true, comfyui: true };
 export async function editImage({ prompt, image, strength = 0.6, settings, apiKey = '', fetchFn = (...a) => fetch(...a), signal, seed = Math.floor(Math.random() * 1e9), sleep }) {
-  if (!CAN_EDIT[settings.provider]) throw new Error('Pollinations cannot change a picture. Pick OpenAI-compatible, SwarmUI or ComfyUI in the generate settings.');
+  if (!CAN_EDIT[settings.provider]) throw new Error('The free Pollinations option cannot change a picture. Connect a Pollinations account, or pick OpenAI-compatible, SwarmUI or ComfyUI, in the generate settings.');
   if (!String(prompt || '').trim()) throw new Error('Say what to change first.');
   if (!/^data:image\//.test(String(image || ''))) throw new Error('There is no picture to change.');
   try { return await ROUTES[settings.provider]({ prompt, settings, apiKey, fetchFn, signal, seed, image, strength, sleep }); }
   catch (e) { throw Object.assign(new Error(explainNetworkError(e, urlOf(settings))), { name: e && e.name }); }
+}
+
+// ── Connect a Pollinations account (OAuth authorization code flow with PKCE) ──
+// People approve in a Pollinations page and LoreOS receives a temporary key that spends THEIR pollen, within a
+// budget and time they agreed to. LoreOS is identified by its App Key (client id). The key is handled like any other.
+const b64url = buf => { let s = ''; new Uint8Array(buf).forEach(b => { s += String.fromCharCode(b); }); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+export async function pkcePair() {
+  const verifier = b64url(crypto.getRandomValues(new Uint8Array(48)));
+  const challenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+  return { verifier, challenge };
+}
+export const POLLEN_AUTH = 'https://enter.pollinations.ai';
+export const redirectUri = () => location.origin + location.pathname;
+export function buildAuthorizeUrl({ clientId, redirect, state, challenge, budget = 5, models = 'image', expiry = 7 }) {
+  const q = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: redirect, state, code_challenge: challenge, code_challenge_method: 'S256', models, budget: String(budget), expiry: String(expiry) });
+  return POLLEN_AUTH + '/authorize?' + q.toString();
+}
+export async function exchangeCode({ code, verifier, clientId, redirect, fetchFn = (...a) => fetch(...a), signal }) {
+  const res = await fetchFn(POLLEN_AUTH + '/api/oauth/token', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, credentials: 'omit', referrerPolicy: 'no-referrer', cache: 'no-store', redirect: 'error', signal,
+    body: new URLSearchParams({ grant_type: 'authorization_code', code, client_id: clientId, redirect_uri: redirect, code_verifier: verifier }).toString(),
+  });
+  const d = await jsonOf(res);
+  if (!res.ok || !d || !d.access_token) throw new Error(d && (d.error_description || d.error) ? 'Pollinations said: ' + String(d.error_description || d.error).slice(0, 160) : 'Pollinations did not approve the connection (' + res.status + ').');
+  return { token: String(d.access_token), expiresIn: Number(d.expires_in) || 604800 };
+}
+const PENDING_KEY = 'loreos_pollen_pending', INFO_KEY = 'loreos_pollen_info';
+// Get ready to leave for the approval page. Returns the address to go to. (Kept apart from the redirect so it can be tested.)
+export async function prepareConnect(settings) {
+  if (!settings.pollenClient) throw new Error('This copy of LoreOS has no Pollinations App Key yet. Add one under "App Key" (made at enter.pollinations.ai/keys), or paste a key from there instead.');
+  if (!(typeof crypto !== 'undefined' && crypto.subtle)) throw new Error('Connecting needs https or localhost. You can paste a key instead.');
+  const { verifier, challenge } = await pkcePair();
+  const state = b64url(crypto.getRandomValues(new Uint8Array(24)));
+  const redirect = redirectUri();
+  sessionStorage.setItem(PENDING_KEY, JSON.stringify({ state, verifier, redirect, clientId: settings.pollenClient, at: Date.now() }));
+  return buildAuthorizeUrl({ clientId: settings.pollenClient, redirect, state, challenge, budget: settings.pollenBudget });
+}
+// Called at start-up: when the page was opened by the redirect back from Pollinations, finish the connection.
+// Returns null (not a return), or { ok, message }.
+export async function finishConnect({ url = location.href, fetchFn, save = setSecret, mode = 'session', passphrase = '' } = {}) {
+  const u = new URL(url), code = u.searchParams.get('code'), state = u.searchParams.get('state'), err = u.searchParams.get('error');
+  let pending = null; try { pending = JSON.parse(sessionStorage.getItem(PENDING_KEY) || 'null'); } catch (e) { /* none */ }
+  if (!pending || (!code && !err)) return null;
+  sessionStorage.removeItem(PENDING_KEY);                                       // one try only
+  if (!state || state !== pending.state || Date.now() - pending.at > 15 * 60 * 1000) return { ok: false, message: 'That connection attempt was not recognised or took too long. Start it again.' };
+  if (err) return { ok: false, message: err === 'access_denied' ? 'You declined the connection.' : 'Pollinations answered: ' + err.slice(0, 80) };
+  try {
+    const { token, expiresIn } = await exchangeCode({ code, verifier: pending.verifier, clientId: pending.clientId, redirect: pending.redirect, fetchFn });
+    const r = await save(POLLEN_KEY, token, mode, passphrase);
+    if (!r.ok) return { ok: false, message: r.error };
+    localStorage.setItem(INFO_KEY, JSON.stringify({ expires: Date.now() + expiresIn * 1000 }));
+    return { ok: true, message: 'Connected. Your Pollinations account is ready.', expiresIn };
+  } catch (e) { return { ok: false, message: e.message }; }
+}
+export function pollenExpiry() { try { const i = JSON.parse(localStorage.getItem(INFO_KEY) || 'null'); return i && Number(i.expires) || 0; } catch (e) { return 0; } }
+export async function listPollenModels(fetchFn = (...a) => fetch(...a)) {
+  const r = await fetchFn(POLLEN_BASE + '/image/models', { credentials: 'omit', referrerPolicy: 'no-referrer' });
+  const d = await jsonOf(r); if (!r.ok || !d) throw new Error(errText(d, r));
+  const list = Array.isArray(d) ? d : Array.isArray(d.data) ? d.data : [];
+  return list.map(m => typeof m === 'string' ? m : String(m.name || m.id || '')).filter(Boolean);
 }
 
 // ── Model lists (so you can pick instead of typing) ──
@@ -254,6 +331,7 @@ const S = () => loadGenSettings();
 // What the settings tell you about the connection, in plain words
 export function providerNote(s) {
   if (s.provider === 'pollinations') return 'Your prompt is sent to Pollinations (image.pollinations.ai). No account or key needed.';
+  if (s.provider === 'pollen') return 'Your prompt (and the picture, when editing) goes to Pollinations and is paid with your own pollen, using a temporary key you approve (limited budget, expires). The key is handled as you choose below. Image generation by pollinations.ai.';
   if (s.provider === 'openai') return 'Your prompt (and the picture, when editing) and your API key are sent to the address above. Only https addresses are accepted. The key is handled as you choose below.';
   const name = s.provider === 'swarmui' ? 'SwarmUI' : 'ComfyUI', url = s.provider === 'swarmui' ? s.swarmUrl : s.comfyUrl;
   let local = false; try { local = isPrivateHost(new URL(url).hostname); } catch (e) { /* not an address yet */ }
@@ -263,7 +341,10 @@ function paintSettings() {
   const s = S();
   g('genProvider').innerHTML = PROVIDERS.map(([v, l]) => `<option value="${v}"${s.provider === v ? ' selected' : ''}>${l}</option>`).join('');
   g('genModel').innerHTML = POLLINATIONS_MODELS.map(m => `<option value="${m}"${m === s.model ? ' selected' : ''}>${m}</option>`).join('');
-  ['pollinations', 'openai', 'swarmui', 'comfyui'].forEach(p => { g('genP-' + p).style.display = s.provider === p ? (p === 'pollinations' ? '' : 'flex') : 'none'; });
+  ['pollinations', 'pollen', 'openai', 'swarmui', 'comfyui'].forEach(p => { g('genP-' + p).style.display = s.provider === p ? (p === 'pollinations' ? '' : 'flex') : 'none'; });
+  g('genKeyBox').style.display = KEYED.includes(s.provider) ? 'flex' : 'none';
+  g('genPollModel').value = s.pollenModel; g('genPollEdit').value = s.pollenEditModel; g('genPollClient').value = s.pollenClient; g('genPollBudget').value = s.pollenBudget;
+  fillList('genPollModels', POLLEN_MODELS);
   g('genBase').value = s.baseUrl; g('genOModel').value = s.openaiModel;
   g('genSwarmUrl').value = s.swarmUrl; g('genSwarmModel').value = s.swarmModel;
   g('genComfyUrl').value = s.comfyUrl; g('genComfyCkpt').value = s.comfyCkpt; g('genComfyFlow').value = s.comfyWorkflow;
@@ -275,12 +356,15 @@ function paintSettings() {
   paintKey();
 }
 function paintKey() {
-  const info = secretInfo(KEY_NAME);
+  const prov = S().provider, info = secretInfo(keyNameFor(prov));
+  const exp = prov === 'pollen' ? pollenExpiry() : 0;
   g('genKeyMode').innerHTML = MODES.map(([v, l]) => `<option value="${v}"${(info.has ? info.mode : g('genKeyMode').dataset.mode || 'session') === v ? ' selected' : ''}>${l}</option>`).join('');
   g('genKeyMode').disabled = false;
   g('genKeyState').textContent = info.has ? `A key is saved (${info.mode === 'session' ? 'for this visit only' : info.mode === 'encrypted' ? 'encrypted' + (info.unlocked ? ', unlocked' : ', locked') : 'plain text'}), ending ${info.hint || '••••'}.` : 'No key saved.';
   g('genKeyForget').style.display = info.has ? '' : 'none';
-  g('genKey').placeholder = info.has ? 'Type a new key to replace it' : 'API key';
+  g('genKey').placeholder = info.has ? 'Type a new key to replace it' : (prov === 'pollen' ? 'Or paste a key from enter.pollinations.ai/keys' : 'API key');
+  g('genPollConnect').textContent = info.has && exp ? 'Connect again' : 'Connect Pollinations';
+  g('genPollState').textContent = prov !== 'pollen' ? '' : (exp && exp < Date.now() ? 'The connection has expired. Connect again.' : exp ? 'Connected until ' + new Date(exp).toLocaleDateString() + '.' : '');
   g('genKeyWarn').textContent = (info.has ? info.mode : g('genKeyMode').value) === 'plain' ? 'Plain text means anything that can read this site\'s data in this browser can read the key. Prefer the passphrase option.' : (location.protocol === 'https:' || isPrivateHost(location.hostname) ? '' : 'This page is not on https, so passphrase protection is not available.');
 }
 export function readSettings() {
@@ -291,6 +375,8 @@ export function readSettings() {
   s.baseUrl = v('genBase'); s.openaiModel = v('genOModel').trim() || DEFAULTS.openaiModel;
   s.swarmUrl = v('genSwarmUrl'); s.swarmModel = v('genSwarmModel').trim();
   s.comfyUrl = v('genComfyUrl'); s.comfyCkpt = v('genComfyCkpt').trim(); s.comfyWorkflow = v('genComfyFlow');
+  s.pollenModel = v('genPollModel').trim() || DEFAULTS.pollenModel; s.pollenEditModel = v('genPollEdit').trim() || DEFAULTS.pollenEditModel;
+  s.pollenClient = v('genPollClient').trim(); { const b = Number(v('genPollBudget')); s.pollenBudget = b > 0 ? Math.min(1000, b) : DEFAULTS.pollenBudget; }
   s.suffix = v('genSuffix').trim(); s.negative = v('genNeg').trim();
   s.steps = Math.max(1, Math.min(150, Math.round(Number(v('genSteps')) || DEFAULTS.steps))); s.cfg = Math.max(0, Math.min(30, Number(v('genCfg')) || DEFAULTS.cfg));
   saveGenSettings(s); return s;
@@ -305,7 +391,7 @@ async function commitKey() {
     const again = await askInput('Type the passphrase again', '', { secret: true });
     if (again !== pass) { toast('The passphrases did not match, so the key was not saved.', 'warn'); return false; }
   }
-  const r = await setSecret(KEY_NAME, typed, mode, pass);
+  const r = await setSecret(keyNameFor(S().provider), typed, mode, pass);
   if (!r.ok) { toast(r.error, 'err'); return false; }
   g('genKey').value = ''; paintKey(); return true;
 }
@@ -317,14 +403,15 @@ function showResult(url) {
 async function run() {
   if (running) return;
   const s = readSettings(); const prompt = g('genPrompt').value;
-  if (s.provider === 'openai' && !await commitKey()) return;
+  if (KEYED.includes(s.provider) && !await commitKey()) return;
   const btn = g('genGo'); btn.disabled = true; btn.textContent = 'Generating...'; g('genStatus').textContent = '';
   running = new AbortController();
   const timer = setTimeout(() => running && running.abort(), 180000);
   try {
-    const apiKey = s.provider === 'openai' ? await getSecret(KEY_NAME) : '';
+    const apiKey = KEYED.includes(s.provider) ? await getSecret(keyNameFor(s.provider)) : '';
+    if (s.provider === 'pollen' && pollenExpiry() && pollenExpiry() < Date.now() && apiKey) toast('Your Pollinations connection may have expired.', 'warn');
     const url = await generateImage({ prompt, settings: s, apiKey, signal: running.signal });
-    last = { prompt, model: s.provider === 'pollinations' ? 'pollinations/' + s.model : s.provider === 'openai' ? s.openaiModel : s.provider === 'swarmui' ? 'swarmui/' + (s.swarmModel || 'default') : 'comfyui/' + (s.comfyCkpt || 'workflow') };
+    last = { prompt, model: s.provider === 'pollinations' ? 'pollinations/' + s.model : s.provider === 'pollen' ? s.pollenModel : s.provider === 'openai' ? s.openaiModel : s.provider === 'swarmui' ? 'swarmui/' + (s.swarmModel || 'default') : 'comfyui/' + (s.comfyCkpt || 'workflow') };
     showResult(url);
   } catch (e) {
     g('genStatus').textContent = e && e.name === 'AbortError' ? 'Stopped (it took too long or you cancelled).' : (e && e.message) || 'That did not work.';
@@ -338,6 +425,20 @@ async function keep(edit) {
   closeModal('genModal'); refreshLibrary();
   if (edit) wsShowItem('image', id);
 }
+// If this page load is the way back from the Pollinations approval page, finish connecting and say how it went
+async function returnFromPollinations() {
+  let pendingOnly = false; try { pendingOnly = !!sessionStorage.getItem(PENDING_KEY); } catch (e) { /* none */ }
+  if (!pendingOnly) return;
+  const mode = (() => { try { return JSON.parse(localStorage.getItem(GEN_KEY) || '{}').keyMode || 'session'; } catch (e) { return 'session'; } })();
+  let pass = '';
+  if (mode === 'encrypted' && new URL(location.href).searchParams.get('code')) { pass = await askInput('Choose a passphrase to lock your Pollinations key (8 or more characters).', '', { secret: true }) || ''; }
+  const r = await finishConnect({ mode: pass || mode === 'plain' ? mode : 'session', passphrase: pass });
+  if (!r) return;
+  try { history.replaceState(null, '', location.pathname); } catch (e) { /* fine */ }
+  const s = S(); s.provider = 'pollen'; saveGenSettings(s);
+  openGenerate(); g('genStatus').textContent = ''; toast(r.message, r.ok ? 'ok' : 'warn', { ms: 6000 });
+  if (!r.ok) g('genStatus').textContent = r.message;
+}
 export function openGenerate(prompt = '') {
   paintSettings(); showResult(null); g('genStatus').textContent = ''; g('genGo').textContent = 'Generate';
   if (prompt) g('genPrompt').value = prompt;
@@ -347,10 +448,14 @@ const fillList = (id, names) => { g(id).innerHTML = names.map(n => `<option valu
 export function wireImageGen() {
   hooks.generate = () => openGenerate();
   migrateOldKey();
+  returnFromPollinations();
   g('genProvider').onchange = () => { readSettings(); paintSettings(); };
   ['genModel', 'genBase', 'genOModel', 'genSwarmUrl', 'genSwarmModel', 'genComfyUrl', 'genComfyCkpt', 'genComfyFlow', 'genSuffix', 'genNeg', 'genSteps', 'genCfg'].forEach(id => g(id).addEventListener('change', () => { readSettings(); g('genPrivacy').textContent = providerNote(S()); }));
-  g('genKeyMode').onchange = () => { g('genKeyMode').dataset.mode = g('genKeyMode').value; paintKey(); };
-  g('genKeyForget').onclick = () => { forgetSecret(KEY_NAME); paintKey(); toast('The saved key was removed.', 'ok'); };
+  g('genKeyMode').onchange = () => { g('genKeyMode').dataset.mode = g('genKeyMode').value; try { const o = JSON.parse(localStorage.getItem(GEN_KEY) || '{}'); o.keyMode = g('genKeyMode').value; localStorage.setItem(GEN_KEY, JSON.stringify(o)); } catch (e) { /* fine */ } paintKey(); };
+  g('genKeyForget').onclick = () => { forgetSecret(keyNameFor(S().provider)); if (S().provider === 'pollen') { try { localStorage.removeItem(INFO_KEY); } catch (e) { /* fine */ } } paintKey(); toast('The saved key was removed.', 'ok'); };
+  ['genPollModel', 'genPollEdit', 'genPollClient', 'genPollBudget'].forEach(id => g(id).addEventListener('change', () => { readSettings(); paintKey(); }));
+  g('genPollConnect').onclick = async () => { try { const s = readSettings(); const url = await prepareConnect(s); g('genStatus').textContent = ''; location.assign(url); } catch (e) { g('genStatus').textContent = e.message; } };
+  g('genPollLoad').onclick = async () => { try { const l = await listPollenModels(); fillList('genPollModels', l.length ? l : POLLEN_MODELS); toast(l.length ? `Found ${l.length} models.` : 'No models found.', l.length ? 'ok' : 'warn'); } catch (e) { g('genStatus').textContent = explainNetworkError(e, POLLEN_BASE); } };
   g('genSwarmLoad').onclick = async () => { try { const l = await listSwarmModels(readSettings(), (u, o) => secureFetchLocal(u, o)); fillList('genSwarmModels', l); toast(l.length ? `Found ${l.length} models.` : 'No models found.', l.length ? 'ok' : 'warn'); } catch (e) { g('genStatus').textContent = explainNetworkError(e, S().swarmUrl); } };
   g('genComfyLoad').onclick = async () => { try { const l = await listComfyCheckpoints(readSettings(), (u, o) => secureFetchLocal(u, o)); fillList('genComfyCkpts', l); toast(l.length ? `Found ${l.length} checkpoints.` : 'No checkpoints found.', l.length ? 'ok' : 'warn'); } catch (e) { g('genStatus').textContent = explainNetworkError(e, S().comfyUrl); } };
   g('genGo').onclick = run;
@@ -371,12 +476,22 @@ registerMarkup(192, `<div id="genModal" class="modal">
       <div id="genP-openai" style="display:none;flex-direction:column;gap:.4rem">
         <input class="finput" id="genBase" placeholder="https://api.openai.com/v1" autocomplete="off" aria-label="Endpoint address">
         <input class="finput" id="genOModel" placeholder="Model, like gpt-image-1" autocomplete="off" aria-label="Model">
+      </div>
+      <div id="genP-pollen" style="display:none;flex-direction:column;gap:.4rem">
+        <div class="pr-row"><input class="finput" id="genPollModel" list="genPollModels" placeholder="Model for new pictures" autocomplete="off" aria-label="Pollinations model" style="flex:1"><datalist id="genPollModels"></datalist><button class="btn btn-s btn-sm" id="genPollLoad" type="button">Load models</button></div>
+        <input class="finput" id="genPollEdit" list="genPollModels" placeholder="Model for AI edits (must accept a picture)" autocomplete="off" aria-label="Pollinations model for edits">
+        <div class="pr-row" style="align-items:center"><button class="btn btn-p btn-sm" id="genPollConnect" type="button">Connect Pollinations</button><label class="rx-none">Spending limit <input class="finput" id="genPollBudget" type="number" min="0.1" step="0.5" style="width:80px"> pollen</label></div>
+        <div class="rx-none" id="genPollState"></div>
+        <details><summary class="rx-none" style="cursor:pointer">App Key (advanced)</summary><input class="finput" id="genPollClient" placeholder="pk_... (the App Key LoreOS identifies itself with)" autocomplete="off" aria-label="App Key" style="margin-top:.4rem"><div class="rx-none">Made at enter.pollinations.ai/keys. Its redirect address must be this page's address.</div></details>
+        <div class="rx-none"><a href="https://pollinations.ai/?ref=badge" target="_blank" rel="noopener noreferrer">Made with pollinations.ai</a></div>
+      </div>
+      <div id="genKeyBox" style="display:none;flex-direction:column;gap:.4rem">
         <input class="finput" id="genKey" type="password" placeholder="API key" autocomplete="new-password" aria-label="API key">
         <select class="finput" id="genKeyMode" aria-label="What to do with the key"></select>
         <div class="rx-none" id="genKeyState"></div>
         <div class="rx-none" id="genKeyWarn" style="color:var(--warn,#d9a441)"></div>
         <div><button class="btn btn-s btn-sm" id="genKeyForget" type="button">Forget the saved key</button></div>
-      </div>
+            </div>
       <div id="genP-swarmui" style="display:none;flex-direction:column;gap:.4rem">
         <input class="finput" id="genSwarmUrl" placeholder="http://localhost:7801" autocomplete="off" aria-label="SwarmUI address">
         <div class="pr-row"><input class="finput" id="genSwarmModel" list="genSwarmModels" placeholder="Model (optional)" autocomplete="off" aria-label="SwarmUI model" style="flex:1"><datalist id="genSwarmModels"></datalist><button class="btn btn-s btn-sm" id="genSwarmLoad" type="button">Load models</button></div>

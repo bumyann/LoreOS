@@ -96,6 +96,45 @@
  forgetAllSecrets(); localStorage.removeItem(GEN_KEY);
  { // the key must not appear in a backup
    await setSecret(KEY_NAME,'sk-must-not-leak','plain'); const bundle=JSON.stringify(syncBundleData()); chk('a saved key is not in a backup', !bundle.includes('sk-must-not-leak')); forgetAllSecrets(); }
+ // ── Pollinations account (OAuth with PKCE, then the OpenAI-compatible endpoints) ──
+ { sessionStorage.clear();
+   const pair=await pkcePair(); const dig=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pair.verifier)); const exp=btoa(String.fromCharCode(...new Uint8Array(dig))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+   chk('PKCE: the challenge is the SHA-256 of the verifier, url-safe', pair.challenge===exp && pair.verifier.length>=43 && /^[A-Za-z0-9_-]+$/.test(pair.verifier));
+   const au=new URL(buildAuthorizeUrl({clientId:'pk_demo123',redirect:'https://loreos.net/',state:'st',challenge:'ch',budget:5}));
+   chk('authorize link: code flow, S256, this app, a budget, image models only', au.origin==='https://enter.pollinations.ai' && au.pathname==='/authorize' && au.searchParams.get('response_type')==='code' && au.searchParams.get('client_id')==='pk_demo123' && au.searchParams.get('redirect_uri')==='https://loreos.net/' && au.searchParams.get('code_challenge_method')==='S256' && au.searchParams.get('budget')==='5' && au.searchParams.get('models')==='image' && !au.searchParams.has('scope'), au.search);
+   try{ await prepareConnect({...DEFAULTS}); chk('no App Key: it says so',false); }catch(e){ chk('no App Key: it says so instead of leaving', /App Key/.test(e.message)); }
+   const url=await prepareConnect({...DEFAULTS,pollenClient:'pk_demo123',pollenBudget:3}); const pend=JSON.parse(sessionStorage.getItem('loreos_pollen_pending'));
+   chk('before leaving, the verifier and state wait in this tab', !!pend && pend.clientId==='pk_demo123' && new URL(url).searchParams.get('state')===pend.state && !localStorage.getItem('loreos_pollen_pending') && new URL(url).searchParams.get('budget')==='3');
+   const calls2=[]; const tokenFetch=async(u,o)=>{ calls2.push([u,o]); return {ok:true,status:200,json:async()=>({access_token:'sk_user_temp_9999',token_type:'bearer',expires_in:604800,scope:''})}; };
+   const saved=[]; const save=async(n,v,m)=>{ saved.push([n,v,m]); return {ok:true}; };
+   const bad=await finishConnect({url:'https://x.test/?code=abc&state=WRONG',fetchFn:tokenFetch,save}); chk('a wrong state is refused, and nothing is exchanged', bad&&!bad.ok && calls2.length===0 && saved.length===0 && !sessionStorage.getItem('loreos_pollen_pending'));
+   await prepareConnect({...DEFAULTS,pollenClient:'pk_demo123'}); const st=JSON.parse(sessionStorage.getItem('loreos_pollen_pending')).state; const ver=JSON.parse(sessionStorage.getItem('loreos_pollen_pending')).verifier;
+   const ok=await finishConnect({url:'https://x.test/?code=abc&state='+st,fetchFn:tokenFetch,save,mode:'session'});
+   const body=new URLSearchParams(calls2[0][1].body);
+   chk('the code is exchanged with the verifier at the token endpoint', ok&&ok.ok && calls2[0][0]==='https://enter.pollinations.ai/api/oauth/token' && body.get('grant_type')==='authorization_code' && body.get('code')==='abc' && body.get('code_verifier')===ver && body.get('client_id')==='pk_demo123' && calls2[0][1].credentials==='omit', [...body.keys()]);
+   chk('the key goes to the secret store, not the settings', saved[0][0]==='pollen' && saved[0][1]==='sk_user_temp_9999' && !JSON.stringify(localStorage).includes('sk_user_temp_9999'));
+   chk('the expiry is remembered', pollenExpiry()>Date.now()+6*86400000);
+   chk('a return can only be used once', (await finishConnect({url:'https://x.test/?code=abc&state='+st,fetchFn:tokenFetch,save}))===null);
+   chk('a page that is not a return is ignored', (await finishConnect({url:'https://x.test/'}))===null);
+   await prepareConnect({...DEFAULTS,pollenClient:'pk_demo123'}); const st2=JSON.parse(sessionStorage.getItem('loreos_pollen_pending')).state;
+   const den=await finishConnect({url:'https://x.test/?error=access_denied&state='+st2,fetchFn:tokenFetch,save}); chk('declining is handled kindly', den&&!den.ok&&/declined/.test(den.message));
+   await prepareConnect({...DEFAULTS,pollenClient:'pk_demo123'}); const st3=JSON.parse(sessionStorage.getItem('loreos_pollen_pending')).state;
+   const fail=await finishConnect({url:'https://x.test/?code=zzz&state='+st3,fetchFn:async()=>({ok:false,status:400,json:async()=>({error:'invalid_grant',error_description:'code expired'})}),save}); chk('a refused code shows why', fail&&!fail.ok&&/code expired/.test(fail.message));
+   await prepareConnect({...DEFAULTS,pollenClient:'pk_demo123'}); const old=JSON.parse(sessionStorage.getItem('loreos_pollen_pending')); old.at=Date.now()-20*60000; sessionStorage.setItem('loreos_pollen_pending',JSON.stringify(old));
+   chk('an old attempt is not accepted', !(await finishConnect({url:'https://x.test/?code=a&state='+old.state,fetchFn:tokenFetch,save})).ok);
+   // generation and editing through the account
+   const pl=[]; const pf=async(u,o)=>{ pl.push([u,o]); return {ok:true,status:200,json:async()=>({data:[{b64_json:await b64()}]})}; };
+   const ps={...DEFAULTS,provider:'pollen',pollenModel:'black-forest-labs/flux.1-schnell',pollenEditModel:'openai/gpt-image-1-mini',size:1};
+   const pu=await generateImage({prompt:'a heron',settings:ps,apiKey:'sk_user_temp_9999',fetchFn:pf}); const pb=JSON.parse(pl[0][1].body);
+   chk('account generation: gen.pollinations.ai OpenAI-compatible, their key, the chosen model', pl[0][0]==='https://gen.pollinations.ai/v1/images/generations' && pl[0][1].headers.Authorization==='Bearer sk_user_temp_9999' && pb.model==='black-forest-labs/flux.1-schnell' && pb.size==='768x1024' && pu.startsWith('data:image/'), [pl[0][0],pb]);
+   pl.length=0; await editImage({prompt:'remove the background',image:url1,settings:ps,apiKey:'sk_user_temp_9999',fetchFn:pf});
+   chk('account editing: /images/edits with the edit model', pl[0][0]==='https://gen.pollinations.ai/v1/images/edits' && pl[0][1].body.get('model')==='openai/gpt-image-1-mini' && pl[0][1].body.get('image') instanceof Blob && CAN_EDIT.pollen, [pl[0][0]]);
+   chk('no key: says to connect', /Connect your Pollinations account/.test(await rej(()=>generateImage({prompt:'x',settings:ps,apiKey:'',fetchFn:pf}))));
+   chk('a rejected key shows the server\'s reason', /not enough pollen/.test(await rej(()=>generateImage({prompt:'x',settings:ps,apiKey:'k',fetchFn:async()=>({ok:false,status:402,json:async()=>({error:{message:'not enough pollen'}})})}))));
+   chk('the App Key must look like a publishable key', loadGenSettings().pollenClient==='' && (saveGenSettings({pollenClient:'sk_secret_oops'}), loadGenSettings().pollenClient==='') && (saveGenSettings({pollenClient:'pk_fine1234'}), loadGenSettings().pollenClient==='pk_fine1234'));
+   localStorage.removeItem(GEN_KEY);
+   chk('model list is read from the catalog, any shape', (await listPollenModels(async()=>({ok:true,json:async()=>(['a/b',{name:'c/d'},{id:'e/f'}])}))).join()==='a/b,c/d,e/f');
+   forgetAllSecrets(); localStorage.removeItem('loreos_pollen_info'); sessionStorage.clear(); }
  // ── the page itself: no way to run injected script ──
  { const meta=document.querySelector('meta[http-equiv="Content-Security-Policy"]'); chk('a Content Security Policy is set', !!meta && /script-src 'self'/.test(meta.content) && !/unsafe-inline[^;]*;[^]*script-src|script-src[^;]*unsafe-inline/.test(meta.content) && /object-src 'none'/.test(meta.content) && /base-uri 'self'/.test(meta.content));
    let violated=false; const onv=e=>{ if(e.violatedDirective.startsWith('script-src')) violated=true; }; document.addEventListener('securitypolicyviolation',onv);
@@ -135,6 +174,10 @@
  chk('a failed request shows a message and re-enables Generate', /503/.test(document.getElementById('genStatus').textContent) && !document.getElementById('genGo').disabled);
  window.fetch=realFetch;
  // editor hook
+ document.getElementById('genProvider').value='pollen'; document.getElementById('genProvider').dispatchEvent(new Event('change')); await w(150);
+ chk('the account provider shows connect, models and the badge link', document.getElementById('genP-pollen').style.display==='flex' && document.getElementById('genKeyBox').style.display==='flex' && !!document.querySelector('#genP-pollen a[href*="pollinations.ai"]') && /pollen/.test(document.getElementById('genPrivacy').textContent));
+ document.getElementById('genPollConnect').click(); await w(200);
+ chk('connecting without an App Key explains instead of navigating', /App Key/.test(document.getElementById('genStatus').textContent) && location.hostname!=='enter.pollinations.ai');
  chk('the editor can open the dialog', typeof hooks.generate==='function');
  return out;
 })()

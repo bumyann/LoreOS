@@ -17,7 +17,7 @@ import { wsMarkSaved, wsMarkUnsaved, wsShowItem, renderWsTabs } from './workshop
 import * as ops from './image_ops.js';
 import { readFileAsDataUrl, resizeImage } from './avatar.js';
 import { stampAdd, stampRemove, stampUpdate, stampsGet } from './stamps.js';
-import { CAN_EDIT, KEY_NAME, editImage, loadGenSettings } from './imagegen.js';
+import { CAN_EDIT, KEYED, editImage, keyNameFor, loadGenSettings } from './imagegen.js';
 import { getSecret } from './secrets.js';
 
 const sessions = new Map();          // picture id -> session
@@ -401,7 +401,7 @@ function panelCutout(s, p) {
 
 // ── Change the picture with words (needs a provider that can: OpenAI-compatible, SwarmUI or ComfyUI) ──
 function panelAi(s, p) {
-  const gs = loadGenSettings(), can = CAN_EDIT[gs.provider], who = { pollinations: 'Pollinations', openai: 'OpenAI-compatible', swarmui: 'SwarmUI', comfyui: 'ComfyUI' }[gs.provider];
+  const gs = loadGenSettings(), can = CAN_EDIT[gs.provider], who = { pollinations: 'Pollinations (free)', pollen: 'your Pollinations account', openai: 'OpenAI-compatible', swarmui: 'SwarmUI', comfyui: 'ComfyUI' }[gs.provider];
   p.innerHTML = `<div class="rx-none">Provider: <b>${esc(who)}</b>${can ? '' : ' (cannot change pictures)'} <button class="btn btn-s btn-sm" id="aiSettings" type="button">Settings</button></div>
     <textarea class="ftextarea" id="aiPrompt" style="min-height:80px" placeholder="What should change? Make the dress red. Remove the background. Add falling snow...">${esc(aiPrompt)}</textarea>
     <div class="img-presets">${['Remove the background', 'Make it night', 'Make it look like a watercolour painting', 'Change the hair colour to silver'].map(x => `<button type="button" class="img-preset" data-ex="${esc(x)}">${esc(x)}</button>`).join('')}</div>
@@ -420,7 +420,7 @@ function panelAi(s, p) {
     bake(s); aiBusy = new AbortController(); g('aiGo').disabled = true; g('aiGo').textContent = 'Working...';
     const timer = setTimeout(() => aiBusy && aiBusy.abort(), 240000);
     try {
-      const key = gs.provider === 'openai' ? await getSecret(KEY_NAME) : '';
+      const key = KEYED.includes(gs.provider) ? await getSecret(keyNameFor(gs.provider)) : '';
       const image = ops.toDataUrl(ops.previewCanvas(s.canvas, 1536), 'image/png');
       const out = await editImage({ prompt: aiPrompt, image, strength: aiStrength, settings: gs, apiKey: key, signal: aiBusy.signal });
       const c = await canvasFromUrl(out); edit(s, () => c);
