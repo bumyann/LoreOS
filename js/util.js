@@ -66,9 +66,11 @@ export function closeModal(id) {
 // Promise-based confirm modal — replaces native confirm() which gets silently
 // blocked/auto-rejected in sandboxed iframe contexts (e.g. in-chat previews)
 // Promise-based input modal — replaces native prompt() which is blocked in sandboxed iframes
-export function askInput(message, defaultValue = '') {
+export function askInput(message, defaultValue = '', { secret = false } = {}) {
   return new Promise(resolve => {
     g('renameModalMsg').textContent = message;
+    g('renameModalInput').type = secret ? 'password' : 'text';
+    g('renameModalInput').autocomplete = secret ? 'new-password' : 'off';
     g('renameModalInput').value = defaultValue;
     openModal('renameModal');
     setTimeout(() => { g('renameModalInput').focus(); g('renameModalInput').select(); }, 80);
@@ -78,6 +80,7 @@ export function askInput(message, defaultValue = '') {
       okBtn.removeEventListener('click', onOk);
       cancelBtn.removeEventListener('click', onCancel);
       g('renameModalInput').removeEventListener('keydown', onKey);
+      g('renameModalInput').value = ''; g('renameModalInput').type = 'text';
       closeModal('renameModal');
       resolve(result);
     };
