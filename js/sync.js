@@ -7,7 +7,7 @@ import { cancelDrivePush, gdriveAutoPush, wireGdrive } from './gdrive.js';
 import { openLibrary } from './library.js';
 import { openPresetLibrary } from './preset.js';
 import { kvFlush, kvMode, store } from './kv.js';
-import { cancelJournalAutosave } from './router.js';
+import { cancelJournalAutosave } from './journal.js';
 import { state } from './state.js';
 import { cancelLoreSnapshot, isQuotaError, safeSet, storageUsage } from './storage.js';
 import { renderTemplateList } from './templates.js';
