@@ -960,3 +960,16 @@ textarea.bad{border-color:var(--err,#e0707f)}
 .hb-card.hb-fixed .hb-text{overflow:hidden;flex:1;min-height:0}
 .hb-image.hb-fixed img{flex:1;min-height:0;width:100%;height:100%;object-fit:cover}
 .hb-image.hb-fixed figcaption{flex-shrink:0}
+
+/* ── Gallery: polaroid prints (any size or shape of picture) ── */
+.gal-grid{column-gap:16px}
+.gal-item{margin:0 0 20px;padding:9px 9px 0;background:#f5f1e8;border:0;border-radius:2px;overflow:visible;box-shadow:0 2px 3px rgba(0,0,0,.35),0 8px 18px rgba(0,0,0,.28);transform:rotate(var(--tilt,0deg));transition:transform .15s,box-shadow .15s}
+.gal-item:nth-child(4n+1){--tilt:-1.1deg}.gal-item:nth-child(4n+2){--tilt:.8deg}.gal-item:nth-child(4n+3){--tilt:-.5deg}.gal-item:nth-child(4n+4){--tilt:1.2deg}
+.gal-item:hover,.gal-item:focus-visible{transform:rotate(0deg) translateY(-3px) scale(1.015);box-shadow:0 4px 6px rgba(0,0,0,.35),0 16px 28px rgba(0,0,0,.35);border:0;z-index:2}
+.gal-item:focus-visible{outline:2px solid var(--p);outline-offset:3px}
+.gal-item img{border-radius:1px;background:#1a1a1a;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+.gal-cap{position:static;opacity:1;background:none;padding:.5rem .15rem .7rem;color:#2b2823;font-family:"Segoe Print","Bradley Hand","Comic Sans MS","Marker Felt",cursive;font-size:.74rem;align-items:baseline}
+.gal-cap span:last-child{font-size:.56rem;font-family:var(--fx);color:#8a8272;letter-spacing:.5px;text-transform:uppercase;flex-shrink:0}
+.gal-fav{top:14px;right:14px;color:#ffd35c;text-shadow:0 0 3px rgba(0,0,0,.9)}
+.gal-grid.s .gal-item{padding:6px 6px 0;margin-bottom:14px}.gal-grid.s .gal-cap{font-size:.62rem;padding:.35rem .1rem .45rem}
+@media (prefers-reduced-motion:reduce){.gal-item,.gal-item:hover{transform:none;transition:none}}
