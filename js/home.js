@@ -27,6 +27,11 @@ export const safeUrl = u => { const s = String(u || '').trim(); return /^https?:
 const cleanColor = v => (typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v.trim()) ? v.trim().toLowerCase() : '');
 const cleanImg = v => (typeof v === 'string' && v.startsWith('data:image/') && v.length <= MAX_IMG ? v : '');
 
+// Shape of a card as width / height. 0 means "fit the content"; anything else is a fixed shape, from very tall to very long
+export const AR_MIN = 0.2, AR_MAX = 6;
+export const cleanAr = v => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.round(Math.min(AR_MAX, Math.max(AR_MIN, n)) * 1000) / 1000 : 0; };
+export const SHAPES = [['0', 'Fit the content'], ['1', 'Square'], ['1.333', 'Rectangle 4:3'], ['0.75', 'Portrait 3:4'], ['2', 'Wide 2:1'], ['3.5', 'Long and thin 7:2'], ['0.5', 'Tall 1:2'], ['0.286', 'Tall and thin 2:7']];
+
 export function normalizeCard(c) {
   const o = isObj(c) ? c : {};
   const type = CARD_TYPES.some(t => t[0] === o.type) ? o.type : 'note';
@@ -36,6 +41,7 @@ export function normalizeCard(c) {
     url: type === 'link' ? safeUrl(o.url) : '', image: type === 'image' ? cleanImg(o.image) : '',
     color: cleanColor(o.color), createdAt: typeof o.createdAt === 'string' ? o.createdAt : '',
     w: Math.min(MAX_SPAN, Math.max(1, Math.round(Number(o.w)) || 1)),
+    ar: cleanAr(o.ar),
     iw: type === 'image' ? dim(o.iw) : 0, ih: type === 'image' ? dim(o.ih) : 0,
   };
 }
@@ -64,8 +70,8 @@ const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } 
 
 function cardHtml(c) {
   const style = ` style="--w:${c.w || 1}${c.color ? `;--hb:${esc(c.color)}` : ''}"`;
-  const edit = `data-card="${esc(c.id)}" data-w="${c.w || 1}" tabindex="0" role="button" aria-label="Edit ${esc(c.title || c.type + ' card')}"`;
-  const grip = '<span class="hb-resize" data-resize title="Drag to resize (Alt+Shift+arrows with the keyboard)" aria-hidden="true"></span>';
+  const edit = `data-card="${esc(c.id)}" data-w="${c.w || 1}"${c.ar ? ` data-ar="${c.ar}"` : ''} tabindex="0" role="button" aria-label="Edit ${esc(c.title || c.type + ' card')}"`;
+  const grip = '<span class="hb-resize" data-resize title="Drag to resize in any direction (Alt+Shift+arrows with the keyboard)" aria-hidden="true"></span>';
   if (c.type === 'image') return `<figure class="hb-card hb-image" ${edit}${style}>${c.image ? `<img src="${esc(c.image)}" alt="${esc(c.title)}"${c.iw && c.ih ? ` width="${c.iw}" height="${c.ih}"` : ''} loading="lazy">` : '<div class="hb-noimg">no picture</div>'}${c.title || c.text ? `<figcaption>${c.title ? `<b>${esc(c.title)}</b>` : ''}${c.text ? `<span>${esc(c.text)}</span>` : ''}</figcaption>` : ''}${grip}</figure>`;
   if (c.type === 'link') return `<div class="hb-card hb-link${c.color ? ' tinted' : ''}" ${edit}${style}><div class="hb-title">${esc(c.title || hostOf(c.url) || 'Link')}</div>${c.text ? `<div class="hb-text">${esc(c.text)}</div>` : ''}${c.url ? `<a class="hb-open" href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(hostOf(c.url))} ↗</a>` : '<div class="hb-text">No link yet</div>'}${grip}</div>`;
   return `<div class="hb-card hb-note${c.color ? ' tinted' : ''}" ${edit}${style}>${c.title ? `<div class="hb-title">${esc(c.title)}</div>` : ''}<div class="hb-text">${esc(c.text)}</div>${grip}</div>`;
@@ -158,10 +164,13 @@ export function renderHomeDashboard(el) {
     n.addEventListener('keydown', e => {
       if (e.key === 'Enter' && e.target === n) { edit(); return; }
       // Alt + Shift + Left/Right makes it narrower or wider
-      if (e.altKey && e.shiftKey && e.target === n && /^Arrow(Left|Right)$/.test(e.key)) {
+      if (e.altKey && e.shiftKey && e.target === n && /^Arrow(Left|Right|Up|Down)$/.test(e.key)) {
         e.preventDefault();
         const id = n.dataset.card, h = homeGet(), c = h.board.find(x => x.id === id);
-        if (c) { c.w = Math.min(MAX_SPAN, Math.max(1, (c.w || 1) + (e.key === 'ArrowRight' ? 1 : -1))); homeSet(h); rerender(); const again = document.querySelector('[data-card="' + id + '"]'); if (again) again.focus(); }
+        if (c) {
+          if (/Left|Right/.test(e.key)) c.w = Math.min(MAX_SPAN, Math.max(1, (c.w || 1) + (e.key === 'ArrowRight' ? 1 : -1)));
+          else { const r = n.getBoundingClientRect(), h0 = r.height + (e.key === 'ArrowDown' ? 40 : -40); c.ar = cleanAr(r.width / Math.max(40, h0)); }
+          homeSet(h); rerender(); const again = document.querySelector('[data-card="' + id + '"]'); if (again) again.focus(); }
         return;
       }
       // Alt + arrow keys move the card without a mouse
@@ -231,11 +240,21 @@ function wireBoardDrag(board) {
     }
     e.preventDefault();
     st.ghost.style.left = (e.clientX - st.offX) + 'px'; st.ghost.style.top = (e.clientY - st.offY) + 'px';
-    const hit = document.elementFromPoint(e.clientX, e.clientY);
-    const t = hit && hit.closest ? hit.closest('.hb-card') : null;
-    if (t && t !== st.card && board.contains(t)) {
-      const r = t.getBoundingClientRect();
-      board.insertBefore(st.card, e.clientY < r.top + r.height / 2 ? t : t.nextSibling);
+    // drop anywhere: the card goes next to whichever one is nearest to the pointer
+    const br = board.getBoundingClientRect(), M = 60;
+    if (e.clientX < br.left - M || e.clientX > br.right + M || e.clientY < br.top - M || e.clientY > br.bottom + M) return;
+    let best = null, bd = Infinity;
+    board.querySelectorAll('.hb-card').forEach(c => {
+      if (c === st.card) return;
+      const r = c.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+      const d = inside ? 0 : Math.hypot(e.clientX - cx, e.clientY - cy);
+      if (d < bd) { bd = d; best = { c, nx: (e.clientX - cx) / r.width, ny: (e.clientY - cy) / r.height }; }
+    });
+    if (best) {
+      const before = Math.abs(best.nx) > Math.abs(best.ny) ? best.nx < 0 : best.ny < 0;
+      const ref = before ? best.c : best.c.nextSibling;
+      if (ref !== st.card && st.card.nextSibling !== ref) board.insertBefore(st.card, ref);
     }
   };
   const onUp = e => {
@@ -271,9 +290,14 @@ export function layoutBoard(board) {
   if (!board || !board.isConnected) return;
   const cols = boardColumns(board.clientWidth);
   board.style.setProperty('--cols', cols);
+  const colW = (board.clientWidth - GAP * (cols - 1)) / cols;
   board.querySelectorAll('.hb-card').forEach(card => {
-    const want = Number(card.dataset.w) || 1;
-    card.style.setProperty('--w', Math.min(want, cols));
+    const want = Math.min(Number(card.dataset.w) || 1, cols);
+    card.style.setProperty('--w', want);
+    // a fixed shape: the height follows from the width, so the shape survives a different screen
+    const ar = cleanAr(card.dataset.ar);
+    card.classList.toggle('hb-fixed', !!ar);
+    card.style.height = ar ? Math.round((want * colW + (want - 1) * GAP) / ar) + 'px' : '';
     card.style.gridRowEnd = 'span ' + Math.max(1, Math.ceil((card.getBoundingClientRect().height + GAP) / ROW));
   });
 }
@@ -295,12 +319,19 @@ function wireBoardResize(board) {
     e.preventDefault(); e.stopPropagation();
     const cols = boardColumns(board.clientWidth);
     const colW = (board.clientWidth - GAP * (cols - 1)) / cols;
-    const startX = e.clientX, startW = card.getBoundingClientRect().width;
-    let span = Number(card.dataset.w) || 1;
+    const startX = e.clientX, startY = e.clientY, r0 = card.getBoundingClientRect(), startW = r0.width, startH = r0.height;
+    let span = Number(card.dataset.w) || 1, ar = cleanAr(card.dataset.ar), touchedH = false;
     card.classList.add('hb-resizing');
     const move = ev => {
       const w = startW + (ev.clientX - startX);
       span = Math.max(1, Math.min(MAX_SPAN, cols, Math.round((w + GAP) / (colW + GAP))));
+      // height moves freely; a card that was "fit the content" only becomes a fixed shape once dragged up or down
+      if (touchedH || Math.abs(ev.clientY - startY) > 8) {
+        touchedH = true;
+        const spanW = span * colW + (span - 1) * GAP, hh = Math.max(48, startH + (ev.clientY - startY));
+        ar = ev.shiftKey ? 1 : cleanAr(spanW / hh);
+        card.dataset.ar = ar;
+      }
       card.dataset.w = span; layoutBoard(board);
     };
     const up = () => {
@@ -308,7 +339,7 @@ function wireBoardResize(board) {
       card.classList.remove('hb-resizing');
       justDragged = true; setTimeout(() => { justDragged = false; }, 80);
       const h = homeGet(), c = h.board.find(x => x.id === card.dataset.card);
-      if (c && c.w !== span) { c.w = span; homeSet(h); }
+      if (c && (c.w !== span || (touchedH && c.ar !== ar))) { c.w = span; if (touchedH) c.ar = ar; homeSet(h); }
     };
     document.addEventListener('pointermove', move); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
   });
@@ -410,8 +441,11 @@ export function openCardEditor(id, type) {
   const home = homeGet();
   const card = id ? home.board.find(c => c.id === id) : null;
   if (id && !card) return;
-  editing = { id: card ? card.id : null, type: card ? card.type : (CARD_TYPES.some(t => t[0] === type) ? type : 'note'), image: card ? card.image : '', color: card ? card.color : '', iw: card ? card.iw : 0, ih: card ? card.ih : 0 };
+  editing = { id: card ? card.id : null, type: card ? card.type : (CARD_TYPES.some(t => t[0] === type) ? type : 'note'), image: card ? card.image : '', color: card ? card.color : '', iw: card ? card.iw : 0, ih: card ? card.ih : 0, ar: 0 };
   g('hbSize').value = String(card ? card.w || 1 : 1);
+  editing.ar = card ? card.ar : 0;
+  g('hbShape').innerHTML = SHAPES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('') + '<option value="custom" hidden>Custom (dragged)</option>';
+  g('hbShape').value = SHAPES.some(s => Number(s[0]) === editing.ar) ? String(SHAPES.find(s => Number(s[0]) === editing.ar)[0]) : 'custom';
   g('hbTitle').value = card ? card.title : '';
   g('hbText').value = card ? card.text : '';
   g('hbUrl').value = card ? card.url : '';
@@ -433,7 +467,7 @@ function paintEditor() {
 }
 function saveCard() {
   if (!editing) return false;
-  const card = normalizeCard({ id: editing.id || homeId(), type: editing.type, title: g('hbTitle').value.trim(), text: g('hbText').value, url: g('hbUrl').value, image: editing.image, color: editing.color, w: Number(g('hbSize').value) || 1, iw: editing.iw, ih: editing.ih, createdAt: new Date().toISOString() });
+  const card = normalizeCard({ id: editing.id || homeId(), type: editing.type, title: g('hbTitle').value.trim(), text: g('hbText').value, url: g('hbUrl').value, image: editing.image, color: editing.color, w: Number(g('hbSize').value) || 1, ar: g('hbShape').value === 'custom' ? editing.ar : Number(g('hbShape').value), iw: editing.iw, ih: editing.ih, createdAt: new Date().toISOString() });
   if (editing.type === 'link' && g('hbUrl').value.trim() && !card.url) { toast('That link needs to start with http:// or https://', 'warn'); return false; }
   if (editing.type === 'image' && !card.image) { toast('Choose a picture first.', 'warn'); return false; }
   if (editing.type !== 'image' && !card.title && !card.text && !card.url) { toast('Write something first.', 'warn'); return false; }
@@ -489,6 +523,8 @@ registerMarkup(190, `<div id="hbModal" class="modal">
       <textarea class="ftextarea" id="hbText" style="min-height:90px" aria-label="Text"></textarea>
       <label class="pr-lbl" for="hbSize">Width</label>
       <select class="fselect" id="hbSize"><option value="1">1 column</option><option value="2">2 columns</option><option value="3">3 columns</option><option value="4">4 columns</option></select>
+      <label class="pr-lbl" for="hbShape">Shape</label>
+      <select class="fselect" id="hbShape"></select>
       <div id="hbColorRow"><div class="pr-lbl">Colour</div><div id="hbColors" class="libx-colorgrid"></div></div>
       <div class="pr-row"><button class="btn btn-p btn-sm" id="hbSave">Save</button><button class="btn btn-s btn-sm" id="hbEarlier" title="Move earlier on the board">←</button><button class="btn btn-s btn-sm" id="hbLater" title="Move later on the board">→</button><button class="btn btn-err btn-sm" id="hbDelete">Delete</button></div>
     </div>
