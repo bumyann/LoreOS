@@ -23,7 +23,7 @@ const srv=http.createServer((q,s)=>{let p=q.url.split('?')[0]; if(p==='/')p='/in
   await pg.fill('#personaName','Click persona'); await pg.waitForTimeout(600); await pg.click('#personaDone'); await pg.waitForTimeout(400);
   chk(label+': persona listed', (await pg.textContent('#library-content')).includes('Click persona'));
   // the menu closes after a click elsewhere
-  await pg.click('#libxNewBtn'); await pg.waitForTimeout(150); await pg.click('.libx-top .lib-view-title'); await pg.waitForTimeout(150);
+  await pg.click('#libxNewBtn'); await pg.waitForTimeout(150); await pg.click('#libxSearch'); await pg.waitForTimeout(150);
   chk(label+': menu closes on outside click', await pg.evaluate(()=>getComputedStyle(document.querySelector('#libxNewDd .dd-menu')).display==='none'));
   // every other kind, one after another
   for (const [kind,mode,count] of [['char','char','charLibrary'],['preset','preset','presetLibrary'],['prompt','prompt','promptLibrary'],['regex','regex','regexLibrary'],['regexscript','regex','regexLibrary']]) {
@@ -38,6 +38,14 @@ const srv=http.createServer((q,s)=>{let p=q.url.split('?')[0]; if(p==='/')p='/in
   // lorebook entry of the menu goes to the editor
   await openLibrary(); await pg.click('#libxNewBtn'); await pg.waitForTimeout(150); await pg.click('#libxNewDd [data-libnew="lore"]'); await pg.waitForTimeout(500);
   chk(label+': New lorebook opens the lorebook editor', await pg.evaluate(()=>window.LoreOS.state.mode==='lore'));
+  // Gallery tab: switch with a real click, its + Add menu opens
+  await openLibrary(); await pg.click('[data-libtab="gallery"]'); await pg.waitForTimeout(300);
+  chk(label+': Gallery tab opens', await pg.evaluate(()=>!!document.getElementById('galZone')));
+  await pg.click('#galAddBtn'); await pg.waitForTimeout(150);
+  chk(label+': Gallery + Add opens its menu', await pg.evaluate(()=>getComputedStyle(document.querySelector('#galAddDd .dd-menu')).display==='block'));
+  await pg.click('#galSearch'); await pg.waitForTimeout(100);
+  await pg.click('[data-libtab="library"]'); await pg.waitForTimeout(300);
+  chk(label+': and back to the Library', await pg.evaluate(()=>!!document.getElementById('libxNewBtn')));
   // Home's + Add menu (also drawn after start-up)
   await pg.evaluate(()=>window.LoreOS.navigateTo('home')); await pg.waitForTimeout(300);
   await pg.click('#hbAddBtn'); await pg.waitForTimeout(150);

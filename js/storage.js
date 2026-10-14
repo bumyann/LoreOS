@@ -120,6 +120,7 @@ const STORAGE_SHAPES = {
   aet_personaLibrary: v => isObj(v),
   aet_meta:          v => isObj(v),
   aet_home:          v => isObj(v),
+  aet_gallery:       v => isObj(v),
   aet_library:       v => isObj(v),
   aet_tpl_lore:      v => isObj(v),
   aet_tpl_char:      v => isObj(v),
@@ -225,6 +226,10 @@ export function loadFromStorage() {
     state.personaLibrary = JSON.parse(store.get('aet_personaLibrary') || '{}');
   });
 
+  loadPart('gallery', () => {
+    state.galleryLibrary = JSON.parse(store.get('aet_gallery') || '{}');
+  });
+
   loadPart('workshop tabs', renderWsTabs);
 
   loadPart('editor', () => {
@@ -316,6 +321,10 @@ export function saveRegexLibrary() {
   const ok = safeSet('aet_regexLibrary', JSON.stringify(state.regexLibrary));
   if (ok) syncAutoPush();
   return ok;
+}
+
+export function saveGalleryLibrary() {
+  return safeSet('aet_gallery', JSON.stringify(state.galleryLibrary)); // pictures are local: they are not part of the Drive sync or the backup file
 }
 
 export function savePersonaLibrary() {

@@ -895,3 +895,36 @@ textarea.bad{border-color:var(--err,#e0707f)}
 .dash-hrow::-webkit-scrollbar-thumb,.dash-overview::-webkit-scrollbar-thumb,.dash-side::-webkit-scrollbar-thumb,.gal-strip::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--p) 45%,transparent);border-radius:999px;border:1px solid transparent;background-clip:padding-box}
 .dash-hrow::-webkit-scrollbar-thumb:hover,.dash-overview::-webkit-scrollbar-thumb:hover,.dash-side::-webkit-scrollbar-thumb:hover,.gal-strip::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb,var(--p) 75%,transparent);background-clip:padding-box}
 .dash-hrow::-webkit-scrollbar-corner,.dash-overview::-webkit-scrollbar-corner{background:transparent}
+
+/* ── Library tabs, Gallery, lightbox ── */
+.libx-tabs{display:inline-flex;gap:.15rem;padding:.15rem;border:1px solid var(--bd);border-radius:999px;background:var(--bg2)}
+.libx-tab{background:none;border:none;color:var(--txd);font-family:var(--fp);font-size:.95rem;letter-spacing:2px;padding:.2rem .95rem;border-radius:999px;cursor:pointer;min-height:32px}
+.libx-tab:hover{color:var(--tx)}
+.libx-tab.on{background:var(--sf2);color:var(--p);box-shadow:inset 0 0 0 1px var(--bdb)}
+.gal-bar{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+.gal-chip{font-family:var(--fx);font-size:.68rem;color:var(--txd);background:var(--sf);border:1px solid var(--bd);border-radius:999px;padding:.18rem .65rem;cursor:pointer;min-height:28px}
+.gal-chip.on,.gal-chip:hover{border-color:var(--bdb);color:var(--tx)}
+.gal-zone{border:2px dashed transparent;border-radius:6px;padding:2px;transition:border-color .12s,background .12s;min-height:200px}
+.gal-zone.over{border-color:var(--p);background:color-mix(in srgb,var(--p) 8%,transparent)}
+.gal-grid{--gw:220px;column-width:var(--gw);column-gap:10px}
+.gal-grid.s{--gw:150px}.gal-grid.l{--gw:320px}
+.gal-item{break-inside:avoid;margin:0 0 10px;position:relative;border:1px solid var(--bd);border-radius:5px;overflow:hidden;background:var(--bg2);cursor:pointer;display:block;transition:transform .12s,border-color .12s}
+.gal-item:hover,.gal-item:focus-visible{border-color:var(--bdb);transform:translateY(-2px);outline:none}
+.gal-item img{display:block;width:100%;height:auto}
+.gal-cap{position:absolute;left:0;right:0;bottom:0;padding:.9rem .5rem .35rem;background:linear-gradient(0deg,rgba(6,8,16,.86),rgba(6,8,16,0));color:var(--tx);font-family:var(--fx);font-size:.66rem;opacity:0;transition:opacity .12s;display:flex;justify-content:space-between;gap:.4rem}
+.gal-item:hover .gal-cap,.gal-item:focus-visible .gal-cap{opacity:1}
+@media (hover:none){.gal-cap{opacity:1}}
+.gal-cap span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gal-fav{position:absolute;top:4px;right:6px;color:var(--a);text-shadow:0 0 4px rgba(0,0,0,.8);font-size:.9rem}
+.gal-lb{align-items:stretch;justify-content:center}
+.gal-lb-box{width:min(1100px,96vw);max-height:94vh;display:grid;grid-template-columns:minmax(0,1fr) 270px;background:var(--bg2);border:1px solid var(--bdb);border-radius:6px;overflow:hidden}
+.gal-lb-stage{position:relative;display:flex;align-items:center;justify-content:center;background:#05070f;min-height:260px;min-width:0}
+.gal-lb-stage img{max-width:100%;max-height:88vh;display:block;object-fit:contain}
+.gal-lb-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(6,8,16,.6);border:1px solid var(--bd);color:var(--tx);width:40px;height:56px;border-radius:6px;cursor:pointer;font-size:1.3rem}
+.gal-lb-nav.prev{left:8px}.gal-lb-nav.next{right:8px}
+.gal-lb-side{display:flex;flex-direction:column;gap:.55rem;padding:.9rem;overflow:auto;border-left:1px solid var(--bd)}
+.gal-lb-side .pr-row{flex-wrap:wrap}
+.gal-lb-meta{font-family:var(--fx);font-size:.66rem;color:var(--txm);line-height:1.6}
+.gal-lb-prompt{font-size:.72rem;color:var(--txd);white-space:pre-wrap;overflow-wrap:anywhere;max-height:150px;overflow:auto;border:1px solid var(--bd);border-radius:4px;padding:.4rem .5rem;background:var(--bg)}
+@media (max-width:760px){.gal-lb-box{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto;max-height:96vh}.gal-lb-stage img{max-height:52vh}.gal-lb-side{border-left:none;border-top:1px solid var(--bd);max-height:40vh}}
+@media (max-width:600px){.gal-grid{--gw:160px}.gal-grid.s{--gw:105px}.gal-grid.l{--gw:100%}.libx-top .libx-layout{order:3}}

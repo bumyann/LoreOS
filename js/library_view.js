@@ -18,6 +18,7 @@ import { createRegex, openRegex } from './regex.js';
 import { navigateTo } from './router.js';
 import { KIND_SYMBOL, SYMBOL_CHOICES, sym } from './symbols.js';
 import { askConfirm, askInput, closeAllDropdowns, closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
+import { renderGalleryView } from './gallery_view.js';
 import { switchMode } from './workshop.js';
 
 export const KIND_INFO = {
@@ -27,11 +28,12 @@ export const KIND_INFO = {
   prompt:  { label: 'Prompt pack', plural: 'Prompt packs', icon: KIND_SYMBOL.prompt,  mode: 'prompt' },
   regex:   { label: 'Regex',       plural: 'Regex',        icon: KIND_SYMBOL.regex,   mode: 'regex' },
   persona: { label: 'Persona',     plural: 'Personas',     icon: KIND_SYMBOL.persona, mode: null },
+  image:   { label: 'Picture',     plural: 'Pictures',     icon: '▣',                 mode: null }, // lives in the Gallery tab, not on the shelves
 };
 // Characters and personas always show their own picture; the rest can be given one, or a symbol
-const OWN_PICTURE = new Set(['char', 'persona']);
+const OWN_PICTURE = new Set(['char', 'persona', 'image']);
 // The default cover colour of each kind of book
-const KIND_COLOR = { char: '#6b82c4', lore: '#9a78c8', preset: '#5aa0b4', prompt: '#c0a060', regex: '#6cb490', persona: '#c47e9c' };
+const KIND_COLOR = { char: '#6b82c4', lore: '#9a78c8', preset: '#5aa0b4', prompt: '#c0a060', regex: '#6cb490', persona: '#c47e9c', image: '#8a9bd2' };
 // The order the shelves stand in
 export const SHELF_ORDER = ['char', 'lore', 'preset', 'prompt', 'regex', 'persona'];
 export const BOOK_COLORS = ['#6b82c4', '#9a78c8', '#5aa0b4', '#c0a060', '#6cb490', '#c47e9c', '#c46c6c', '#c8884c', '#8a8f9c', '#4f5f8f', '#7a5a8e', '#3f7a6a'];
@@ -40,9 +42,9 @@ const SORTS = [['recent', 'Recently used'], ['name', 'Name'], ['type', 'Type'], 
 const VIEW_KEY = 'loreos_libview';
 
 // What the view is showing (kept across visits)
-const view = { type: 'all', world: null, folder: null, tag: null, q: '', sort: 'recent', layout: 'shelves', filtersOpen: false };
+const view = { tab: 'library', type: 'all', world: null, folder: null, tag: null, q: '', sort: 'recent', layout: 'shelves', filtersOpen: false };
 try { Object.assign(view, JSON.parse(localStorage.getItem(VIEW_KEY) || '{}'), { q: '', filtersOpen: false }); } catch (e) { /* first run */ }
-const saveView = () => { try { localStorage.setItem(VIEW_KEY, JSON.stringify({ type: view.type, world: view.world, folder: view.folder, tag: view.tag, sort: view.sort, layout: view.layout })); } catch (e) { /* private mode */ } };
+const saveView = () => { try { localStorage.setItem(VIEW_KEY, JSON.stringify({ tab: view.tab, type: view.type, world: view.world, folder: view.folder, tag: view.tag, sort: view.sort, layout: view.layout })); } catch (e) { /* private mode */ } };
 
 // ── Items with their organisation attached ──
 export function libraryRows() {
@@ -88,6 +90,7 @@ export function filterRows(rows, m, v = view) {
 // ── Opening things ──
 export function openLibraryItem(row) {
   markOpened(row.kind, row.id, row.name);
+  if (row.kind === 'image') { if (imageOpener) imageOpener(row.id); return; }
   if (row.kind === 'persona') { openPersona(row.id); return; }
   const info = KIND_INFO[row.kind];
   navigateTo('editor');
@@ -204,6 +207,7 @@ function worldHeadHtml(w, m, rows) {
 export function renderLibraryView() {
   const el = document.getElementById('library-content');
   if (!el) return;
+  if (view.tab === 'gallery') { renderGalleryView(el); return; }
   const { rows, m } = libraryRows();
   // A world, folder or tag that no longer exists must not leave the view empty
   if (view.world && view.world !== 'none' && !m.worlds[view.world]) { view.world = null; view.folder = null; }
@@ -225,7 +229,7 @@ export function renderLibraryView() {
   el.innerHTML = `
   <div class="libx">
     <div class="libx-top">
-      <div class="lib-view-title">Library</div>
+      ${tabsHtml('library')}
       <input class="finput libx-search" id="libxSearch" type="search" placeholder="Search names, tags, notes..." value="${esc(view.q)}" aria-label="Search the library">
       <select class="fselect libx-sort" id="libxSort" aria-label="Sort">${SORTS.map(([v, l]) => `<option value="${v}"${view.sort === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
       <div class="dd" id="libxNewDd"><button class="btn btn-ok dd-btn" id="libxNewBtn" aria-haspopup="true">+ New</button>
@@ -264,6 +268,20 @@ export function renderLibraryView() {
 }
 
 function refresh() { renderLibraryView(); }
+
+// The two halves of the Library page
+export function tabsHtml(active) {
+  return `<div class="lib-view-title libx-tabs" role="tablist" aria-label="Library sections"><button class="libx-tab${active === 'library' ? ' on' : ''}" role="tab" aria-selected="${active === 'library'}" data-libtab="library">Library</button><button class="libx-tab${active === 'gallery' ? ' on' : ''}" role="tab" aria-selected="${active === 'gallery'}" data-libtab="gallery">Gallery</button></div>`;
+}
+export function wireTabs(el) {
+  el.querySelectorAll('[data-libtab]').forEach(b => b.onclick = () => { if (view.tab === b.dataset.libtab) return; view.tab = b.dataset.libtab; saveView(); refresh(); });
+}
+export function showLibraryTab(tab) { view.tab = tab === 'gallery' ? 'gallery' : 'library'; saveView(); }
+export function refreshLibrary() { refresh(); }
+export function openItemDetails(row) { openDetails(row); }
+// The Gallery registers how to open one of its pictures
+let imageOpener = null;
+export function setImageOpener(fn) { imageOpener = fn; }
 export function setLibraryLayout(l) { view.layout = l === 'list' ? 'list' : 'shelves'; saveView(); }
 const setWorld = id => { view.world = id; view.folder = null; view.type = 'all'; view.tag = null; view.filtersOpen = false; saveView(); };
 
@@ -285,6 +303,7 @@ export const _pickPicture = { fn: pickPicture }; // a seam so tests can hand ove
 const pick = (...a) => _pickPicture.fn(...a);
 
 function wire(el, shown) {
+  wireTabs(el);
   const q = el.querySelector('#libxSearch');
   let t = null;
   q.addEventListener('input', () => { view.q = q.value; clearTimeout(t); t = setTimeout(() => { refresh(); const n = document.getElementById('libxSearch'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 160); });

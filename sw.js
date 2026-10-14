@@ -66,6 +66,8 @@ const ASSETS = [
   'js/meta.js',
   'js/symbols.js',
   'js/home.js',
+  'js/gallery.js',
+  'js/gallery_view.js',
   'js/persona.js',
   'js/library_view.js',
   'js/regex_worker.js',

@@ -49,6 +49,8 @@ export const state = {
 
   // ── Personas: { id: { id, name, persona, savedAt } } (see persona.js) ──
   personaLibrary: {},
+  // ── Gallery: { id: { id, name, thumb, w, h, source, prompt, savedAt } }; the full picture is at aet_img_<id> (see gallery.js) ──
+  galleryLibrary: {},
   activePersonaId: null,
 
   // ── Regex sets: { id: { id, name, set, savedAt } } (see regex_model.js) ──
