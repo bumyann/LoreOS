@@ -53,7 +53,8 @@ export function loadGenSettings() {
   if (Number.isFinite(steps)) out.steps = Math.max(1, Math.min(150, Math.round(steps)));
   if (Number.isFinite(cfg)) out.cfg = Math.max(0, Math.min(30, Math.round(cfg * 10) / 10));
   const bud = Number(o.pollenBudget); if (Number.isFinite(bud) && bud > 0) out.pollenBudget = Math.min(1000, Math.round(bud * 100) / 100);
-  if (!/^pk_[A-Za-z0-9_-]{4,200}$/.test(out.pollenClient)) out.pollenClient = '';
+  // an earlier build saved the built-in key into the settings: that is not a choice the person made, so drop it
+  if (!/^pk_[A-Za-z0-9_-]{4,200}$/.test(out.pollenClient) || out.pollenClient === DEFAULT_POLLEN_CLIENT) out.pollenClient = '';
   return out;
 }
 // An earlier version kept the key in these settings. Move it to the secrets store and take it out.

@@ -176,6 +176,8 @@
  // editor hook
  document.getElementById('genProvider').value='pollen'; document.getElementById('genProvider').dispatchEvent(new Event('change')); await w(150);
  chk('the account provider shows connect, models and the badge link', document.getElementById('genP-pollen').style.display==='flex' && document.getElementById('genKeyBox').style.display==='flex' && !!document.querySelector('#genP-pollen a[href*="pollinations.ai"]') && /pollen/.test(document.getElementById('genPrivacy').textContent));
+ localStorage.setItem(GEN_KEY,JSON.stringify({provider:'pollen',pollenClient:'pk_SfdkUuLU1v44hEmU'})); openGenerate(); await w(200);
+ chk('a built-in key saved by an earlier build is not shown or kept as a choice', loadGenSettings().pollenClient==='' && document.getElementById('genPollClient').value==='');
  chk('the built-in App Key is not shown anywhere on the page', !document.body.innerText.includes('pk_SfdkUuLU1v44hEmU') && !([...document.querySelectorAll('input,textarea')].some(i=>i.value.includes('pk_SfdkUuLU1v44hEmU'))) && document.getElementById('genPollClient').value==='' && !document.getElementById('genPollConnect').disabled);
  chk('the editor can open the dialog', typeof hooks.generate==='function');
  return out;
