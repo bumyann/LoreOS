@@ -47,6 +47,7 @@ const T=[
  ['gallery', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['board-shapes', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['image-editor', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
+ ['image-tools', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['image-generation', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['text-roundtrip', o=>o.fail.length===0],
  ['xss-everywhere',   o=>o.hits.length===0],

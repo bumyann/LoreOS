@@ -81,12 +81,17 @@ export function resizeImage(dataUrl, maxW, maxH = maxW, quality = 0.82) {
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, tw, th);
         let out = canvas.toDataURL('image/webp', quality);
-        if (!out || out.indexOf('data:image/webp') !== 0) out = canvas.toDataURL('image/jpeg', quality);
+        // Safari cannot write WebP. A picture with see-through parts must then stay a PNG, or it would turn black.
+        if (!out || out.indexOf('data:image/webp') !== 0) out = canvasHasAlpha(canvas) ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', quality);
         resolve(out);
       } catch (e) { resolve(''); }
     };
     img.onerror = () => resolve('');
     img.src = dataUrl;
   });
+}
+function canvasHasAlpha(canvas) {
+  try { const d = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data; for (let i = 3; i < d.length; i += 4) if (d[i] < 250) return true; } catch (e) { /* cannot read: keep it safe */ return true; }
+  return false;
 }
 export const readFileAsDataUrl = file => new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.onerror = () => reject(r.error); r.readAsDataURL(file); });

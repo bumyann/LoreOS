@@ -74,6 +74,7 @@ const ASSETS = [
   'js/image_editor.js',
   'js/imagegen.js',
   'js/secrets.js',
+  'js/stamps.js',
   'js/persona.js',
   'js/library_view.js',
   'js/regex_worker.js',

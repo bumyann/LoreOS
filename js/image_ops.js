@@ -197,12 +197,85 @@ export function drawText(c, o) {
     x.fillText(line, o.x, o.y + i * lh);
   });
   x.restore();
-  return { w: Math.max(...lines.map(l => x.measureText ? 0 : l.length * size * 0.5), 0), h: lines.length * lh };
+  return { h: lines.length * lh };
 }
+// The text on its own transparent canvas, cropped to fit (for stamps and overlays)
+export function textCanvas(o) {
+  const size = Math.max(4, Number(o.size) || 48), font = (FONTS.find(f => f[0] === o.font) || FONTS[0])[1];
+  const probe = newCanvas(4, 4).getContext('2d');
+  probe.font = `${o.italic ? 'italic ' : ''}${o.bold ? '700 ' : '400 '}${size}px ${font}`;
+  const lines = String(o.text || ' ').split('\n'), pad = Math.ceil(size * 0.2) + (o.outline ? Math.ceil(size / 8) : 0);
+  const w = Math.ceil(Math.max(...lines.map(l => probe.measureText(l).width), 1)) + pad * 2, h = Math.ceil(lines.length * size * 1.2) + pad * 2;
+  const c = newCanvas(w, h); drawText(c, { ...o, size, text: lines.join('\n'), x: pad, y: pad, align: 'left', opacity: 1 });
+  return c;
+}
+// Draw a picture on top of another: x, y is its centre, w its drawn width, rot in degrees
+export function drawOverlay(c, src, o) {
+  const w = Math.max(1, Number(o.w) || src.width), h = w * src.height / src.width, x = c.getContext('2d');
+  x.save(); x.globalAlpha = o.opacity === undefined ? 1 : Math.max(0, Math.min(1, o.opacity));
+  x.translate(o.x, o.y); x.rotate((Number(o.rot) || 0) * Math.PI / 180); if (o.flip) x.scale(-1, 1);
+  x.imageSmoothingQuality = 'high'; x.drawImage(src, -w / 2, -h / 2, w, h); x.restore();
+  return c;
+}
+// ── Stamps (watermarks) ──
+export const STAMP_POSITIONS = ['tl', 'tc', 'tr', 'ml', 'mc', 'mr', 'bl', 'bc', 'br'];
+// Where a stamp of sw x sh goes on a W x H picture. Returns centres: [{ x, y, rot }]
+export function stampPlacements(W, H, sw, sh, { position = 'br', margin = 3, tile = false } = {}) {
+  const m = Math.max(0, Number(margin) || 0) / 100 * Math.min(W, H);
+  if (tile) {
+    const out = [], sx = sw * 1.9, sy = Math.max(sh * 3, sh + 40), rot = -25;
+    for (let r = 0, y = sy / 2; y < H + sy; y += sy, r++) for (let x = (r % 2 ? sx / 2 : 0) + sx / 2; x < W + sx; x += sx) out.push({ x: Math.round(x - sx / 4), y: Math.round(y), rot });
+    return out;
+  }
+  const pos = STAMP_POSITIONS.includes(position) ? position : 'br';
+  const x = pos[1] === 'l' ? m + sw / 2 : pos[1] === 'r' ? W - m - sw / 2 : W / 2;
+  const y = pos[0] === 't' ? m + sh / 2 : pos[0] === 'b' ? H - m - sh / 2 : H / 2;
+  return [{ x: Math.round(x), y: Math.round(y), rot: 0 }];
+}
+export function drawStamp(c, src, o) {
+  const w = Math.max(4, c.width * (Number(o.size) || 20) / 100), h = w * src.height / src.width;
+  stampPlacements(c.width, c.height, w, h, o).forEach(p => drawOverlay(c, src, { x: p.x, y: p.y, w, rot: p.rot, opacity: o.opacity }));
+  return c;
+}
+// ── Background removal for plain backgrounds ──
+// Looks at the colour around the edge (or a colour you pick) and clears every connected pixel close to it.
+export function cornerColor(img) {
+  const { data: d, width: w, height: h } = img, rs = [], gs = [], bs = [];
+  const take = (x, y) => { const i = (y * w + x) * 4; if (d[i + 3] > 8) { rs.push(d[i]); gs.push(d[i + 1]); bs.push(d[i + 2]); } };
+  const stepX = Math.max(1, Math.floor(w / 40)), stepY = Math.max(1, Math.floor(h / 40));
+  for (let x = 0; x < w; x += stepX) { take(x, 0); take(x, h - 1); }
+  for (let y = 0; y < h; y += stepY) { take(0, y); take(w - 1, y); }
+  const med = a => { a.sort((p, q) => p - q); return a.length ? a[a.length >> 1] : 255; };
+  return [med(rs), med(gs), med(bs)];
+}
+export function removeBackground(img, { tolerance = 28, color = null, feather = 1 } = {}) {
+  const { data: d, width: w, height: h } = img, out = makeImage(w, h); out.data.set(d);
+  const tc = color || cornerColor(img), tol = Math.max(1, Math.min(100, Number(tolerance) || 28)) / 100 * 441.67;
+  const near = i => { const dr = d[i] - tc[0], dg = d[i + 1] - tc[1], db = d[i + 2] - tc[2]; return d[i + 3] < 8 || Math.sqrt(dr * dr + dg * dg + db * db) <= tol; };
+  const bg = new Uint8Array(w * h), q = new Int32Array(w * h); let qh = 0, qt = 0;
+  const push = (x, y) => { const k = y * w + x; if (!bg[k] && near(k * 4)) { bg[k] = 1; q[qt++] = k; } };
+  for (let x = 0; x < w; x++) { push(x, 0); push(x, h - 1); }
+  for (let y = 0; y < h; y++) { push(0, y); push(w - 1, y); }
+  while (qh < qt) { const k = q[qh++], x = k % w, y = (k / w) | 0; if (x > 0) push(x - 1, y); if (x < w - 1) push(x + 1, y); if (y > 0) push(x, y - 1); if (y < h - 1) push(x, y + 1); }
+  let cleared = 0; for (let k = 0; k < bg.length; k++) if (bg[k]) cleared++;
+  // soft edge: blur the mask a little and use it as the see-through amount
+  let alpha = Float32Array.from(bg, v => 1 - v);
+  const r = Math.round(feather);
+  if (r > 0) {
+    const tmp = new Float32Array(alpha.length);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let s = 0, n = 0; for (let k = -r; k <= r; k++) { const xx = x + k; if (xx >= 0 && xx < w) { s += alpha[y * w + xx]; n++; } } tmp[y * w + x] = s / n; }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let s = 0, n = 0; for (let k = -r; k <= r; k++) { const yy = y + k; if (yy >= 0 && yy < h) { s += tmp[yy * w + x]; n++; } } alpha[y * w + x] = Math.min(1 - bg[y * w + x] * 1, s / n); }
+  }
+  for (let k = 0; k < alpha.length; k++) out.data[k * 4 + 3] = Math.round(d[k * 4 + 3] * (bg[k] ? 0 : Math.max(0, Math.min(1, alpha[k]))));
+  out.cleared = cleared;
+  return out;
+}
+export function hasAlpha(img) { const d = img.data; for (let i = 3; i < d.length; i += 4) if (d[i] < 250) return true; return false; }
 export function strokePath(c, points, o) {
   if (!points.length) return c;
   const x = c.getContext('2d');
   x.save(); x.lineCap = 'round'; x.lineJoin = 'round'; x.lineWidth = Math.max(1, Number(o.size) || 8);
+  if (o.erase) x.globalCompositeOperation = 'destination-out';
   x.strokeStyle = o.color || '#ffffff'; x.fillStyle = o.color || '#ffffff'; x.globalAlpha = o.opacity === undefined ? 1 : o.opacity;
   if (points.length === 1) { x.beginPath(); x.arc(points[0].x, points[0].y, x.lineWidth / 2, 0, Math.PI * 2); x.fill(); }
   else { x.beginPath(); x.moveTo(points[0].x, points[0].y); for (let i = 1; i < points.length; i++) { const p = points[i], q = points[i - 1]; x.quadraticCurveTo(q.x, q.y, (q.x + p.x) / 2, (q.y + p.y) / 2); } x.lineTo(points[points.length - 1].x, points[points.length - 1].y); x.stroke(); }

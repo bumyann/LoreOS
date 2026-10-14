@@ -33,6 +33,7 @@ import { wireImageEditor } from './image_editor.js';
 import { wireImageGen } from './imagegen.js';
 import * as m_imagegen from './imagegen.js';
 import * as m_secrets from './secrets.js';
+import * as m_stamps from './stamps.js';
 import * as m_image_ops from './image_ops.js';
 import * as m_image_editor from './image_editor.js';
 import { ensureLoreIds } from './meta.js';
@@ -392,7 +393,7 @@ export function wireEvents() {
 // through to the shared state object.
 // ═══════════════════════════════════════════════════════
 const LoreOS = {};
-[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa, m_character_io, m_avatar, m_templates_data, m_dropimport, m_header_fit, m_trash, m_kv, m_prompt, m_prompt_model, m_logo, m_regex, m_regex_model, m_lumiverse, m_loom_vars, m_meta, m_persona, m_library_view, m_symbols, m_home, m_gallery, m_gallery_view, m_image_ops, m_image_editor, m_imagegen, m_secrets].forEach(ns => {
+[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa, m_character_io, m_avatar, m_templates_data, m_dropimport, m_header_fit, m_trash, m_kv, m_prompt, m_prompt_model, m_logo, m_regex, m_regex_model, m_lumiverse, m_loom_vars, m_meta, m_persona, m_library_view, m_symbols, m_home, m_gallery, m_gallery_view, m_image_ops, m_image_editor, m_imagegen, m_secrets, m_stamps].forEach(ns => {
   Object.keys(ns).forEach(k => {
     if (!(k in LoreOS)) Object.defineProperty(LoreOS, k, { get: () => ns[k], enumerable: true, configurable: true });
   });
