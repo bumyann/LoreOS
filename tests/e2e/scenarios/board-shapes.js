@@ -53,11 +53,32 @@
    dispatch(document,'pointerup',fr.left+4,fr.top+4); await w(300);
    chk('dragging to the very top-left puts it first', order().startsWith('e'), order());
  }
- { // between two cards side by side: dropping on the left half goes before, right half after
-   const ids=[...document.querySelectorAll('#homeBoard .hb-card')].map(c=>c.dataset.card); const mid=card(ids[2]); const mr=mid.getBoundingClientRect(); const src=card(ids[0]); const sr=src.getBoundingClientRect();
-   dispatch(src,'pointerdown',sr.left+10,sr.top+10); dispatch(document,'pointermove',sr.left+30,sr.top+30); dispatch(document,'pointermove',mr.left+mr.width*0.2,mr.top+mr.height/2); dispatch(document,'pointermove',mr.left+mr.width*0.2+1,mr.top+mr.height/2);
-   dispatch(document,'pointerup',mr.left+mr.width*0.2,mr.top+mr.height/2); await w(300);
-   const o=homeGet().board.map(b=>b.id); chk('dropping on the left side of a card puts it before that card', o.indexOf(ids[0])===o.indexOf(ids[2])-1, o); }
+ { // stacking: put a card under, then above, another card in a different column
+   const colOf=id=>Number(card(id).dataset.col), top=id=>card(id).offsetTop;
+   const cols=boardColumns(document.getElementById('homeBoard').clientWidth);
+   chk('the board has several columns here', cols>=3, cols);
+   const ids=[...document.querySelectorAll('#homeBoard .hb-card')].map(c=>c.dataset.card);
+   const mover=ids[0]; let target=ids.find(id=>id!==mover && colOf(id)!==colOf(mover)); const others=ids.filter(id=>id!==mover);
+   const colsBefore=Object.fromEntries(others.map(id=>[id,colOf(id)]));
+   const drag=async(id,toCard,where)=>{ const src=card(id), sr=src.getBoundingClientRect(); const tr0=card(toCard).getBoundingClientRect();
+     const offX=10, offY=10; dispatch(src,'pointerdown',sr.left+offX,sr.top+offY); dispatch(document,'pointermove',sr.left+offX+20,sr.top+offY+20);
+     for(let i=0;i<3;i++){ const tr=card(toCard).getBoundingClientRect(); const x=tr.left+offX+2, y=where==='below'?tr.bottom-6:tr.top+4; dispatch(document,'pointermove',x,y); await w(60); }
+     const tr=card(toCard).getBoundingClientRect(); const x=tr.left+offX+2, y=where==='below'?tr.bottom-6:tr.top+4; dispatch(document,'pointerup',x,y); await w(350); };
+   await drag(mover,target,'below');
+   chk('dropping low on a card stacks the dragged one directly under it, in that card\'s column', colOf(mover)===colOf(target) && top(mover)>top(target) && ids.filter(i=>colOf(i)===colOf(target)&&top(i)>top(target)&&top(i)<top(mover)).length===0, [colOf(mover),colOf(target),top(mover),top(target)]);
+   chk('the other cards stayed in their columns', others.every(id=>colOf(id)===colsBefore[id]||id===target), others.map(id=>[colsBefore[id],colOf(id)]));
+   const stored=homeGet(); chk('the column is saved with the card and the board', stored.board.find(b=>b.id===mover).c===colOf(mover) && stored.cols===cols, [stored.board.find(b=>b.id===mover).c,stored.cols]);
+   let t2=ids.find(id=>id!==mover && colOf(id)!==colOf(mover)); const topBefore=top(t2);
+   await drag(mover,t2,'above');
+   chk('dropping high on a card puts it above that card', colOf(mover)===colOf(t2) && top(mover)<top(t2) && top(t2)>=topBefore, [colOf(mover),colOf(t2),top(mover),top(t2)]);
+   renderHomeView(); await w(400);
+   chk('the arrangement is the same after the page is drawn again', colOf(mover)===colOf(t2) && top(mover)<top(t2));
+   chk('no card overlaps another', (()=>{ const rs=[...document.querySelectorAll('#homeBoard .hb-card')].map(c=>c.getBoundingClientRect()); for(let a=0;a<rs.length;a++)for(let b=a+1;b<rs.length;b++){ const A=rs[a],B=rs[b]; if(A.left<B.right-1&&B.left<A.right-1&&A.top<B.bottom-1&&B.top<A.bottom-1) return false; } return true; })());
+ }
+ { // fewer columns (a phone) ignores the saved columns and still lays out cleanly
+   const b=document.getElementById('homeBoard'); const w0=b.style.width; b.style.width='380px'; layoutBoard(b); await w(400);
+   const rs=[...b.querySelectorAll('.hb-card')].map(c=>c.getBoundingClientRect()); let overlap=false; for(let a=0;a<rs.length;a++)for(let c=a+1;c<rs.length;c++){ const A=rs[a],B=rs[c]; if(A.left<B.right-1&&B.left<A.right-1&&A.top<B.bottom-1&&B.top<A.bottom-1) overlap=true; }
+   chk('a narrow board lays out without overlap', !overlap && boardColumns(380)===2); b.style.width=w0; layoutBoard(b); }
  chk('shapes survive a reload of the data', normalizeHome(JSON.parse(JSON.stringify(homeGet()))).board.find(b=>b.id==='d').ar===3.5);
  chk('no page scroll sideways', document.documentElement.scrollWidth<=document.documentElement.clientWidth+1);
  return out;

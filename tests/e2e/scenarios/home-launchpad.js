@@ -118,7 +118,7 @@
  renderHomeView(); await w(300);
  chk('columns follow the width', boardColumns(1000)===5 && boardColumns(380)===2 && boardColumns(100)===1 && boardColumns(5000)===6);
  { const b=document.getElementById('homeBoard'); const c=homeGet().board[0]; const el=document.querySelector('[data-card="'+c.id+'"]');
-   chk('cards start one column wide with a resize grip, laid out as a masonry grid', getComputedStyle(b).display==='grid' && el.dataset.w==='1' && !!el.querySelector('[data-resize]') && /span \d+/.test(el.style.gridRowEnd), [el.dataset.w, el.style.gridRowEnd]);
+   chk('cards start one column wide with a resize grip, laid out in columns', getComputedStyle(el).position==='absolute' && el.dataset.w==='1' && !!el.querySelector('[data-resize]') && /^\d+px$/.test(el.style.top) && el.dataset.col!==undefined, [el.dataset.w, el.style.top, el.dataset.col]);
    el.focus(); el.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',altKey:true,shiftKey:true,bubbles:true,cancelable:true})); await w(300);
    chk('Alt+Shift+Right makes a card wider (and keeps it)', homeGet().board[0].w===2 && document.querySelector('[data-card="'+c.id+'"]').dataset.w==='2', homeGet().board[0].w);
    document.querySelector('[data-card="'+c.id+'"]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',altKey:true,shiftKey:true,bubbles:true,cancelable:true})); await w(300);

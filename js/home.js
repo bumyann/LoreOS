@@ -42,6 +42,7 @@ export function normalizeCard(c) {
     color: cleanColor(o.color), createdAt: typeof o.createdAt === 'string' ? o.createdAt : '',
     w: Math.min(MAX_SPAN, Math.max(1, Math.round(Number(o.w)) || 1)),
     ar: cleanAr(o.ar),
+    c: Number.isInteger(o.c) && o.c >= 0 && o.c <= 5 ? o.c : -1,           // the column it sits in (-1: placed automatically)
     iw: type === 'image' ? dim(o.iw) : 0, ih: type === 'image' ? dim(o.ih) : 0,
   };
 }
@@ -49,7 +50,8 @@ export function normalizeHome(h) {
   const o = isObj(h) ? h : {};
   const seen = new Set();
   const board = (Array.isArray(o.board) ? o.board : []).filter(isObj).map(normalizeCard).filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
-  return { v: 1, board };
+  const cols = Number.isInteger(o.cols) && o.cols >= 1 && o.cols <= 6 ? o.cols : 0;   // how many columns those column numbers were made for
+  return { v: 1, board, cols };
 }
 export function homeGet() {
   try { const raw = store.get(HOME_KEY); return raw ? normalizeHome(JSON.parse(raw)) : normalizeHome(null); } catch (e) { return normalizeHome(null); }
@@ -70,7 +72,7 @@ const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } 
 
 function cardHtml(c) {
   const style = ` style="--w:${c.w || 1}${c.color ? `;--hb:${esc(c.color)}` : ''}"`;
-  const edit = `data-card="${esc(c.id)}" data-w="${c.w || 1}"${c.ar ? ` data-ar="${c.ar}"` : ''} tabindex="0" role="button" aria-label="Edit ${esc(c.title || c.type + ' card')}"`;
+  const edit = `data-card="${esc(c.id)}" data-w="${c.w || 1}"${c.ar ? ` data-ar="${c.ar}"` : ''}${c.c >= 0 ? ` data-c="${c.c}"` : ''} tabindex="0" role="button" aria-label="Edit ${esc(c.title || c.type + ' card')}"`;
   const grip = '<span class="hb-resize" data-resize title="Drag to resize in any direction (Alt+Shift+arrows with the keyboard)" aria-hidden="true"></span>';
   if (c.type === 'image') return `<figure class="hb-card hb-image" ${edit}${style}>${c.image ? `<img src="${esc(c.image)}" alt="${esc(c.title)}"${c.iw && c.ih ? ` width="${c.iw}" height="${c.ih}"` : ''} loading="lazy">` : '<div class="hb-noimg">no picture</div>'}${c.title || c.text ? `<figcaption>${c.title ? `<b>${esc(c.title)}</b>` : ''}${c.text ? `<span>${esc(c.text)}</span>` : ''}</figcaption>` : ''}${grip}</figure>`;
   if (c.type === 'link') return `<div class="hb-card hb-link${c.color ? ' tinted' : ''}" ${edit}${style}><div class="hb-title">${esc(c.title || hostOf(c.url) || 'Link')}</div>${c.text ? `<div class="hb-text">${esc(c.text)}</div>` : ''}${c.url ? `<a class="hb-open" href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(hostOf(c.url))} ↗</a>` : '<div class="hb-text">No link yet</div>'}${grip}</div>`;
@@ -182,18 +184,20 @@ export function renderHomeDashboard(el) {
     });
   });
   const board = el.querySelector('#homeBoard');
-  if (board) { wireBoardDrag(board); wireBoardResize(board); layoutBoard(board); }
+  if (board) { board.dataset.cols = String(home.cols || 0); wireBoardDrag(board); wireBoardResize(board); layoutBoard(board); }
   wireBoardDrop(el.querySelector('#hbZone'));
 }
 
 // ── Rearranging: drag a card (mouse: just drag; touch: press and hold, then drag) ──
 let justDragged = false;
-export function reorderBoard(order) {
+// Save a new order. `columns` ({ id: column }) and `cols` (how many columns there were) pin each card to its column.
+export function reorderBoard(order, columns = null, cols = 0) {
   const home = homeGet();
   const byId = new Map(home.board.map(c => [c.id, c]));
   const next = order.map(id => byId.get(id)).filter(Boolean);
   home.board.forEach(c => { if (!next.includes(c)) next.push(c); });
   home.board = next;
+  if (columns) { home.cols = cols; next.forEach(c => { if (Number.isInteger(columns[c.id])) c.c = columns[c.id]; }); }
   return homeSet(home);
 }
 function wireBoardDrag(board) {
@@ -219,6 +223,7 @@ function wireBoardDrag(board) {
     ghost.classList.add('hb-ghost'); ghost.removeAttribute('data-card'); ghost.removeAttribute('tabindex');
     ghost.style.width = r.width + 'px'; ghost.style.left = r.left + 'px'; ghost.style.top = r.top + 'px';
     document.body.append(ghost); st.ghost = ghost;
+    freezeBoard(board);
     st.card.classList.add('hb-dragging'); board.classList.add('dragging');
     if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) { /* not available */ } }
     const tick = () => {
@@ -240,30 +245,36 @@ function wireBoardDrag(board) {
     }
     e.preventDefault();
     st.ghost.style.left = (e.clientX - st.offX) + 'px'; st.ghost.style.top = (e.clientY - st.offY) + 'px';
-    // drop anywhere: the card goes next to whichever one is nearest to the pointer
+    // Drop anywhere: the column comes from where the dragged card's left edge is, and its place in that
+    // column from the pointer's height, so a card can be stacked under or above any other card.
     const br = board.getBoundingClientRect(), M = 60;
     if (e.clientX < br.left - M || e.clientX > br.right + M || e.clientY < br.top - M || e.clientY > br.bottom + M) return;
-    let best = null, bd = Infinity;
-    board.querySelectorAll('.hb-card').forEach(c => {
-      if (c === st.card) return;
-      const r = c.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
-      const d = inside ? 0 : Math.hypot(e.clientX - cx, e.clientY - cy);
-      if (d < bd) { bd = d; best = { c, nx: (e.clientX - cx) / r.width, ny: (e.clientY - cy) / r.height }; }
-    });
-    if (best) {
-      const before = Math.abs(best.nx) > Math.abs(best.ny) ? best.nx < 0 : best.ny < 0;
-      const ref = before ? best.c : best.c.nextSibling;
-      if (ref !== st.card && st.card.nextSibling !== ref) board.insertBefore(st.card, ref);
+    const cols = boardColumns(board.clientWidth), colW = (board.clientWidth - GAP * (cols - 1)) / cols;
+    const span = Math.min(Number(st.card.dataset.w) || 1, cols);
+    const col = Math.max(0, Math.min(cols - span, Math.round((e.clientX - st.offX - br.left) / (colW + GAP))));
+    const py = e.clientY - br.top;
+    let ref = null;
+    for (const c of board.querySelectorAll('.hb-card')) {
+      if (c === st.card) continue;
+      const cc = Number(c.dataset.col), cs = Math.min(Number(c.dataset.w) || 1, cols);
+      if (cc + cs <= col || cc >= col + span) continue;               // not in the same columns
+      if (py < c.offsetTop + c.offsetHeight / 2) { ref = c; break; }  // the pointer is above this one: go before it
     }
+    if (st.col === col && st.ref === ref) return;
+    st.col = col; st.ref = ref;
+    st.card.dataset.c = String(col);
+    board.insertBefore(st.card, ref);                                 // ref null: after everything
+    layoutBoard(board);
   };
   const onUp = e => {
     if (!st || e.pointerId !== st.id) return;
     const was = st.dragging;
     if (was) {
-      const order = [...board.querySelectorAll('.hb-card[data-card]')].map(c => c.dataset.card);
+      const els = [...board.querySelectorAll('.hb-card[data-card]')], order = els.map(c => c.dataset.card), columns = {};
+      els.forEach(c => { columns[c.dataset.card] = Number(c.dataset.c); });
+      const cols = boardColumns(board.clientWidth);
       cleanup(); justDragged = true; setTimeout(() => { justDragged = false; }, 80);
-      reorderBoard(order);
+      reorderBoard(order, columns, cols);
     } else cleanup();
   };
   const onCancel = () => { const was = st && st.dragging; cleanup(); if (was) rerender(); };
@@ -283,23 +294,41 @@ function wireBoardDrag(board) {
   board.addEventListener('dragstart', e => e.preventDefault()); // no native picture dragging
 }
 
-// ── Layout: a masonry grid. Each card is 1 to 4 columns wide; its height follows its content ──
-const GAP = 12, ROW = 8, MIN_COL = 170;
+// ── Layout: columns. Each card sits in a column (or several, when it is wider) and drops to the
+// lowest free spot there, so cards can be stacked under any other card. Order in the list is the order
+// inside a column. Column numbers are only trusted while the board has the same number of columns as
+// when they were saved (a phone has fewer), otherwise cards are placed in the shortest column. ──
+const GAP = 12, MIN_COL = 170;
 export function boardColumns(width) { return Math.max(1, Math.min(6, Math.floor((width + GAP) / (MIN_COL + GAP)))); }
 export function layoutBoard(board) {
   if (!board || !board.isConnected) return;
-  const cols = boardColumns(board.clientWidth);
-  board.style.setProperty('--cols', cols);
-  const colW = (board.clientWidth - GAP * (cols - 1)) / cols;
+  const width = board.clientWidth, cols = boardColumns(width), colW = (width - GAP * (cols - 1)) / cols;
+  const trust = Number(board.dataset.cols) === cols;
+  const heights = new Array(cols).fill(0);
   board.querySelectorAll('.hb-card').forEach(card => {
-    const want = Math.min(Number(card.dataset.w) || 1, cols);
-    card.style.setProperty('--w', want);
-    // a fixed shape: the height follows from the width, so the shape survives a different screen
+    const span = Math.max(1, Math.min(Number(card.dataset.w) || 1, cols)), cw = span * colW + (span - 1) * GAP;
     const ar = cleanAr(card.dataset.ar);
     card.classList.toggle('hb-fixed', !!ar);
-    card.style.height = ar ? Math.round((want * colW + (want - 1) * GAP) / ar) + 'px' : '';
-    card.style.gridRowEnd = 'span ' + Math.max(1, Math.ceil((card.getBoundingClientRect().height + GAP) / ROW));
+    card.style.width = cw + 'px';
+    card.style.height = ar ? Math.round(cw / ar) + 'px' : '';
+    const h = card.offsetHeight;
+    const saved = card.dataset.c !== undefined && card.dataset.c !== '' ? Number(card.dataset.c) : -1;
+    const top = c => { let m = 0; for (let k = c; k < c + span; k++) m = Math.max(m, heights[k]); return m; };
+    let col;
+    if (trust && saved >= 0) col = Math.min(saved, cols - span);
+    else { col = 0; let best = Infinity; for (let c = 0; c + span <= cols; c++) { const y = top(c); if (y < best) { best = y; col = c; } } }
+    const y = top(col);
+    card.style.left = Math.round(col * (colW + GAP)) + 'px'; card.style.top = Math.round(y) + 'px';
+    card.dataset.col = String(col);
+    for (let k = col; k < col + span; k++) heights[k] = y + h + GAP;
   });
+  board.style.height = Math.max(0, Math.max(0, ...heights) - GAP) + 'px';
+}
+// Pin every card to the column it is in right now, so moving one card does not shuffle the others
+function freezeBoard(board) {
+  const cols = boardColumns(board.clientWidth);
+  board.dataset.cols = String(cols);
+  board.querySelectorAll('.hb-card').forEach(c => { c.dataset.c = c.dataset.col || '0'; });
 }
 const boardWatch = new WeakMap();
 function wireBoardLayout(board) {
