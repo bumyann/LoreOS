@@ -1,0 +1,12 @@
+{
+  "name": "loreos-tiptap-bundle",
+  "private": true,
+  "description": "Builds js/tiptap-bundle.js (the Journal editor) from the TipTap packages. Run: npm install && npm run build",
+  "scripts": { "build": "esbuild entry.js --bundle --minify --format=iife --target=es2020 --outfile=../../js/tiptap-bundle.js" },
+  "dependencies": {
+    "@tiptap/core": "^3.0.1", "@tiptap/pm": "^3.0.1", "@tiptap/starter-kit": "^3.0.1",
+    "@tiptap/extension-details": "^3.0.1", "@tiptap/extension-list": "^3.0.1", "@tiptap/extensions": "^3.0.1",
+    "@tiptap/suggestion": "^3.0.1", "tiptap-markdown": "^0.9.0"
+  },
+  "devDependencies": { "esbuild": "^0.25.0" }
+}
