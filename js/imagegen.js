@@ -29,8 +29,8 @@ export const keyNameFor = provider => (provider === 'pollen' ? POLLEN_KEY : KEY_
 export const KEYED = ['openai', 'pollen'];
 export const POLLEN_BASE = 'https://gen.pollinations.ai';
 // The App Key (a publishable pk_ key, made at enter.pollinations.ai/keys) that identifies LoreOS when people connect their account.
-// It is public by design. Leave it empty until one is registered; self-hosters can type their own in the dialog.
-export const DEFAULT_POLLEN_CLIENT = '';
+// It is public by design (it only says which app is asking). Self-hosters can type their own in the dialog.
+export const DEFAULT_POLLEN_CLIENT = 'pk_SfdkUuLU1v44hEmU';
 export const POLLEN_MODELS = ['black-forest-labs/flux.1-schnell', 'black-forest-labs/flux.2-pro', 'openai/gpt-image-1-mini', 'google/gemini-3.1-flash-image', 'bytedance/seedream-5.0-lite', 'qwen/qwen-image-2.1', 'tongyi-mai/z-image-turbo'];
 export const DEFAULTS = Object.freeze({
   provider: 'pollinations', model: 'flux', size: 0, suffix: '', negative: '', steps: 25, cfg: 6,
