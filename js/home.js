@@ -18,6 +18,8 @@ const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
 export const HOME_KEY = 'aet_home';
 export const CARD_TYPES = [['image', 'Image'], ['note', 'Note'], ['link', 'Link']];
 const MAX_IMG = 700000;
+export const MAX_SPAN = 4;                       // a card can be 1 to 4 columns wide
+const dim = v => { const n = Math.round(Number(v)); return n > 0 && n <= 20000 ? n : 0; };
 export const homeId = () => 'h' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
 
 // ── The record ──
@@ -33,6 +35,8 @@ export function normalizeCard(c) {
     title: String(o.title || '').slice(0, 120), text: String(o.text || '').slice(0, 4000),
     url: type === 'link' ? safeUrl(o.url) : '', image: type === 'image' ? cleanImg(o.image) : '',
     color: cleanColor(o.color), createdAt: typeof o.createdAt === 'string' ? o.createdAt : '',
+    w: Math.min(MAX_SPAN, Math.max(1, Math.round(Number(o.w)) || 1)),
+    iw: type === 'image' ? dim(o.iw) : 0, ih: type === 'image' ? dim(o.ih) : 0,
   };
 }
 export function normalizeHome(h) {
@@ -59,11 +63,12 @@ const fmtDate = iso => { try { return iso ? new Date(iso).toLocaleDateString() :
 const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return u; } };
 
 function cardHtml(c) {
-  const tint = c.color ? ` style="--hb:${esc(c.color)}"` : '';
-  const edit = `data-card="${esc(c.id)}" tabindex="0" role="button" aria-label="Edit ${esc(c.title || c.type + ' card')}"`;
-  if (c.type === 'image') return `<figure class="hb-card hb-image" ${edit}>${c.image ? `<img src="${esc(c.image)}" alt="${esc(c.title)}" loading="lazy">` : '<div class="hb-noimg">no picture</div>'}${c.title || c.text ? `<figcaption>${c.title ? `<b>${esc(c.title)}</b>` : ''}${c.text ? `<span>${esc(c.text)}</span>` : ''}</figcaption>` : ''}</figure>`;
-  if (c.type === 'link') return `<div class="hb-card hb-link${c.color ? ' tinted' : ''}"${tint} ${edit}><div class="hb-title">${esc(c.title || hostOf(c.url) || 'Link')}</div>${c.text ? `<div class="hb-text">${esc(c.text)}</div>` : ''}${c.url ? `<a class="hb-open" href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(hostOf(c.url))} ↗</a>` : '<div class="hb-text">No link yet</div>'}</div>`;
-  return `<div class="hb-card hb-note${c.color ? ' tinted' : ''}"${tint} ${edit}>${c.title ? `<div class="hb-title">${esc(c.title)}</div>` : ''}<div class="hb-text">${esc(c.text)}</div></div>`;
+  const style = ` style="--w:${c.w || 1}${c.color ? `;--hb:${esc(c.color)}` : ''}"`;
+  const edit = `data-card="${esc(c.id)}" data-w="${c.w || 1}" tabindex="0" role="button" aria-label="Edit ${esc(c.title || c.type + ' card')}"`;
+  const grip = '<span class="hb-resize" data-resize title="Drag to resize (Alt+Shift+arrows with the keyboard)" aria-hidden="true"></span>';
+  if (c.type === 'image') return `<figure class="hb-card hb-image" ${edit}${style}>${c.image ? `<img src="${esc(c.image)}" alt="${esc(c.title)}"${c.iw && c.ih ? ` width="${c.iw}" height="${c.ih}"` : ''} loading="lazy">` : '<div class="hb-noimg">no picture</div>'}${c.title || c.text ? `<figcaption>${c.title ? `<b>${esc(c.title)}</b>` : ''}${c.text ? `<span>${esc(c.text)}</span>` : ''}</figcaption>` : ''}${grip}</figure>`;
+  if (c.type === 'link') return `<div class="hb-card hb-link${c.color ? ' tinted' : ''}" ${edit}${style}><div class="hb-title">${esc(c.title || hostOf(c.url) || 'Link')}</div>${c.text ? `<div class="hb-text">${esc(c.text)}</div>` : ''}${c.url ? `<a class="hb-open" href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(hostOf(c.url))} ↗</a>` : '<div class="hb-text">No link yet</div>'}${grip}</div>`;
+  return `<div class="hb-card hb-note${c.color ? ' tinted' : ''}" ${edit}${style}>${c.title ? `<div class="hb-title">${esc(c.title)}</div>` : ''}<div class="hb-text">${esc(c.text)}</div>${grip}</div>`;
 }
 
 export function renderHomeDashboard(el) {
@@ -149,9 +154,16 @@ export function renderHomeDashboard(el) {
   el.querySelectorAll('[data-hbnew]').forEach(b => b.onclick = () => { closeAllDropdowns(); openCardEditor(null, b.dataset.hbnew); });
   el.querySelectorAll('[data-card]').forEach(n => {
     const edit = () => openCardEditor(n.dataset.card);
-    n.addEventListener('click', e => { if (e.target.closest('a') || justDragged) return; edit(); });
+    n.addEventListener('click', e => { if (e.target.closest('a') || e.target.closest('[data-resize]') || justDragged) return; edit(); });
     n.addEventListener('keydown', e => {
       if (e.key === 'Enter' && e.target === n) { edit(); return; }
+      // Alt + Shift + Left/Right makes it narrower or wider
+      if (e.altKey && e.shiftKey && e.target === n && /^Arrow(Left|Right)$/.test(e.key)) {
+        e.preventDefault();
+        const id = n.dataset.card, h = homeGet(), c = h.board.find(x => x.id === id);
+        if (c) { c.w = Math.min(MAX_SPAN, Math.max(1, (c.w || 1) + (e.key === 'ArrowRight' ? 1 : -1))); homeSet(h); rerender(); const again = document.querySelector('[data-card="' + id + '"]'); if (again) again.focus(); }
+        return;
+      }
       // Alt + arrow keys move the card without a mouse
       if (e.altKey && e.target === n && /^Arrow(Left|Up|Right|Down)$/.test(e.key)) {
         e.preventDefault();
@@ -161,7 +173,7 @@ export function renderHomeDashboard(el) {
     });
   });
   const board = el.querySelector('#homeBoard');
-  if (board) wireBoardDrag(board);
+  if (board) { wireBoardDrag(board); wireBoardResize(board); layoutBoard(board); }
   wireBoardDrop(el.querySelector('#hbZone'));
 }
 
@@ -239,7 +251,7 @@ function wireBoardDrag(board) {
   const onKey = e => { if (e.key === 'Escape' && st && st.dragging) { cleanup(); rerender(); } };
   board.addEventListener('pointerdown', e => {
     const card = e.target.closest('.hb-card');
-    if (!card || e.target.closest('a') || (e.pointerType === 'mouse' && e.button !== 0) || st) return;
+    if (!card || e.target.closest('a') || e.target.closest('[data-resize]') || (e.pointerType === 'mouse' && e.button !== 0) || st) return;
     st = { card, x: e.clientX, y: e.clientY, id: e.pointerId, type: e.pointerType, dragging: false, timer: null };
     lastY = e.clientY;
     if (st.type !== 'mouse' && st.type !== 'pen') st.timer = setTimeout(startDrag, HOLD_MS);
@@ -252,32 +264,143 @@ function wireBoardDrag(board) {
   board.addEventListener('dragstart', e => e.preventDefault()); // no native picture dragging
 }
 
-// ── Dropping picture files on the board makes image cards ──
-async function addPictureFiles(files) {
-  const imgs = [...files].filter(f => /^image\//.test(f.type));
-  if (!imgs.length) { toast('Drop pictures here to add them to the board.', 'info'); return 0; }
-  const home = homeGet();
-  let added = 0, skipped = 0;
-  for (const f of imgs) {
-    const out = await resizeImage(await readFileAsDataUrl(f), 640, 640);
-    if (!out || out.length > MAX_IMG) { skipped++; continue; }
-    home.board.unshift(normalizeCard({ id: homeId(), type: 'image', title: f.name.replace(/\.[^.]+$/, '').slice(0, 60), image: out, createdAt: new Date().toISOString() }));
-    added++;
-  }
-  if (added) homeSet(home);
-  toast(added ? `Added ${added} picture${added === 1 ? '' : 's'} to the board.` + (skipped ? ` ${skipped} could not be used.` : '') : 'Those pictures could not be used.', added ? 'ok' : 'warn');
-  return added;
+// ── Layout: a masonry grid. Each card is 1 to 4 columns wide; its height follows its content ──
+const GAP = 12, ROW = 8, MIN_COL = 170;
+export function boardColumns(width) { return Math.max(1, Math.min(6, Math.floor((width + GAP) / (MIN_COL + GAP)))); }
+export function layoutBoard(board) {
+  if (!board || !board.isConnected) return;
+  const cols = boardColumns(board.clientWidth);
+  board.style.setProperty('--cols', cols);
+  board.querySelectorAll('.hb-card').forEach(card => {
+    const want = Number(card.dataset.w) || 1;
+    card.style.setProperty('--w', Math.min(want, cols));
+    card.style.gridRowEnd = 'span ' + Math.max(1, Math.ceil((card.getBoundingClientRect().height + GAP) / ROW));
+  });
 }
-export { addPictureFiles };
+const boardWatch = new WeakMap();
+function wireBoardLayout(board) {
+  if (boardWatch.has(board)) return;
+  const relayout = () => layoutBoard(board);
+  board.addEventListener('load', relayout, true);       // pictures arriving change heights
+  if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(relayout); ro.observe(board); boardWatch.set(board, ro); } else boardWatch.set(board, true);
+  document.fonts && document.fonts.ready && document.fonts.ready.then(relayout);
+}
+
+// Drag the grip in a card's corner to change how many columns wide it is
+function wireBoardResize(board) {
+  wireBoardLayout(board);
+  board.addEventListener('pointerdown', e => {
+    const grip = e.target.closest('[data-resize]'); if (!grip) return;
+    const card = grip.closest('.hb-card'); if (!card) return;
+    e.preventDefault(); e.stopPropagation();
+    const cols = boardColumns(board.clientWidth);
+    const colW = (board.clientWidth - GAP * (cols - 1)) / cols;
+    const startX = e.clientX, startW = card.getBoundingClientRect().width;
+    let span = Number(card.dataset.w) || 1;
+    card.classList.add('hb-resizing');
+    const move = ev => {
+      const w = startW + (ev.clientX - startX);
+      span = Math.max(1, Math.min(MAX_SPAN, cols, Math.round((w + GAP) / (colW + GAP))));
+      card.dataset.w = span; layoutBoard(board);
+    };
+    const up = () => {
+      document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up);
+      card.classList.remove('hb-resizing');
+      justDragged = true; setTimeout(() => { justDragged = false; }, 80);
+      const h = homeGet(), c = h.board.find(x => x.id === card.dataset.card);
+      if (c && c.w !== span) { c.w = span; homeSet(h); }
+    };
+    document.addEventListener('pointermove', move); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
+  });
+}
+
+// ── Dropping or pasting things onto the board makes cards ──
+//   picture files -> image cards, text files and plain text -> note cards, links -> link cards,
+//   a picture dragged from a web page -> an image card (or a link card when the site will not hand it over)
+const IMG_EXT = /\.(png|jpe?g|gif|webp|avif|bmp)(\?|#|$)/i;
+const imgDims = url => new Promise(resolve => { const im = new Image(); im.onload = () => resolve({ iw: im.naturalWidth, ih: im.naturalHeight }); im.onerror = () => resolve({ iw: 0, ih: 0 }); im.src = url; });
+async function fetchPicture(url) {
+  try {
+    const r = await fetch(url); if (!r.ok) return '';
+    const blob = await r.blob(); if (!/^image\//.test(blob.type)) return '';
+    const out = await resizeImage(await readFileAsDataUrl(blob), 640, 640);
+    return out && out.length <= MAX_IMG ? out : '';
+  } catch (e) { return ''; }
+}
+// What a piece of plain text should become
+export function textToCard(text) {
+  const t = String(text || '').trim();
+  if (!t) return null;
+  const url = safeUrl(t.split(/\s+/)[0]);
+  if (url && !/\s/.test(t)) return { type: 'link', url, title: hostOf(url) };
+  const lines = t.split(/\r?\n/);
+  const first = lines[0].trim();
+  if (lines.length > 1 && first.length <= 80) return { type: 'note', title: first, text: lines.slice(1).join('\n').trim() };
+  return { type: 'note', title: '', text: t };
+}
+async function cardFromPicture(dataUrl, title) {
+  const d = await imgDims(dataUrl);
+  return normalizeCard({ id: homeId(), type: 'image', title: String(title || '').slice(0, 60), image: dataUrl, iw: d.iw, ih: d.ih, createdAt: new Date().toISOString() });
+}
+export async function addFromTransfer(dt) {
+  if (!dt) return 0;
+  const cards = [];
+  let skipped = 0;
+  const files = [...(dt.files || [])];
+  for (const f of files) {
+    if (/^image\//.test(f.type)) {
+      const out = await resizeImage(await readFileAsDataUrl(f), 640, 640);
+      if (!out || out.length > MAX_IMG) { skipped++; continue; }
+      cards.push(await cardFromPicture(out, f.name.replace(/\.[^.]+$/, '')));
+    } else if ((/^text\//.test(f.type) || /\.(txt|md)$/i.test(f.name)) && f.size <= 20000) {
+      const c = textToCard(await f.text()); if (c) cards.push(normalizeCard({ ...c, id: homeId(), title: c.title || f.name.replace(/\.[^.]+$/, ''), createdAt: new Date().toISOString() }));
+    } else skipped++;
+  }
+  if (!files.length) {
+    const uris = String(dt.getData ? dt.getData('text/uri-list') : '').split(/\r?\n/).map(x => x.trim()).filter(x => x && !x.startsWith('#'));
+    const html = String(dt.getData ? dt.getData('text/html') : '');
+    const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    const srcs = [...new Set([...(m ? [m[1]] : []), ...uris])].map(safeUrl).filter(Boolean);
+    if (srcs.length) {
+      for (const u of srcs) {
+        const looksImg = IMG_EXT.test(u) || (m && m[1] === u);
+        const pic = looksImg ? await fetchPicture(u) : '';
+        if (pic) cards.push(await cardFromPicture(pic, ''));
+        else cards.push(normalizeCard({ id: homeId(), type: 'link', url: u, title: hostOf(u), text: looksImg ? 'That site would not let the picture be copied, so this is a link to it.' : '', createdAt: new Date().toISOString() }));
+      }
+    } else {
+      const c = textToCard(dt.getData ? dt.getData('text/plain') : '');
+      if (c) cards.push(normalizeCard({ ...c, id: homeId(), createdAt: new Date().toISOString() }));
+    }
+  }
+  if (cards.length) { const home = homeGet(); home.board.unshift(...cards); homeSet(home); }
+  if (cards.length) toast(`Added ${cards.length} card${cards.length === 1 ? '' : 's'} to the board.` + (skipped ? ` ${skipped} could not be used.` : ''), 'ok');
+  else toast(skipped ? 'Those files could not be used.' : 'Nothing to add: drop pictures, text or links here.', skipped ? 'warn' : 'info');
+  return cards.length;
+}
+export { addFromTransfer as addPictureFiles };
+const TRANSFER_TYPES = ['Files', 'text/uri-list', 'text/plain', 'text/html'];
 function wireBoardDrop(zone) {
   if (!zone) return;
-  const hasFiles = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
-  zone.addEventListener('dragover', e => { if (hasFiles(e)) { e.preventDefault(); zone.classList.add('over'); } });
+  const takes = e => e.dataTransfer && [...(e.dataTransfer.types || [])].some(t => TRANSFER_TYPES.includes(t));
+  zone.addEventListener('dragover', e => { if (takes(e)) { e.preventDefault(); zone.classList.add('over'); } });
   zone.addEventListener('dragleave', e => { if (!zone.contains(e.relatedTarget)) zone.classList.remove('over'); });
   zone.addEventListener('drop', async e => {
-    if (!hasFiles(e)) return;
+    if (!takes(e)) return;
     e.preventDefault(); zone.classList.remove('over');
-    await addPictureFiles(e.dataTransfer.files); rerender();
+    await addFromTransfer(e.dataTransfer); rerender();
+  });
+}
+// Paste works on Home too (outside text boxes)
+let pasteWired = false;
+function wirePaste() {
+  if (pasteWired) return; pasteWired = true;
+  document.addEventListener('paste', async e => {
+    const home = document.getElementById('view-home');
+    if (!home || !home.classList.contains('view-active')) return;
+    if (e.target && e.target.closest && e.target.closest('input, textarea, [contenteditable="true"], .modal.open')) return;
+    const dt = e.clipboardData; if (!dt || !(dt.files.length || dt.getData('text/plain') || dt.getData('text/uri-list'))) return;
+    e.preventDefault(); await addFromTransfer(dt); rerender();
   });
 }
 
@@ -287,7 +410,8 @@ export function openCardEditor(id, type) {
   const home = homeGet();
   const card = id ? home.board.find(c => c.id === id) : null;
   if (id && !card) return;
-  editing = { id: card ? card.id : null, type: card ? card.type : (CARD_TYPES.some(t => t[0] === type) ? type : 'note'), image: card ? card.image : '', color: card ? card.color : '' };
+  editing = { id: card ? card.id : null, type: card ? card.type : (CARD_TYPES.some(t => t[0] === type) ? type : 'note'), image: card ? card.image : '', color: card ? card.color : '', iw: card ? card.iw : 0, ih: card ? card.ih : 0 };
+  g('hbSize').value = String(card ? card.w || 1 : 1);
   g('hbTitle').value = card ? card.title : '';
   g('hbText').value = card ? card.text : '';
   g('hbUrl').value = card ? card.url : '';
@@ -309,7 +433,7 @@ function paintEditor() {
 }
 function saveCard() {
   if (!editing) return false;
-  const card = normalizeCard({ id: editing.id || homeId(), type: editing.type, title: g('hbTitle').value.trim(), text: g('hbText').value, url: g('hbUrl').value, image: editing.image, color: editing.color, createdAt: new Date().toISOString() });
+  const card = normalizeCard({ id: editing.id || homeId(), type: editing.type, title: g('hbTitle').value.trim(), text: g('hbText').value, url: g('hbUrl').value, image: editing.image, color: editing.color, w: Number(g('hbSize').value) || 1, iw: editing.iw, ih: editing.ih, createdAt: new Date().toISOString() });
   if (editing.type === 'link' && g('hbUrl').value.trim() && !card.url) { toast('That link needs to start with http:// or https://', 'warn'); return false; }
   if (editing.type === 'image' && !card.image) { toast('Choose a picture first.', 'warn'); return false; }
   if (editing.type !== 'image' && !card.title && !card.text && !card.url) { toast('Write something first.', 'warn'); return false; }
@@ -322,6 +446,7 @@ function saveCard() {
 const rerender = () => { const el = document.getElementById('home-content'); if (el && document.getElementById('view-home') && document.getElementById('view-home').classList.contains('view-active')) renderHomeDashboard(el); };
 
 export function wireHome() {
+  wirePaste();
   g('hbColors').innerHTML = BOOK_COLORS.map(c => `<button type="button" class="libx-swatch" data-c="${c}" style="background:${c}" aria-label="Colour ${c}"></button>`).join('') + '<button type="button" class="btn btn-s btn-sm" data-c="">None</button>';
   g('hbColors').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (!b || !editing) return; editing.color = b.dataset.c; paintEditor(); });
   g('hbImgBtn').onclick = () => {
@@ -332,7 +457,7 @@ export function wireHome() {
       const out = await resizeImage(await readFileAsDataUrl(f), 640, 640);
       if (!out) { toast('Could not read that picture.', 'err'); return; }
       if (out.length > MAX_IMG) { toast('That picture is too big to keep. Try a smaller one.', 'warn'); return; }
-      editing.image = out; paintEditor();
+      editing.image = out; const d = await imgDims(out); editing.iw = d.iw; editing.ih = d.ih; paintEditor();
     };
     inp.click();
   };
@@ -362,6 +487,8 @@ registerMarkup(190, `<div id="hbModal" class="modal">
       <input class="finput" id="hbTitle" maxlength="120" placeholder="Title (optional)" aria-label="Title">
       <div id="hbUrlRow"><input class="finput" id="hbUrl" placeholder="https://..." aria-label="Link"></div>
       <textarea class="ftextarea" id="hbText" style="min-height:90px" aria-label="Text"></textarea>
+      <label class="pr-lbl" for="hbSize">Width</label>
+      <select class="fselect" id="hbSize"><option value="1">1 column</option><option value="2">2 columns</option><option value="3">3 columns</option><option value="4">4 columns</option></select>
       <div id="hbColorRow"><div class="pr-lbl">Colour</div><div id="hbColors" class="libx-colorgrid"></div></div>
       <div class="pr-row"><button class="btn btn-p btn-sm" id="hbSave">Save</button><button class="btn btn-s btn-sm" id="hbEarlier" title="Move earlier on the board">←</button><button class="btn btn-s btn-sm" id="hbLater" title="Move later on the board">→</button><button class="btn btn-err btn-sm" id="hbDelete">Delete</button></div>
     </div>

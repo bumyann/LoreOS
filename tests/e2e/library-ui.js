@@ -69,6 +69,15 @@ const srv=http.createServer((q,s)=>{let p=q.url.split('?')[0]; if(p==='/')p='/in
     const b2=await box('b'), a2=await box('c');
     await pg.mouse.move(b2.x+b2.width/2, b2.y+b2.height/2); await pg.mouse.down(); await pg.mouse.move(a2.x+a2.width/2, a2.y+4, {steps:10}); await pg.keyboard.press('Escape'); await pg.mouse.up(); await pg.waitForTimeout(300);
     chk(label+': Escape cancels the drag', await order()==='cab' && await pg.evaluate(()=>!document.querySelector('.hb-ghost')), await order());
+    // resize with the grip in a card's corner
+    { const bb=await box('b'); await pg.mouse.move(bb.x+bb.width/2, bb.y+bb.height/2); await pg.waitForTimeout(100);
+      const gx=bb.x+bb.width-8, gy=bb.y+bb.height-8;
+      await pg.mouse.move(gx,gy); await pg.mouse.down(); await pg.mouse.move(gx+bb.width*1.1,gy,{steps:8}); await pg.mouse.up(); await pg.waitForTimeout(300);
+      chk(label+': dragging the grip makes a card two columns wide', await pg.evaluate(()=>window.LoreOS.homeGet().board.find(c=>c.id==='b').w)===2);
+      chk(label+': resizing did not reorder or open the editor', await order()==='cab' && await pg.evaluate(()=>!document.getElementById('hbModal').classList.contains('open')), await order());
+      const bb2=await box('b'); const gx2=bb2.x+bb2.width-8, gy2=bb2.y+bb2.height-8;
+      await pg.mouse.move(gx2,gy2); await pg.mouse.down(); await pg.mouse.move(gx2-bb2.width*0.9,gy2,{steps:8}); await pg.mouse.up(); await pg.waitForTimeout(300);
+      chk(label+': and dragging it back makes it narrow again', await pg.evaluate(()=>window.LoreOS.homeGet().board.find(c=>c.id==='b').w)===1); }
     // keyboard: Alt+Arrow
     await pg.focus('[data-card="a"]'); await pg.keyboard.press('Alt+ArrowLeft'); await pg.waitForTimeout(300);
     chk(label+': Alt+Left moves a card earlier and keeps focus', await order()==='acb', await order());

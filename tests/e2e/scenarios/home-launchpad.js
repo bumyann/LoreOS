@@ -91,9 +91,45 @@
  const nb=homeGet().board;
  chk('a dropped picture becomes the first image card', nb.length===boardBefore+1 && nb[0].type==='image' && nb[0].title==='moodboard shot' && !!nb[0].image, nb.map(c=>c.type));
  chk('and was not imported as a character', Object.keys(state.charLibrary).length===charsBefore && !document.getElementById('dropHint').classList.contains('on'));
- dropFiles([new File(['hello'],'notes.txt',{type:'text/plain'})]); await w(400);
- chk('other files are not added', homeGet().board.length===boardBefore+1);
+ dropFiles([new File(['PK'],'archive.zip',{type:'application/zip'})]); await w(400);
+ chk('files that are neither pictures nor text are not added', homeGet().board.length===boardBefore+1);
+ dropFiles([new File(['Line one\nthe rest of it'],'notes.txt',{type:'text/plain'})]); await w(500);
+ { const nc=homeGet().board[0]; chk('a dropped text file becomes a note', nc.type==='note' && nc.title==='Line one' && nc.text==='the rest of it', nc); }
+ // text, links and pictures dragged in from elsewhere
+ const dropData=(data,files)=>{ const dt=new DataTransfer(); Object.entries(data).forEach(([k,v])=>dt.setData(k,v)); (files||[]).forEach(f=>dt.items.add(f)); document.getElementById('hbZone').dispatchEvent(new DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); };
+ dropData({'text/plain':'https://example.com/some/page'}); await w(400);
+ chk('a dropped link becomes a link card', homeGet().board[0].type==='link' && homeGet().board[0].url==='https://example.com/some/page' && homeGet().board[0].title==='example.com', homeGet().board[0]);
+ dropData({'text/plain':'javascript:alert(1)'}); await w(400);
+ chk('a javascript: link is not a link card', homeGet().board[0].type!=='link' || homeGet().board[0].url==='');
+ dropData({'text/plain':'Plot idea\nwhat if the court never existed'}); await w(400);
+ chk('dropped text becomes a note, first line as title', homeGet().board[0].type==='note' && homeGet().board[0].title==='Plot idea' && /never existed/.test(homeGet().board[0].text));
+ dropData({'text/plain':'just a thought'}); await w(400);
+ chk('one line of text becomes a titleless note', homeGet().board[0].type==='note' && homeGet().board[0].title==='' && homeGet().board[0].text==='just a thought');
+ dropData({'text/html':'<p><img src="https://cdn.example.invalid/pic.png"></p>','text/uri-list':'https://cdn.example.invalid/pic.png'}); await w(1200);
+ chk('a picture from a web page that will not hand it over becomes a link card with a note', homeGet().board[0].type==='link' && /link to it/.test(homeGet().board[0].text), homeGet().board[0]);
+ chk('textToCard', textToCard('  ')===null && textToCard('http://a.b/c').type==='link' && textToCard('two words http://a.b').type==='note' && textToCard('a\nb\nc').title==='a');
+ // paste
+ { const dt=new DataTransfer(); dt.setData('text/plain','pasted idea'); const n0=homeGet().board.length; document.dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true})); await w(500);
+   chk('pasting on Home adds a card', homeGet().board.length===n0+1 && homeGet().board[0].text==='pasted idea'); }
+ { const ta=document.createElement('textarea'); document.body.append(ta); const dt=new DataTransfer(); dt.setData('text/plain','typed in a box'); const n0=homeGet().board.length; ta.dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true})); await w(300); ta.remove();
+   chk('pasting into a text box is left alone', homeGet().board.length===n0); }
  chk('the drop zone is marked for the app-wide importer to leave alone', !!document.querySelector('#hbZone[data-drop-own]'));
+ // ── card width ──
+ renderHomeView(); await w(300);
+ chk('columns follow the width', boardColumns(1000)===5 && boardColumns(380)===2 && boardColumns(100)===1 && boardColumns(5000)===6);
+ { const b=document.getElementById('homeBoard'); const c=homeGet().board[0]; const el=document.querySelector('[data-card="'+c.id+'"]');
+   chk('cards start one column wide with a resize grip, laid out as a masonry grid', getComputedStyle(b).display==='grid' && el.dataset.w==='1' && !!el.querySelector('[data-resize]') && /span \d+/.test(el.style.gridRowEnd), [el.dataset.w, el.style.gridRowEnd]);
+   el.focus(); el.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',altKey:true,shiftKey:true,bubbles:true,cancelable:true})); await w(300);
+   chk('Alt+Shift+Right makes a card wider (and keeps it)', homeGet().board[0].w===2 && document.querySelector('[data-card="'+c.id+'"]').dataset.w==='2', homeGet().board[0].w);
+   document.querySelector('[data-card="'+c.id+'"]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',altKey:true,shiftKey:true,bubbles:true,cancelable:true})); await w(300);
+   chk('Alt+Shift+Left narrows it, never below one', homeGet().board[0].w===1);
+   document.querySelector('[data-card="'+c.id+'"]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',altKey:true,shiftKey:true,bubbles:true,cancelable:true})); await w(200);
+   chk('and never goes below one column', homeGet().board[0].w===1); }
+ chk('widths are limited to 1-4', normalizeCard({type:'note',text:'x',w:99}).w===4 && normalizeCard({type:'note',text:'x',w:-3}).w===1 && normalizeCard({type:'note',text:'x'}).w===1);
+ document.querySelector('[data-card]').click(); await w(250);
+ chk('the editor has a Width setting', !!document.getElementById('hbSize'));
+ document.getElementById('hbSize').value='3'; document.getElementById('hbSave').click(); await w(300);
+ chk('the editor sets the width', homeGet().board[0].w===3, homeGet().board[0].w);
  // keyboard move
  renderHomeView(); await w(250);
  const ids=homeGet().board.map(c=>c.id); const second=document.querySelector('[data-card="'+ids[1]+'"]'); second.focus();
