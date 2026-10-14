@@ -16,6 +16,8 @@ import { fitHeader } from './header_fit.js';
 import { openPrompt, renderPromptEditor, renderPromptSidebar, savePrompt } from './prompt.js';
 import { openRegex, renderRegexEditor, renderRegexSidebar, saveRegex } from './regex.js';
 import { store } from './kv.js';
+import { confirmDiscard, dropImageSession, openImageDoc, registerImageEditorHooks, renderImageEditor, renderImageSidebar } from './image_editor.js';
+import { getEntry, listPictures } from './gallery.js';
 
 // ═══════════════════════════════════════════════════════
 // WORKSHOP TABS
@@ -83,12 +85,18 @@ export function wsActivate(tabId) {
   } else if (tab.type === 'regex') {
     switchMode('regex');
     openRegex(tab.itemId);
+  } else if (tab.type === 'image') {
+    switchMode('image');
+    openImageDoc(tab.itemId);
   }
 }
 
-export function wsCloseTab(tabId) {
+export async function wsCloseTab(tabId, confirmed = false) {
   const tab = state.wsItems.find(t => t.id === tabId);
   if (!tab) return;
+  // pictures are never autosaved, so closing one with edits asks first
+  if (tab.type === 'image' && !confirmed && !await confirmDiscard(tab.itemId)) return;
+  if (tab.type === 'image') dropImageSession(tab.itemId);
 
   // Autosave before closing (the active tab is the one whose editor is on screen)
   if (tab.id === state.wsActiveId) commitActiveEditor();
@@ -231,7 +239,7 @@ export function renderWsTabs() {
   if (!bar) return;
   bar.innerHTML = '';
 
-  const TYPE_LABEL = { lore: 'LB', char: 'CH', preset: 'PS', prompt: 'PR', regex: 'RX' };
+  const TYPE_LABEL = { lore: 'LB', char: 'CH', preset: 'PS', prompt: 'PR', regex: 'RX', image: 'IM' };
 
   state.wsItems.forEach(tab => {
     let name = '...';
@@ -246,6 +254,8 @@ export function renderWsTabs() {
       name = state.promptLibrary[tab.itemId]?.name || 'Untitled';
     } else if (tab.type === 'regex') {
       name = state.regexLibrary[tab.itemId]?.name || 'Untitled';
+    } else if (tab.type === 'image') {
+      name = getEntry(tab.itemId)?.name || 'Untitled';
     }
 
     const el = document.createElement('div');
@@ -304,7 +314,8 @@ export function wsRestoreTabsInner() {
     t.type === 'char'   ? !!state.charLibrary[t.itemId] :
     t.type === 'preset' ? !!state.presetLibrary[t.itemId] :
     t.type === 'prompt' ? !!state.promptLibrary[t.itemId] :
-    t.type === 'regex' ? !!state.regexLibrary[t.itemId] : false;
+    t.type === 'regex' ? !!state.regexLibrary[t.itemId] :
+    t.type === 'image' ? !!getEntry(t.itemId) : false;
 
   const activeSaved = saved.items[saved.active];
   state.wsItems = saved.items.filter(exists).slice(0, WS_MAX_TABS)
@@ -364,10 +375,12 @@ export function renderWsPickerList(type) {
     items = Object.values(state.promptLibrary).sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
   } else if (type === 'regex') {
     items = Object.values(state.regexLibrary).sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
+  } else if (type === 'image') {
+    items = listPictures().sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
   }
 
   if (!items.length) {
-    list.innerHTML = `<div class="lib-empty">// no ${type === 'lore' ? 'lorebooks' : type === 'char' ? 'characters' : type === 'prompt' ? 'prompt packs' : type === 'regex' ? 'regex sets' : 'presets'} saved yet</div>`;
+    list.innerHTML = `<div class="lib-empty">// no ${type === 'lore' ? 'lorebooks' : type === 'char' ? 'characters' : type === 'prompt' ? 'prompt packs' : type === 'regex' ? 'regex sets' : type === 'image' ? 'pictures' : 'presets'} saved yet</div>`;
     return;
   }
 
@@ -424,7 +437,7 @@ export function applyMode(newMode) {
   if (newMode !== 'lore') { state.sideBySide = false; }
 
   // Show/hide mode headers (lore/char/preset have headers; stubs get empty placeholder)
-  ['lore','char','preset','prompt','regex'].forEach(m => {
+  ['lore','char','preset','prompt','regex','image'].forEach(m => {
     const el = g('hdr-' + m);
     if (el) el.style.display = newMode === m ? '' : 'none';
   });
@@ -480,8 +493,15 @@ export function applyMode(newMode) {
     g('zoomRow').style.display = 'none';
     g('sbSearch').placeholder = 'Search sets...';
     renderRegexSidebar(); renderRegexEditor();
+  } else if (newMode === 'image') {
+    sbTitle.textContent = 'Pictures';
+    g('zoomRow').style.display = 'none';
+    g('sbSearch').placeholder = 'Search pictures...';
+    renderImageSidebar(); renderImageEditor();
   }
 }
+
+registerImageEditorHooks();
 
 // ═══════════════════════════════════════════════════════
 // MARKUP — dialogs and fixed elements this module owns. They are registered
@@ -499,6 +519,7 @@ registerMarkup(270, `<!-- WORKSHOP TAB PICKER MODAL -->
         <button class="ws-picker-type" data-type="preset">Preset</button>
         <button class="ws-picker-type" data-type="prompt">Prompt</button>
         <button class="ws-picker-type" data-type="regex">Regex</button>
+        <button class="ws-picker-type" data-type="image">Image</button>
       </div>
       <div id="wsPickerList" class="lib-list" style="max-height:300px"></div>
     </div>

@@ -52,6 +52,7 @@ export const state = {
   // ── Gallery: { id: { id, name, thumb, w, h, source, prompt, savedAt } }; the full picture is at aet_img_<id> (see gallery.js) ──
   galleryLibrary: {},
   activePersonaId: null,
+  activeImageId: null,   // the picture open in the Workshop image editor
 
   // ── Regex sets: { id: { id, name, set, savedAt } } (see regex_model.js) ──
   regexLibrary: {},
@@ -59,7 +60,7 @@ export const state = {
   regexUnsaved: false,
   regexOpen: null,      // id of the script card that is expanded
 
-  // ── Workshop tabs: { id, type: 'lore'|'char'|'preset'|'prompt'|'regex', itemId, unsaved } ──
+  // ── Workshop tabs: { id, type: 'lore'|'char'|'preset'|'prompt'|'regex'|'image', itemId, unsaved } ──
   wsItems: [],      // open tabs
   wsActiveId: null, // currently focused tab id
   wsNextId: 1,      // internal tab id counter

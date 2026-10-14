@@ -34,7 +34,7 @@ export function closeMobSidebar() { if (isMob()) closeSidebar(); }
 
 // ── updateMobNav: show/hide mode-specific action buttons ──
 export function updateMobNav(m) {
-  ['lore','char','preset','prompt','regex'].forEach(modeKey => {
+  ['lore','char','preset','prompt','regex','image'].forEach(modeKey => {
     document.querySelectorAll(`.mob-mode-btn.mob-${modeKey}`).forEach(btn => {
       btn.style.display = (m === modeKey) ? '' : 'none';
     });
@@ -42,7 +42,7 @@ export function updateMobNav(m) {
   // Every editor mode has a sidebar (entries / characters / presets)
   const entriesBtn = g('mobEntries');
   const sep = g('mob-nav-sep');
-  const hasSidebar = ['lore','char','preset','prompt','regex'].includes(m);
+  const hasSidebar = ['lore','char','preset','prompt','regex','image'].includes(m);
   if (entriesBtn) entriesBtn.style.display = hasSidebar ? '' : 'none';
   if (sep) sep.style.display = hasSidebar ? '' : 'none';
 }
@@ -320,6 +320,14 @@ registerMarkup(140, `<!-- MOBILE BOTTOM NAV -->
   </button>
   <button class="mob-nav-btn mob-mode-btn mob-regex" id="mobRegexExport" title="Export Regex" style="display:none">
     <span class="icon">↑</span><span class="mob-nav-lbl">Export</span>
+  </button>
+
+  <!-- IMAGE actions -->
+  <button class="mob-nav-btn mob-mode-btn mob-image hi" id="mobImageSave" title="Save picture" style="display:none">
+    <span class="icon">✓</span><span class="mob-nav-lbl">Save</span>
+  </button>
+  <button class="mob-nav-btn mob-mode-btn mob-image" id="mobImageUndo" title="Undo" style="display:none">
+    <span class="icon">↶</span><span class="mob-nav-lbl">Undo</span>
   </button>
 
   <!-- always-visible: settings/theme -->
