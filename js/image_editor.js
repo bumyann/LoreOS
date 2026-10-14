@@ -373,6 +373,7 @@ export function registerImageEditorHooks() {
 }
 export function wireImageEditor() {
   const gal = g('imgHdrGallery'); if (gal) gal.onclick = () => { showLibraryTab('gallery'); navigateTo('library'); };
+  const gen = g('imgHdrGen'); if (gen) gen.onclick = () => hooks.generate && hooks.generate();
   const sv = g('mobImageSave'); if (sv) sv.onclick = () => saveImage();
   const un = g('mobImageUndo'); if (un) un.onclick = () => { const s = cur(); if (s) undo(s); };
 }

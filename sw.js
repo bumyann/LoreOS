@@ -70,6 +70,7 @@ const ASSETS = [
   'js/gallery_view.js',
   'js/image_ops.js',
   'js/image_editor.js',
+  'js/imagegen.js',
   'js/persona.js',
   'js/library_view.js',
   'js/regex_worker.js',
