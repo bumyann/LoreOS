@@ -102,7 +102,7 @@
    chk('PKCE: the challenge is the SHA-256 of the verifier, url-safe', pair.challenge===exp && pair.verifier.length>=43 && /^[A-Za-z0-9_-]+$/.test(pair.verifier));
    const au=new URL(buildAuthorizeUrl({clientId:'pk_demo123',redirect:'https://loreos.net/',state:'st',challenge:'ch',budget:5}));
    chk('authorize link: code flow, S256, this app, a budget, image models only', au.origin==='https://enter.pollinations.ai' && au.pathname==='/authorize' && au.searchParams.get('response_type')==='code' && au.searchParams.get('client_id')==='pk_demo123' && au.searchParams.get('redirect_uri')==='https://loreos.net/' && au.searchParams.get('code_challenge_method')==='S256' && au.searchParams.get('budget')==='5' && au.searchParams.get('models')==='image' && !au.searchParams.has('scope'), au.search);
-   try{ await prepareConnect({...DEFAULTS,pollenClient:''}); chk('no App Key: it says so',false); }catch(e){ chk('no App Key: it says so instead of leaving', /App Key/.test(e.message)); }
+   chk('LoreOS has its own App Key built in', clientIdFor({...DEFAULTS})==='pk_SfdkUuLU1v44hEmU' && clientIdFor({...DEFAULTS,pollenClient:'pk_mine1234'})==='pk_mine1234');
    const url=await prepareConnect({...DEFAULTS,pollenClient:'pk_demo123',pollenBudget:3}); const pend=JSON.parse(sessionStorage.getItem('loreos_pollen_pending'));
    chk('before leaving, the verifier and state wait in this tab', !!pend && pend.clientId==='pk_demo123' && new URL(url).searchParams.get('state')===pend.state && !localStorage.getItem('loreos_pollen_pending') && new URL(url).searchParams.get('budget')==='3');
    const calls2=[]; const tokenFetch=async(u,o)=>{ calls2.push([u,o]); return {ok:true,status:200,json:async()=>({access_token:'sk_user_temp_9999',token_type:'bearer',expires_in:604800,scope:''})}; };
@@ -131,7 +131,7 @@
    chk('account editing: /images/edits with the edit model', pl[0][0]==='https://gen.pollinations.ai/v1/images/edits' && pl[0][1].body.get('model')==='openai/gpt-image-1-mini' && pl[0][1].body.get('image') instanceof Blob && CAN_EDIT.pollen, [pl[0][0]]);
    chk('no key: says to connect', /Connect your Pollinations account/.test(await rej(()=>generateImage({prompt:'x',settings:ps,apiKey:'',fetchFn:pf}))));
    chk('a rejected key shows the server\'s reason', /not enough pollen/.test(await rej(()=>generateImage({prompt:'x',settings:ps,apiKey:'k',fetchFn:async()=>({ok:false,status:402,json:async()=>({error:{message:'not enough pollen'}})})}))));
-   chk('the App Key must look like a publishable key, and LoreOS ships with its own', DEFAULT_POLLEN_CLIENT==='pk_SfdkUuLU1v44hEmU' && loadGenSettings().pollenClient===DEFAULT_POLLEN_CLIENT && (saveGenSettings({pollenClient:'sk_secret_oops'}), loadGenSettings().pollenClient===DEFAULT_POLLEN_CLIENT) && (saveGenSettings({pollenClient:'pk_fine1234'}), loadGenSettings().pollenClient==='pk_fine1234'));
+   chk('the App Key must look like a publishable key, and LoreOS ships with its own', DEFAULT_POLLEN_CLIENT==='pk_SfdkUuLU1v44hEmU' && loadGenSettings().pollenClient==='' && (saveGenSettings({pollenClient:'sk_secret_oops'}), loadGenSettings().pollenClient==='') && (saveGenSettings({pollenClient:'pk_fine1234'}), loadGenSettings().pollenClient==='pk_fine1234'));
    localStorage.removeItem(GEN_KEY);
    chk('model list is read from the catalog, any shape', (await listPollenModels(async()=>({ok:true,json:async()=>(['a/b',{name:'c/d'},{id:'e/f'}])}))).join()==='a/b,c/d,e/f');
    forgetAllSecrets(); localStorage.removeItem('loreos_pollen_info'); sessionStorage.clear(); }
@@ -176,7 +176,7 @@
  // editor hook
  document.getElementById('genProvider').value='pollen'; document.getElementById('genProvider').dispatchEvent(new Event('change')); await w(150);
  chk('the account provider shows connect, models and the badge link', document.getElementById('genP-pollen').style.display==='flex' && document.getElementById('genKeyBox').style.display==='flex' && !!document.querySelector('#genP-pollen a[href*="pollinations.ai"]') && /pollen/.test(document.getElementById('genPrivacy').textContent));
- chk('the connect button is ready with the built-in App Key', document.getElementById('genPollClient').value==='pk_SfdkUuLU1v44hEmU' && !document.getElementById('genPollConnect').disabled);
+ chk('the built-in App Key is not shown anywhere on the page', !document.body.innerText.includes('pk_SfdkUuLU1v44hEmU') && !([...document.querySelectorAll('input,textarea')].some(i=>i.value.includes('pk_SfdkUuLU1v44hEmU'))) && document.getElementById('genPollClient').value==='' && !document.getElementById('genPollConnect').disabled);
  chk('the editor can open the dialog', typeof hooks.generate==='function');
  return out;
 })()

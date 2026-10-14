@@ -37,7 +37,7 @@ export const DEFAULTS = Object.freeze({
   baseUrl: 'https://api.openai.com/v1', openaiModel: 'gpt-image-1',
   swarmUrl: 'http://localhost:7801', swarmModel: '',
   comfyUrl: 'http://127.0.0.1:8188', comfyCkpt: '', comfyWorkflow: '',
-  pollenModel: 'black-forest-labs/flux.1-schnell', pollenEditModel: 'openai/gpt-image-1-mini', pollenClient: DEFAULT_POLLEN_CLIENT, pollenBudget: 5,
+  pollenModel: 'black-forest-labs/flux.1-schnell', pollenEditModel: 'openai/gpt-image-1-mini', pollenClient: '', pollenBudget: 5,   // pollenClient: only a key the person typed themselves; empty means LoreOS's own
 });
 const TEXT_KEYS = ['model', 'suffix', 'negative', 'baseUrl', 'openaiModel', 'swarmUrl', 'swarmModel', 'comfyUrl', 'comfyCkpt', 'pollenModel', 'pollenEditModel', 'pollenClient'];
 
@@ -53,7 +53,7 @@ export function loadGenSettings() {
   if (Number.isFinite(steps)) out.steps = Math.max(1, Math.min(150, Math.round(steps)));
   if (Number.isFinite(cfg)) out.cfg = Math.max(0, Math.min(30, Math.round(cfg * 10) / 10));
   const bud = Number(o.pollenBudget); if (Number.isFinite(bud) && bud > 0) out.pollenBudget = Math.min(1000, Math.round(bud * 100) / 100);
-  if (!/^pk_[A-Za-z0-9_-]{4,200}$/.test(out.pollenClient)) out.pollenClient = DEFAULT_POLLEN_CLIENT;
+  if (!/^pk_[A-Za-z0-9_-]{4,200}$/.test(out.pollenClient)) out.pollenClient = '';
   return out;
 }
 // An earlier version kept the key in these settings. Move it to the secrets store and take it out.
@@ -275,14 +275,16 @@ export async function exchangeCode({ code, verifier, clientId, redirect, fetchFn
 }
 const PENDING_KEY = 'loreos_pollen_pending', INFO_KEY = 'loreos_pollen_info';
 // Get ready to leave for the approval page. Returns the address to go to. (Kept apart from the redirect so it can be tested.)
+export const clientIdFor = settings => settings.pollenClient || DEFAULT_POLLEN_CLIENT;
 export async function prepareConnect(settings) {
-  if (!settings.pollenClient) throw new Error('This copy of LoreOS has no Pollinations App Key yet. Add one under "App Key" (made at enter.pollinations.ai/keys), or paste a key from there instead.');
+  const clientId = clientIdFor(settings);
+  if (!clientId) throw new Error('This copy of LoreOS has no Pollinations App Key yet. Add one under "App Key" (made at enter.pollinations.ai/keys), or paste a key from there instead.');
   if (!(typeof crypto !== 'undefined' && crypto.subtle)) throw new Error('Connecting needs https or localhost. You can paste a key instead.');
   const { verifier, challenge } = await pkcePair();
   const state = b64url(crypto.getRandomValues(new Uint8Array(24)));
   const redirect = redirectUri();
-  sessionStorage.setItem(PENDING_KEY, JSON.stringify({ state, verifier, redirect, clientId: settings.pollenClient, at: Date.now() }));
-  return buildAuthorizeUrl({ clientId: settings.pollenClient, redirect, state, challenge, budget: settings.pollenBudget });
+  sessionStorage.setItem(PENDING_KEY, JSON.stringify({ state, verifier, redirect, clientId, at: Date.now() }));
+  return buildAuthorizeUrl({ clientId, redirect, state, challenge, budget: settings.pollenBudget });
 }
 // Called at start-up: when the page was opened by the redirect back from Pollinations, finish the connection.
 // Returns null (not a return), or { ok, message }.
@@ -482,7 +484,7 @@ registerMarkup(192, `<div id="genModal" class="modal">
         <input class="finput" id="genPollEdit" list="genPollModels" placeholder="Model for AI edits (must accept a picture)" autocomplete="off" aria-label="Pollinations model for edits">
         <div class="pr-row" style="align-items:center"><button class="btn btn-p btn-sm" id="genPollConnect" type="button">Connect Pollinations</button><label class="rx-none">Spending limit <input class="finput" id="genPollBudget" type="number" min="0.1" step="0.5" style="width:80px"> pollen</label></div>
         <div class="rx-none" id="genPollState"></div>
-        <details><summary class="rx-none" style="cursor:pointer">App Key (advanced)</summary><input class="finput" id="genPollClient" placeholder="pk_... (the App Key LoreOS identifies itself with)" autocomplete="off" aria-label="App Key" style="margin-top:.4rem"><div class="rx-none">Made at enter.pollinations.ai/keys. Its redirect address must be this page's address.</div></details>
+        <details><summary class="rx-none" style="cursor:pointer">Hosting LoreOS yourself? (advanced)</summary><input class="finput" id="genPollClient" placeholder="Leave empty to use LoreOS's own" autocomplete="off" aria-label="Your own App Key" style="margin-top:.4rem"><div class="rx-none">Only if you host LoreOS yourself: an App Key from enter.pollinations.ai/keys whose redirect address is this page's address.</div></details>
         <div class="rx-none"><a href="https://pollinations.ai/?ref=badge" target="_blank" rel="noopener noreferrer">Made with pollinations.ai</a></div>
       </div>
       <div id="genKeyBox" style="display:none;flex-direction:column;gap:.4rem">
