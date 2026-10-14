@@ -23,7 +23,7 @@ const srv=http.createServer((q,s)=>{let p=q.url.split('?')[0]; if(p==='/')p='/in
   await pg.fill('#personaName','Click persona'); await pg.waitForTimeout(600); await pg.click('#personaDone'); await pg.waitForTimeout(400);
   chk(label+': persona listed', (await pg.textContent('#library-content')).includes('Click persona'));
   // the menu closes after a click elsewhere
-  await pg.click('#libxNewBtn'); await pg.waitForTimeout(150); await pg.click('#libxSearch'); await pg.waitForTimeout(150);
+  await pg.click('#libxNewBtn'); await pg.waitForTimeout(150); await pg.click('.libx-top',{position:{x:2,y:2}}); await pg.waitForTimeout(150);
   chk(label+': menu closes on outside click', await pg.evaluate(()=>getComputedStyle(document.querySelector('#libxNewDd .dd-menu')).display==='none'));
   // every other kind, one after another
   for (const [kind,mode,count] of [['char','char','charLibrary'],['preset','preset','presetLibrary'],['prompt','prompt','promptLibrary'],['regex','regex','regexLibrary'],['regexscript','regex','regexLibrary']]) {
