@@ -260,7 +260,8 @@ export async function pkcePair() {
   return { verifier, challenge };
 }
 export const POLLEN_AUTH = 'https://enter.pollinations.ai';
-export const redirectUri = () => location.origin + location.pathname;
+// The address Pollinations sends people back to. It must equal one registered on the App Key, so "/index.html" counts as "/".
+export const redirectUri = (loc = location) => loc.origin + loc.pathname.replace(/index\.html$/, '');
 export function buildAuthorizeUrl({ clientId, redirect, state, challenge, budget = 5, models = 'image', expiry = 7 }) {
   const q = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: redirect, state, code_challenge: challenge, code_challenge_method: 'S256', models, budget: String(budget), expiry: String(expiry) });
   return POLLEN_AUTH + '/authorize?' + q.toString();
