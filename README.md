@@ -1,5 +1,7 @@
 # LoreOS: From Yuu, For You [Early Access]
 
+<img src="https://i.imgur.com/QVwnp23.png" alt="LoreOS">
+
 **A creator's sanctuary. Built for the ones who write too much lore and have too many tabs open.**
 
 LoreOS is an all-in-one creative workspace for AI roleplay creators. Characters, lorebooks, presets, prompts, regex, pictures and notes all live in one place, in your browser. No accounts, no subscriptions, and your work stays on your device.
