@@ -53,8 +53,16 @@ export function handleCharCompanionImport(e) {
   r.onload = ev => {
     try {
       const data = JSON.parse(ev.target.result);
-      // companion.json structure: { name, persona, ... starting_scenarios: [{title, text}] }
-      if (!data.name && !data.persona) { toast('Unrecognized companion.json format.', 'err'); return; }
+      // SaucepanAI companion.json: the definition lives in `card`; `full_description` and `short_description`
+      // are the public profile blurbs, `formatting_instructions` / `advanced_prompt` are chat settings,
+      // and `starting_scenarios` are the greetings ({title, message}). Older exports used `persona`.
+      if (!data.name && !data.persona && !data.card) { toast('Unrecognized companion.json format.', 'err'); return; }
+      const str = v => typeof v === 'string' ? v : '';
+      const notes = [str(data.short_description), str(data.full_description)].filter(Boolean).join('\n\n');
+      const extra = {};
+      if (str(data.formatting_instructions)) extra.formatting_instructions = data.formatting_instructions;
+      if (str(data.advanced_prompt)) extra.advanced_prompt = data.advanced_prompt;
+      if (str(data.display_name)) extra.display_name = data.display_name;
       const altGreets = (data.starting_scenarios || []).slice(1).map(s => ({
         title: s.title || '',
         message: s.text || s.message || ''
@@ -64,19 +72,19 @@ export function handleCharCompanionImport(e) {
         spec: 'chara_card_v2', spec_version: '2.0',
         data: {
           name: data.name || 'Unnamed',
-          description: data.persona || data.description || '',
+          description: str(data.card) || str(data.persona) || str(data.description),
           personality: data.personality || '',
           scenario: data.scenario || '',
           first_mes: firstMes,
-          mes_example: data.mes_example || data.example_dialogue || '',
+          mes_example: str(data.mes_example) || str(data.example_dialogue),
           system_prompt: data.system_prompt || '',
           post_history_instructions: data.post_history_instructions || '',
-          creator_notes: data.creator_notes || '',
+          creator_notes: data.creator_notes || notes,
           creator: data.creator || '',
           character_version: data.character_version || '',
           tags: data.tags || [],
           alternate_greetings: altGreets,
-          extensions: data.extensions || {},
+          extensions: { ...(data.extensions || {}), ...(Object.keys(extra).length ? { saucepan: extra } : {}) },
           character_book: data.character_book || null
         }
       };
