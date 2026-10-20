@@ -19,7 +19,7 @@ Nothing to install, it's hosted:
 
 Works on desktop, mobile and tablet, works offline once loaded, and can be installed as an app.
 
-**New here?** The [LoreOS guide](https://spiffy-temper-1b5.notion.site/LoreOS-3ff0ef120d918184bd61e0f30b6c00a7) walks through every room, plus the FAQ, roadmap and what's new.
+**New here?** The [LoreOS page](https://spiffy-temper-1b5.notion.site/LoreOS-3ff0ef120d918184bd61e0f30b6c00a7) walks through every room, plus the FAQ, roadmap and what's new.
 
 ---
 
@@ -31,9 +31,9 @@ LoreOS is organised into **rooms**, each for a different part of the creative pr
 |------|--------------|
 | **Home** | Jump back in, favourites, recent works, quick actions, and a free-form inspiration board for pictures, notes and links. |
 | **Library** | Everything you've made, on shelves. Worlds with nested folders, tags, pins, notes, covers and colours. A **Gallery** tab keeps your pictures as polaroids. |
+| **Journal** | Notes and writing with pages inside pages, a `/` menu, `@` links to anything in your Library, toggles, to-dos and templates. |
 | **Workshop** | The editors, with several open as tabs at once and autosave throughout. |
 | **Laboratory** | Analysis and experiments. Not built yet. |
-| **Journal** | Notes and writing with pages inside pages, a `/` menu, `@` links to anything in your Library, toggles, to-dos and templates. |
 | **Settings** | Themes, fonts, logo, storage, backups and Google Drive sync. |
 
 ### Workshop editors
