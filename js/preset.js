@@ -2,8 +2,20 @@
 // PRESET EDITOR
 // ═══════════════════════════════════════════════════════
 
+import { scanAndRenderVars } from './attach_lb.js';
+import { openFullscreen } from './fullscreen.js';
+import { itemHistoryPush, itemUndoGet, itemUndoPush, openItemHistory, syncItemUndoButtons, wireFieldUndoRedo } from './history.js';
+import { closeMobSidebar } from './mobile.js';
+import { state } from './state.js';
+import { hasLoom, openLoomVars, variableBlocks } from './loom_vars.js';
+import { looksLikeLoomPreset, loomToPreset, presetToLoom } from './lumiverse.js';
+import { savePresetLibrary } from './storage.js';
+import { registerTrashRestorer, trashPush } from './trash.js';
+import { askConfirm, closeModal, dlFile, esc, g, openModal, registerMarkup, safeFileName, toast } from './util.js';
+import { commitActiveEditor, wsDropItem, wsMarkSaved, wsShowItem } from './workshop.js';
+
 // ── Blank preset matching ST chat completion format ──
-function blankPreset() {
+export function blankPreset() {
   return {
     name: 'New Preset',
     temperature: 0.8, top_p: 1, top_k: 0, top_a: 0, min_p: 0,
@@ -30,27 +42,32 @@ function blankPreset() {
   };
 }
 
-function presetId() { return 'p' + Date.now() + Math.floor(Math.random()*1000); }
+export function presetId() { return 'p' + Date.now() + Math.floor(Math.random()*1000); }
 
-function createPreset() {
+export function createPreset() {
   const p = blankPreset();
   const id = presetId();
-  presetLibrary[id] = { id, name: p.name, preset: p, savedAt: new Date().toISOString() };
+  state.presetLibrary[id] = { id, name: p.name, preset: p, savedAt: new Date().toISOString() };
   savePresetLibrary();
   renderPresetSidebar();
-  openPreset(id);
+  // New presets get their own workshop tab (falls back to no tab if full)
+  if (!wsShowItem('preset', id)) openPreset(id);
 }
 
-function openPreset(id) {
-  activePresetId = id;
+export function openPreset(id) {
+  // Moving to a different preset: save what's typed in the current one first
+  if (state.activePresetId && state.activePresetId !== id) commitActiveEditor();
+  state.presetUnsaved = false;
+  state.activePresetId = id;
   renderPresetSidebar();
   renderPresetEditor();
 }
 
-function renderPresetSidebar() {
+export function renderPresetSidebar() {
   const list = g('entryList');
   const count = g('entryCount');
-  const presets = Object.values(presetLibrary).sort((a,b) => b.savedAt.localeCompare(a.savedAt));
+  // By name, like the character list: sorting by save time made the open preset jump to the top on every autosave
+  const presets = Object.values(state.presetLibrary).sort((a,b) => (a.name||'').localeCompare(b.name||''));
   count.textContent = `${presets.length} ${presets.length === 1 ? 'preset' : 'presets'}`;
   list.innerHTML = '';
 
@@ -63,9 +80,9 @@ function renderPresetSidebar() {
 
   presets.forEach(entry => {
     const li = document.createElement('li');
-    li.className = 'ei' + (entry.id === activePresetId ? ' open' : '');
+    li.className = 'ei' + (entry.id === state.activePresetId ? ' open' : '');
     const head = document.createElement('div'); head.className = 'ei-head';
-    const emoji = document.createElement('span'); emoji.className = 'ei-emoji'; emoji.textContent = '⚙';
+    const emoji = document.createElement('span'); emoji.className = 'ei-emoji'; emoji.textContent = '⚙︎';
     const name = document.createElement('div'); name.className = 'ei-name';
     name.textContent = entry.name || 'Untitled Preset';
     head.append(emoji, name); li.append(head);
@@ -82,42 +99,47 @@ function renderPresetSidebar() {
 
     const meta = document.createElement('div'); meta.className = 'ei-kws';
     const p = entry.preset;
-    [`🌡 ${p.temperature}`,`prompts: ${(p.prompts||[]).length}`].forEach(t => {
+    [`temp ${p.temperature}`,`prompts: ${(p.prompts||[]).length}`].forEach(t => {
       const tag = document.createElement('span'); tag.className = 'kw-tag'; tag.textContent = t; meta.append(tag);
     });
     li.append(meta);
-    li.addEventListener('click', () => openPreset(entry.id));
+    li.addEventListener('click', () => {
+      if (!wsShowItem('preset', entry.id)) openPreset(entry.id);
+      closeMobSidebar();
+    });
     list.append(li);
   });
 }
 
-function duplicatePreset(id) {
-  const src = presetLibrary[id]; if (!src) return;
+export function duplicatePreset(id) {
+  const src = state.presetLibrary[id]; if (!src) return;
   const newId = presetId();
   const p = JSON.parse(JSON.stringify(src.preset));
   p.name = (p.name || 'Untitled') + ' (Copy)';
-  presetLibrary[newId] = { id: newId, name: p.name, preset: p, savedAt: new Date().toISOString() };
-  savePresetLibrary(); renderPresetSidebar(); openPreset(newId);
+  state.presetLibrary[newId] = { id: newId, name: p.name, preset: p, savedAt: new Date().toISOString() };
+  savePresetLibrary(); renderPresetSidebar();
+  if (!wsShowItem('preset', newId)) openPreset(newId);
 }
 
-async function deletePreset(id) {
-  if (!await askConfirm('Delete this preset?')) return;
-  delete presetLibrary[id];
-  if (activePresetId === id) activePresetId = null;
+export async function deletePreset(id) {
+  if (!await askConfirm('Delete this preset? You can bring it back from Settings > Storage > Recently deleted.')) return;
+  if (state.presetLibrary[id]) trashPush('preset', state.presetLibrary[id].name || 'Unnamed preset', state.presetLibrary[id]);
+  delete state.presetLibrary[id];
+  wsDropItem('preset', id);
+  if (state.activePresetId === id) state.activePresetId = null;
   savePresetLibrary(); renderPresetSidebar(); renderPresetEditor();
 }
 
-function renderPresetEditor() {
+export function renderPresetEditor() {
   const ec = g('editorContent');
   g('tabBar').innerHTML = '';
-  if (!activePresetId || !presetLibrary[activePresetId]) {
+  if (!state.activePresetId || !state.presetLibrary[state.activePresetId]) {
     ec.className = '';
     ec.innerHTML = `<div class="empty-state"><div>// select or create a preset</div><button class="btn btn-ok" id="newEntryBtnAlt">+ New Preset</button></div>`;
     g('newEntryBtnAlt').onclick = createPreset; return;
   }
-  const entry = presetLibrary[activePresetId];
+  const entry = state.presetLibrary[state.activePresetId];
   const p = entry.preset;
-  const esc = t => { const d=document.createElement('div'); d.textContent=t||''; return d.innerHTML; };
 
   ec.className = '';
   ec.innerHTML = `<div class="entry-editor" style="max-width:960px">
@@ -143,9 +165,9 @@ function renderPresetEditor() {
           ${presetSlider('psRepPen','Repetition Penalty',p.repetition_penalty,1,2,0.01)}
           ${presetSlider('psFreqPen','Frequency Penalty',p.frequency_penalty,0,2,0.01)}
           ${presetSlider('psPresPen','Presence Penalty',p.presence_penalty,0,2,0.01)}
-          <div class="fg"><label class="flabel-sm">Max Context</label><input type="number" id="psMaxCtx" class="fnum" style="width:100px" value="${p.openai_max_context}" min="0"></div>
-          <div class="fg"><label class="flabel-sm">Max Tokens</label><input type="number" id="psMaxTok" class="fnum" style="width:100px" value="${p.openai_max_tokens}" min="0"></div>
-          <div class="fg"><label class="flabel-sm">Seed (-1 = random)</label><input type="number" id="psSeed" class="fnum" style="width:100px" value="${p.seed}"></div>
+          <div class="fg"><label class="flabel-sm">Max Context</label><input type="number" id="psMaxCtx" class="fnum" style="width:100px" value="${esc(p.openai_max_context)}" min="0"></div>
+          <div class="fg"><label class="flabel-sm">Max Tokens</label><input type="number" id="psMaxTok" class="fnum" style="width:100px" value="${esc(p.openai_max_tokens)}" min="0"></div>
+          <div class="fg"><label class="flabel-sm">Seed (-1 = random)</label><input type="number" id="psSeed" class="fnum" style="width:100px" value="${esc(p.seed)}"></div>
           <div class="fg"><label class="cb-row"><input type="checkbox" id="psMaxCtxUnlocked" ${p.max_context_unlocked?'checked':''}><span class="flabel-sm">Unlock Max Context</span></label></div>
           <div class="fg"><label class="cb-row"><input type="checkbox" id="psStream" ${p.stream_openai?'checked':''}><span class="flabel-sm">Stream</span></label></div>
           <div class="fg"><label class="cb-row"><input type="checkbox" id="psUseSys" ${p.use_sysprompt?'checked':''}><span class="flabel-sm">Use System Prompt</span></label></div>
@@ -153,21 +175,22 @@ function renderPresetEditor() {
           <div class="fg"><label class="cb-row"><input type="checkbox" id="psShowThoughts" ${p.show_thoughts?'checked':''}><span class="flabel-sm">Show Thoughts</span></label></div>
           <div class="fg"><label class="flabel-sm">Reasoning Effort</label>
             <select id="psReasoningEffort" class="fselect">
-              ${['auto','low','medium','high','disabled'].map(v=>`<option value="${v}" ${p.reasoning_effort===v?'selected':''}>${v}</option>`).join('')}
+              ${selOpts(['auto','low','medium','high','disabled'],p.reasoning_effort)}
             </select>
           </div>
           <div class="fg"><label class="flabel-sm">Verbosity</label>
             <select id="psVerbosity" class="fselect">
-              ${['auto','concise','detailed'].map(v=>`<option value="${v}" ${p.verbosity===v?'selected':''}>${v}</option>`).join('')}
+              ${selOpts(['auto','concise','detailed'],p.verbosity)}
             </select>
           </div>
           <div class="fg"><label class="flabel-sm">Tool Reasoning Mode</label>
             <select id="psTRMode" class="fselect">
-              ${['disabled','auto','chain_of_thought'].map(v=>`<option value="${v}" ${p.tool_reasoning_mode===v?'selected':''}>${v}</option>`).join('')}
+              ${selOpts(['disabled','auto','chain_of_thought'],p.tool_reasoning_mode)}
             </select>
           </div>
           <div class="fg"><label class="flabel-sm">Names Behavior</label>
             <select id="psNamesBehavior" class="fselect">
+              ${p.names_behavior===-1?'<option value="-1" selected>None (-1)</option>':''}
               <option value="0" ${p.names_behavior===0?'selected':''}>Default</option>
               <option value="1" ${p.names_behavior===1?'selected':''}>Always</option>
               <option value="2" ${p.names_behavior===2?'selected':''}>Never</option>
@@ -179,7 +202,7 @@ function renderPresetEditor() {
 
     <!-- PROMPT STRING FIELDS -->
     <div class="adv">
-      <div class="adv-head" id="psStringsHead"><span class="adv-title">📝 Prompt Strings</span><span class="adv-arr" id="psStringsArr">▶</span></div>
+      <div class="adv-head" id="psStringsHead"><span class="adv-title">✎︎ Prompt Strings</span><span class="adv-arr" id="psStringsArr">▶</span></div>
       <div class="adv-body" id="psStringsBody">
         <div style="display:flex;flex-direction:column;gap:.65rem">
           ${presetStringField('psAssistPrefill','Assistant Prefill',p.assistant_prefill)}
@@ -202,7 +225,7 @@ function renderPresetEditor() {
     <!-- PROMPTS LIST -->
     <div class="adv open" style="border:1px solid var(--bdb)">
       <div class="adv-head open" id="psPromptsHead" style="flex-wrap:wrap;gap:.4rem">
-        <span class="adv-title" style="color:var(--p)">📋 Prompts <span style="color:var(--txm);font-size:.7em">(drag to reorder)</span></span>
+        <span class="adv-title" style="color:var(--p)">☰ Prompts <span style="color:var(--txm);font-size:.7em">(drag to reorder)</span></span>
         <div style="display:flex;gap:.3rem;margin-left:auto;flex-wrap:wrap">
           <button class="btn btn-s btn-sm" id="psScrollBot">⬇ Jump to Bottom</button>
           <button class="btn btn-s btn-sm" id="psCollapseAll">▶ Collapse All</button>
@@ -225,7 +248,7 @@ function renderPresetEditor() {
     <!-- VARIABLES PANEL -->
     <div class="adv">
       <div class="adv-head" id="psVarsHead">
-        <span class="adv-title">🔡 Variables <span style="color:var(--txm);font-size:.7em">(setvar/getvar)</span></span>
+        <span class="adv-title">⌗ Variables <span style="color:var(--txm);font-size:.7em">(setvar/getvar)</span></span>
         <div style="display:flex;gap:.3rem;align-items:center">
           <button class="btn btn-s btn-sm" id="psScanVars">Scan</button>
           <span class="adv-arr" id="psVarsArr">▶</span>
@@ -243,9 +266,21 @@ function renderPresetEditor() {
       <button class="btn btn-s item-ur-btn" id="psUndoBtn" title="Undo last change" disabled>↩ Undo</button>
       <button class="btn btn-s item-ur-btn" id="psRedoBtn" title="Redo" disabled>Redo ↪</button>
       <button class="btn btn-s" id="psExportBtn">Export JSON</button>
+      <button class="btn btn-s" id="psExportLoomBtn">Export Loom Preset</button>
+      ${hasLoom(p) ? `<button class="btn btn-s" id="psLoomVarsBtn">Preset settings (${variableBlocks(p).reduce((n, b) => n + b.defs.length, 0)})</button>` : ''}
       <button class="btn btn-err" id="psDeleteBtn">Delete Preset</button>
     </div>
   </div>`;
+
+  // Sampler sliders: the range, the number box and the label beside them stay in step
+  ec.querySelectorAll('[data-slider]').forEach(inp => {
+    const id = inp.dataset.slider;
+    inp.addEventListener('input', () => {
+      g(id + 'Val').textContent = inp.value;
+      const other = g(id + (inp.id === id + 'Range' ? 'Num' : 'Range'));
+      if (other) other.value = inp.value;
+    });
+  });
 
   // Render prompt list
   renderPromptList(p.prompts || []);
@@ -302,14 +337,14 @@ function renderPresetEditor() {
   g('psScrollBot').addEventListener('click', () => { g('editorContent').scrollTop = g('editorContent').scrollHeight; });
 
   g('psCollapseAll').addEventListener('click', () => {
-    const entry2 = presetLibrary[activePresetId]; if (!entry2) return;
+    const entry2 = state.presetLibrary[state.activePresetId]; if (!entry2) return;
     getOrderedPrompts(entry2.preset).forEach(pr => collapsedPrompts.add(pr.identifier || pr.id));
     renderPromptList(entry2.preset.prompts);
   });
 
   g('psExpandAll').addEventListener('click', () => {
     collapsedPrompts.clear();
-    const entry2 = presetLibrary[activePresetId]; if (!entry2) return;
+    const entry2 = state.presetLibrary[state.activePresetId]; if (!entry2) return;
     renderPromptList(entry2.preset.prompts);
   });
 
@@ -395,8 +430,6 @@ function renderPresetEditor() {
   }
 
   editorScroll.addEventListener('scroll', updateSearchBarSticky);
-  // Clean up on mode switch or preset change
-  const _origOpenPreset = openPreset;
   // Store scroll listener ref for cleanup when preset re-renders
   searchBar._scrollCleanup = () => editorScroll.removeEventListener('scroll', updateSearchBarSticky);
 
@@ -407,35 +440,35 @@ function renderPresetEditor() {
 
   g('psSaveBtn').addEventListener('click', savePreset);
   g('psExportBtn').addEventListener('click', exportPreset);
-  g('psDeleteBtn').addEventListener('click', () => deletePreset(activePresetId));
+  g('psExportLoomBtn').addEventListener('click', exportPresetLoom);
+  if (g('psLoomVarsBtn')) g('psLoomVarsBtn').addEventListener('click', openLoomVars);
+  g('psDeleteBtn').addEventListener('click', () => deletePreset(state.activePresetId));
 
   // Item-level undo/redo
   if (g('psUndoBtn')) g('psUndoBtn').addEventListener('click', () => {
-    const snap = itemUndoGet('preset', activePresetId, 'undo');
+    const snap = itemUndoGet('preset', state.activePresetId, 'undo');
     if (!snap) return;
-    presetFormState = snap;
+    state.presetFormState = snap;
     renderPresetEditor();
-    syncItemUndoButtons('preset', activePresetId);
+    syncItemUndoButtons('preset', state.activePresetId);
   });
   if (g('psRedoBtn')) g('psRedoBtn').addEventListener('click', () => {
-    const snap = itemUndoGet('preset', activePresetId, 'redo');
+    const snap = itemUndoGet('preset', state.activePresetId, 'redo');
     if (!snap) return;
-    presetFormState = snap;
+    state.presetFormState = snap;
     renderPresetEditor();
-    syncItemUndoButtons('preset', activePresetId);
+    syncItemUndoButtons('preset', state.activePresetId);
   });
 
   // Wire field-level undo/redo on preset textareas
-  if (typeof wireFieldUndoRedo === 'function') wireFieldUndoRedo(g('editorContent'));
+  wireFieldUndoRedo(g('editorContent'));
 
   // Push undo baseline after editor renders
-  if (typeof itemUndoPush === 'function') {
-    setTimeout(() => {
-      const snap = {}; document.querySelectorAll('#editorContent input,#editorContent select').forEach(el => { snap[el.id] = el.type === 'checkbox' ? el.checked : el.value; });
-      itemUndoPush('preset', activePresetId, snap);
-      syncItemUndoButtons('preset', activePresetId);
-    }, 0);
-  }
+  setTimeout(() => {
+    const snap = {}; document.querySelectorAll('#editorContent input,#editorContent select').forEach(el => { snap[el.id] = el.type === 'checkbox' ? el.checked : el.value; });
+    itemUndoPush('preset', state.activePresetId, snap);
+    syncItemUndoButtons('preset', state.activePresetId);
+  }, 0);
 
   // Variables panel
   g('psVarsHead').addEventListener('click', () => {
@@ -449,22 +482,28 @@ function renderPresetEditor() {
   });
 }
 
-function presetSlider(id, label, val, min, max, step) {
+export function presetSlider(id, label, val, min, max, step) {
   return `<div class="fg" style="grid-column:span 1">
     <label class="flabel-sm" style="display:flex;justify-content:space-between">
-      <span>${label}</span><span id="${id}Val" style="color:var(--p)">${val}</span>
+      <span>${label}</span><span id="${id}Val" style="color:var(--p)">${esc(val)}</span>
     </label>
     <div style="display:flex;gap:.4rem;align-items:center">
-      <input type="range" id="${id}Range" min="${min}" max="${max}" step="${step}" value="${val}"
-        style="flex:1;accent-color:var(--p)" oninput="g('${id}Val').textContent=this.value;g('${id}Num').value=this.value">
-      <input type="number" id="${id}Num" class="fnum" style="width:60px" min="${min}" max="${max}" step="${step}" value="${val}"
-        oninput="g('${id}Val').textContent=this.value;g('${id}Range').value=this.value">
+      <input type="range" id="${id}Range" min="${min}" max="${max}" step="${step}" value="${esc(val)}"
+        style="flex:1;accent-color:var(--p)" data-slider="${id}">
+      <input type="number" id="${id}Num" class="fnum" style="width:60px" min="${min}" max="${max}" step="${step}" value="${esc(val)}"
+        data-slider="${id}">
     </div>
   </div>`;
 }
 
-function presetStringField(id, label, val, tall=false) {
-  const esc = t => { const d=document.createElement('div'); d.textContent=t||''; return d.innerHTML; };
+// <option> list that also keeps a value the preset already has but the list
+// doesn't know (newer ST versions add values), so opening a preset never alters it
+function selOpts(list, cur) {
+  const all = (cur === undefined || cur === null || list.includes(cur)) ? list : [...list, cur];
+  return all.map(v => `<option value="${esc(v)}" ${cur===v?'selected':''}>${esc(v === '' ? '(unset)' : v)}</option>`).join('');
+}
+
+export function presetStringField(id, label, val, tall=false) {
   return `<div class="fg">
     <label class="flabel-sm">${label}</label>
     ${tall
@@ -474,25 +513,25 @@ function presetStringField(id, label, val, tall=false) {
 }
 
 // ST special identifiers — fixed positions, ST injects these automatically
-const ST_SPECIAL = {
-  'main':               { label: '🔧 Main Prompt',           desc: 'ST main system prompt' },
-  'nsfw':               { label: '🔞 NSFW',                  desc: 'NSFW/adult content block' },
-  'jailbreak':          { label: '🔓 Jailbreak',             desc: 'Jailbreak / post-history block' },
-  'dialogueExamples':   { label: '💬 Dialogue Examples',     desc: 'Example messages block' },
-  'chatHistory':        { label: '📜 Chat History',          desc: 'Chat messages inject here' },
-  'enhanceDefinitions': { label: '📖 Enhance Definitions',   desc: 'Definition enhancement block' },
-  'charDescription':    { label: '👤 Char Description',      desc: 'Character description field' },
-  'charPersonality':    { label: '🎭 Char Personality',      desc: 'Character personality field' },
-  'scenario':           { label: '🎬 Scenario',              desc: 'Scenario field' },
-  'personaDescription': { label: '🪞 Persona Description',   desc: 'User persona description' },
-  'worldInfoBefore':    { label: '🌍 World Info — Before',   desc: 'World info before char' },
-  'worldInfoAfter':     { label: '🌍 World Info — After',    desc: 'World info after char' },
+export const ST_SPECIAL = {
+  'main':               { label: '✦ Main Prompt',           desc: 'ST main system prompt' },
+  'nsfw':               { label: '⛧ NSFW',                  desc: 'NSFW/adult content block' },
+  'jailbreak':          { label: '⚿ Jailbreak',             desc: 'Jailbreak / post-history block' },
+  'dialogueExamples':   { label: '❝ Dialogue Examples',     desc: 'Example messages block' },
+  'chatHistory':        { label: '☰ Chat History',          desc: 'Chat messages inject here' },
+  'enhanceDefinitions': { label: '❖ Enhance Definitions',   desc: 'Definition enhancement block' },
+  'charDescription':    { label: '☺︎ Char Description',      desc: 'Character description field' },
+  'charPersonality':    { label: '☻︎ Char Personality',      desc: 'Character personality field' },
+  'scenario':           { label: '◧ Scenario',              desc: 'Scenario field' },
+  'personaDescription': { label: '◍ Persona Description',   desc: 'User persona description' },
+  'worldInfoBefore':    { label: '↑ World Info — Before',   desc: 'World info before char' },
+  'worldInfoAfter':     { label: '↓ World Info — After',    desc: 'World info after char' },
 };
 
 // Which prompts are collapsed (by identifier)
-const collapsedPrompts = new Set();
+export const collapsedPrompts = new Set();
 
-function getOrderedPrompts(preset) {
+export function getOrderedPrompts(preset) {
   // Use prompt_order[0].order as the canonical sequence if available
   const order = preset.prompt_order?.[0]?.order;
   if (!order?.length) return preset.prompts || [];
@@ -512,11 +551,11 @@ function getOrderedPrompts(preset) {
   return result;
 }
 
-function renderPromptList(prompts) {
+export function renderPromptList(prompts) {
   const list = g('psPromptList'); if (!list) return;
   list.innerHTML = '';
 
-  const entry = presetLibrary[activePresetId]; if (!entry) return;
+  const entry = state.presetLibrary[state.activePresetId]; if (!entry) return;
   // Use order from prompt_order for display
   const ordered = getOrderedPrompts(entry.preset);
 
@@ -696,7 +735,7 @@ function renderPromptList(prompts) {
   });
 }
 
-function makeBlankPrompt() {
+export function makeBlankPrompt() {
   const id = crypto.randomUUID();
   return {
     id, identifier: id, name: 'New Prompt', content: '',
@@ -706,17 +745,22 @@ function makeBlankPrompt() {
   };
 }
 
-function syncPromptOrder(preset) {
+export function syncPromptOrder(preset) {
   // Rebuild prompt_order to match current prompts array order + enabled state
-  preset.prompt_order = [{
-    id: preset.prompt_order?.[0]?.id ?? 0,
-    character_id: preset.prompt_order?.[0]?.character_id ?? 0,
-    order: (preset.prompts || []).map(pr => ({ identifier: pr.identifier, enabled: pr.enabled !== false }))
-  }];
+  // Entries for other character ids are kept as they were; only the first
+  // (the one the editor shows) is rebuilt from the prompt list
+  const first = preset.prompt_order?.[0];
+  const head = { character_id: first?.character_id ?? 0,
+    order: (preset.prompts || []).map(pr => ({ identifier: pr.identifier, enabled: pr.enabled !== false })) };
+  if (first && 'id' in first) head.id = first.id;
+  preset.prompt_order = [head, ...(preset.prompt_order || []).slice(1)];
 }
 
-function savePreset() {
-  const entry = presetLibrary[activePresetId]; if (!entry) return;
+// opts.silent: no toast; opts.noHistory: no version-history snapshot (both
+// used by autosave). When wired straight to a click this receives the click
+// event, which has neither property, so it behaves like a normal save.
+export function savePreset(opts = {}) {
+  const entry = state.presetLibrary[state.activePresetId]; if (!entry) return;
   const p = entry.preset;
   const gv = id => g(id)?.value;
   const gc = id => g(id)?.checked;
@@ -732,16 +776,18 @@ function savePreset() {
   p.presence_penalty    = parseFloat(gv('psPresPenNum')) || 0;
   p.openai_max_context  = parseInt(gv('psMaxCtx'))  || 16384;
   p.openai_max_tokens   = parseInt(gv('psMaxTok'))  || 4096;
-  p.seed           = parseInt(gv('psSeed'))         ?? -1;
+  const seedN      = parseInt(gv('psSeed'));
+  p.seed           = isNaN(seedN) ? -1 : seedN;
   p.max_context_unlocked = gc('psMaxCtxUnlocked');
   p.stream_openai  = gc('psStream');
   p.use_sysprompt  = gc('psUseSys');
   p.squash_system_messages = gc('psSquash');
   p.show_thoughts  = gc('psShowThoughts');
-  p.reasoning_effort   = gv('psReasoningEffort') || 'auto';
-  p.verbosity          = gv('psVerbosity')       || 'auto';
-  p.tool_reasoning_mode= gv('psTRMode')          || 'disabled';
-  p.names_behavior     = parseInt(gv('psNamesBehavior')) || 0;
+  p.reasoning_effort   = gv('psReasoningEffort') ?? 'auto';
+  p.verbosity          = gv('psVerbosity')       ?? 'auto';
+  p.tool_reasoning_mode= gv('psTRMode')          ?? 'disabled';
+  const nb = parseInt(gv('psNamesBehavior'));
+  p.names_behavior     = isNaN(nb) ? 0 : nb;
 
   // String fields
   p.assistant_prefill       = gv('psAssistPrefill')    || '';
@@ -755,7 +801,9 @@ function savePreset() {
   p.new_group_chat_prompt   = gv('psNewGroupPrompt')   || '';
   p.new_example_chat_prompt = gv('psNewExamplePrompt') || '';
   p.continue_nudge_prompt   = gv('psContinueNudge')    || '';
-  p.continue_postfix        = gv('psContinuePostfix')  ?? ' ';
+  // a text box can't show a newline, so an untouched postfix keeps its original
+  const cpf = gv('psContinuePostfix') ?? ' ';
+  if (!(typeof p.continue_postfix === 'string' && cpf === p.continue_postfix.replace(/[\r\n]/g, ''))) p.continue_postfix = cpf;
   p.group_nudge_prompt      = gv('psGroupNudge')       || '';
 
   // Rebuild prompt_order to mirror current prompts array order + enabled state
@@ -764,62 +812,79 @@ function savePreset() {
   entry.name = p.name;
   entry.savedAt = new Date().toISOString();
   // Snapshot on every explicit save
-  if (typeof itemHistoryPush === 'function') itemHistoryPush('preset', activePresetId, JSON.parse(JSON.stringify(entry)));
+  if (!opts.noHistory) itemHistoryPush('preset', state.activePresetId, JSON.parse(JSON.stringify(entry)));
+  state.presetUnsaved = false;
   savePresetLibrary();
   renderPresetSidebar();
-  toast('Preset saved.', 'ok');
+  wsMarkSaved('preset', state.activePresetId);
+  if (!opts.silent) toast('Preset saved.', 'ok');
 }
 
-function exportPreset() {
-  const entry = presetLibrary[activePresetId]; if (!entry) return;
+export function exportPreset() {
+  const entry = state.presetLibrary[state.activePresetId]; if (!entry) return;
   savePreset(); // save first to capture any unsaved edits
-  const fn = (entry.preset.name || 'preset').replace(/[^a-z0-9_\- ]/gi, '_') + '.json';
+  const fn = safeFileName(entry.preset.name, 'preset') + '.json';
   dlFile(JSON.stringify(entry.preset, null, 4), fn, 'application/json');
   toast('Exported: ' + fn, 'ok');
 }
 
-function handlePresetImport(e) {
+export function exportPresetLoom() {
+  const entry = state.presetLibrary[state.activePresetId]; if (!entry) return;
+  savePreset(); // save first to capture any unsaved edits
+  const fn = safeFileName(entry.preset.name, 'preset') + '.lumiverse.json';
+  dlFile(JSON.stringify(presetToLoom(entry.preset), null, 2), fn, 'application/json');
+  toast('Exported Loom Preset: ' + fn, 'ok');
+}
+
+export function handlePresetImport(e) {
   const file = e.target.files[0]; if (!file) return;
   const r = new FileReader();
   r.onload = ev => {
     try {
-      const p = JSON.parse(ev.target.result);
-      if (!p.prompts && !p.temperature === undefined) { toast('Doesn\'t look like an ST preset.', 'err'); return; }
+      let p = JSON.parse(ev.target.result);
+      let loomNote = '';
+      if (looksLikeLoomPreset(p)) {
+        const r = loomToPreset(p); p = r.preset;
+        loomNote = ' (Loom Preset: ' + r.notes.blocks + ' blocks' + (r.notes.regex ? ', ' + r.notes.regex + ' regex scripts' : '') + (r.notes.settings ? ', ' + r.notes.settings + ' preset settings' : '') + ')';
+        if (r.notes.macros.length) setTimeout(() => toast('These Loom macros may not work in SillyTavern: ' + r.notes.macros.slice(0, 6).map(m => '{{' + m + '}}').join(', ') + (r.notes.macros.length > 6 ? ' and ' + (r.notes.macros.length - 6) + ' more' : ''), 'warn', { ms: 9000 }), 1200);
+      }
+      if (!p || typeof p !== 'object' || Array.isArray(p) || (!Array.isArray(p.prompts) && p.temperature === undefined)) { toast('Doesn\'t look like an ST preset.', 'err'); return; }
       if (!p.name) p.name = file.name.replace(/\.json$/i, '');
       const id = presetId();
-      presetLibrary[id] = { id, name: p.name, preset: p, savedAt: new Date().toISOString() };
-      savePresetLibrary(); renderPresetSidebar(); openPreset(id);
-      toast('Imported: ' + p.name, 'ok');
+      state.presetLibrary[id] = { id, name: p.name, preset: p, savedAt: new Date().toISOString() };
+      savePresetLibrary(); renderPresetSidebar();
+      if (!wsShowItem('preset', id)) openPreset(id);
+      toast('Imported: ' + p.name + loomNote, 'ok');
     } catch(err) { toast('Import error: ' + err.message, 'err'); console.error(err); }
   };
   r.readAsText(file);
   e.target.value = '';
 }
 
-function openPresetLibrary() {
+export function openPresetLibrary() {
   g('libModalTitle').textContent = 'Preset Library';
   const list = g('libList');
   list.innerHTML = '';
-  const presets = Object.values(presetLibrary).sort((a,b) => b.savedAt.localeCompare(a.savedAt));
+  const presets = Object.values(state.presetLibrary).sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
 
   if (!presets.length) {
     list.innerHTML = '<div class="lib-empty">// no presets yet</div>';
   } else {
     presets.forEach(entry => {
       const item = document.createElement('div');
-      item.className = 'lib-item' + (entry.id === activePresetId ? ' active' : '');
+      item.className = 'lib-item' + (entry.id === state.activePresetId ? ' active' : '');
       const date = new Date(entry.savedAt).toLocaleDateString();
       item.innerHTML = `
-        <span class="lib-name">${entry.name || 'Unnamed'}</span>
+        <span class="lib-name">${esc(entry.name || 'Unnamed')}</span>
         <span class="lib-meta">${(entry.preset.prompts||[]).length} prompts · ${date}</span>
         <div class="lib-acts">
           <button class="btn btn-p btn-sm lib-load">Load</button>
-          <button class="btn btn-s btn-sm lib-hist lib-item-hist" title="Version history">🕓</button>
+          <button class="btn btn-s btn-sm lib-hist lib-item-hist" title="Version history">↺</button>
           <button class="btn btn-err btn-sm lib-del">✕</button>
         </div>`;
       item.querySelector('.lib-name').addEventListener('click', () => { openPreset(entry.id); closeModal('libModal'); });
       item.querySelector('.lib-load').addEventListener('click', () => { openPreset(entry.id); closeModal('libModal'); });
-      item.querySelector('.lib-hist').addEventListener('click', () => { if (typeof openItemHistory === 'function') openItemHistory('preset', entry.id); });
+      item.querySelector('.lib-hist').addEventListener('click', () => { openItemHistory('preset', entry.id); });
       item.querySelector('.lib-del').addEventListener('click', () => { deletePreset(entry.id); openPresetLibrary(); });
       list.append(item);
     });
@@ -828,3 +893,17 @@ function openPresetLibrary() {
   openModal('libModal');
 }
 
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(60, `<input type="file" id="filePresetInput" accept=".json" style="display:none">`);
+
+
+registerTrashRestorer('preset', data => {
+  const id = data.id && !state.presetLibrary[data.id] ? data.id : presetId();
+  state.presetLibrary[id] = { ...data, id };
+  savePresetLibrary();
+  if (state.mode === 'preset') renderPresetSidebar();
+});

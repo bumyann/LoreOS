@@ -1,11 +1,85 @@
 // ═══════════════════════════════════════════════════════
+// PRONOUN & NOUN TOOL — converts pronouns and gendered nouns in a field to macros or to
+// another gender, with grammar fix-ups.
+// ═══════════════════════════════════════════════════════
+
+import { state } from './state.js';
+import { copyToClipboard, g, registerMarkup, toast } from './util.js';
+
+// ── Pronoun/noun tool globals — must live here so wireEvents can reference PT ──
+export const PT = {
+  open: false,
+  src: 'they',
+  tgt: 'macro',
+  targetField: null,
+  manualTokens: [],
+};
+export const MACROS = {
+  sub: '{{sub}}', obj: '{{obj}}', poss: '{{poss}}',
+  poss_p: '{{poss_p}}', ref: '{{ref}}'
+};
+export const PRONOUN_FORMS = {
+  he:   { sub: 'he',   obj: 'him',  poss: 'his',   poss_p: 'his',   ref: 'himself'   },
+  she:  { sub: 'she',  obj: 'her',  poss: 'her',   poss_p: 'hers',  ref: 'herself'   },
+  they: { sub: 'they', obj: 'them', poss: 'their', poss_p: 'theirs', ref: 'themselves' },
+};
+export const CONTRACTION_FORMS = {
+  he:   { sub_is: "he's",   sub_ll: "he'll",   sub_d: "he'd",   sub_has: "he's"   },
+  she:  { sub_is: "she's",  sub_ll: "she'll",  sub_d: "she'd",  sub_has: "she's"  },
+  they: { sub_is: "they're", sub_ll: "they'll", sub_d: "they'd", sub_has: "they've" },
+};
+export const THEY_VERB_FIX = { is:'are', was:'were', has:'have', does:'do', "doesn't":"don't", "hasn't":"haven't", "wasn't":"weren't" };
+export const SINGULAR_VERB_FIX = { are:'is', were:'was', have:'has', do:'does', "don't":"doesn't", "haven't":"hasn't", "weren't":"wasn't" };
+export const NOUN_TABLE = [
+  ['brother','sister','sibling'],['brothers','sisters','siblings'],
+  ['father','mother','parent'],['dad','mom','parent'],
+  ['son','daughter','child'],['sons','daughters','children'],
+  ['uncle','aunt',null],['uncles','aunts',null],
+  ['nephew','niece',null],['nephews','nieces',null],
+  ['husband','wife','spouse'],['husbands','wives','spouses'],
+  ['boyfriend','girlfriend','partner'],['boyfriends','girlfriends','partners'],
+  ['king','queen','ruler'],['kings','queens','rulers'],
+  ['prince','princess',null],['princes','princesses',null],
+  ['lord','lady',null],['lords','ladies',null],
+  ['sir',"ma'am",null],
+  ['man','woman','person'],['men','women','people'],
+  ['boy','girl',null],['boys','girls',null],
+  ['gentleman','lady','person'],['gentlemen','ladies','people'],
+  ['male','female',null],
+  ['grandfather','grandmother','grandparent'],
+  ['grandson','granddaughter','grandchild'],
+  ['stepfather','stepmother','stepparent'],
+  ['stepson','stepdaughter','stepchild'],
+  ['godfather','godmother',null],['godson','goddaughter',null],
+  ['widower','widow',null],
+  ['actor','actress','actor'],
+  ['waiter','waitress','server'],
+  ['steward','stewardess','flight attendant'],
+  ['landlord','landlady','landlord'],
+];
+export const NOUN_MAP = {};
+// A word can belong to more than one row (e.g. "person" is the neutral of both
+// man/woman and gentleman/lady; "parent" of father/mother and dad/mom). The
+// first row listed wins, so every word converts to its closest counterpart
+// instead of whichever row happened to be registered last.
+NOUN_TABLE.forEach(([m, f, n]) => {
+  const add = (word, src) => {
+    if (!word) return;
+    const key = word.toLowerCase();
+    if (!NOUN_MAP[key]) NOUN_MAP[key] = { masc: m, fem: f, neutral: n, src };
+  };
+  add(m, 0); add(f, 1); add(n, 2);
+});
+export let PT_nounTgt = 'masc';
+export let PT_nounTokens = [];
+// ═══════════════════════════════════════════════════════
 // PRONOUN MACRO TOOL
 // ═══════════════════════════════════════════════════════
 
 // ── Pronoun patterns per source ──
 // Each entry: { regex, type, macro, ambiguous? }
 // Order matters — longer/more specific patterns first
-function getPatterns(src) {
+export function getPatterns(src) {
   if (src === 'they') return [
     { re: /\bthey're\b/gi,    macro: 'sub',    verb: ' is',  contractVerb: true, contractKey: 'sub_is' },
     { re: /\bthey've\b/gi,    macro: 'sub',    verb: ' has', contractVerb: true, contractKey: 'sub_has' },
@@ -23,7 +97,7 @@ function getPatterns(src) {
     { re: /\bhe'll\b/gi,      macro: 'sub',   verb: "'ll",  contractVerb: true, contractKey: 'sub_ll' },
     { re: /\bhimself\b/gi,    macro: 'ref'   },
     { re: /\bhim\b/gi,        macro: 'obj'   },
-    { re: /\bhis\b/gi,        macro: 'poss',  ambig: 'poss_p' },
+    { re: /\bhis\b/gi,        macro: 'poss_p', ambig: 'poss' },
     { re: /\bhe\b/gi,         macro: 'sub'   },
   ];
   if (src === 'she') return [
@@ -39,7 +113,7 @@ function getPatterns(src) {
 }
 
 // Get the output text for a token given target mode
-function getTokenOutput(tok, tgt, originalText) {
+export function getTokenOutput(tok, tgt, originalText) {
   if (tgt === 'macro') {
     if (tok.contractVerb) return MACROS[tok.macro] + tok.verb;
     return MACROS[tok.macro];
@@ -58,7 +132,7 @@ function getTokenOutput(tok, tgt, originalText) {
 }
 
 // ── Manual mode tokenizer ──
-function tokenizeForManual(text, src) {
+export function tokenizeForManual(text, src) {
   const patterns = getPatterns(src);
   const combined = new RegExp(
     patterns.map(p => p.re.source).join('|'), 'gi'
@@ -81,6 +155,8 @@ function tokenizeForManual(text, src) {
       contractKey: pat?.contractKey || null,
       verb: pat?.verb || '',
       needsVerbFix: pat?.needsVerbFix || false,
+      // he/she as a bare subject: its verb turns plural when converted to they
+      singularSub: !!pat && src !== 'they' && pat.macro === 'sub' && !pat.contractVerb,
       converted: false,
     });
     last = m.index + raw.length;
@@ -89,7 +165,7 @@ function tokenizeForManual(text, src) {
   return tokens;
 }
 
-function renderManualDisplay(tokens) {
+export function renderManualDisplay(tokens) {
   const wrap = g('ptManualDisplay');
   const tgt = PT.tgt || 'macro';
   wrap.innerHTML = '';
@@ -124,22 +200,22 @@ function renderManualDisplay(tokens) {
         tok.converted = true;
       }
       // verb agreement for they/them source (needsVerbFix = "they are/were/have...")
-      if (tok.converted && tok.needsVerbFix) {
+      if (tok.converted && (tok.needsVerbFix || tok.singularSub)) {
         const isSingularTgt = tgt === 'he' || tgt === 'she';
         const isPluralTgt = tgt === 'they';
         const nextTok = tokens[i+1];
         const prevTok = tokens[i-1];
-        if (isSingularTgt) {
+        if (isSingularTgt && tok.needsVerbFix) {
           if (nextTok?.type === 'text') nextTok.text = nextTok.text.replace(/^\s+(are|were|have|do|don't|haven't|weren't)\b/i, (_, v) => ' ' + (SINGULAR_VERB_FIX[v.toLowerCase()] || v));
           if (prevTok?.type === 'text') prevTok.text = prevTok.text.replace(/(are|were|have|do|don't|haven't|weren't)\s*$/i, (_, v) => (SINGULAR_VERB_FIX[v.toLowerCase()] || v) + ' ');
         }
         // src=he/she → they: fix singular verbs to plural
-        if (isPluralTgt) {
+        if (isPluralTgt && tok.singularSub) {
           if (nextTok?.type === 'text') nextTok.text = nextTok.text.replace(/^\s+(is|was|has|does|doesn't|hasn't|wasn't)\b/i, (_, v) => ' ' + (THEY_VERB_FIX[v.toLowerCase()] || v));
           if (prevTok?.type === 'text') prevTok.text = prevTok.text.replace(/(is|was|has|does|doesn't|hasn't|wasn't)\s*$/i, (_, v) => (THEY_VERB_FIX[v.toLowerCase()] || v) + ' ');
         }
         // macro mode uses existing singular fix
-        if (tgt === 'macro') {
+        if (tgt === 'macro' && tok.needsVerbFix) {
           if (nextTok?.type === 'text') nextTok.text = nextTok.text.replace(/^\s+(are|were|have|do|don't|haven't|weren't)\b/i, (_, v) => ' ' + (SINGULAR_VERB_FIX[v.toLowerCase()] || v));
           if (prevTok?.type === 'text') prevTok.text = prevTok.text.replace(/(are|were|have|do|don't|haven't|weren't)\s*$/i, (_, v) => (SINGULAR_VERB_FIX[v.toLowerCase()] || v) + ' ');
         }
@@ -150,7 +226,7 @@ function renderManualDisplay(tokens) {
   });
 }
 
-function getManualResult(tokens) {
+export function getManualResult(tokens) {
   const tgt = PT.tgt || 'macro';
   return tokens.map(tok => {
     if (tok.type === 'text') return tok.text;
@@ -163,7 +239,7 @@ function getManualResult(tokens) {
 // NOUN CONVERTER
 // ══════════════════════════════════════════
 
-function tokenizeForNouns(text) {
+export function tokenizeForNouns(text) {
   // Build regex from all known nouns
   const words = Object.keys(NOUN_MAP).sort((a,b) => b.length - a.length);
   const combined = new RegExp('\\b(' + words.map(w => w.replace(/'/g, "\\'")).join('|') + ')\\b', 'gi');
@@ -182,7 +258,7 @@ function tokenizeForNouns(text) {
   return tokens;
 }
 
-function getNounOutput(tok) {
+export function getNounOutput(tok) {
   const e = tok.entry;
   if (!e) return tok.text;
   let out;
@@ -196,7 +272,7 @@ function getNounOutput(tok) {
     : out;
 }
 
-function renderNounDisplay(tokens) {
+export function renderNounDisplay(tokens) {
   const wrap = g('ptNounDisplay');
   wrap.innerHTML = '';
   tokens.forEach(tok => {
@@ -220,7 +296,7 @@ function renderNounDisplay(tokens) {
   });
 }
 
-function getNounResult(tokens) {
+export function getNounResult(tokens) {
   return tokens.map(tok => {
     if (tok.type === 'text') return tok.text;
     if (!tok.converted) return tok.text;
@@ -229,7 +305,7 @@ function getNounResult(tokens) {
 }
 
 // ── Wire up the tool ──
-function wirePronounTool() {
+export function wirePronounTool() {
   const tool = g('pronounTool');
 
   // Open/close handled by wireEvents (pronounToolBtn.onclick)
@@ -265,7 +341,7 @@ function wirePronounTool() {
 
   // Track focused textarea in char mode — catches all textareas anywhere on the page
   document.addEventListener('focusin', e => {
-    if (e.target.tagName === 'TEXTAREA' && mode === 'char') {
+    if (e.target.tagName === 'TEXTAREA' && state.mode === 'char') {
       // Exclude textareas inside the pronounTool itself and modals
       if (e.target.closest('#pronounTool') || e.target.closest('.modal')) return;
       PT.targetField = e.target;
@@ -275,7 +351,7 @@ function wirePronounTool() {
 
   // Also track input[type=text] fields in char mode
   document.addEventListener('focusin', e => {
-    if (e.target.tagName === 'INPUT' && e.target.type === 'text' && mode === 'char') {
+    if (e.target.tagName === 'INPUT' && e.target.type === 'text' && state.mode === 'char') {
       if (e.target.closest('#pronounTool') || e.target.closest('.modal')) return;
       PT.targetField = e.target;
       if (PT.open) ptRefreshManual();
@@ -310,7 +386,7 @@ function wirePronounTool() {
   });
 }
 
-function ptRefreshManual() {
+export function ptRefreshManual() {
   if (!PT.targetField) {
     g('ptManualDisplay').textContent = 'focus a text field first';
     g('ptNounDisplay').textContent = 'focus a text field first';
@@ -322,3 +398,60 @@ function ptRefreshManual() {
   PT_nounTokens = tokenizeForNouns(text);
   renderNounDisplay(PT_nounTokens);
 }
+
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(190, `<!-- PRONOUN + NOUN TOOL -->
+<div id="pronounTool">
+  <div class="pt-head">
+    <span class="pt-title">Pronoun &amp; Noun Converter</span>
+    <button class="btn-icon btn" id="ptClose" style="width:1.7rem;height:1.7rem;font-size:.85rem;flex-shrink:0">✕</button>
+  </div>
+  <div class="pt-body">
+    <div class="pt-source-row">
+      <span class="pt-source-lbl">Source:</span>
+      <button class="pt-src-btn active" data-src="they">they/them</button>
+      <button class="pt-src-btn" data-src="he">he/him</button>
+      <button class="pt-src-btn" data-src="she">she/her</button>
+    </div>
+    <div class="pt-target-row">
+      <span class="pt-source-lbl">Convert to:</span>
+      <button class="pt-tgt-btn active" data-tgt="macro">→ macros</button>
+      <button class="pt-tgt-btn" data-tgt="he">→ he/him</button>
+      <button class="pt-tgt-btn" data-tgt="she">→ she/her</button>
+      <button class="pt-tgt-btn" data-tgt="they">→ they/them</button>
+    </div>
+    <div class="pt-manual-legend">
+      <span><span class="pt-legend-dot" style="background:rgba(232,121,160,.6)"></span>they/them</span>
+      <span><span class="pt-legend-dot" style="background:rgba(121,180,232,.6)"></span>he/him</span>
+      <span><span class="pt-legend-dot" style="background:rgba(136,201,138,.6)"></span>she/her</span>
+      <span><span class="pt-legend-dot" style="background:rgba(240,192,96,.6)"></span>ambiguous</span>
+      <span><span class="pt-legend-dot" style="background:rgba(136,201,138,.35)"></span>converted</span>
+    </div>
+    <div id="ptManualDisplay" class="pt-manual-wrap">// focus a text field in the character editor to begin</div>
+    <div class="pt-actions-row" style="margin-top:.4rem">
+      <button class="btn btn-s btn-sm" id="ptManualRefresh">Refresh</button>
+      <button class="btn btn-p btn-sm" id="ptManualApply">Apply to field</button>
+      <button class="btn btn-s btn-sm" id="ptManualCopy">Copy result</button>
+      <span style="font-family:var(--fx);font-size:.65rem;color:var(--txm);margin-left:auto">click words to convert</span>
+    </div>
+    <div class="pt-noun-section">
+      <div class="pt-noun-row">
+        <span class="pt-source-lbl">Nouns→</span>
+        <button class="pt-tgt-btn active" data-noun-tgt="masc">→ masc</button>
+        <button class="pt-tgt-btn" data-noun-tgt="fem">→ fem</button>
+        <button class="pt-tgt-btn" data-noun-tgt="neutral">→ neutral</button>
+      </div>
+      <div id="ptNounDisplay" class="pt-manual-wrap" style="min-height:3rem">// refresh pronouns above to also scan nouns</div>
+      <div class="pt-actions-row" style="margin-top:.4rem">
+        <button class="btn btn-s btn-sm" id="ptNounApply">Apply nouns to field</button>
+        <button class="btn btn-s btn-sm" id="ptNounCopy">Copy noun result</button>
+        <span style="font-family:var(--fx);font-size:.65rem;color:var(--txm);margin-left:auto">click words to convert</span>
+      </div>
+    </div>
+  </div>
+</div>`);
+

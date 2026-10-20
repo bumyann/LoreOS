@@ -3,13 +3,13 @@
 
 /* ─── PINK THEME (default) ─── */
 :root{
-  --p:#9d8fcc;--ph:#7d6fac;--pg:rgba(157,143,204,.25);
-  --a:#c4b8e8;--a2:#e8e4f5;
+  --p:#8a9bd2;--ph:#6677ad;--pg:rgba(138,155,210,.22);
+  --a:#b9c6ea;--a2:#e6ebf8;
   --ok:#7ec87f;--err:#e87878;--warn:#f0c060;
-  --bg:#0d1121;--bg2:#111829;--bg3:#161f33;
-  --sf:#1c2740;--sf2:#22304d;
-  --bd:rgba(157,143,204,.18);--bdb:rgba(157,143,204,.45);
-  --tx:#e8e4f5;--txd:#b0a8d0;--txm:#6a6290;
+  --bg:#080b16;--bg2:#0c1020;--bg3:#11162b;
+  --sf:#151b2f;--sf2:#1d2540;
+  --bd:rgba(138,155,210,.16);--bdb:rgba(138,155,210,.42);
+  --tx:#e2e7f5;--txd:#aab4d0;--txm:#8c96b8;
   --sh:0 2px 8px rgba(0,0,0,.6);--shg:0 0 14px var(--pg);
   --fp:'VT323',monospace;--fx:'Pixelify Sans',monospace;--fb:'Noto Sans',sans-serif;
   --nav-w:200px;
@@ -22,17 +22,18 @@ body.pink{
   --bg:#f5eaee;--bg2:#ede0e5;--bg3:#e4d4db;
   --sf:#d8c4cc;--sf2:#ccb4be;
   --bd:rgba(184,112,144,.25);--bdb:rgba(184,112,144,.55);
-  --tx:#2e1c26;--txd:#5a3a4a;--txm:#8a6070;
+  --tx:#2e1c26;--txd:#5a3a4a;--txm:#76485c;
   --sh:0 2px 6px rgba(100,60,80,.15);--shg:0 0 12px var(--pg);
 }
 
 /* ─── BASE ─── */
-body{font-family:var(--fb);background:var(--bg);color:var(--tx);font-size:14px;line-height:1.6;overflow:hidden;height:100vh;height:100dvh}
+body{font-variant-emoji:text;font-family:var(--fb);background:var(--bg);color:var(--tx);font-size:14px;line-height:1.6;overflow:hidden;height:100vh;height:100dvh}
 body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);pointer-events:none;z-index:9999}
 body.pink::before{background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.015) 2px,rgba(0,0,0,.015) 4px)}
 ::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-track{background:var(--bg2)}
-::-webkit-scrollbar-thumb{background:var(--bdb);border-radius:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bdb);border-radius:999px}
+::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb,var(--p) 60%,transparent)}
 
 /* ─── APP SHELL ─── */
 #app{height:100vh;height:100dvh;display:flex;overflow:hidden}
@@ -170,7 +171,7 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
 .home-footer-note{font-family:var(--fx);font-size:.65rem;color:var(--txm);letter-spacing:.8px;opacity:.7;padding-top:.5rem;border-top:1px solid var(--bd)}
 
 /* ── DASHBOARD ── */
-.dashboard{max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:1.5rem}
+.dashboard{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:1.5rem}
 .dash-section{display:flex;flex-direction:column;gap:.6rem}
 .dash-section-title{font-family:var(--fp);font-size:1.05rem;color:var(--p);letter-spacing:2px;text-shadow:0 0 8px var(--pg)}
 .dash-actions{display:flex;gap:.4rem;flex-wrap:wrap}
@@ -242,11 +243,14 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
   background:linear-gradient(90deg,transparent,var(--p),var(--a),var(--p),transparent);opacity:.6;
 }
 #editor-header-left{display:flex;align-items:center;gap:.5rem;flex-shrink:0}
-#editor-header-right{display:flex;align-items:center;gap:.5rem;flex:1;justify-content:flex-end;flex-wrap:wrap}
+#editor-header-right{display:flex;align-items:center;gap:.5rem;flex:1;justify-content:flex-end;flex-wrap:nowrap;min-width:0}
 .lb-label{font-family:var(--fx);font-size:.72rem;color:var(--txm);letter-spacing:1px;white-space:nowrap}
-#lorebookName{font-family:var(--fx);font-size:.82rem;padding:.28rem .6rem;background:var(--bg3);border:1px solid var(--bd);border-radius:3px;color:var(--tx);width:170px}
+#lorebookName{font-family:var(--fx);font-size:.82rem;padding:.28rem .6rem;background:var(--bg3);border:1px solid var(--bd);border-radius:3px;color:var(--tx);width:clamp(110px,13vw,170px)}
 #lorebookName:focus{outline:none;border-color:var(--p);box-shadow:0 0 0 2px var(--pg)}
-.hdr-actions{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}
+.hdr-actions{display:flex;gap:.4rem;align-items:center;flex-wrap:nowrap;flex-shrink:0;white-space:nowrap}
+.hdr-more .dd-menu{left:auto;right:0;min-width:180px}
+.hdr-more .dd-menu .btn{display:flex;width:100%;justify-content:flex-start;border:none;border-radius:0;background:transparent;box-shadow:none;padding:.5rem .8rem}
+.hdr-more .dd-menu .btn:hover{background:var(--sf2);color:var(--p)}
 
 /* Mode tabs */
 #modeTabs{display:flex;background:var(--bg3);border-bottom:1px solid var(--bdb);flex-shrink:0;padding:0 .5rem;gap:.2rem}
@@ -285,6 +289,13 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
 .dd-menu{display:none;position:absolute;top:calc(100% + 3px);left:0;background:var(--sf);border:1px solid var(--bdb);border-radius:3px;min-width:200px;z-index:500;box-shadow:var(--sh)}
 .dd-menu.open{display:block}
 .dd-item{display:flex;align-items:center;gap:.4rem;width:100%;padding:.5rem .8rem;border:none;background:transparent;color:var(--txd);text-align:left;cursor:pointer;font-family:var(--fx);font-size:.78rem;letter-spacing:.3px}
+.dd-group>summary{display:block;padding:.5rem .8rem;cursor:pointer;font-family:var(--fx);font-size:.72rem;letter-spacing:.5px;color:var(--txm);list-style:none;user-select:none}
+.dd-group>summary::-webkit-details-marker{display:none}
+.dd-group>summary::before{content:'\25B8  '}
+.dd-group[open]>summary::before{content:'\25BE  '}
+.dd-group>summary:hover{color:var(--p)}
+.dd-group>.dd-item{padding-left:1.6rem}
+.mob-group>summary{padding:.65rem;border:1px solid var(--bd);border-radius:3px;text-align:center}
 .dd-item:hover{background:var(--sf2);color:var(--p)}
 
 /* ─── SETTINGS MODAL STYLES ─── */
@@ -498,4 +509,20 @@ body.pink::before{background:repeating-linear-gradient(0deg,transparent,transpar
   /* Library view mobile */
   .lib-view-header{flex-direction:column;align-items:flex-start}
   .home-cards{grid-template-columns:1fr}
+}
+
+/* Dialog focus: the box takes focus when a dialog opens, no ring needed on it */
+.modal-box:focus{outline:none}
+
+/* Touch screens: the tiny close/add buttons were 8-26px wide, hard to hit with a
+   finger. Bigger hit areas only where the primary input is touch. */
+@media (pointer:coarse){
+  .ws-tab-x,.tab-x{display:inline-flex;align-items:center;justify-content:center;min-width:30px;min-height:30px;margin:-6px -6px -6px 0;font-size:1rem;opacity:.7}
+  .ws-tab{min-height:38px}
+  .ws-tab-add{min-width:38px;min-height:38px}
+  .mode-tab{min-height:40px}
+  .btn{min-height:36px}
+  .home-cta{min-height:44px}
+  .ei-act{min-width:34px;min-height:34px}
+  .ei-cb{width:20px;height:20px}
 }

@@ -2,27 +2,39 @@
 // CHARACTER CARD EDITOR
 // ═══════════════════════════════════════════════════════
 
+import { migrateCharacterBook, openAttachLbModal, updateLbStatus } from './attach_lb.js';
+import { downscaleAvatar } from './avatar.js';
+import { exportCharCharx, exportCharJson, exportCharJsonV2, openCharPngExport } from './character_io.js';
+import { openFullscreen } from './fullscreen.js';
+import { itemHistoryPush, itemUndoGet, itemUndoPush, openItemHistory, syncItemUndoButtons, wireFieldUndoRedo } from './history.js';
+import { closeMobSidebar } from './mobile.js';
+import { state } from './state.js';
+import { saveCharLibrary } from './storage.js';
+import { registerTrashRestorer, trashPush } from './trash.js';
+import { askConfirm, askInput, closeAllDropdowns, closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
+import { commitActiveEditor, wsDropItem, wsMarkSaved, wsShowItem } from './workshop.js';
+
 // Active format picker state: 'st' | 'saucepan' | 'lumiverse'
-let charActiveFormat = 'st';
+export let charActiveFormat = 'st';
 
 // ── Lumiverse alternate_fields helpers ──
-function getLumiVariants(card, field) {
+export function getLumiVariants(card, field) {
   return card?.data?.extensions?._lumiverse?.alternate_fields?.[field] || [];
 }
-function setLumiVariants(card, field, variants) {
+export function setLumiVariants(card, field, variants) {
   if (!card.data.extensions) card.data.extensions = {};
   if (!card.data.extensions._lumiverse) card.data.extensions._lumiverse = {};
   if (!card.data.extensions._lumiverse.alternate_fields) card.data.extensions._lumiverse.alternate_fields = {};
   card.data.extensions._lumiverse.alternate_fields[field] = variants;
 }
-function lumiGenId() {
+export function lumiGenId() {
   return 'xxxxxxxx-xxxx-7xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
     const r = Math.random() * 16 | 0;
     return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
   });
 }
 
-function blankCharCard() {
+export function blankCharCard() {
   return {
     id: 'c' + Date.now() + Math.floor(Math.random()*1000),
     spec: 'chara_card_v2',
@@ -47,7 +59,7 @@ function blankCharCard() {
   };
 }
 
-function normalizeCharCard(card) {
+export function normalizeCharCard(card) {
   if (!card.data) card.data = {};
   const d = card.data;
   if (typeof d.name !== 'string') d.name = card.name || 'Unnamed';
@@ -66,52 +78,59 @@ function normalizeCharCard(card) {
   if (!d.extensions) d.extensions = {};
   if (!card.spec) card.spec = 'chara_card_v2';
   if (!card.spec_version) { card.spec = 'chara_card_v3'; card.spec_version = '3.0'; } // default new cards to V3
+  migrateCharacterBook(card); // old object-shaped character_book -> spec array
   return card;
 }
 
-function charId() { return 'c' + Date.now() + Math.floor(Math.random()*1000); }
+export function charId() { return 'c' + Date.now() + Math.floor(Math.random()*1000); }
 
-function createChar() {
+export function createChar() {
   const card = blankCharCard();
-  charLibrary[card.id] = { id: card.id, name: card.data.name, card, savedAt: new Date().toISOString() };
+  state.charLibrary[card.id] = { id: card.id, name: card.data.name, card, savedAt: new Date().toISOString() };
   saveCharLibrary();
   renderCharSidebar();
-  openChar(card.id);
+  // New characters get their own workshop tab (falls back to no tab if full)
+  if (!wsShowItem('char', card.id)) openChar(card.id);
 }
 
-function openChar(id) {
-  activeCharId = id;
-  charFormState = {}; // clear stale state from previous character
+export function openChar(id) {
+  // Moving to a different character: save what's typed in the current one first
+  if (state.activeCharId && state.activeCharId !== id) commitActiveEditor();
+  state.charUnsaved = false;
+  state.activeCharId = id;
+  state.charFormState = {}; // clear stale state from previous character
   charActiveFormat = 'st'; // reset format picker
   renderCharSidebar();
   renderCharEditor();
 }
 
-async function deleteChar(id) {
-  if (!await askConfirm('Delete this character? This cannot be undone.')) return;
-  delete charLibrary[id];
-  if (activeCharId === id) activeCharId = null;
+export async function deleteChar(id) {
+  if (!await askConfirm('Delete this character? You can bring it back from Settings > Storage > Recently deleted.')) return;
+  if (state.charLibrary[id]) trashPush('char', state.charLibrary[id].name || 'Unnamed character', state.charLibrary[id]);
+  delete state.charLibrary[id];
+  wsDropItem('char', id);
+  if (state.activeCharId === id) state.activeCharId = null;
   saveCharLibrary();
   renderCharSidebar();
   renderCharEditor();
 }
 
-function duplicateChar(id) {
-  const src = charLibrary[id]; if (!src) return;
+export function duplicateChar(id) {
+  const src = state.charLibrary[id]; if (!src) return;
   const newId = charId();
   const card = JSON.parse(JSON.stringify(src.card));
   card.id = newId;
   card.data.name = (card.data.name || 'Unnamed') + ' (Copy)';
-  charLibrary[newId] = { id: newId, name: card.data.name, card, savedAt: new Date().toISOString() };
+  state.charLibrary[newId] = { id: newId, name: card.data.name, card, savedAt: new Date().toISOString() };
   saveCharLibrary();
   renderCharSidebar();
-  openChar(newId);
+  if (!wsShowItem('char', newId)) openChar(newId);
 }
 
-function renderCharSidebar() {
+export function renderCharSidebar() {
   const list = g('entryList');
   const count = g('entryCount');
-  const chars = Object.values(charLibrary).sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  const chars = Object.values(state.charLibrary).sort((a,b) => (a.name||'').localeCompare(b.name||''));
   count.textContent = `${chars.length} ${chars.length === 1 ? 'character' : 'characters'}`;
   list.innerHTML = '';
 
@@ -126,13 +145,28 @@ function renderCharSidebar() {
   chars.forEach(entry => {
     const li = document.createElement('li');
     li.className = 'ei';
-    if (entry.id === activeCharId) li.classList.add('open');
+    if (entry.id === state.activeCharId) li.classList.add('open');
 
     const head = document.createElement('div');
     head.className = 'ei-head';
     const name = document.createElement('div');
     name.className = 'ei-name';
     name.textContent = entry.name || entry.card.data.name || 'Unnamed';
+    // Small avatar so characters are recognisable at a glance
+    if (entry.imageData) {
+      const av = document.createElement('img');
+      av.src = entry.imageData; av.alt = '';
+      av.style.cssText = 'width:26px;height:26px;border-radius:4px;object-fit:cover;flex-shrink:0;margin-right:.45rem';
+      head.style.alignItems = 'center';
+      head.append(av);
+    } else {
+      // Placeholder tile keeps the names lined up with avatar rows
+      const ph = document.createElement('div');
+      ph.textContent = (entry.name || '?').trim().charAt(0).toUpperCase() || '?';
+      ph.style.cssText = 'width:26px;height:26px;border-radius:4px;flex-shrink:0;margin-right:.45rem;display:flex;align-items:center;justify-content:center;background:var(--bg3,#1d2238);color:var(--txm);font-size:.8rem';
+      head.style.alignItems = 'center';
+      head.append(ph);
+    }
     head.append(name);
     li.append(head);
 
@@ -158,28 +192,31 @@ function renderCharSidebar() {
       li.append(kws);
     }
 
-    li.addEventListener('click', () => openChar(entry.id));
+    li.addEventListener('click', () => {
+      // Through the workshop tab bar so the character gets a tab like any other
+      if (!wsShowItem('char', entry.id)) openChar(entry.id);
+      closeMobSidebar();
+    });
     list.append(li);
   });
 }
 
-function renderCharEditor() {
+export function renderCharEditor() {
   const ec = g('editorContent');
   g('tabBar').innerHTML = '';
 
-  if (!activeCharId || !charLibrary[activeCharId]) {
+  if (!state.activeCharId || !state.charLibrary[state.activeCharId]) {
     ec.className = '';
     ec.innerHTML = `<div class="empty-state"><div>// select or create a character</div><button class="btn btn-ok" id="newEntryBtnAlt">+ New Character</button></div>`;
     g('newEntryBtnAlt').onclick = createChar;
     return;
   }
 
-  const entry = charLibrary[activeCharId];
+  const entry = state.charLibrary[state.activeCharId];
   const card = normalizeCharCard(entry.card);
   const d = card.data;
-  const s = charFormState;
+  const s = state.charFormState;
   const get = (k, fb) => s[k] !== undefined ? s[k] : fb;
-  const esc = t => { const div = document.createElement('div'); div.textContent = t || ''; return div.innerHTML; };
 
   const name = get('name', d.name);
   const desc = get('description', d.description);
@@ -201,7 +238,7 @@ function renderCharEditor() {
   const isSauce = fmt === 'saucepan';
 
   // Lumiverse alternate_fields — read from extensions or charFormState
-  const lumiVariants = charFormState._lumiVariants || {
+  const lumiVariants = state.charFormState._lumiVariants || {
     description: getLumiVariants(card, 'description'),
     personality: getLumiVariants(card, 'personality'),
     scenario:    getLumiVariants(card, 'scenario'),
@@ -277,7 +314,7 @@ function renderCharEditor() {
 
     <div class="adv">
       <div class="adv-head" id="chAdvHead">
-        <span class="adv-title">⚙ Advanced (System Prompt, Notes, Metadata)</span>
+        <span class="adv-title">⚙︎ Advanced (System Prompt, Notes, Metadata)</span>
         <span class="adv-arr" id="chAdvArr">▶</span>
       </div>
       <div class="adv-body" id="chAdvBody">
@@ -302,7 +339,7 @@ function renderCharEditor() {
     </div>
 
     <div class="attach-lb-panel"${isSauce ? ' style="display:none"' : ''}>
-      <div class="attach-lb-status" id="chLbStatus">🌐 No lorebook attached</div>
+      <div class="attach-lb-status" id="chLbStatus">⌖ No lorebook attached</div>
       <div class="attach-lb-acts">
         <button class="btn btn-s btn-sm" id="chLbManageBtn">Manage Attached Lorebook</button>
       </div>
@@ -315,12 +352,16 @@ function renderCharEditor() {
       <div class="dd" id="dd-char-export">
         <button class="btn btn-s dd-btn">&#8657; Export</button>
         <div class="dd-menu">
-          <button class="dd-item" id="chExportJsonBtn">V3 JSON</button>
-          <button class="dd-item" id="chExportV2JsonBtn">V2 JSON</button>
           <button class="dd-item" id="chExportV3PngBtn">V3 PNG</button>
           <button class="dd-item" id="chExportPngBtn">V2 PNG</button>
-          <button class="dd-item" id="chExportSaucepanBtn">Companion (SaucepanAI)</button>
-          <button class="dd-item" id="chExportCharxBtn">.charx (Lumiverse)</button>
+          <button class="dd-item" id="chExportJanitorPngBtn">JanitorAI PNG</button>
+          <details class="dd-group">
+            <summary>JSON</summary>
+            <button class="dd-item" id="chExportJsonBtn">V3 JSON</button>
+            <button class="dd-item" id="chExportV2JsonBtn">V2 JSON</button>
+            <button class="dd-item" id="chExportJanitorBtn">JanitorAI JSON</button>
+          </details>
+          <button class="dd-item" id="chExportCharxBtn">.CHARX</button>
         </div>
       </div>
       <button class="btn btn-err" id="chDeleteBtn">Delete Character</button>
@@ -377,8 +418,8 @@ function renderCharEditor() {
   g('chAddGreet').addEventListener('click', () => {
     const cur = captureCharGreetings();
     cur.push({ title: '', message: '' });
-    charFormState.alternate_greetings = cur;
-    charUnsaved = true;
+    state.charFormState.alternate_greetings = cur;
+    state.charUnsaved = true;
     renderAltGreetings(cur);
   });
   g('chFormatPicker').addEventListener('change', e => {
@@ -388,28 +429,29 @@ function renderCharEditor() {
   });
   g('chSaveBtn').addEventListener('click', () => saveChar());
   if (g('chUndoBtn')) g('chUndoBtn').addEventListener('click', () => {
-    const snap = itemUndoGet('char', activeCharId, 'undo');
+    const snap = itemUndoGet('char', state.activeCharId, 'undo');
     if (!snap) return;
-    charFormState = snap;
-    charUnsaved = true;
+    state.charFormState = snap;
+    state.charUnsaved = true;
     renderCharEditor();
-    syncItemUndoButtons('char', activeCharId);
+    syncItemUndoButtons('char', state.activeCharId);
   });
   if (g('chRedoBtn')) g('chRedoBtn').addEventListener('click', () => {
-    const snap = itemUndoGet('char', activeCharId, 'redo');
+    const snap = itemUndoGet('char', state.activeCharId, 'redo');
     if (!snap) return;
-    charFormState = snap;
-    charUnsaved = true;
+    state.charFormState = snap;
+    state.charUnsaved = true;
     renderCharEditor();
-    syncItemUndoButtons('char', activeCharId);
+    syncItemUndoButtons('char', state.activeCharId);
   });
-  g('chExportJsonBtn').addEventListener('click', () => exportCharJson(activeCharId));
-  if (g('chExportV2JsonBtn'))   g('chExportV2JsonBtn').addEventListener('click',   () => exportCharJsonV2(activeCharId));
+  g('chExportJsonBtn').addEventListener('click', () => exportCharJson(state.activeCharId));
+  if (g('chExportV2JsonBtn'))   g('chExportV2JsonBtn').addEventListener('click',   () => exportCharJsonV2(state.activeCharId));
   if (g('chLbManageBtn'))       g('chLbManageBtn').addEventListener('click',       () => openAttachLbModal());
-  g('chExportPngBtn').addEventListener('click', () => openCharPngExport(activeCharId, true));
-  if (g('chExportV3PngBtn')) g('chExportV3PngBtn').addEventListener('click', () => openCharPngExport(activeCharId, false));
-  g('chExportSaucepanBtn').addEventListener('click', () => exportCharSaucepan(activeCharId));
-  if (g('chExportCharxBtn')) g('chExportCharxBtn').addEventListener('click', () => exportCharCharx(activeCharId));
+  g('chExportPngBtn').addEventListener('click', () => openCharPngExport(state.activeCharId, true));
+  if (g('chExportV3PngBtn')) g('chExportV3PngBtn').addEventListener('click', () => openCharPngExport(state.activeCharId, false));
+  if (g('chExportJanitorBtn')) g('chExportJanitorBtn').addEventListener('click', () => exportCharJsonV2(state.activeCharId, { janitor: true }));
+  if (g('chExportJanitorPngBtn')) g('chExportJanitorPngBtn').addEventListener('click', () => openCharPngExport(state.activeCharId, true, { janitor: true }));
+  if (g('chExportCharxBtn')) g('chExportCharxBtn').addEventListener('click', () => exportCharCharx(state.activeCharId));
   // Wire the char export dropdown
   const ddCharExport = document.getElementById('dd-char-export');
   if (ddCharExport) {
@@ -422,18 +464,23 @@ function renderCharEditor() {
       if (!isOpen) ddMenu.classList.add('open');
     });
   }
-  g('chDeleteBtn').addEventListener('click', () => deleteChar(activeCharId));
+  g('chDeleteBtn').addEventListener('click', () => deleteChar(state.activeCharId));
 
   // Image upload wiring
   const imgPreview = g('chImagePreview');
   const imgInput = g('chImageFileInput');
   const imgRemove = g('chImageRemoveBtn');
-  const charEntry = charLibrary[activeCharId];
+  const charEntry = state.charLibrary[state.activeCharId];
 
   function refreshImagePreview() {
     const src = charEntry?.imageData;
     if (src) {
-      imgPreview.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover">`;
+      // Built with the DOM, not an HTML string: the stored image data is not trusted
+      imgPreview.innerHTML = '';
+      const im = document.createElement('img');
+      im.src = src;
+      im.style.cssText = 'width:100%;height:100%;object-fit:cover';
+      imgPreview.append(im);
       imgRemove.style.display = '';
     } else {
       imgPreview.innerHTML = `<span style="font-family:var(--fx);font-size:.65rem;color:var(--txm);text-align:center;padding:.5rem">No image<br>click to upload</span>`;
@@ -470,27 +517,27 @@ function renderCharEditor() {
   // Mark unsaved on input + push item undo snapshot
   ec.querySelectorAll('input,textarea,select').forEach(el => {
     el.addEventListener('input', () => {
-      charUnsaved = true; captureCharState();
-      if (typeof itemUndoPush === 'function') itemUndoPush('char', activeCharId, JSON.parse(JSON.stringify(charFormState)));
-      syncItemUndoButtons('char', activeCharId);
+      state.charUnsaved = true; captureCharState();
+      itemUndoPush('char', state.activeCharId, JSON.parse(JSON.stringify(state.charFormState)));
+      syncItemUndoButtons('char', state.activeCharId);
     });
     el.addEventListener('change', () => {
-      charUnsaved = true; captureCharState();
-      if (typeof itemUndoPush === 'function') itemUndoPush('char', activeCharId, JSON.parse(JSON.stringify(charFormState)));
-      syncItemUndoButtons('char', activeCharId);
+      state.charUnsaved = true; captureCharState();
+      itemUndoPush('char', state.activeCharId, JSON.parse(JSON.stringify(state.charFormState)));
+      syncItemUndoButtons('char', state.activeCharId);
     });
   });
 
   // Wire field-level undo/redo on all textareas
-  if (typeof wireFieldUndoRedo === 'function') wireFieldUndoRedo(ec);
+  wireFieldUndoRedo(ec);
 
   // Push initial baseline for undo
   captureCharState();
-  if (typeof itemUndoPush === 'function') itemUndoPush('char', activeCharId, JSON.parse(JSON.stringify(charFormState)));
-  syncItemUndoButtons('char', activeCharId);
+  itemUndoPush('char', state.activeCharId, JSON.parse(JSON.stringify(state.charFormState)));
+  syncItemUndoButtons('char', state.activeCharId);
 }
 
-function renderAltGreetings(list) {
+export function renderAltGreetings(list) {
   const wrap = g('chAltGreetList');
   if (!wrap) return;
   wrap.innerHTML = '';
@@ -513,8 +560,8 @@ function renderAltGreetings(list) {
     rm.addEventListener('click', () => {
       const cur = captureCharGreetings();
       cur.splice(i, 1);
-      charFormState.alternate_greetings = cur;
-      charUnsaved = true;
+      state.charFormState.alternate_greetings = cur;
+      state.charUnsaved = true;
       renderAltGreetings(cur);
     });
     hdr.append(lbl, rm);
@@ -524,7 +571,7 @@ function renderAltGreetings(list) {
     titleInput.className = 'finput'; titleInput.type = 'text';
     titleInput.placeholder = 'Greeting title (optional)...';
     titleInput.value = titleVal;
-    titleInput.addEventListener('input', () => { charUnsaved = true; });
+    titleInput.addEventListener('input', () => { state.charUnsaved = true; });
 
     // Message textarea
     const ta = document.createElement('textarea');
@@ -532,7 +579,7 @@ function renderAltGreetings(list) {
     ta.id = 'chGreet_' + i;
     ta.placeholder = 'Greeting message #' + (i + 1) + '...';
     ta.value = messageVal;
-    ta.addEventListener('input', () => { charUnsaved = true; });
+    ta.addEventListener('input', () => { state.charUnsaved = true; });
 
     // content-wrap with tok-count + expand button
     const cwrap = document.createElement('div');
@@ -561,8 +608,8 @@ function renderAltGreetings(list) {
 
 // ── Lumiverse variant field UI ──
 
-function renderLumiVariantField(baseId, field, defaultVal, variants, placeholder, minHeight) {
-  const esc2 = t => { const d = document.createElement('div'); d.textContent = t||''; return d.innerHTML; };
+export function renderLumiVariantField(baseId, field, defaultVal, variants, placeholder, minHeight) {
+  const esc2 = esc;
   const tabs = [
     `<button class="lumi-vtab active" data-field="${field}" data-idx="-1">Default</button>`,
     ...variants.map((v, i) =>
@@ -576,30 +623,30 @@ function renderLumiVariantField(baseId, field, defaultVal, variants, placeholder
   </div>`;
 }
 
-const LUMI_FIELDS = ['description', 'personality', 'scenario'];
-const LUMI_FIELD_IDS = { description: 'chDesc', personality: 'chPers', scenario: 'chScen' };
+export const LUMI_FIELDS = ['description', 'personality', 'scenario'];
+export const LUMI_FIELD_IDS = { description: 'chDesc', personality: 'chPers', scenario: 'chScen' };
 
 // Which tab is showing in a field's shared textarea: '-1' = Default, else variant index
-function lumiActiveIdx(field) {
+export function lumiActiveIdx(field) {
   const wrap = document.getElementById('lumi-vwrap-' + field);
   const active = wrap && wrap.querySelector('.lumi-vtab.active');
   return active ? active.dataset.idx : '-1';
 }
 
 // Write what the shared textarea currently shows back into the slot it belongs to
-function lumiStashField(field, lv) {
+export function lumiStashField(field, lv) {
   const ta = g(LUMI_FIELD_IDS[field]);
   if (!ta) return;
   const idx = lumiActiveIdx(field);
   if (idx === '-1' || idx === 'add') {
-    charFormState[field] = ta.value;
+    state.charFormState[field] = ta.value;
   } else {
     const v = lv[field] && lv[field][parseInt(idx)];
     if (v) v.content = ta.value;
   }
 }
 
-function wireLumiVariantFields() {
+export function wireLumiVariantFields() {
   document.querySelectorAll('.lumi-vtab').forEach(btn => {
     btn.addEventListener('click', () => {
       const field = btn.dataset.field;
@@ -610,12 +657,12 @@ function wireLumiVariantFields() {
 
       // Save whatever is on screen into its own slot BEFORE the textarea changes
       captureCharState();
-      const lv = charFormState._lumiVariants;
+      const lv = state.charFormState._lumiVariants;
 
       if (idx === 'add') {
         if (!lv[field]) lv[field] = [];
         lv[field].push({ id: lumiGenId(), label: 'Variant ' + (lv[field].length + 1), content: '' });
-        charUnsaved = true;
+        state.charUnsaved = true;
         renderCharEditor();
         return;
       }
@@ -624,7 +671,7 @@ function wireLumiVariantFields() {
       btn.classList.add('active');
 
       if (idx === '-1') {
-        ta.value = charFormState[field] || '';
+        ta.value = state.charFormState[field] || '';
       } else {
         const v = lv[field] && lv[field][parseInt(idx)];
         ta.value = v ? (v.content || '') : '';
@@ -637,12 +684,12 @@ function wireLumiVariantFields() {
         const field = btn.dataset.field;
         const idx   = parseInt(btn.dataset.idx);
         captureCharState();
-        const lv = charFormState._lumiVariants;
+        const lv = state.charFormState._lumiVariants;
         if (!lv[field] || !lv[field][idx]) return;
         const newLabel = await askInput('Rename variant:', lv[field][idx].label || ('Variant ' + (idx+1)));
         if (newLabel === null) return;
         lv[field][idx].label = newLabel.trim() || ('Variant ' + (idx+1));
-        charUnsaved = true;
+        state.charUnsaved = true;
         btn.textContent = lv[field][idx].label;
       });
 
@@ -653,10 +700,10 @@ function wireLumiVariantFields() {
         const idx   = parseInt(btn.dataset.idx);
         if (!await askConfirm('Delete this variant?')) return;
         captureCharState();
-        const lv = charFormState._lumiVariants;
+        const lv = state.charFormState._lumiVariants;
         if (!lv[field]) return;
         lv[field].splice(idx, 1);
-        charUnsaved = true;
+        state.charUnsaved = true;
         renderCharEditor();
       });
     }
@@ -666,9 +713,9 @@ function wireLumiVariantFields() {
 // Returns a fresh copy of all variants with the on-screen textarea routed into
 // the right slot. Falls back to the card's stored variants the first time,
 // previously it fell back to {}, which dropped every imported variant.
-function captureLumiVariants() {
-  const card = charLibrary[activeCharId]?.card;
-  const src = charFormState._lumiVariants || {};
+export function captureLumiVariants() {
+  const card = state.charLibrary[state.activeCharId]?.card;
+  const src = state.charFormState._lumiVariants || {};
   const result = {};
   LUMI_FIELDS.forEach(field => {
     const base = src[field] || getLumiVariants(card, field);
@@ -678,9 +725,9 @@ function captureLumiVariants() {
   return result;
 }
 
-function captureCharGreetings() {
+export function captureCharGreetings() {
   const wrap = g('chAltGreetList');
-  if (!wrap) return charFormState.alternate_greetings || [];
+  if (!wrap) return state.charFormState.alternate_greetings || [];
   // Each greeting block has: [0]=header(ignored), [1]=title input, [2]=message textarea
   return [...wrap.children].map(block => {
     const titleInput = block.querySelector('input.finput');
@@ -701,13 +748,13 @@ function captureCharGreetings() {
 // }
 // ═══════════════════════════════════════════════════════
 
-function gtGenId() {
+export function gtGenId() {
   // Generate a GreetingTools-style ID: g_<8hex>_<6hex>
   const rnd = n => Math.floor(Math.random() * 16**n).toString(16).padStart(n, '0');
   return 'g_' + rnd(8) + '_' + rnd(6);
 }
 
-function gtReadFromCard(card) {
+export function gtReadFromCard(card) {
   // Returns { mainTitle, mainDesc, alts: [{title, desc}, ...] } from extensions.greeting_tools
   const gt = card?.data?.extensions?.greeting_tools;
   if (!gt) return null;
@@ -729,7 +776,7 @@ function gtReadFromCard(card) {
   };
 }
 
-function gtWriteToCard(card, firstMesTitle, firstMesDesc, altGreetings) {
+export function gtWriteToCard(card, firstMesTitle, firstMesDesc, altGreetings) {
   // Writes greeting_tools back to card.data.extensions
   if (!card.data.extensions) card.data.extensions = {};
 
@@ -778,9 +825,8 @@ function gtWriteToCard(card, firstMesTitle, firstMesDesc, altGreetings) {
   };
 }
 
-
-function captureCharState() {
-  charFormState.name = g('chName')?.value;
+export function captureCharState() {
+  state.charFormState.name = g('chName')?.value;
   // Lumiverse: chDesc/chPers/chScen are shared between the Default tab and
   // every variant tab, so the textarea only holds the Default text while the
   // Default tab is active. captureLumiVariants() routes each textarea's value
@@ -789,36 +835,36 @@ function captureCharState() {
   // is what made variant text overwrite Default.
   const lumiUi = charActiveFormat === 'lumiverse' && document.getElementById('lumi-vwrap-description');
   if (!lumiUi) {
-    charFormState.description = g('chDesc')?.value;
-    charFormState.personality = g('chPers')?.value;
-    charFormState.scenario = g('chScen')?.value;
+    state.charFormState.description = g('chDesc')?.value;
+    state.charFormState.personality = g('chPers')?.value;
+    state.charFormState.scenario = g('chScen')?.value;
   }
-  charFormState.first_mes = g('chFirst')?.value;
-  charFormState.mes_example = g('chMesEx')?.value;
-  charFormState.system_prompt = g('chSysPrompt')?.value;
-  charFormState.post_history_instructions = g('chPHI')?.value;
-  charFormState.creator_notes = g('chNotes')?.value;
-  charFormState.creator = g('chCreator')?.value;
-  charFormState.character_version = g('chVersion')?.value;
-  charFormState.tags = g('chTags')?.value;
-  charFormState.spec = g('chSpec')?.value;
-  charFormState.alternate_greetings = captureCharGreetings();
+  state.charFormState.first_mes = g('chFirst')?.value;
+  state.charFormState.mes_example = g('chMesEx')?.value;
+  state.charFormState.system_prompt = g('chSysPrompt')?.value;
+  state.charFormState.post_history_instructions = g('chPHI')?.value;
+  state.charFormState.creator_notes = g('chNotes')?.value;
+  state.charFormState.creator = g('chCreator')?.value;
+  state.charFormState.character_version = g('chVersion')?.value;
+  state.charFormState.tags = g('chTags')?.value;
+  state.charFormState.spec = g('chSpec')?.value;
+  state.charFormState.alternate_greetings = captureCharGreetings();
   // Lumiverse variant fields (also stashes the Default text, see above)
   if (lumiUi) {
-    charFormState._lumiVariants = captureLumiVariants();
+    state.charFormState._lumiVariants = captureLumiVariants();
     // Safety net: never let a Default field fall through as undefined,
     // saveChar() would turn that into an empty string.
-    const d = charLibrary[activeCharId]?.card?.data || {};
-    LUMI_FIELDS.forEach(f => { if (charFormState[f] === undefined) charFormState[f] = d[f] || ''; });
+    const d = state.charLibrary[state.activeCharId]?.card?.data || {};
+    LUMI_FIELDS.forEach(f => { if (state.charFormState[f] === undefined) state.charFormState[f] = d[f] || ''; });
   }
 }
 
-function saveChar(opts = {}) {
-  if (!activeCharId || !charLibrary[activeCharId]) return false;
+export function saveChar(opts = {}) {
+  if (!state.activeCharId || !state.charLibrary[state.activeCharId]) return false;
   captureCharState();
-  const entry = charLibrary[activeCharId];
+  const entry = state.charLibrary[state.activeCharId];
   const card = entry.card;
-  const s = charFormState;
+  const s = state.charFormState;
 
   card.spec = s.spec || card.spec;
   card.spec = 'chara_card_v3'; card.spec_version = '3.0'; // always export V3
@@ -834,10 +880,11 @@ function saveChar(opts = {}) {
   card.data.creator = s.creator || '';
   card.data.character_version = s.character_version || '';
   card.data.tags = (s.tags || '').split(',').map(t => t.trim()).filter(Boolean);
-  // ST format: alternate_greetings is plain strings; strip titles for ST export
+  // Kept as { title, message } here (the titles belong to SaucepanAI and the editor);
+  // every export flattens them back to the plain strings SillyTavern expects
   card.data.alternate_greetings = (s.alternate_greetings || [])
-    .map(g => typeof g === 'object' ? (g.message || '') : (g || ''))
-    .filter(m => m.trim() !== '');
+    .map(g => typeof g === 'object' ? { title: g.title || '', message: g.message || '' } : { title: '', message: g || '' })
+    .filter(g => g.message.trim() !== '');
 
   // Lumiverse alternate_fields
   if (s._lumiVariants) {
@@ -848,669 +895,49 @@ function saveChar(opts = {}) {
 
   entry.name = card.data.name;
   entry.savedAt = new Date().toISOString();
-  charUnsaved = false;
-  charFormState = {};
+  state.charUnsaved = false;
+  state.charFormState = {};
 
   // Snapshot this version into history. The snapshot strips the avatar
   // and the nested history list (see itemHistoryPush) — previously each
   // snapshot carried a full copy of the image, which meant the write
   // blew the storage quota and silently failed, which is why history
   // has never actually persisted.
-  if (typeof itemHistoryPush === 'function') itemHistoryPush('char', activeCharId, entry);
+  // Autosaves pass noHistory so they don't use up the 10 snapshot slots.
+  if (!opts.noHistory) itemHistoryPush('char', state.activeCharId, entry);
 
   const ok = saveCharLibrary();
   renderCharSidebar();
-  if (typeof wsMarkSaved === 'function') wsMarkSaved('char', activeCharId);
+  wsMarkSaved('char', state.activeCharId);
   if (ok && !opts.silent) toast('Character saved.', 'ok');
   return ok;
 }
 
-// ── Import / Export ──
-
-function handleCharImport(e) {
-  const file = e.target.files[0]; if (!file) return;
-  const ext = file.name.split('.').pop().toLowerCase();
-
-  if (ext === 'png') {
-    const r = new FileReader();
-    r.onload = ev => {
-      try {
-        const buf = new Uint8Array(ev.target.result);
-        const cardData = extractCharFromPng(buf);
-        if (!cardData) { toast('No character data found in this PNG.', 'err'); return; }
-        // Also store the PNG itself as the character image
-        const blob = new Blob([ev.target.result], { type: 'image/png' });
-        const imgReader = new FileReader();
-        imgReader.onload = imgEv => {
-          importCharCard(cardData, file.name, imgEv.target.result);
-        };
-        imgReader.readAsDataURL(blob);
-      } catch(err) { toast('PNG import error: ' + err.message, 'err'); console.error(err); }
-    };
-    r.readAsArrayBuffer(file);
-  } else {
-    const r = new FileReader();
-    r.onload = ev => {
-      try {
-        const data = JSON.parse(ev.target.result);
-        importCharCard(data, file.name);
-      } catch(err) { toast('Import error: ' + err.message, 'err'); console.error(err); }
-    };
-    r.readAsText(file);
-  }
-  e.target.value = '';
-}
-
-
-function handleCharCompanionImport(e) {
-  const file = e.target.files[0]; if (!file) return;
-  const r = new FileReader();
-  r.onload = ev => {
-    try {
-      const data = JSON.parse(ev.target.result);
-      // companion.json structure: { name, persona, ... starting_scenarios: [{title, text}] }
-      if (!data.name && !data.persona) { toast('Unrecognized companion.json format.', 'err'); return; }
-      const altGreets = (data.starting_scenarios || []).slice(1).map(s => ({
-        title: s.title || '',
-        message: s.text || s.message || ''
-      }));
-      const firstMes = data.starting_scenarios?.[0]?.text || data.starting_scenarios?.[0]?.message || '';
-      const card = {
-        spec: 'chara_card_v2', spec_version: '2.0',
-        data: {
-          name: data.name || 'Unnamed',
-          description: data.persona || data.description || '',
-          personality: data.personality || '',
-          scenario: data.scenario || '',
-          first_mes: firstMes,
-          mes_example: data.mes_example || data.example_dialogue || '',
-          system_prompt: data.system_prompt || '',
-          post_history_instructions: data.post_history_instructions || '',
-          creator_notes: data.creator_notes || '',
-          creator: data.creator || '',
-          character_version: data.character_version || '',
-          tags: data.tags || [],
-          alternate_greetings: altGreets,
-          extensions: data.extensions || {},
-          character_book: data.character_book || null
-        }
-      };
-      importCharCard(card, file.name);
-    } catch(err) { toast('Companion import error: ' + err.message, 'err'); console.error(err); }
-  };
-  r.readAsText(file);
-  e.target.value = '';
-}
-
-function importCharCard(data, filename, imageData = null) {
-  let card;
-  // Handle both wrapped (spec_version) and raw V1-style flat cards
-  if (data.spec && data.data) {
-    card = data;
-  } else if (data.name !== undefined) {
-    // Flat V1-style card — wrap it
-    card = {
-      spec: 'chara_card_v2', spec_version: '2.0',
-      data: {
-        name: data.name || '', description: data.description || '',
-        personality: data.personality || '', scenario: data.scenario || '',
-        first_mes: data.first_mes || '', mes_example: data.mes_example || '',
-        creator_notes: data.creator_notes || '', system_prompt: data.system_prompt || '',
-        post_history_instructions: data.post_history_instructions || '',
-        alternate_greetings: (data.alternate_greetings || []).map(g => typeof g === 'object' ? g : { title: '', message: g }), tags: data.tags || [],
-        creator: data.creator || '', character_version: data.character_version || '',
-        extensions: data.extensions || {}, character_book: data.character_book || null
-      }
-    };
-  } else {
-    toast('Unrecognized character card format.', 'err');
-    return;
-  }
-  normalizeCharCard(card);
-
-  // Normalize alternate_greetings to {title, message} objects for internal use
-  // (titles used by SaucepanAI export; ST keeps alternate_greetings as plain strings on export)
-  card.data.alternate_greetings = (card.data.alternate_greetings || []).map(g =>
-    typeof g === 'object' ? { title: g.title || '', message: g.message || g.content || '' } : { title: '', message: g || '' }
-  );
-
-  card.id = charId();
-  charLibrary[card.id] = { id: card.id, name: card.data.name, card, imageData, savedAt: new Date().toISOString() };
-
-  // Resize the avatar before it ever reaches storage, then save.
-  Promise.resolve(downscaleAvatar(imageData)).then(small => {
-    const before = (imageData || '').length;
-    const after  = (small || '').length;
-    if (small !== imageData) charLibrary[card.id].imageData = small;
-    saveCharLibrary();
-    renderCharSidebar();
-    openChar(card.id);
-    const saving = before && after < before
-      ? ` (avatar ${Math.round(before/1024)}KB → ${Math.round(after/1024)}KB)` : '';
-    toast('Imported: ' + card.data.name + saving, 'ok');
-  });
-}
-
-// Commit whatever is currently typed in the editor into the stored card.
-// Every export path must call this first, or it ships stale data.
-function commitBeforeExport(id) {
-  if (id && activeCharId === id && typeof saveChar === 'function') {
-    saveChar({ silent: true });
-  }
-}
-
-function exportCharJson(id) {
-  const entry = charLibrary[id]; if (!entry) return;
-  commitBeforeExport(id);
-  const fn = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi, '_') + '.json';
-  dlFile(JSON.stringify(entry.card, null, 2), fn, 'application/json');
-  toast('Exported: ' + fn, 'ok');
-}
-
-// Build a clean chara_card_v2-shaped card from internal card data.
-// Flattens alternate_greetings from internal {title,message} objects back to
-// plain strings (V2 spec requires string[]) and drops LoreOS-internal fields
-// (top-level `id`, greeting titles, etc.) that aren't part of the V2 spec.
-function toV2Card(d) {
-  return {
-    spec: 'chara_card_v2',
-    spec_version: '2.0',
-    data: {
-      name:                     d.name || '',
-      description:              d.description || '',
-      personality:              d.personality || '',
-      scenario:                 d.scenario || '',
-      first_mes:                d.first_mes || '',
-      mes_example:              d.mes_example || '',
-      creator_notes:            d.creator_notes || '',
-      system_prompt:            d.system_prompt || '',
-      post_history_instructions:d.post_history_instructions || '',
-      alternate_greetings:      (d.alternate_greetings || []).map(g => typeof g === 'object' ? (g.message || '') : (g || '')),
-      tags:                     d.tags || [],
-      creator:                  d.creator || '',
-      character_version:        d.character_version || '',
-      extensions:               d.extensions || {},
-      ...(d.character_book ? { character_book: d.character_book } : {})
-    }
-  };
-}
-
-// Export as V2 JSON (chara_card_v2 / spec_version 2.0)
-// Strips V3-only fields (group_only_greetings, assets, character_version) for max compat
-function exportCharJsonV2(id) {
-  const entry = charLibrary[id]; if (!entry) return;
-  commitBeforeExport(id);
-  const d = entry.card.data;
-  const v2card = toV2Card(d);
-  const fn = (d.name || 'character').replace(/[^a-z0-9_-]/gi, '_') + '_v2.json';
-  dlFile(JSON.stringify(v2card, null, 2), fn, 'application/json');
-  toast('Exported V2: ' + fn, 'ok');
-}
-
-function exportCharSaucepan(id) {
-  const entry = charLibrary[id]; if (!entry) return;
-  commitBeforeExport(id);
-  const s = charFormState;
-  const d = entry.card.data;
-
-  // Build starting_scenarios from first_mes + alternate_greetings
-  // Uses greeting titles if present, falls back to generated labels
-  const altGreets = (s.alternate_greetings || d.alternate_greetings || [])
-    .filter(g => (typeof g === 'object' ? g.message : g || '').trim() !== '');
-
-  const scenarios = [];
-
-  // First message
-  const firstMsg = s.first_mes || d.first_mes || '';
-  if (firstMsg.trim()) {
-    const firstTitle = s.first_mes_title || (
-      d.extensions && d.extensions.greeting_tools && d.extensions.greeting_tools.mainGreeting
-        ? d.extensions.greeting_tools.mainGreeting.title
-        : ''
-    ) || 'Opening';
-    scenarios.push({ title: firstTitle, message: firstMsg, portrait_id: null });
-  }
-
-  // Alternate greetings
-  altGreets.forEach((g, i) => {
-    const msg   = typeof g === 'object' ? (g.message || '') : (g || '');
-    const title = typeof g === 'object' && g.title ? g.title : ('Scenario ' + (i + 2));
-    scenarios.push({ title, message: msg, portrait_id: null });
-  });
-
-  // Preserve existing SaucepanAI metadata if card was originally imported from Saucepan
-  const existingMeta = d.extensions && d.extensions._saucepan ? d.extensions._saucepan : {};
-
-  const companion = {
-    id:           existingMeta.id   || crypto.randomUUID(),
-    name:         s.name            || d.name || 'Unknown',
-    display_name: existingMeta.display_name || s.name || d.name || 'Unknown',
-    full_description:  s.creator_notes || d.creator_notes || '',
-    short_description: s.creator_notes ? s.creator_notes.slice(0, 200) : (d.creator_notes || '').slice(0, 200),
-    tags:         (s.tags ? s.tags.split(',').map(t => t.trim()).filter(Boolean) : d.tags) || [],
-    fandom_tags:  existingMeta.fandom_tags || [],
-    image:        existingMeta.image || { id: null },
-    image_crop_zoom: null, image_crop_x: null, image_crop_y: null,
-    sus:          existingMeta.sus  ?? false,
-    very_sus:     existingMeta.very_sus ?? false,
-    card:         s.description     || d.description || '',
-    temperature_offset_percentage: existingMeta.temperature_offset_percentage ?? 0,
-    portraits:    existingMeta.portraits || [],
-    example_dialogue: s.mes_example || d.mes_example || null,
-    locked_starting_message: existingMeta.locked_starting_message ?? false,
-    starting_scenarios: scenarios,
-    access_level: existingMeta.access_level || 'private',
-    formatting_instructions: s.system_prompt || d.system_prompt || null,
-    advanced_prompt: s.post_history_instructions || d.post_history_instructions || null,
-    open_definition: existingMeta.open_definition ?? true,
-    hidden_fields: existingMeta.hidden_fields ?? 0,
-    external_model_policy: existingMeta.external_model_policy || 'vetted_only',
-    unlocked_portraits: existingMeta.unlocked_portraits ?? false,
-    hide_on_owner_profile: existingMeta.hide_on_owner_profile ?? false,
-    companion_profile_banner_crop_zoom: null,
-    companion_profile_banner_crop_x: null,
-    companion_profile_banner_crop_y: null,
-    default_profile_banner_collection_image_crop_zoom: null,
-    default_profile_banner_collection_image_crop_x: null,
-    default_profile_banner_collection_image_crop_y: null,
-    suppress_companion_profile_banner: existingMeta.suppress_companion_profile_banner ?? false,
-    companion_profile_banner_very_sus: existingMeta.companion_profile_banner_very_sus ?? false,
-  };
-
-  const fn = (d.name || 'companion').replace(/[^a-z0-9_-]/gi, '_') + '_saucepan.json';
-  dlFile(JSON.stringify(companion, null, 2), fn, 'application/json');
-  toast('Exported for SaucepanAI: ' + fn, 'ok');
-}
-
-// ═══════════════════════════════════════════════════════
-// CHARX IMPORT / EXPORT (Lumiverse format)
-// .charx is a zip containing card.json + assets/icon/image/main.png
-// Requires JSZip (loaded via CDN)
-// ═══════════════════════════════════════════════════════
-
-function handleCharxImport(e) {
-  const file = e.target.files[0]; if (!file) return;
-  if (typeof JSZip === 'undefined') {
-    toast('JSZip not loaded — check your connection.', 'err'); return;
-  }
-  const r = new FileReader();
-  r.onload = ev => {
-    JSZip.loadAsync(ev.target.result).then(zip => {
-      const cardFile = zip.file('card.json');
-      if (!cardFile) { toast('.charx missing card.json', 'err'); return; }
-
-      const imgFile  = zip.file('assets/icon/image/main.png');
-      const lumiFile = zip.file('lumiverse_modules.json');
-      const cardPromise = cardFile.async('string').then(JSON.parse);
-      const imgPromise  = imgFile
-        ? imgFile.async('base64').then(b64 => 'data:image/png;base64,' + b64)
-        : Promise.resolve(null);
-      const lumiPromise = lumiFile
-        ? lumiFile.async('string').then(JSON.parse).catch(() => null)
-        : Promise.resolve(null);
-
-      Promise.all([cardPromise, imgPromise, lumiPromise]).then(([cardData, imageData, lumiModules]) => {
-        // Merge lumiverse_modules alternate_fields into extensions._lumiverse
-        if (lumiModules && lumiModules.alternate_fields) {
-          if (!cardData.data) cardData.data = {};
-          if (!cardData.data.extensions) cardData.data.extensions = {};
-          cardData.data.extensions._lumiverse = { alternate_fields: lumiModules.alternate_fields };
-        }
-        importCharCard(cardData, file.name, imageData);
-        toast('Imported .charx: ' + (cardData.data && cardData.data.name || file.name), 'ok');
-      }).catch(err => toast('.charx parse error: ' + err.message, 'err'));
-    }).catch(err => toast('.charx zip error: ' + err.message, 'err'));
-  };
-  r.readAsArrayBuffer(file);
-  e.target.value = '';
-}
-
-function exportCharCharx(id) {
-  const entry = charLibrary[id]; if (!entry) return;
-  if (typeof JSZip === 'undefined') {
-    toast('JSZip not loaded — check your connection.', 'err'); return;
-  }
-
-  // Make sure card is saved first
-  commitBeforeExport(id);
-
-  const zip = new JSZip();
-  zip.file('card.json', JSON.stringify(entry.card, null, 2));
-
-  const name = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi, '_');
-
-  // Write lumiverse_modules.json if any alternate_fields exist
-  const lumiAltFields = entry.card.data?.extensions?._lumiverse?.alternate_fields;
-  const hasLumiVariants = lumiAltFields && Object.values(lumiAltFields).some(arr => arr && arr.length > 0);
-  if (hasLumiVariants) {
-    const lumiModules = { version: 1, alternate_fields: lumiAltFields };
-    zip.file('lumiverse_modules.json', JSON.stringify(lumiModules, null, 2));
-  }
-
-  const finish = () => {
-    zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }).then(blob => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = name + '.charx';
-      document.body.append(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
-      toast('Exported .charx: ' + name, 'ok');
-    }).catch(err => toast('.charx export error: ' + err.message, 'err'));
-  };
-
-  if (entry.imageData) {
-    // imageData is a base64 data URL — extract raw bytes
-    const b64 = entry.imageData.split(',')[1];
-    const bin = atob(b64);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-
-    // If it's a PNG, strip any leftover text metadata (generation prompts,
-    // LoRA/checkpoint names, etc. from the source image) before packaging —
-    // .charx keeps card data in card.json, so main.png should be image-only.
-    const pngSig = [137,80,78,71,13,10,26,10];
-    const isPng = pngSig.every((b, i) => bytes[i] === b);
-    const outBytes = isPng ? stripExistingCharaChunks(bytes) : bytes;
-
-    zip.folder('assets/icon/image').file('main.png', outBytes);
-    finish();
-  } else {
-    // No image stored — export without image
-    finish();
-  }
-}
-
-
-
-// ═══════════════════════════════════════════════════════
-// AVATAR SIZING
-// Avatars are stored as text (a base64 data URL) inside the same
-// JSON blob as everything else, which inflates them ~33% over the
-// real file size. A single 1.8MB import was eating a third of the
-// entire ~5MB browser storage budget. Character cards are displayed
-// small everywhere (SillyTavern, JanitorAI, Saucepan), so we resize
-// on the way in and re-encode as WebP.
-//
-// Users who genuinely want full-resolution avatars can turn this off
-// in Settings; the trade-off is storage.
-// ═══════════════════════════════════════════════════════
-
-const AVATAR_MAX = 512;        // px, longest edge
-const AVATAR_QUALITY = 0.88;   // WebP quality
-
-function keepFullAvatars() {
-  try { return !!(JSON.parse(localStorage.getItem('aet_settings') || '{}').keepFullAvatars); }
-  catch(e) { return false; }
-}
-
-// Takes a data URL, returns a smaller data URL (or the original if
-// it's already small enough / the user opted out / anything fails).
-function downscaleAvatar(dataUrl, force = false) {
-  return new Promise(resolve => {
-    if (!dataUrl) { resolve(dataUrl); return; }
-    if (!force && keepFullAvatars()) { resolve(dataUrl); return; }
-
-    const img = new Image();
-    img.onload = () => {
-      try {
-        const w = img.naturalWidth, h = img.naturalHeight;
-        if (!w || !h) { resolve(dataUrl); return; }
-
-        const scale = Math.min(1, AVATAR_MAX / Math.max(w, h));
-        const tw = Math.max(1, Math.round(w * scale));
-        const th = Math.max(1, Math.round(h * scale));
-
-        const canvas = document.createElement('canvas');
-        canvas.width = tw; canvas.height = th;
-        const ctx = canvas.getContext('2d');
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, 0, tw, th);
-
-        // WebP is dramatically smaller than PNG for photographic
-        // avatars. Fall back to PNG if the browser won't encode it.
-        let out = canvas.toDataURL('image/webp', AVATAR_QUALITY);
-        if (!out || out.indexOf('data:image/webp') !== 0) {
-          out = canvas.toDataURL('image/png');
-        }
-        resolve(out.length < dataUrl.length ? out : dataUrl);
-      } catch(e) {
-        console.error('[LoreOS] avatar downscale failed:', e);
-        resolve(dataUrl);
-      }
-    };
-    img.onerror = () => resolve(dataUrl);
-    img.src = dataUrl;
-  });
-}
-
-// ── PNG character card embed / extract ──
-// Character data is stored in a tEXt chunk keyword "chara" as base64 JSON.
-
-// Converts a base64 data URL to a PNG ArrayBuffer, auto-converting via
-// canvas if the source isn't already PNG (e.g. stored as JPEG/WebP).
-function dataUrlToPngArrayBuffer(dataUrl) {
-  return new Promise((resolve, reject) => {
-    const b64 = dataUrl.split(',')[1];
-    const bin = atob(b64);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-
-    const pngSig = [137,80,78,71,13,10,26,10];
-    if (pngSig.every((b, i) => bytes[i] === b)) {
-      resolve(bytes.buffer);
-      return;
-    }
-
-    // Not PNG — convert via canvas
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
-      canvas.getContext('2d').drawImage(img, 0, 0);
-      canvas.toBlob(blob => {
-        if (!blob) { reject(new Error('Canvas PNG conversion failed')); return; }
-        blob.arrayBuffer().then(resolve).catch(reject);
-      }, 'image/png');
-    };
-    img.onerror = () => reject(new Error('Could not load stored image for conversion'));
-    img.src = dataUrl;
-  });
-}
-
-function openCharPngExport(id, forceV2 = true) {
-  const entry = charLibrary[id]; if (!entry) return;
-  commitBeforeExport(id);
-
-  const doExport = (arrayBuf) => {
-    try {
-      const buf = new Uint8Array(arrayBuf);
-      const outCard = forceV2 ? toV2Card(entry.card.data) : entry.card;
-      const outBuf = embedCharInPng(buf, outCard);
-      const blob = new Blob([outBuf], { type: 'image/png' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = (entry.card.data.name || 'character').replace(/[^a-z0-9_-]/gi,'_') + (forceV2 ? '_v2' : '_v3') + '.png';
-      document.body.append(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
-      toast((forceV2 ? 'V2' : 'V3') + ' PNG card exported!', 'ok');
-    } catch(err) { toast('PNG export error: ' + err.message, 'err'); console.error(err); }
-  };
-
-  if (entry.imageData) {
-    dataUrlToPngArrayBuffer(entry.imageData).then(doExport).catch(err => {
-      toast('Image conversion error: ' + err.message, 'err');
-      console.error(err);
-    });
-  } else {
-    // No stored image — ask user to pick one
-    const input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/png,image/jpeg,image/webp';
-    input.onchange = e => {
-      const file = e.target.files[0]; if (!file) return;
-      // Convert to PNG via canvas if not already PNG
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
-        canvas.getContext('2d').drawImage(img, 0, 0);
-        URL.revokeObjectURL(url);
-        canvas.toBlob(blob => {
-          blob.arrayBuffer().then(doExport);
-        }, 'image/png');
-      };
-      img.src = url;
-    };
-    input.click();
-    toast('No image set — pick one to use as the card base.', 'info');
-  }
-}
-
-function crc32(buf) {
-  let c, table = crc32.table;
-  if (!table) {
-    table = crc32.table = [];
-    for (let n = 0; n < 256; n++) {
-      c = n;
-      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-      table[n] = c;
-    }
-  }
-  let crc = 0xFFFFFFFF;
-  for (let i = 0; i < buf.length; i++) crc = table[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);
-  return (crc ^ 0xFFFFFFFF) >>> 0;
-}
-
-function u32be(n) {
-  return new Uint8Array([(n>>>24)&255, (n>>>16)&255, (n>>>8)&255, n&255]);
-}
-
-function strToBytes(s) {
-  return new Uint8Array([...s].map(c => c.charCodeAt(0)));
-}
-
-function embedCharInPng(pngBuf, card) {
-  // Validate PNG signature
-  const sig = [137,80,78,71,13,10,26,10];
-  for (let i = 0; i < 8; i++) if (pngBuf[i] !== sig[i]) throw new Error('Not a valid PNG file');
-
-  const json = JSON.stringify(card);
-  const b64 = btoa(unescape(encodeURIComponent(json)));
-  const keyword = 'chara';
-  const textData = keyword + '\0' + b64;
-  const textBytes = strToBytes(textData);
-
-  // Build tEXt chunk: length(4) + "tEXt"(4) + data + crc(4)
-  const typeBytes = strToBytes('tEXt');
-  const chunkBody = new Uint8Array(typeBytes.length + textBytes.length);
-  chunkBody.set(typeBytes, 0);
-  chunkBody.set(textBytes, typeBytes.length);
-  const crc = crc32(chunkBody);
-  const lenBytes = u32be(textBytes.length);
-  const crcBytes = u32be(crc);
-
-  const newChunk = new Uint8Array(4 + 4 + textBytes.length + 4);
-  newChunk.set(lenBytes, 0);
-  newChunk.set(typeBytes, 4);
-  newChunk.set(textBytes, 8);
-  newChunk.set(crcBytes, 8 + textBytes.length);
-
-  // Find insertion point: right after IHDR chunk (first chunk after the 8-byte signature)
-  // IHDR chunk: 4(len) + 4(type) + 13(data) + 4(crc) = 25 bytes, starts at offset 8
-  const ihdrLen = (pngBuf[8]<<24 | pngBuf[9]<<16 | pngBuf[10]<<8 | pngBuf[11]) >>> 0;
-  const insertAt = 8 + 4 + 4 + ihdrLen + 4; // sig + len + type + data + crc
-
-  // Remove any existing "chara" tEXt chunks first
-  const stripped = stripExistingCharaChunks(pngBuf);
-  const adjInsertAt = Math.min(insertAt, stripped.length);
-
-  const out = new Uint8Array(stripped.length + newChunk.length);
-  out.set(stripped.subarray(0, adjInsertAt), 0);
-  out.set(newChunk, adjInsertAt);
-  out.set(stripped.subarray(adjInsertAt), adjInsertAt + newChunk.length);
-  return out;
-}
-
-// Strips ALL text metadata chunks (tEXt/zTXt/iTXt) — not just chara/ccv3.
-// Source images (e.g. from ComfyUI/A1111) often carry their own generation
-// metadata (prompt, workflow, LoRA/checkpoint names) baked in as tEXt chunks.
-// None of that belongs in an exported character card, so we clear it all
-// before embedding our own "chara" chunk.
-function stripExistingCharaChunks(buf) {
-  const out = [];
-  let pos = 8;
-  out.push(buf.subarray(0, 8));
-  while (pos < buf.length) {
-    const len = (buf[pos]<<24 | buf[pos+1]<<16 | buf[pos+2]<<8 | buf[pos+3]) >>> 0;
-    const type = String.fromCharCode(buf[pos+4], buf[pos+5], buf[pos+6], buf[pos+7]);
-    const chunkTotal = 4 + 4 + len + 4;
-    if (type === 'tEXt' || type === 'zTXt' || type === 'iTXt') {
-      pos += chunkTotal;
-      continue; // skip all text metadata chunks, regardless of keyword
-    }
-    out.push(buf.subarray(pos, pos + chunkTotal));
-    pos += chunkTotal;
-  }
-  // Concatenate
-  let total = 0; out.forEach(p => total += p.length);
-  const result = new Uint8Array(total);
-  let off = 0;
-  out.forEach(p => { result.set(p, off); off += p.length; });
-  return result;
-}
-
-function extractCharFromPng(buf) {
-  const sig = [137,80,78,71,13,10,26,10];
-  for (let i = 0; i < 8; i++) if (buf[i] !== sig[i]) throw new Error('Not a valid PNG file');
-  let pos = 8;
-  while (pos < buf.length) {
-    const len = (buf[pos]<<24 | buf[pos+1]<<16 | buf[pos+2]<<8 | buf[pos+3]) >>> 0;
-    const type = String.fromCharCode(buf[pos+4], buf[pos+5], buf[pos+6], buf[pos+7]);
-    if (type === 'tEXt') {
-      let kwEnd = pos + 8;
-      const chunkEnd = pos + 8 + len;
-      while (kwEnd < chunkEnd && buf[kwEnd] !== 0) kwEnd++;
-      const keyword = String.fromCharCode(...buf.subarray(pos+8, kwEnd));
-      if (keyword === 'chara') {
-        // Use TextDecoder instead of spread into fromCharCode — spread blows
-        // the call stack on large PNGs (maximum call stack size exceeded)
-        const b64 = new TextDecoder('latin1').decode(buf.subarray(kwEnd+1, chunkEnd));
-        const json = decodeURIComponent(escape(atob(b64)));
-        return JSON.parse(json);
-      }
-    }
-    if (type === 'IEND') break;
-    pos += 4 + 4 + len + 4;
-  }
-  return null;
-}
-
 // Character library modal reuses the same #libModal as lorebooks, but
 // scoped to charLibrary instead of the lorebook-saves library
-function openCharLibrary() {
+export function openCharLibrary() {
   g('libModalTitle').textContent = 'Character Library';
   const list = g('libList');
   list.innerHTML = '';
-  const chars = Object.values(charLibrary).sort((a,b) => b.savedAt.localeCompare(a.savedAt));
+  const chars = Object.values(state.charLibrary).sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
   if (!chars.length) {
     list.innerHTML = '<div class="lib-empty">// no characters yet</div>';
   } else {
     chars.forEach(entry => {
       const item = document.createElement('div');
-      item.className = 'lib-item' + (entry.id === activeCharId ? ' active' : '');
+      item.className = 'lib-item' + (entry.id === state.activeCharId ? ' active' : '');
       const date = new Date(entry.savedAt).toLocaleDateString();
       item.innerHTML = `
-        <span class="lib-name">${entry.name || 'Unnamed'}</span>
+        <span class="lib-name">${esc(entry.name || 'Unnamed')}</span>
         <span class="lib-meta">${date}</span>
         <div class="lib-acts">
           <button class="btn btn-s btn-sm lib-load">Load</button>
-          <button class="btn btn-s btn-sm lib-hist lib-item-hist" title="Version history">🕓</button>
+          <button class="btn btn-s btn-sm lib-hist lib-item-hist" title="Version history">↺</button>
           <button class="btn btn-err btn-sm lib-del">✕</button>
         </div>`;
       item.querySelector('.lib-name').addEventListener('click', () => { openChar(entry.id); closeModal('libModal'); });
       item.querySelector('.lib-load').addEventListener('click', () => { openChar(entry.id); closeModal('libModal'); });
-      item.querySelector('.lib-hist').addEventListener('click', () => { if (typeof openItemHistory === 'function') openItemHistory('char', entry.id); });
+      item.querySelector('.lib-hist').addEventListener('click', () => { openItemHistory('char', entry.id); });
       item.querySelector('.lib-del').addEventListener('click', () => { deleteChar(entry.id); openCharLibrary(); });
       list.append(item);
     });
@@ -1520,9 +947,29 @@ function openCharLibrary() {
   openModal('libModal');
 }
 
-function closeCharLibraryModal() {
+export function closeCharLibraryModal() {
   g('libSaveBtn').parentElement.style.display = '';
   closeModal('libModal');
 }
 
 // Preset editor — stub pending full build (sampler settings + prompt list)
+
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(30, `<input type="file" id="fileCharInput" accept=".json,.png" style="display:none">`);
+
+registerMarkup(40, `<input type="file" id="fileCharxInput" accept=".charx" style="display:none">`);
+
+registerMarkup(50, `<input type="file" id="fileCharCompanionInput" accept=".json" style="display:none">`);
+
+
+registerTrashRestorer('char', data => {
+  const id = data.id && !state.charLibrary[data.id] ? data.id : charId();
+  state.charLibrary[id] = { ...data, id };
+  if (state.charLibrary[id].card && state.charLibrary[id].card.id) state.charLibrary[id].card.id = id;
+  saveCharLibrary();
+  if (state.mode === 'char') renderCharSidebar();
+});

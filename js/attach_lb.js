@@ -5,7 +5,12 @@
 // inside card.data, so they never leak into exported card JSON.
 // ═══════════════════════════════════════════════════════
 
-function updateLbStatus(entry) {
+import { renderPromptList } from './preset.js';
+import { state } from './state.js';
+import { libGet, saveCharLibrary, savePresetLibrary } from './storage.js';
+import { askInput, esc, g, openModal, registerMarkup, toast } from './util.js';
+
+export function updateLbStatus(entry) {
   const statusEl = g('chLbStatus');
   if (!statusEl) return;
   const sources = entry?.attachedLbSources || [];
@@ -13,44 +18,109 @@ function updateLbStatus(entry) {
   if (cb && cb.entries && Object.keys(cb.entries).length > 0) {
     const count = Object.keys(cb.entries).length;
     if (sources.length > 1) {
-      statusEl.innerHTML = `🌐 <strong>${sources.length} lorebooks merged</strong> — ${count} ${count === 1 ? 'entry' : 'entries'} total`;
+      statusEl.innerHTML = `⌖ <strong>${sources.length} lorebooks merged</strong> — ${count} ${count === 1 ? 'entry' : 'entries'} total`;
     } else {
       const name = sources.length === 1 ? sources[0].name : (cb.name || 'Unnamed lorebook');
-      statusEl.innerHTML = `🌐 <strong>${name}</strong> — ${count} ${count === 1 ? 'entry' : 'entries'} attached`;
+      statusEl.innerHTML = `⌖ <strong>${esc(name)}</strong> — ${count} ${count === 1 ? 'entry' : 'entries'} attached`;
     }
   } else {
-    statusEl.textContent = '🌐 No lorebook attached';
+    statusEl.textContent = '⌖ No lorebook attached';
   }
 }
 
 // Rebuild card.data.character_book fresh from every attached source,
 // remapping entry uids so entries from different lorebooks never collide.
-function rebuildCharacterBook(entry) {
+export function rebuildCharacterBook(entry) {
   const sources = entry.attachedLbSources || [];
   if (!sources.length) { entry.card.data.character_book = null; return; }
-  const merged = {};
-  let nextUid = 0;
+  // character_book.entries must be an ARRAY of spec entries. This used to be
+  // an object keyed by uid (SillyTavern's world-info file format), which
+  // SillyTavern's card importer can't read (`entries.forEach is not a function`).
+  const merged = [];
   sources.forEach(src => {
     Object.values(src.lb.entries || {}).forEach(en => {
-      const clone = JSON.parse(JSON.stringify(en));
-      clone.uid = nextUid;
-      clone.displayIndex = nextUid;
-      if ('order' in clone) clone.order = nextUid;
-      merged[nextUid] = clone;
-      nextUid++;
+      const id = merged.length;
+      merged.push(worldInfoEntryToSpec(en, id, en.order));
     });
   });
   const name = sources.length === 1 ? (sources[0].name || 'Attached Lorebook') : `${sources.length} lorebooks merged`;
-  entry.card.data.character_book = { name, entries: merged };
+  entry.card.data.character_book = { name, description: '', extensions: {}, entries: merged };
 }
 
-function renderAttachLbList() {
+// One ST world-info entry (what LoreOS lorebooks use internally) -> one
+// chara_card_v2 character_book entry. Mirrors SillyTavern's own
+// world-info -> character_book conversion: spec fields at the top level,
+// everything ST-specific under `extensions` so it survives the round trip.
+export function worldInfoEntryToSpec(en, id, order) {
+  const pos = Number(en.position) || 0;
+  const num = (v, fb) => { const n = Number(v); return Number.isFinite(n) ? n : fb; };
+  return {
+    id,
+    keys: Array.isArray(en.key) ? en.key.slice() : [],
+    secondary_keys: Array.isArray(en.keysecondary) ? en.keysecondary.slice() : [],
+    comment: en.comment || '',
+    content: en.content || '',
+    constant: !!en.constant,
+    selective: !!en.selective,
+    insertion_order: num(order, num(en.order, id)),
+    enabled: !en.disable,
+    position: pos === 0 ? 'before_char' : 'after_char',
+    use_regex: true, // ST treats keys as regex-capable
+    extensions: {
+      position: pos,
+      exclude_recursion: !!en.excludeRecursion,
+      display_index: id,
+      probability: en.probability ?? null,
+      useProbability: en.useProbability ?? false,
+      depth: en.depth ?? 4,
+      selectiveLogic: en.selectiveLogic ?? 0,
+      outlet_name: en.outletName ?? '',
+      group: en.group ?? '',
+      group_override: en.groupOverride ?? false,
+      group_weight: en.groupWeight ?? null,
+      prevent_recursion: !!en.preventRecursion,
+      delay_until_recursion: !!en.delayUntilRecursion,
+      scan_depth: en.scanDepth ?? null,
+      match_whole_words: en.matchWholeWords ?? null,
+      use_group_scoring: en.useGroupScoring ?? false,
+      case_sensitive: en.caseSensitive ?? null,
+      automation_id: en.automationId ?? '',
+      role: en.role ?? 0,
+      vectorized: !!en.vectorized,
+      sticky: en.sticky ?? null,
+      cooldown: en.cooldown ?? null,
+      delay: en.delay ?? null,
+      match_persona_description: !!en.matchPersonaDescription,
+      match_character_description: !!en.matchCharacterDescription,
+      match_character_personality: !!en.matchCharacterPersonality,
+      match_character_depth_prompt: !!en.matchCharacterDepthPrompt,
+      match_scenario: !!en.matchScenario,
+      match_creator_notes: !!en.matchCreatorNotes,
+      ignore_budget: !!en.ignoreBudget,
+    },
+  };
+}
+
+// Cards saved before this fix hold the old object-shaped character_book.
+// Convert them in place (called when the library loads and on every card
+// normalise). Cards that already have an array, or no book, are untouched.
+export function migrateCharacterBook(card) {
+  const d = card && card.data;
+  const cb = d && d.character_book;
+  if (!cb || !cb.entries || Array.isArray(cb.entries) || typeof cb.entries !== 'object') return false;
+  const list = Object.values(cb.entries).map((en, i) =>
+    (en && Array.isArray(en.keys)) ? en : worldInfoEntryToSpec(en || {}, i, i));
+  d.character_book = { ...cb, description: cb.description || '', extensions: cb.extensions || {}, entries: list };
+  return true;
+}
+
+export function renderAttachLbList() {
   const list = g('attachLbLibList');
   if (!list) return;
   list.innerHTML = '';
   const lib = libGet();
   const books = Object.values(lib).sort((a,b) => b.savedAt.localeCompare(a.savedAt));
-  const entry = charLibrary[activeCharId];
+  const entry = state.charLibrary[state.activeCharId];
   const attachedNames = new Set((entry?.attachedLbSources || []).map(s => s.name));
 
   if (!books.length) {
@@ -64,7 +134,7 @@ function renderAttachLbList() {
     const item = document.createElement('div');
     item.className = 'lib-item' + (isAttached ? ' active' : '');
     item.innerHTML = `
-      <span class="lib-name">${book.name}${isAttached ? ' ✓' : ''}</span>
+      <span class="lib-name">${esc(book.name)}${isAttached ? ' ✓' : ''}</span>
       <span class="lib-meta">${count} entries · ${date}</span>
       <button class="btn ${isAttached ? 'btn-err' : 'btn-p'} btn-sm">${isAttached ? 'Detach' : 'Attach'}</button>`;
     item.querySelector('.btn').addEventListener('click', () => {
@@ -75,8 +145,8 @@ function renderAttachLbList() {
   });
 }
 
-function openAttachLbModal() {
-  if (!activeCharId) { toast('Open a character first.', 'warn'); return; }
+export function openAttachLbModal() {
+  if (!state.activeCharId) { toast('Open a character first.', 'warn'); return; }
   renderAttachLbList();
 
   g('attachLbUploadBtn').onclick = () => g('attachLbFileInput').click();
@@ -98,9 +168,9 @@ function openAttachLbModal() {
 
 // Attach one more lorebook on top of whatever's already attached — merges
 // rather than replaces. Re-attaching the same name refreshes its entries.
-function attachLorebook(lb) {
-  if (!activeCharId || !charLibrary[activeCharId]) return;
-  const entry = charLibrary[activeCharId];
+export function attachLorebook(lb) {
+  if (!state.activeCharId || !state.charLibrary[state.activeCharId]) return;
+  const entry = state.charLibrary[state.activeCharId];
   if (!entry.attachedLbSources) entry.attachedLbSources = [];
   const name = lb.name || 'Attached Lorebook';
   const existingIdx = entry.attachedLbSources.findIndex(s => s.name === name);
@@ -118,8 +188,8 @@ function attachLorebook(lb) {
 }
 
 // Detach a single attached lorebook by name, keeping the rest merged.
-function detachOneLorebook(name) {
-  const entry = charLibrary[activeCharId]; if (!entry) return;
+export function detachOneLorebook(name) {
+  const entry = state.charLibrary[state.activeCharId]; if (!entry) return;
   entry.attachedLbSources = (entry.attachedLbSources || []).filter(s => s.name !== name);
   rebuildCharacterBook(entry);
   saveCharLibrary();
@@ -129,9 +199,9 @@ function detachOneLorebook(name) {
 }
 
 // Detach everything at once (the modal's "Detach All" button).
-function detachLorebook() {
-  if (!activeCharId || !charLibrary[activeCharId]) return;
-  const entry = charLibrary[activeCharId];
+export function detachLorebook() {
+  if (!state.activeCharId || !state.charLibrary[state.activeCharId]) return;
+  const entry = state.charLibrary[state.activeCharId];
   entry.attachedLbSources = [];
   entry.card.data.character_book = null;
   saveCharLibrary();
@@ -143,8 +213,8 @@ function detachLorebook() {
 // PRESET VARIABLES PANEL
 // ═══════════════════════════════════════════════════════
 
-function scanAndRenderVars() {
-  const entry = presetLibrary[activePresetId];
+export function scanAndRenderVars() {
+  const entry = state.presetLibrary[state.activePresetId];
   if (!entry) return;
   const vars = extractVars(entry.preset);
   const container = g('psVarsList');
@@ -207,7 +277,7 @@ function scanAndRenderVars() {
 }
 
 // Parse all prompt content for {{setvar::name::value}} patterns
-function extractVars(preset) {
+export function extractVars(preset) {
   const vars = {};
   const re = /\{\{setvar::([^:}]+)::([^}]*)\}\}/g;
   (preset.prompts || []).forEach(pr => {
@@ -225,7 +295,7 @@ function extractVars(preset) {
 }
 
 // Rename a variable across all prompt content (setvar + getvar)
-async function renameVar(oldName) {
+export async function renameVar(oldName) {
   g('renameModalTitle').textContent = 'Rename Variable';
   const newName = await askInput(`Rename variable "${oldName}" to:`, oldName);
   if (!newName || newName.trim() === oldName) return;
@@ -235,7 +305,7 @@ async function renameVar(oldName) {
     return;
   }
 
-  const entry = presetLibrary[activePresetId]; if (!entry) return;
+  const entry = state.presetLibrary[state.activePresetId]; if (!entry) return;
   let count = 0;
 
   (entry.preset.prompts || []).forEach(pr => {
@@ -254,6 +324,28 @@ async function renameVar(oldName) {
   toast(`Renamed "${oldName}" → "${trimmed}" across ${count} prompt${count !== 1 ? 's' : ''}.`, 'ok');
 }
 
-function escapeRegex(s) {
+export function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+// ═══════════════════════════════════════════════════════
+// MARKUP — dialogs and fixed elements this module owns. They are registered
+// here and injected into the page by main.js, in page order, before the app is
+// wired up.
+// ═══════════════════════════════════════════════════════
+registerMarkup(220, `<!-- ATTACH LOREBOOK MODAL -->
+<div id="attachLbModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2>Attach Lorebook</h2><button class="modal-x" data-close="attachLbModal">×</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
+      <p style="font-family:var(--fx);font-size:.75rem;color:var(--txm);letter-spacing:.3px">Attach a lorebook to this character. It gets embedded in the card JSON and ST will offer to import it alongside the card.</p>
+      <div id="attachLbLibList" class="lib-list" style="max-height:240px"></div>
+      <div style="display:flex;gap:.4rem;padding-top:.65rem;border-top:1px solid var(--bd)">
+        <button class="btn btn-s" id="attachLbUploadBtn" style="flex:1">Upload Lorebook JSON</button>
+        <button class="btn btn-err btn-sm" id="attachLbDetachBtn">Detach</button>
+      </div>
+      <input type="file" id="attachLbFileInput" accept=".json" style="display:none">
+    </div>
+  </div>
+</div>`);
+
