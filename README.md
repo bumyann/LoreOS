@@ -19,6 +19,8 @@ Nothing to install, it's hosted:
 
 Works on desktop, mobile and tablet, works offline once loaded, and can be installed as an app.
 
+**New here?** The [LoreOS guide](https://spiffy-temper-1b5.notion.site/LoreOS-3ff0ef120d918184bd61e0f30b6c00a7) walks through every room, plus the FAQ, roadmap and what's new.
+
 ---
 
 ## What's in it
