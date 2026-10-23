@@ -28,6 +28,8 @@ const ASSETS = [
   'manifest.json',
   'css/base.css',
   'css/components.css',
+  'css/webcore.css',
+  'js/pixel_icons.js',
   'js/tiptap-bundle.js',
   'js/util.js',
   'js/state.js',

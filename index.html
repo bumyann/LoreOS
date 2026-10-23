@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="css/base.css">
 <script src="js/boot_fonts.js"></script>
 <link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/webcore.css">
 <script src="js/tiptap-bundle.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -74,7 +75,7 @@
 
     <div class="nav-bottom">
       <button class="nav-item" data-view="theme" title="Theme">
-        <span class="nav-item-icon">✎︎</span>
+        <span class="nav-item-icon" data-px="theme"></span>
         <span class="nav-item-label">Theme</span>
       </button>
       <button class="nav-item" data-view="settings" title="Settings">
@@ -272,12 +273,12 @@
 
       <!-- Editor mode tabs -->
       <div id="modeTabs">
-        <button class="mode-tab active" data-mode="lore">❖ Lorebook</button>
-        <button class="mode-tab" data-mode="char">☺︎ Character</button>
-        <button class="mode-tab" data-mode="preset">⚙︎ Preset</button>
-        <button class="mode-tab" data-mode="prompt">✎︎ Prompt</button>
-        <button class="mode-tab" data-mode="regex">⌕ Regex</button>
-        <button class="mode-tab" data-mode="image">▣︎ Image</button>
+        <button class="mode-tab active" data-mode="lore"><span class="mt-ico" data-px="lore"></span> Lorebook</button>
+        <button class="mode-tab" data-mode="char"><span class="mt-ico" data-px="char"></span> Character</button>
+        <button class="mode-tab" data-mode="preset"><span class="mt-ico" data-px="preset"></span> Preset</button>
+        <button class="mode-tab" data-mode="prompt"><span class="mt-ico" data-px="prompt"></span> Prompt</button>
+        <button class="mode-tab" data-mode="regex"><span class="mt-ico" data-px="regex"></span> Regex</button>
+        <button class="mode-tab" data-mode="image"><span class="mt-ico" data-px="image"></span> Image</button>
       </div>
 
       <!-- Editor inner layout: entry sidebar + editor canvas -->

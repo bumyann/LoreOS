@@ -17,6 +17,7 @@ import { createPrompt, openPrompt } from './prompt.js';
 import { createRegex, openRegex } from './regex.js';
 import { navigateTo } from './router.js';
 import { KIND_SYMBOL, SYMBOL_CHOICES, sym } from './symbols.js';
+import { kindIcon, px } from './pixel_icons.js';
 import { askConfirm, askInput, closeAllDropdowns, closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
 import { renderGalleryView } from './gallery_view.js';
 import { switchMode } from './workshop.js';
@@ -114,7 +115,7 @@ function thumb(r) {
   if (r.kind === 'char' && r.entry.imageData) return `<img src="${esc(r.entry.imageData)}" alt="" loading="lazy">`;
   if (r.kind === 'persona' && r.entry.persona && r.entry.persona.avatar) return `<img src="${esc(r.entry.persona.avatar)}" alt="" loading="lazy">`;
   if (r.rec.symbol) return `<span class="libx-sym">${esc(sym(r.rec.symbol))}</span>`;
-  return `<span class="libx-sym">${esc(sym(KIND_INFO[r.kind].icon))}</span>`;
+  return `<span class="libx-sym">${kindIcon(r.kind)}</span>`;
 }
 function summaryOf(r) {
   if (r.kind === 'lore') return pluralize(Object.keys((r.entry.lb && r.entry.lb.entries) || {}).length, 'entry', 'entries');
@@ -201,7 +202,7 @@ function worldHeadHtml(w, m, rows) {
     ${crumbs.map((f, i) => `<span class="libx-sep">›</span><button class="libx-crumb${i === crumbs.length - 1 ? ' here' : ''}" data-folder="${esc(f.id)}">${esc(f.name)}</button>`).join('')}
     <span class="libx-crumb-acts"><button class="btn btn-s btn-sm" id="libxAddFolder">+ New folder</button>${view.folder ? '<button class="btn btn-s btn-sm" id="libxRenameFolder">Rename folder</button><button class="btn btn-err btn-sm" id="libxDeleteFolder">Delete folder</button>' : ''}</span>
   </div>
-  ${folders.length ? `<div class="libx-folders">${folders.map(f => `<button class="libx-folder" data-folder="${esc(f.id)}"><span class="libx-sym">${esc(sym('▸'))}</span><span class="libx-folder-name">${esc(f.name)}</span><span class="libx-folder-n">${countIn(f)}</span></button>`).join('')}</div>` : ''}`;
+  ${folders.length ? `<div class="libx-folders">${folders.map(f => `<button class="libx-folder" data-folder="${esc(f.id)}"><span class="libx-sym">${px('folder')}</span><span class="libx-folder-name">${esc(f.name)}</span><span class="libx-folder-n">${countIn(f)}</span></button>`).join('')}</div>` : ''}`;
 }
 
 export function renderLibraryView() {
@@ -234,10 +235,10 @@ export function renderLibraryView() {
       <select class="fselect libx-sort" id="libxSort" aria-label="Sort">${SORTS.map(([v, l]) => `<option value="${v}"${view.sort === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
       <div class="dd" id="libxNewDd"><button class="btn btn-ok dd-btn" id="libxNewBtn" aria-haspopup="true">+ New</button>
         <div class="dd-menu">
-          <button class="dd-item" data-libnew="char">${sym(KIND_SYMBOL.char)} Character</button><button class="dd-item" data-libnew="lore">${sym(KIND_SYMBOL.lore)} Lorebook</button>
-          <button class="dd-item" data-libnew="preset">${sym(KIND_SYMBOL.preset)} Preset</button><button class="dd-item" data-libnew="prompt">${sym(KIND_SYMBOL.prompt)} Prompt pack</button>
-          <button class="dd-item" data-libnew="regex">${sym(KIND_SYMBOL.regex)} Regex set</button><button class="dd-item" data-libnew="regexscript">${sym(KIND_SYMBOL.regex)} Regex script</button>
-          <button class="dd-item" data-libnew="persona">${sym(KIND_SYMBOL.persona)} Persona</button><button class="dd-item" data-libnew="personafile">Import a persona (JSON)</button>
+          <button class="dd-item" data-libnew="char">${kindIcon('char')} Character</button><button class="dd-item" data-libnew="lore">${kindIcon('lore')} Lorebook</button>
+          <button class="dd-item" data-libnew="preset">${kindIcon('preset')} Preset</button><button class="dd-item" data-libnew="prompt">${kindIcon('prompt')} Prompt pack</button>
+          <button class="dd-item" data-libnew="regex">${kindIcon('regex')} Regex set</button><button class="dd-item" data-libnew="regexscript">${kindIcon('regex')} Regex script</button>
+          <button class="dd-item" data-libnew="persona">${kindIcon('persona')} Persona</button><button class="dd-item" data-libnew="personafile">Import a persona (JSON)</button>
         </div></div>
       <div class="libx-layout" role="group" aria-label="Layout"><button class="btn btn-s btn-sm${view.layout === 'shelves' ? ' on' : ''}" id="libxLayoutShelves" aria-pressed="${view.layout === 'shelves'}">Shelves</button><button class="btn btn-s btn-sm${view.layout === 'list' ? ' on' : ''}" id="libxLayoutList" aria-pressed="${view.layout === 'list'}">List</button></div>
       <button class="btn btn-s btn-sm libx-filter-toggle" id="libxFilterToggle" aria-expanded="${view.filtersOpen}">Filters</button>
@@ -247,7 +248,7 @@ export function renderLibraryView() {
         <div class="libx-rail-h">Browse</div>
         ${rail('All', 'all', rows.length)}${rail('★ Pinned', 'pinned', pinnedCount)}
         <div class="libx-rail-h">Types</div>
-        ${KINDS.map(k => rail(`<span class="libx-sym">${esc(sym(KIND_INFO[k].icon))}</span> ${KIND_INFO[k].plural}`, k, typeCount(k))).join('')}
+        ${KINDS.map(k => rail(`<span class="libx-sym">${kindIcon(k)}</span> ${KIND_INFO[k].plural}`, k, typeCount(k))).join('')}
         <div class="libx-rail-h">Worlds <button class="libx-icon-btn" id="libxAddWorld" title="New world" aria-label="New world">+</button></div>
         ${Object.values(m.worlds).sort((a, b) => a.name.localeCompare(b.name)).map(w => `<button class="libx-rail-item${view.world === w.id ? ' active' : ''}" data-world="${esc(w.id)}"><i class="libx-dot" style="background:${esc(w.color || '#8a9bd2')}"></i>${esc(w.name)}<span>${wc[w.id] || 0}</span></button>`).join('')}
         ${Object.keys(m.worlds).length ? `<button class="libx-rail-item${view.world === 'none' ? ' active' : ''}" data-world="none">No world<span>${noWorld}</span></button>` : '<div class="libx-hint">Worlds group things that belong together, like a story or an AU. Inside a world you can make folders, like one per series.</div>'}
@@ -420,7 +421,7 @@ function paintPicture() {
   g('libxPicBox').style.display = own ? 'none' : '';
   g('libxPicOwn').style.display = own ? '' : 'none';
   if (own) return;
-  g('libxPicPreview').innerHTML = detailDraft.image ? `<img src="${esc(detailDraft.image)}" alt="">` : `<span class="libx-sym">${esc(sym(detailDraft.symbol || KIND_INFO[detailRow.kind].icon))}</span>`;
+  g('libxPicPreview').innerHTML = detailDraft.image ? `<img src="${esc(detailDraft.image)}" alt="">` : (detailDraft.symbol ? `<span class="libx-sym">${esc(sym(detailDraft.symbol))}</span>` : `<span class="libx-sym">${kindIcon(detailRow.kind)}</span>`);
   g('libxPicClear').style.display = detailDraft.image ? '' : 'none';
   g('libxSymClear').style.display = detailDraft.symbol ? '' : 'none';
   g('libxSymGrid').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.sym === detailDraft.symbol));

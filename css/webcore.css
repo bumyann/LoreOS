@@ -1,0 +1,125 @@
+/* ═══════════════════════════════════════════════════════
+   WEBCORE — the pixel-OS look. Loaded after the other stylesheets, so it restyles them using their own colour
+   variables: every colour still comes from the theme, so themes and custom CSS keep working.
+   Bevels are hard inset shadows (no blur), corners are square, borders are 1-2px, and motion steps instead of easing.
+   ═══════════════════════════════════════════════════════ */
+body{
+  --px-hi:color-mix(in srgb,var(--tx) 28%,var(--sf2));
+  --px-lo:color-mix(in srgb,#000 58%,var(--bg));
+  --px-frame:color-mix(in srgb,var(--p) 62%,var(--bg));
+  --px-shadow:rgba(0,0,0,.5);
+  --px-bevel:inset 1px 1px 0 var(--px-hi),inset -1px -1px 0 var(--px-lo);
+  --px-bevel-in:inset 1px 1px 0 var(--px-lo),inset -1px -1px 0 var(--px-hi);
+  --px-cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='34' viewBox='0 0 12 17' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M0 0h1v1h-1zM0 1h2v1h-2zM0 2h1v1h-1zM2 2h1v1h-1zM0 3h1v1h-1zM3 3h1v1h-1zM0 4h1v1h-1zM4 4h1v1h-1zM0 5h1v1h-1zM5 5h1v1h-1zM0 6h1v1h-1zM6 6h1v1h-1zM0 7h1v1h-1zM7 7h1v1h-1zM0 8h1v1h-1zM8 8h1v1h-1zM0 9h1v1h-1zM9 9h1v1h-1zM0 10h1v1h-1zM6 10h5v1h-5zM0 11h1v1h-1zM3 11h1v1h-1zM6 11h1v1h-1zM0 12h1v1h-1zM2 12h1v1h-1zM4 12h1v1h-1zM7 12h1v1h-1zM0 13h2v1h-2zM4 13h1v1h-1zM7 13h1v1h-1zM0 14h1v1h-1zM5 14h1v1h-1zM8 14h1v1h-1zM5 15h1v1h-1zM8 15h1v1h-1zM6 16h2v1h-2z'/%3E%3Cpath fill='%23fff' d='M1 2h1v1h-1zM1 3h2v1h-2zM1 4h3v1h-3zM1 5h4v1h-4zM1 6h5v1h-5zM1 7h6v1h-6zM1 8h7v1h-7zM1 9h8v1h-8zM1 10h5v1h-5zM1 11h2v1h-2zM4 11h2v1h-2zM1 12h1v1h-1zM5 12h2v1h-2zM5 13h2v1h-2zM6 14h2v1h-2zM6 15h2v1h-2z'/%3E%3C/svg%3E") 0 0,default;
+  cursor:var(--px-cursor);
+}
+body.pink{--px-hi:color-mix(in srgb,#fff 70%,var(--sf));--px-lo:color-mix(in srgb,var(--tx) 38%,var(--sf2));--px-shadow:rgba(60,30,45,.35)}
+input,textarea,[contenteditable="true"],.ProseMirror{cursor:text}
+::selection{background:var(--p);color:var(--bg)}
+html{scrollbar-color:var(--p) var(--bg2)}
+
+/* ── Desktop: a faint dither behind everything ── */
+#content-area{background-image:conic-gradient(rgba(255,255,255,.028) 25%,transparent 0 50%,rgba(255,255,255,.028) 0 75%,transparent 0);background-size:4px 4px}
+body.pink #content-area{background-image:conic-gradient(rgba(0,0,0,.03) 25%,transparent 0 50%,rgba(0,0,0,.03) 0 75%,transparent 0)}
+
+/* ── Scrollbars: square thumbs with a bevel on a dotted track ── */
+::-webkit-scrollbar{width:12px;height:12px}
+::-webkit-scrollbar-track{background-color:var(--bg2);background-image:conic-gradient(var(--sf) 25%,transparent 0 50%,var(--sf) 0 75%,transparent 0);background-size:4px 4px}
+::-webkit-scrollbar-thumb{background:var(--sf2);border-radius:0;border:0;box-shadow:var(--px-bevel),0 0 0 1px var(--px-frame) inset}
+::-webkit-scrollbar-thumb:hover{background:var(--p)}
+::-webkit-scrollbar-corner{background:var(--bg2)}
+
+/* ── Focus: the old dotted ring ── */
+:focus-visible{outline:1px dotted var(--tx);outline-offset:2px}
+.btn:focus-visible,.nav-item:focus-visible{outline:1px dotted var(--tx);outline-offset:-4px}
+
+/* ── Buttons, fields, tabs: square and bevelled ── */
+.btn,.finput,.fselect,.ftextarea,.modal-x,.tab,.ws-tab,.mode-tab,.kw-tag,.sb-badge,.libx-folder,.gal-chip,.theme-tab,.dd-menu,.hb-card,.gal-item{border-radius:0}
+.btn{border-width:1px;border-style:solid;border-color:var(--px-frame);box-shadow:var(--px-bevel);transition:none}
+.btn:hover{box-shadow:var(--px-bevel)}
+.btn-p:hover,.btn-icon:hover{box-shadow:var(--px-bevel)}
+.btn:active{transform:none;box-shadow:var(--px-bevel-in);padding-top:calc(.35rem + 1px);padding-bottom:calc(.35rem - 1px)}
+.btn-sm:active{padding-top:calc(.22rem + 1px);padding-bottom:calc(.22rem - 1px)}
+.btn-s,.btn-icon{background:var(--sf2)}
+.btn-s:hover,.btn-icon:hover{background:var(--sf);color:var(--tx)}
+.btn:disabled,.btn[disabled]{box-shadow:none!important}
+.finput,.fselect,.ftextarea{border:1px solid var(--px-frame);box-shadow:var(--px-bevel-in);transition:none}
+.finput:focus,.fselect:focus,.ftextarea:focus{box-shadow:var(--px-bevel-in);outline:1px dotted var(--tx);outline-offset:-4px}
+.tab,.ws-tab,.mode-tab{transition:none}
+.tab,.ws-tab{border:1px solid var(--px-frame);border-bottom:0;box-shadow:inset 1px 1px 0 var(--px-hi)}
+.tab.active,.ws-tab.active{box-shadow:inset 1px 1px 0 var(--px-hi),0 1px 0 var(--bg3);background:var(--bg3);text-shadow:none}
+.mode-tab.active{text-shadow:none;border-bottom-width:3px}
+.mode-tab .mt-ico{display:inline-flex;vertical-align:middle}
+
+/* ── Windows: dialogs and panels get a title bar and a hard shadow ── */
+.modal{backdrop-filter:none;background-color:rgba(0,0,0,.55);background-image:conic-gradient(rgba(0,0,0,.35) 25%,transparent 0 50%,rgba(0,0,0,.35) 0 75%,transparent 0);background-size:4px 4px}
+.modal-box{border:2px solid var(--px-frame);border-radius:0;box-shadow:var(--px-bevel),6px 6px 0 var(--px-shadow)}
+.modal-head{background:repeating-linear-gradient(0deg,var(--p) 0 2px,var(--ph) 2px 4px);border-bottom:2px solid var(--px-frame);padding:.4rem .6rem .4rem .9rem}
+.modal-head h2{color:var(--bg);text-shadow:none;font-size:1.15rem;letter-spacing:1px}
+.modal-x{background:var(--sf2);color:var(--tx);border:1px solid var(--px-frame);box-shadow:var(--px-bevel);width:1.6rem;height:1.6rem;font-size:1rem}
+.modal-x:hover{background:var(--err);color:#fff;border-color:var(--px-frame)}
+.dd-menu{border:2px solid var(--px-frame);box-shadow:var(--px-bevel),4px 4px 0 var(--px-shadow);background:var(--bg2)}
+.dd-item:hover{background:var(--p);color:var(--bg)}
+.editor-panel,.theme-card,.home-card,.sr-opts,.sr-results{border-radius:0;border:2px solid var(--px-frame);box-shadow:var(--px-bevel),3px 3px 0 var(--px-shadow)}
+.settings-section-title,.theme-card .settings-section-title{font-family:var(--fp);letter-spacing:1px}
+.theme-card>.settings-section-title{margin:-.9rem -1rem .8rem;padding:.25rem .8rem;background:repeating-linear-gradient(0deg,var(--p) 0 2px,var(--ph) 2px 4px);color:var(--bg);border-bottom:2px solid var(--px-frame);font-size:1.05rem}
+.theme-card>.settings-section-title .flabel-sm,.theme-card>.settings-section-title .rx-none{color:var(--bg)}
+
+/* ── Cards on the board, gallery, library: lift in whole pixels ── */
+.hb-card,.gal-item,.libx-folder,.theme-preset{border:2px solid var(--px-frame);box-shadow:3px 3px 0 var(--px-shadow);transition:none}
+.hb-card:hover,.hb-card:focus-visible,.gal-item:hover,.gal-item:focus-visible{transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--px-shadow);border-color:var(--p)}
+.libx-folder:hover,.theme-preset:hover{border-color:var(--p)}
+
+/* ── The sidebar: a window frame with a title bar ── */
+#nav-sidebar{border-right:2px solid var(--px-frame);box-shadow:inset -1px 0 0 var(--px-hi)}
+#nav-sidebar::after{display:none}
+.nav-top{background:repeating-linear-gradient(0deg,var(--p) 0 2px,var(--ph) 2px 4px);border-bottom:2px solid var(--px-frame)}
+.nav-logo-text{color:var(--bg);text-shadow:none;letter-spacing:2px}
+.nav-version{color:color-mix(in srgb,var(--bg) 80%,transparent)}
+.nav-toggle{border-radius:0;box-shadow:var(--px-bevel)}
+.nav-item{border-left:0;transition:none;margin:1px 4px;width:calc(100% - 8px);box-shadow:none}
+.nav-item:hover{background:var(--p);color:var(--bg)}
+.nav-item.active{background:var(--sf2);color:var(--tx);text-shadow:none;box-shadow:var(--px-bevel-in)}
+.nav-item.active:hover{background:var(--p);color:var(--bg)}
+.nav-item-icon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;font-size:1rem}
+#nav-sidebar.collapsed .nav-item{width:calc(100% - 8px)}
+
+/* ── Pixel icons ── */
+/* sizes are whole multiples of 16 so every pixel stays the same size */
+.px{width:16px;height:16px;display:inline-block;vertical-align:-3px;flex-shrink:0;image-rendering:pixelated}
+.mob-nav-btn .icon .px,.qa-ico .px{width:32px;height:32px}
+.mob-nav-btn .icon{display:flex;align-items:center;justify-content:center;height:32px}
+.libx-sym{display:inline-flex;align-items:center;justify-content:center}
+.libx-book .libx-sym .px,.libx-cover .libx-sym .px,.dash-cover-art .px{width:48px;height:48px}
+.libx-rail-item .libx-sym .px{width:16px;height:16px}
+.home-card-icon .px{width:32px;height:32px}
+.dash-recent-thumb .px{width:32px;height:32px}
+
+/* ── Phone bar ── */
+#mob-nav{border-top:2px solid var(--px-frame);box-shadow:inset 0 1px 0 var(--px-hi)}
+.mob-nav-btn{border-radius:0}
+#mob-topbar{border-bottom:2px solid var(--px-frame)}
+
+/* ── Notifications ── */
+#notifs>*{border-radius:0;border:2px solid var(--px-frame);box-shadow:var(--px-bevel),4px 4px 0 var(--px-shadow)}
+
+/* ── Home: the same frames ── */
+.dash-continue,.dash-recent-item,.dash-overview,.home-board,.hb-zone,.lib-view-empty{border-radius:0}
+.dash-continue{border:2px solid var(--px-frame);box-shadow:var(--px-bevel),4px 4px 0 var(--px-shadow);background:var(--bg2)}
+.dash-recent-item,.dash-overview{border:2px solid var(--px-frame);box-shadow:3px 3px 0 var(--px-shadow);background:var(--bg2)}
+.dash-covers .dash-cover:hover .dash-cover-art{transform:translate(-2px,-2px)}
+.dash-cover-art{border-radius:0;border:2px solid var(--px-frame);box-shadow:3px 3px 0 var(--px-shadow)}
+.qa-list,.qa-rail,.qa-sep{border-radius:0}
+.qa-btn{border-radius:0;border:1px solid var(--px-frame);background:var(--sf2);box-shadow:var(--px-bevel);transition:none;width:48px;height:48px}
+.qa-btn:hover{background:var(--p);color:var(--bg)}
+.qa-btn:active{box-shadow:var(--px-bevel-in)}
+.home-layout aside,.home-side,.dash-side{border-radius:0}
+.libx-book{border-radius:0;border:2px solid var(--px-frame);box-shadow:3px 3px 0 var(--px-shadow)}
+.libx-book:hover{transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--px-shadow)}
+.libx-rail-item{border-radius:0}
+.libx-rail-item:hover{background:var(--p);color:var(--bg)}
+.libx-rail-item.on,.libx-rail-item.active{background:var(--sf2);color:var(--tx);box-shadow:var(--px-bevel-in)}
+.libx-seg,.libx-tabs,.libx-top>div[role="group"]{border-radius:0}
+.libx-tabs .libx-tab,.libx-tab{border-radius:0}
+.lib-view-empty{border:2px dashed var(--px-frame)}
+.lab-stub-icon .px{width:48px;height:48px}

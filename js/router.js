@@ -20,6 +20,7 @@ import { state } from './state.js';
 import { libGet, safeSet } from './storage.js';
 import { askConfirm, esc } from './util.js';
 import { switchMode } from './workshop.js';
+import { px } from './pixel_icons.js';
 import { cancelJournalAutosave, nbSaveActive, renderNotebookView } from './journal.js';
 
 export let currentView = null;
@@ -108,30 +109,30 @@ export function renderGetStarted(el) {
       <div class="home-hero-title">LoreOS</div>
       <div class="home-hero-tagline">// lorebooks. characters. presets. prompts. all in one place.</div>
       <div class="home-hero-actions">
-        <button class="btn btn-ok home-cta" data-new="lore">❖︎ New Lorebook Entry</button>
-        <button class="btn btn-p home-cta" data-new="char">+ New Character</button>
-        <button class="btn btn-s home-cta" data-new="preset">⚙︎ New Preset</button>
-        <button class="btn btn-s home-cta" data-new="prompt">✎︎ New Prompt Pack</button>
-        <button class="btn btn-s home-cta" data-new="regex">⌕ New Regex Set</button>
+        <button class="btn btn-ok home-cta" data-new="lore">${px('lore')} New Lorebook Entry</button>
+        <button class="btn btn-p home-cta" data-new="char">${px('plus')} New Character</button>
+        <button class="btn btn-s home-cta" data-new="preset">${px('preset')} New Preset</button>
+        <button class="btn btn-s home-cta" data-new="prompt">${px('prompt')} New Prompt Pack</button>
+        <button class="btn btn-s home-cta" data-new="regex">${px('regex')} New Regex Set</button>
       </div>
       <div class="home-cards">
         <div class="home-card">
-          <div class="home-card-icon">❖</div>
+          <div class="home-card-icon">${px('lore')}</div>
           <div class="home-card-title">Lorebook Editor</div>
           <div class="home-card-desc">Build and edit ST-format lorebooks with keyword triggers, merge tools, and batch export.</div>
         </div>
         <div class="home-card">
-          <div class="home-card-icon">☺︎</div>
+          <div class="home-card-icon">${px('char')}</div>
           <div class="home-card-title">Character Cards</div>
           <div class="home-card-desc">Create V3 character cards, embed lorebooks, convert pronouns to macros, export as PNG.</div>
         </div>
         <div class="home-card">
-          <div class="home-card-icon">⚙︎</div>
+          <div class="home-card-icon">${px('preset')}</div>
           <div class="home-card-title">Preset Editor</div>
           <div class="home-card-desc">Edit SillyTavern chat completion presets with full prompt list support and drag-to-reorder.</div>
         </div>
         <div class="home-card">
-          <div class="home-card-icon">⚙︎</div>
+          <div class="home-card-icon">${px('preset')}</div>
           <div class="home-card-title">Template Library</div>
           <div class="home-card-desc">22+ built-in templates for characters, lorebooks, and NPCs. Save your own for reuse.</div>
         </div>
@@ -147,7 +148,7 @@ export function renderLaboratoryView() {
   if (!el) return;
   el.innerHTML = `
     <div class="lab-stub">
-      <div class="lab-stub-icon">⚗</div>
+      <div class="lab-stub-icon">${px('lab')}</div>
       <div class="lab-stub-title">Laboratory</div>
       <div class="lab-stub-desc">Tools for understanding and debugging your AI creations.<br>Token inspector, lorebook trigger viewer, prompt conflict detector — coming soon.</div>
     </div>

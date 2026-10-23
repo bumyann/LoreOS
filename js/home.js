@@ -9,6 +9,7 @@ import { readFileAsDataUrl, resizeImage } from './avatar.js';
 import { BOOK_COLORS, bookThumb, libraryRows, openLibraryItem } from './library_view.js';
 import { navigateTo } from './router.js';
 import { KIND_SYMBOL, sym } from './symbols.js';
+import { kindIcon, px } from './pixel_icons.js';
 import { safeSet } from './storage.js';
 import { store } from './kv.js';
 import { registerTrashRestorer, trashPush } from './trash.js';
@@ -114,7 +115,7 @@ export function renderHomeDashboard(el) {
     ['prompt', 'New Prompt Pack', 'For Janitor, Saucepan', 'prompt'], ['regex', 'New Regex Set', 'Find and replace', 'regex'], ['persona', 'New Persona', 'Who you are', 'persona'],
   ];
   // icon only: the name shows as a tooltip and is what screen readers hear
-  const qaBtn = ([kind, label, hint, color]) => `<button class="qa-btn qa-${color} dash-act" data-new="${kind}" data-tip="${esc(label)}" title="${esc(label)}" aria-label="${esc(label)}"><span class="qa-ico" aria-hidden="true">${esc(sym(KIND_SYMBOL[color]))}</span><span class="qa-lbl sr-only">${esc(label)}</span><span class="qa-hint sr-only">${esc(hint)}</span></button>`;
+  const qaBtn = ([kind, label, hint, color]) => `<button class="qa-btn qa-${color} dash-act" data-new="${kind}" data-tip="${esc(label)}" title="${esc(label)}" aria-label="${esc(label)}"><span class="qa-ico" aria-hidden="true">${kindIcon(color)}</span><span class="qa-lbl sr-only">${esc(label)}</span><span class="qa-hint sr-only">${esc(hint)}</span></button>`;
 
   el.innerHTML = `
     <div class="dashboard home-layout">
@@ -147,7 +148,7 @@ export function renderHomeDashboard(el) {
       <div class="dash-section-title sr-only">Quick Actions</div>
       <div class="qa-list">${QA.map(qaBtn).join('')}</div>
       <div class="qa-sep" aria-hidden="true"></div>
-      <button class="qa-btn qa-lib" data-go="library" data-tip="Open Library" title="Open Library" aria-label="Open Library"><span class="qa-ico" aria-hidden="true">${esc(sym('▤'))}</span><span class="qa-lbl sr-only">Open Library</span></button>
+      <button class="qa-btn qa-lib" data-go="library" data-tip="Open Library" title="Open Library" aria-label="Open Library"><span class="qa-ico" aria-hidden="true">${px('library')}</span><span class="qa-lbl sr-only">Open Library</span></button>
      </aside>
     </div>`;
 

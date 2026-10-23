@@ -337,7 +337,7 @@ registerMarkup(140, `<!-- MOBILE BOTTOM NAV -->
     <span class="icon">◑</span><span class="mob-nav-lbl">Light/Dark</span>
   </button>
   <button class="mob-nav-btn" id="mobThemePage" title="Theme">
-    <span class="icon">✎︎</span><span class="mob-nav-lbl">Theme</span>
+    <span class="icon" data-px="theme"></span><span class="mob-nav-lbl">Theme</span>
   </button>
   <button class="mob-nav-btn" id="mobSettings" title="Settings">
     <span class="icon">⚙︎</span><span class="mob-nav-lbl">Settings</span>

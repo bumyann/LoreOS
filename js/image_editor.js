@@ -19,6 +19,7 @@ import { readFileAsDataUrl, resizeImage } from './avatar.js';
 import { stampAdd, stampRemove, stampUpdate, stampsGet } from './stamps.js';
 import { CAN_EDIT, KEYED, editImage, keyNameFor, loadGenSettings } from './imagegen.js';
 import { getSecret } from './secrets.js';
+import { px } from './pixel_icons.js';
 
 const sessions = new Map();          // picture id -> session
 let tool = 'adjust';                 // adjust | crop | transform | resize | draw | text | layer | stamp | cutout | ai
@@ -204,9 +205,9 @@ export function renderImageEditor() {
     <div class="img-bar">
       <input class="finput img-name" id="imgName" value="${esc(s.name)}" maxlength="80" aria-label="Picture name">
       <span class="rx-none" id="imgDims"></span>
-      <button class="btn btn-s btn-sm" id="imgAddPic" title="Add pictures to the Gallery and open them here">+ Add</button>
-      <button class="btn btn-s btn-sm" id="imgUndo" title="Undo">↶</button>
-      <button class="btn btn-s btn-sm" id="imgRedo" title="Redo">↷</button>
+      <button class="btn btn-s btn-sm" id="imgAddPic" title="Add pictures to the Gallery and open them here">${px('plus')} Add</button>
+      <button class="btn btn-s btn-sm" id="imgUndo" title="Undo" aria-label="Undo">${px('undo')}</button>
+      <button class="btn btn-s btn-sm" id="imgRedo" title="Redo" aria-label="Redo">${px('redo')}</button>
       <button class="btn btn-s btn-sm" id="imgCompare" title="Hold to see the original">Original</button>
       <button class="btn btn-p btn-sm" id="imgSave">Save</button>
       <div class="dd" id="dd-imgsave"><button class="btn btn-s btn-sm dd-btn">More ▾</button><div class="dd-menu">
