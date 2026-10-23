@@ -140,6 +140,7 @@ export function openSettings() {
   const cfg = settingsGet();
   renderStoragePanel();
   wireTrashPanel();
+  { const nb = g('stgNbDefault'); if (nb) { try { nb.value = localStorage.getItem('loreos_nb_default') === 'immersive' ? 'immersive' : 'normal'; } catch (e) { /* private mode */ } } }
   const keepFull = g('stgKeepFullAvatars');
   if (keepFull) keepFull.checked = !!cfg.keepFullAvatars;
   openModal('settingsModal');
@@ -258,6 +259,8 @@ export function wireSettings() {
     applyCustomTitle();
     toast('Theme saved.', 'ok');
   });
+
+  g('stgNbDefault')?.addEventListener('change', e => { try { localStorage.setItem('loreos_nb_default', e.target.value === 'immersive' ? 'immersive' : 'normal'); sessionStorage.removeItem('loreos_nb_mode_s'); } catch (x) { /* private mode */ } toast('The Journal will open in the ' + (e.target.value === 'immersive' ? 'immersive' : 'normal') + ' view.', 'ok'); });
 
   // ── Storage panel ──
   g('stgStorageRefresh')?.addEventListener('click', renderStoragePanel);
@@ -601,6 +604,12 @@ registerMarkup(250, `<!-- SETTINGS MODAL (still accessible via ⚙︎ and settin
   <div class="modal-box lg" style="max-width:680px">
     <div class="modal-head"><h2>Settings</h2><button class="modal-x" data-close="settingsModal">×</button></div>
     <div class="modal-body">
+
+      <div class="settings-section">
+        <div class="settings-section-title">Journal</div>
+        <div class="settings-row"><span class="settings-lbl">Open the Journal in</span>
+          <select id="stgNbDefault" class="fselect" aria-label="Journal view"><option value="normal">Normal view (a full-screen document)</option><option value="immersive">Immersive view (an open notebook on a desk)</option></select></div>
+      </div>
 
       <div class="settings-section">
         <div class="settings-section-title">Storage

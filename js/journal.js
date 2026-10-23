@@ -51,19 +51,24 @@ const SYM = { open: '▾︎', closed: '▸︎' };
 // THE VIEW
 // ═══════════════════════════════════════════════════════
 // ── Two ways to see the Journal: normal (a full-screen document app) and immersive (an open notebook on a desk) ──
-const MODE_KEY = 'loreos_nb_mode', CLOSED_KEY = 'loreos_nb_closed';
+// The view you start in is a setting (Settings > Journal). Switching with the button lasts until you close the tab.
+const DEFAULT_KEY = 'loreos_nb_default', SESSION_KEY = 'loreos_nb_mode_s', CLOSED_KEY = 'loreos_nb_closed';
 const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } };
-export const nbMode = () => (lsGet(MODE_KEY) === 'immersive' ? 'immersive' : 'normal');
+const ssGet = k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } };
+const ssSet = (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) { /* private mode */ } };
+export const nbDefaultMode = () => (lsGet(DEFAULT_KEY) === 'immersive' ? 'immersive' : 'normal');
+export function setNbDefaultMode(mode) { lsSet(DEFAULT_KEY, mode === 'immersive' ? 'immersive' : 'normal'); try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* fine */ } }
+export const nbMode = () => { const m = ssGet(SESSION_KEY); return (m === 'immersive' || m === 'normal') ? m : nbDefaultMode(); };
 const nbClosed = () => lsGet(CLOSED_KEY) === '1';
-export function setNbMode(mode) { nbSaveActive(); lsSet(MODE_KEY, mode === 'immersive' ? 'immersive' : 'normal'); renderNotebookView(); }
+export function setNbMode(mode) { nbSaveActive(); ssSet(SESSION_KEY, mode === 'immersive' ? 'immersive' : 'normal'); renderNotebookView(); }
 
-const BOOK_LEATHER = ['#7a4a3a', '#3f5f7a', '#4f6a48', '#7a3f55', '#6a5a8a', '#8a6a3a'];
+const BOOK_LEATHER = ['#8e9bd6', '#a493d6', '#c98fb4', '#8fb4d6', '#9aa0c8', '#b79ad0'];   // pale, cool and muted
 const bookColour = bk => { let h = 0; for (const c of bk.id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return BOOK_LEATHER[h % BOOK_LEATHER.length]; };
-const COVER_COLOUR = { night: '#2a3270', dusk: '#8a3f7a', forest: '#2f6b4a', sea: '#2a8fb4', rose: '#a04a72', ember: '#a8341c', paper: '#b8a070', ink: '#1a1e30', grid: '#6a7aa0', stars: '#3a4570' };
+const COVER_COLOUR = { night: '#3a4590', dusk: '#8a5a9a', forest: '#5a8a8a', sea: '#4a8fb4', rose: '#b06a92', ember: '#b8607a', paper: '#aab0c8', ink: '#2a2e45', grid: '#7a8ab0', stars: '#4a5590' };
 
 function sidebarHtml(immersive) {
-  return `<div class="nb-sidebar" id="nb-sidebar">
+  return `<div class="nb-sidebar${immersive ? ' nb-contents' : ''}" id="nb-sidebar">
         <div class="nb-sidebar-head">
           <div class="nb-title">${immersive ? 'Contents' : 'Journal'}</div>
           <div class="nb-head-acts"><button class="nb-newbtn" id="nbNewBtn" title="A new page in the open notebook" type="button">${px('plus')}<span>Page</span></button><button class="nb-newbtn" id="nbNewBookBtn" title="A new notebook" type="button">${px('plus')}<span>Notebook</span></button></div>
@@ -73,40 +78,51 @@ function sidebarHtml(immersive) {
         ${immersive ? '' : `<button class="nb-modebtn" id="nbModeBtn" type="button" title="Show the Journal as an open notebook on a desk">${px('journal')} Immersive view</button>`}
       </div>`;
 }
+
+// Bits and pieces lying about on the desk: sheets, scraps, small notebooks and sticky notes, at the scale of a real notebook.
+// The same every time (a fixed seed), so the desk does not rearrange itself.
 function deskDecor() {
-  return `<div class="nb-desk-decor" aria-hidden="true"><span class="d-lamp">${sprite('lamp', 5)}</span><span class="d-mug">${sprite('mug', 5)}<i class="steam"></i></span><span class="d-plant">${sprite('plant', 5)}</span><span class="d-pencils">${sprite('pencils', 5)}</span><span class="d-books">${sprite('books', 5)}</span></div>`;
+  let seed = 7; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const kinds = [['sheet', 150, 200, '#f4f5fa'], ['sheet', 140, 190, '#e8ebf6'], ['scrap', 90, 64, '#fafafc'], ['scrap', 70, 90, '#e2e5f2'], ['book', 130, 176, '#aebbe6'], ['book', 120, 166, '#c7b3e6'], ['book', 128, 172, '#e6bcd6'], ['sticky', 82, 82, '#fde7f1'], ['sticky', 82, 82, '#d9e6ff'], ['sticky', 82, 82, '#fff4c2'], ['sheet', 160, 210, '#ffffff'], ['scrap', 100, 70, '#ecebf7']];
+  const items = [];
+  for (let i = 0; i < 18; i++) {
+    const [k, w, h, c] = kinds[i % kinds.length];
+    items.push(`<i class="d-${k}" style="left:${(rnd() * 96 - 4).toFixed(1)}%;top:${(rnd() * 96 - 4).toFixed(1)}%;width:${w}px;height:${h}px;--c:${c};transform:rotate(${(rnd() * 70 - 35).toFixed(1)}deg)"></i>`);
+  }
+  return `<div class="nb-desk-decor" aria-hidden="true">${items.join('')}</div>`;
 }
 function openBookHtml(data) {
   const bk = data.notebooks[data.activeNotebookId] || model.notebooksOf(data)[0];
-  const colour = bk ? (bk.cover && bk.cover.t === 'preset' ? COVER_COLOUR[bk.cover.v] : bookColour(bk)) : '#7a4a3a';
+  const colour = bk ? (bk.cover && bk.cover.t === 'preset' ? COVER_COLOUR[bk.cover.v] : bookColour(bk)) : '#7a8099';
   return `<div class="nb-layout immersive" style="--bk:${colour}">
       ${deskDecor()}
       <div class="nb-bookwrap">
-        <div class="nb-book-open">
-          ${sidebarHtml(true)}
+        <div class="nb-book-open" id="nb-book-open">
+          <div class="nb-page nb-page-left" id="nb-page-left"><div class="nb-editor-inner" id="nb-left-inner"></div></div>
           <div class="nb-spine" aria-hidden="true"></div>
-          <div class="nb-editor" id="nb-editor"><div class="nb-editor-inner" id="nb-editor-inner"></div></div>
+          <div class="nb-page nb-page-right nb-editor" id="nb-editor"><div class="nb-editor-inner" id="nb-editor-inner"></div></div>
+          <button type="button" class="nb-bookmark" id="nbBookmark" title="Contents: your pages and notebooks" aria-label="Open the contents" aria-expanded="false"><span>Contents</span></button>
+          ${sidebarHtml(true)}
         </div>
         <div class="nb-book-tools">
-          <button type="button" class="btn btn-s btn-sm" id="nbPrevPage" title="Turn back a page">${px('arrow-left')} Previous</button>
-          <button type="button" class="btn btn-s btn-sm" id="nbNextPage" title="Turn to the next page">Next ${px('arrow-left', 'px-flip')}</button>
+          <button type="button" class="nb-deskbtn" id="nbPrevPage" title="Turn back a page">${px('arrow-left')} Previous</button>
+          <button type="button" class="nb-deskbtn" id="nbNextPage" title="Turn to the next page">Next ${px('arrow-left', 'px-flip')}</button>
           <span class="nb-book-tools-gap"></span>
-          <button type="button" class="btn btn-s btn-sm" id="nbCloseBook" title="Close the notebook and see its cover">Close the book</button>
-          <button type="button" class="btn btn-s btn-sm" id="nbModeBtn" title="Back to the normal view">Normal view</button>
+          <button type="button" class="nb-deskbtn" id="nbNewBookBtn2" title="A new notebook">${px('plus')} Notebook</button>
+          <button type="button" class="nb-deskbtn" id="nbCloseBook" title="Close the notebook and see all your notebooks on the desk">Close the book</button>
+          <button type="button" class="nb-deskbtn" id="nbModeBtn" title="Back to the normal view">Normal view</button>
         </div>
       </div>
     </div>`;
 }
 function closedDeskHtml(data) {
-  const books = model.notebooksOf(data), cur = data.notebooks[data.activeNotebookId] || books[0];
+  const books = model.notebooksOf(data);
   const face = bk => { const c = bk.cover; const col = c && c.t === 'preset' ? COVER_COLOUR[c.v] : bookColour(bk); return `<span class="nb-cb-face ${c && c.t === 'preset' ? 'nb-cv nb-cv-' + esc(c.v) : ''}" style="--bk:${col};${c && c.t === 'img' ? esc(coverCss(c)) : ''}"></span>`; };
   return `<div class="nb-layout immersive closed">
       ${deskDecor()}
       <div class="nb-closed-stage">
-        ${cur ? `<button type="button" class="nb-closed-book" id="nbOpenBook" style="--bk:${cur.cover && cur.cover.t === 'preset' ? COVER_COLOUR[cur.cover.v] : bookColour(cur)}" aria-label="Open ${esc(cur.title || 'Notebook')}">${face(cur)}<span class="nb-cb-plate">${esc(cur.title || 'Notebook')}</span><span class="nb-cb-strap"></span></button>
-        <div class="rx-none nb-closed-hint">Click the notebook to open it</div>` : `<div class="empty-state"><div>no notebooks yet</div><button class="btn btn-ok" id="nbNewBtnAlt">${px('plus')} New notebook</button></div>`}
-        ${books.length > 1 ? `<div class="nb-shelf-small">${books.filter(b => !cur || b.id !== cur.id).map(b => `<button type="button" class="nb-small-book" data-pick-book="${esc(b.id)}" title="${esc(b.title || 'Notebook')}" style="--bk:${b.cover && b.cover.t === 'preset' ? COVER_COLOUR[b.cover.v] : bookColour(b)}"><span class="nb-small-title">${esc(b.title || 'Notebook')}</span></button>`).join('')}</div>` : ''}
-        <div class="nb-book-tools"><button type="button" class="btn btn-s btn-sm" id="nbNewBookBtn">${px('plus')} Notebook</button><button type="button" class="btn btn-s btn-sm" id="nbModeBtn">Normal view</button></div>
+        <div class="nb-desk-scroll">${books.length ? `<div class="nb-desk-books">${books.map((bk, i) => `<button type="button" class="nb-closed-book" data-open-book="${esc(bk.id)}" style="--bk:${bk.cover && bk.cover.t === 'preset' ? COVER_COLOUR[bk.cover.v] : bookColour(bk)};--rot:${((i * 37) % 9 - 4) * 0.9}deg" aria-label="Open ${esc(bk.title || 'Notebook')}">${face(bk)}<span class="nb-cb-plate">${esc(bk.title || 'Notebook')}</span><span class="nb-cb-strap"></span></button>`).join('')}</div>` : `<div class="empty-state"><div>no notebooks yet</div></div>`}</div>
+        <div class="nb-book-tools"><button type="button" class="nb-deskbtn" id="nbNewBookBtn">${px('plus')} Notebook</button><button type="button" class="nb-deskbtn" id="nbModeBtn">Normal view</button></div>
       </div>
     </div>`;
 }
@@ -131,11 +147,8 @@ export function renderNotebookView() {
 
   if (closed) {
     el.innerHTML = closedDeskHtml(data); _nbActiveId = null;
-    const open = () => { lsSet(CLOSED_KEY, '0'); renderNotebookView(); };
-    const ob = document.getElementById('nbOpenBook'); if (ob) ob.addEventListener('click', open);
-    el.querySelectorAll('[data-pick-book]').forEach(b => b.addEventListener('click', () => { const d = nbGet(); d.activeNotebookId = b.dataset.pickBook; d.activePageId = null; nbSet(d); renderNotebookView(); }));
+    el.querySelectorAll('[data-open-book]').forEach(b => b.addEventListener('click', () => { const d = nbGet(); d.activeNotebookId = b.dataset.openBook; d.activePageId = null; nbSet(d); lsSet(CLOSED_KEY, '0'); renderNotebookView(); }));
     document.getElementById('nbNewBookBtn').addEventListener('click', () => { lsSet(CLOSED_KEY, '0'); newNotebookAndOpen(); });
-    const alt = document.getElementById('nbNewBtnAlt'); if (alt) alt.addEventListener('click', () => { lsSet(CLOSED_KEY, '0'); newNotebookAndOpen(); });
     document.getElementById('nbModeBtn').addEventListener('click', () => setNbMode('normal'));
     return;
   }
@@ -154,6 +167,10 @@ export function renderNotebookView() {
   document.getElementById('nbSearch').addEventListener('input', e => { searchQuery = e.target.value; nbRenderPageList(); });
   const modeBtn = document.getElementById('nbModeBtn'); if (modeBtn) modeBtn.addEventListener('click', () => setNbMode(immersive ? 'normal' : 'immersive'));
   if (immersive) {
+    const nb2 = document.getElementById('nbNewBookBtn2'); if (nb2) nb2.addEventListener('click', () => newNotebookAndOpen());
+    // the contents are a bookmark: click it and the list of notebooks and pages slides over the left page
+    const bm = document.getElementById('nbBookmark'), side = document.getElementById('nb-sidebar');
+    bm.addEventListener('click', () => { const on = !side.classList.contains('open'); side.classList.toggle('open', on); bm.setAttribute('aria-expanded', String(on)); if (on) setTimeout(() => { const q = document.getElementById('nbSearch'); if (q) q.focus(); }, 60); });
     document.getElementById('nbCloseBook').addEventListener('click', () => { nbSaveActive(); lsSet(CLOSED_KEY, '1'); renderNotebookView(); });
     document.getElementById('nbPrevPage').addEventListener('click', () => turnPage(-1));
     document.getElementById('nbNextPage').addEventListener('click', () => turnPage(1));
@@ -162,21 +179,94 @@ export function renderNotebookView() {
   nbRenderPageList();
   if (_nbActiveId && data.pages[_nbActiveId]) nbOpenPage(_nbActiveId);
   else if (_nbBook && data.notebooks[_nbBook]) nbOpenBook(_nbBook);
+  else if (immersive) paintEmptySpread();
   else paintEmpty();
 }
 
-// Turn to the next or previous page of the open notebook, with a page-turn
+// Turn to the next or previous spread of the open notebook, with a page-turn. Pages sit two to a spread.
 function turnPage(dir) {
   const d = nbGet(), book = d.activeNotebookId; if (!book) return;
   const pages = model.orderedPages(d, book); if (!pages.length) return;
-  const i = _nbActiveId ? pages.findIndex(p => p.id === _nbActiveId) : -1;
-  const j = i + dir; if (j >= pages.length) return;
-  const ed = document.getElementById('nb-editor'); nbSaveActive();
-  if (ed) { ed.classList.remove('turn-in'); ed.classList.add(dir > 0 ? 'turn-out' : 'turn-out-back'); }
+  const cur = _nbActiveId ? Math.max(0, pages.findIndex(p => p.id === _nbActiveId)) : 0;
+  const base = cur - (cur % 2), to = base + dir * 2;
+  if (to < 0 || to >= pages.length) return;
+  nbSaveActive();
+  const side = document.getElementById(dir > 0 ? 'nb-editor' : 'nb-page-left');
+  if (side) { side.classList.remove('turn-in'); side.classList.add(dir > 0 ? 'turn-out' : 'turn-out-back'); }
   setTimeout(() => {
-    if (j < 0) nbOpenBook(book); else nbOpenPage(pages[j].id);
-    if (ed) { ed.classList.remove('turn-out', 'turn-out-back'); ed.classList.add('turn-in'); setTimeout(() => ed.classList.remove('turn-in'), 260); }
+    nbOpenPage(pages[to].id);
+    if (side) { side.classList.remove('turn-out', 'turn-out-back'); side.classList.add('turn-in'); setTimeout(() => side.classList.remove('turn-in'), 260); }
   }, 170);
+}
+
+// ── The open notebook: two pages side by side ──
+let _sec = null;                       // the page on the other side: { id, editor, timer, dirty }
+let _focusId = null;                   // the page whose editor was last clicked into
+export const secPage = () => (_sec ? { id: _sec.id, editor: _sec.editor } : null);   // the other page of the spread (for tests and tools)
+const pageNumber = (d, id) => { const pages = model.orderedPages(d, d.pages[id].notebook); return pages.findIndex(p => p.id === id) + 1; };
+function secDestroy() { if (_sec) { clearTimeout(_sec.timer); try { _sec.editor.destroy(); } catch (e) { /* already gone */ } _sec = null; } }
+// Work out which pages share the spread and which side the "main" page is on, and name the two page areas to match
+// (the main one is always #nb-editor-inner, which the page code already knows how to fill). Returns the other page's id, or ''.
+function arrangeSpread(d, id) {
+  const pages = model.orderedPages(d, d.pages[id].notebook), i = pages.findIndex(p => p.id === id);
+  const left = i % 2 === 0, other = left ? pages[i + 1] : pages[i - 1];
+  const lin = document.getElementById('nb-page-left').firstElementChild, rin = document.getElementById('nb-editor').firstElementChild;
+  secDestroy();
+  if (_nbEditor) { try { _nbEditor.destroy(); } catch (e) { /* already gone */ } _nbEditor = null; }   // the old page's editor lives in one of the two areas; clear both before the new ones go in
+  lin.innerHTML = ''; rin.innerHTML = '';
+  lin.id = left ? 'nb-editor-inner' : 'nb-second-inner'; rin.id = left ? 'nb-second-inner' : 'nb-editor-inner';
+  return other ? other.id : '';
+}
+function emptyPageHtml() {
+  return `<div class="nb-empty-page"><div>${px('note', 'px-big')}</div><div>this page is empty</div><button type="button" class="nb-deskbtn nb-paper" id="nbEmptyAdd">${px('plus')} Start a page</button></div>`;
+}
+function newPageAtEnd() {
+  nbSaveActive();
+  const data = nbGet(), book = data.activeNotebookId || (model.notebooksOf(data)[0] || {}).id;
+  if (!book) { newNotebookAndOpen(); return; }
+  const id = model.newPage(data, { notebook: book });
+  const last = model.orderedPages(data, book).filter(p => !p.parent && p.id !== id).pop();
+  if (last) { const sibs = model.childrenOf(data, null, book).filter(p => p.id !== id); data.pages[id].order = sibs.length ? sibs[sibs.length - 1].order + 1 : 0; }
+  data.activePageId = id; data.activeNotebookId = book; nbSet(data);
+  nbRenderPageList(); nbOpenPage(id);
+}
+function paintEmptySpread() {
+  secDestroy(); _nbActiveId = null;
+  const l = document.getElementById('nb-page-left'), r = document.getElementById('nb-editor'); if (!l || !r) return;
+  l.firstElementChild.id = 'nb-left-inner'; r.firstElementChild.id = 'nb-editor-inner';
+  l.firstElementChild.innerHTML = emptyPageHtml(); r.firstElementChild.innerHTML = emptyPageHtml();
+  document.querySelectorAll('#nbEmptyAdd').forEach(b => b.addEventListener('click', newPageAtEnd));
+}
+// The other page of the spread: a second editor with its own title, toolbar and sticky notes
+function mountSecondary(pageId) {
+  const host = document.getElementById('nb-second-inner'); if (!host) return;
+  secDestroy();
+  const d = nbGet(), page = pageId && d.pages[pageId];
+  if (!page) { host.innerHTML = emptyPageHtml(); const b = host.querySelector('#nbEmptyAdd'); if (b) b.addEventListener('click', newPageAtEnd); return; }
+  host.innerHTML = `
+    <div class="nb-page-header"><input class="nb-page-title-input" id="nbSecTitle" value="${esc(page.title || '')}" placeholder="Page title..." aria-label="Page title"></div>
+    <div class="nb-toolbar-host" id="nbSecToolbar">${toolbarHtml()}</div>
+    <div class="nb-content-wrap"><div id="nb-sec-mount" class="nb-tiptap-mount"></div><div class="nb-stk-layer" id="nbSecStickyLayer"></div></div>
+    <div class="nb-footer"><span class="nb-pgno">page ${pageNumber(d, pageId)}</span><span class="nb-save-status" id="nbSecStatus">saved</span></div>`;
+  const status = host.querySelector('#nbSecStatus'), titleIn = host.querySelector('#nbSecTitle');
+  const st = { id: pageId, editor: null, timer: null, dirty: false };
+  const mark = () => { st.dirty = true; status.textContent = 'unsaved'; status.style.color = 'var(--warn)'; clearTimeout(st.timer); st.timer = setTimeout(secSave, 2000); };
+  titleIn.addEventListener('input', () => { mark(); const it = document.querySelector(`.nb-page-item[data-nb-id="${pageId}"] .nb-page-title`); if (it) it.textContent = titleIn.value || 'Untitled'; });
+  st.editor = new TiptapEditor({ element: host.querySelector('#nb-sec-mount'), extensions: buildExtensions(), content: page.content || '', onUpdate() { mark(); } });
+  wireLinks(host.querySelector('#nb-sec-mount'));
+  wireToolbar(host.querySelector('#nbSecToolbar'), st.editor, { onSticky: () => newStickyHere(pageId) });
+  st.editor.on('focus', () => { _focusId = pageId; });
+  _sec = st;
+  renderStickies(page, host.querySelector('#nbSecStickyLayer'));
+}
+export function secSave() {
+  if (!_sec || !_sec.dirty) return;
+  const titleIn = document.getElementById('nbSecTitle'); if (!titleIn) return;
+  const d = nbGet(), p = d.pages[_sec.id]; if (!p) return;
+  p.title = titleIn.value.trim() || 'Untitled'; p.content = _sec.editor.storage.markdown.getMarkdown(); p.updatedAt = new Date().toISOString();
+  const ok = nbSet(d), st = document.getElementById('nbSecStatus');
+  if (ok) _sec.dirty = false;
+  if (st) { st.textContent = ok ? 'saved' : 'NOT SAVED'; st.style.color = ok ? 'var(--ok)' : 'var(--err)'; }
 }
 
 function paintEmpty() {
@@ -250,6 +340,12 @@ export function nbRenderPageList() {
 export function nbOpenBook(id) {
   const data = nbGet(), book = data.notebooks[id];
   if (!book) return;
+  if (nbMode() === 'immersive' && document.getElementById('nb-book-open')) {       // in the notebook view a notebook is just its first spread
+    _nbBook = id; data.activeNotebookId = id; nbSet(data);
+    const first = model.orderedPages(data, id)[0];
+    if (first) { nbOpenPage(first.id); return; }
+    data.activePageId = null; nbSet(data); nbRenderPageList(); paintEmptySpread(); return;
+  }
   clearTimeout(_nbAutoSaveTimer);
   if (_nbEditor) { try { _nbEditor.destroy(); } catch (e) { /* already gone */ } _nbEditor = null; }
   closePop();
@@ -309,6 +405,8 @@ export function nbOpenPage(id) {
   const data = nbGet();
   const page = data.pages[id];
   if (!page) return;
+  const spread = nbMode() === 'immersive' && !!document.getElementById('nb-book-open');
+  const partner = spread ? arrangeSpread(data, id) : undefined;
 
   clearTimeout(_nbAutoSaveTimer);
   if (_nbEditor) { try { _nbEditor.destroy(); } catch (e) { /* already gone */ } _nbEditor = null; }
@@ -346,6 +444,7 @@ export function nbOpenPage(id) {
       <div class="nb-stk-layer" id="nbStickyLayer"></div>
     </div>
     <div class="nb-footer">
+      <span class="nb-pgno">${spread ? 'page ' + pageNumber(data, id) : ''}</span>
       <span class="nb-save-status" id="nbSaveStatus">saved</span>
       <button class="btn btn-p btn-sm" id="nbSaveBtn">Save</button>
     </div>
@@ -379,9 +478,11 @@ export function nbOpenPage(id) {
     onUpdate() { markUnsaved(); },
   });
   wireLinks(mount);
-  wireToolbar(document.getElementById('nbToolbarHost'), _nbEditor, { onSticky: () => newStickyHere() });
+  wireToolbar(document.getElementById('nbToolbarHost'), _nbEditor, { onSticky: () => newStickyHere(id) });
+  _nbEditor.on('focus', () => { _focusId = id; });
   wireCover(inner, 'page', id);
-  renderStickies(page);
+  renderStickies(page, document.getElementById('nbStickyLayer'));
+  if (spread) { mountSecondary(partner); const sd = document.getElementById('nb-sidebar'); if (sd) { sd.classList.remove('open'); const bm = document.getElementById('nbBookmark'); if (bm) bm.setAttribute('aria-expanded', 'false'); } }
 
   document.getElementById('nbSaveBtn').addEventListener('click', () => {
     nbSaveActive();
@@ -419,9 +520,10 @@ async function saveAsTemplate() {
 }
 
 // Drop the journal's pending autosave
-export function cancelJournalAutosave() { clearTimeout(_nbAutoSaveTimer); }
+export function cancelJournalAutosave() { clearTimeout(_nbAutoSaveTimer); if (_sec) clearTimeout(_sec.timer); }
 
 export function nbSaveActive() {
+  try { secSave(); } catch (e) { /* nothing to save */ }
   if (!_nbActiveId || !_nbDirty) return;
   const titleIn = document.getElementById('nbTitleInput');
   if (!titleIn) return;
@@ -787,22 +889,23 @@ let flashSticky = null;
 function stickyRot(id) { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return ((h % 5) - 2) * 0.8; }   // each note sits a little crooked, always the same
 function saveSticky(pageId, id, patch) { const d = nbGet(); if (model.updateSticky(d, pageId, id, patch)) nbSet(d); }
 
-function renderStickies(page) {
-  const layer = document.getElementById('nbStickyLayer'); if (!layer || !page) return;
+function renderStickies(page, layer) {
+  if (!layer || !page) return;
   const list = (nbGet().pages[page.id] || {}).stickies || [];
   layer.innerHTML = '';
-  list.forEach(st => layer.append(stickyEl(page.id, st)));
+  list.forEach(st => layer.append(stickyEl(page.id, st, layer)));
   if (flashSticky) { const el = layer.querySelector(`[data-stk="${flashSticky}"]`); if (el) { el.classList.add('nb-stk-new'); setTimeout(() => el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 120); } flashSticky = null; }
 }
 
-function stickyEl(pageId, st) {
+function stickyEl(pageId, st, layerEl) {
   const el = document.createElement('div');
   el.className = 'nb-stk' + (st.locked ? ' locked' : ''); el.dataset.stk = st.id;
   el.style.cssText = `left:${(st.x * 100).toFixed(2)}%;top:${st.y}px;width:${st.w}px;--sk:${st.color};--rot:${stickyRot(st.id)}deg`;
   el.innerHTML = `<div class="nb-stk-paper"><div class="nb-stk-bar" title="${st.locked ? 'Locked in place' : 'Drag to move'}"><button type="button" class="nb-stk-lock" aria-pressed="${st.locked}" title="${st.locked ? 'Unlock so it can be moved' : 'Lock it in place'}" aria-label="${st.locked ? 'Unlock' : 'Lock'} this sticky note">${px(st.locked ? 'lock' : 'unlock')}</button><button type="button" class="nb-stk-col" title="Change colour" aria-label="Change colour"></button></div>
     <textarea class="nb-stk-text" rows="3" spellcheck="false" aria-label="Sticky note text" placeholder="Write a note...">${esc(st.text)}</textarea></div>
     <button type="button" class="nb-stk-x" title="Delete this sticky note" aria-label="Delete this sticky note">${px('close')}</button>`;
-  const layer = () => document.getElementById('nbStickyLayer');
+  const layer = () => layerEl;
+  requestAnimationFrame(() => { const W = layerEl.clientWidth; if (W && st.x * W + st.w > W) el.style.left = (Math.max(0, W - st.w) / W * 100).toFixed(2) + '%'; });   // a narrow page keeps the note inside it
   const ta = el.querySelector('textarea');
   const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(520, ta.scrollHeight) + 'px'; };
   setTimeout(fit, 0);
@@ -837,10 +940,12 @@ function stickyEl(pageId, st) {
 }
 
 // A new, empty sticky note on the open page
-export function newStickyHere() {
-  if (!_nbActiveId) return false;
-  const d = nbGet(), sid = model.addSticky(d, _nbActiveId, {}); if (!sid || !nbSet(d)) return false;
-  flashSticky = sid; renderStickies(d.pages[_nbActiveId]);
+export function newStickyHere(pageId = _focusId || _nbActiveId) {
+  if (!pageId) return false;
+  const d = nbGet(), sid = model.addSticky(d, pageId, {}); if (!sid || !nbSet(d)) return false;
+  flashSticky = sid;
+  const layer = (_sec && _sec.id === pageId) ? document.getElementById('nbSecStickyLayer') : document.getElementById('nbStickyLayer');
+  renderStickies(d.pages[pageId], layer);
   setTimeout(() => { const ta = document.querySelector(`[data-stk="${sid}"] textarea`); if (ta) ta.focus(); }, 80);
   return true;
 }

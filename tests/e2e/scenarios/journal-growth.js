@@ -8,7 +8,7 @@
    chk('a nested page is shown under its parent', flattenTree(d).map(x=>x.page.id+x.depth).join()==='b0,c1,a0', flattenTree(d).map(x=>x.page.id+x.depth));
    const cyc=normalizeJournal({pages:{x:{id:'x',parent:'y'},y:{id:'y',parent:'x'},z:{id:'z',parent:'nope'},s:{id:'s',parent:'s'}}});
    chk('a loop, a missing parent and a page inside itself are repaired', cyc.pages.z.parent===null && cyc.pages.s.parent===null && (cyc.pages.x.parent===null||cyc.pages.y.parent===null));
-   const k=newPage(d,{parent:'a',title:'kid'}); chk('a subpage goes at the end of its parent, a top-level page at the top', d.pages[k].parent==='a' && d.pages[newPage(d,{title:'top'})] && flattenTree(d)[0].page.title==='top');
+   const k=newPage(d,{parent:'a',title:'kid'}); chk('a subpage goes at the end of its parent, a new top-level page at the end of its notebook', d.pages[k].parent==='a' && (()=>{ const t=newPage(d,{title:'top'}); const tops=childrenOf(d,null,d.pages[t].notebook); return tops[tops.length-1].id===t; })());
    chk('a page cannot move into itself or its own subpage', !canMove(d,'a','a') && !canMove(d,'a',k) && canMove(d,k,null) && canMove(d,k,'b'));
    chk('moving puts it under the new parent', movePage(d,k,'b') && d.pages[k].parent==='b');
    const before=Object.keys(d.pages).length; removePage(d,'b'); chk('deleting a page keeps its subpages, one level up', Object.keys(d.pages).length===before-1 && d.pages.c.parent===null && d.pages[k].parent===null);
@@ -87,14 +87,14 @@
  navigateTo('notebook'); await w(600);
  // ── a picture ──
  { const cv=document.createElement('canvas'); cv.width=40; cv.height=30; const bl=await new Promise(r=>cv.toBlob(r,'image/png')); const ids=await addFiles([new File([bl],'Moonlit hall.png',{type:'image/png'})]);
-   navigateTo('notebook'); await w(500); $(`.nb-page-item`).click(); await w(500);
+   navigateTo('notebook'); await w(500); $(`.nb-page-item[data-nb-id="${childId}"]`).click(); await w(500);
    await typeInto(' @moonlit'); chk('pictures can be linked too', /Moonlit hall/.test(($('.nb-pop')||{}).textContent||'') && /Picture/.test(($('.nb-pop')||{}).textContent||'')); key('Enter'); await w(300);
    const a=[...$$('.ProseMirror a')].find(a=>a.getAttribute('href')===mentionHref('image',ids[0])); a&&a.click(); await w(500); chk('and clicking opens the picture', $('#galLightbox').classList.contains('open')); closeModal('galLightbox'); }
  // ── everything survives a save and a reload ──
  $('#nbSaveBtn').click(); await w(300);
  const pid=nbGet().activePageId; navigateTo('home'); await w(300); navigateTo('notebook'); await w(700);
  $(`.nb-page-item[data-nb-id="${pid}"]`).click(); await w(600);
- chk('toggle, heading, divider and links are still there after reopening', !!$('.ProseMirror div[data-type="details"]') && !!$('.ProseMirror h2') && !!$('.ProseMirror hr') && $$('.ProseMirror a[href^="loreos://"]').length>=2);
+ chk('toggle, heading, divider and links are still there after reopening', !!$('.ProseMirror div[data-type="details"]') && !!$('.ProseMirror h2') && !!$('.ProseMirror hr') && $$('.ProseMirror a[href^="loreos://"]').length>=2, [!!$('.ProseMirror div[data-type="details"]'),!!$('.ProseMirror h2'),!!$('.ProseMirror hr'),$$('.ProseMirror a[href^="loreos://"]').length, nbGet().activePageId===pid]);
  // ── safety: HTML in a page cannot run ──
  window.__xss=0; _nbEditor.commands.setContent('<img src=x onerror="window.__xss=1"><script>window.__xss=2<\/script> [bad](javascript:window.__xss=3)'); await w(400);
  chk('HTML typed into a page does not become live script or pictures', !$('.ProseMirror script') && !$('.ProseMirror img') && window.__xss===0 && ![...$$('.ProseMirror a')].some(a=>/^javascript:/i.test(a.getAttribute('href')||'')), $('.ProseMirror').innerHTML.slice(0,200));

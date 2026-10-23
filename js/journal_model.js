@@ -217,8 +217,8 @@ export function newPage(d, { parent = null, notebook = null, title = '', content
   let book = par ? d.pages[par].notebook : (d.notebooks[notebook] ? notebook : d.notebooks[d.activeNotebookId] ? d.activeNotebookId : (notebooksOf(d)[0] || {}).id);
   if (!book) { if (!d.notebooks[DEFAULT_BOOK]) d.notebooks[DEFAULT_BOOK] = { id: DEFAULT_BOOK, title: 'Journal', createdAt: now, updatedAt: now, order: -1 }; book = DEFAULT_BOOK; }
   const sibs = childrenOf(d, par, book);
-  // top-level pages go to the top (newest first, as before); subpages go to the end of their parent
-  const order = par ? (sibs.length ? sibs[sibs.length - 1].order + 1 : 0) : (sibs.length ? sibs[0].order - 1 : 0);
+  // a new page goes to the end of its notebook (or of its parent), so a notebook reads in the order it was written
+  const order = sibs.length ? sibs[sibs.length - 1].order + 1 : 0;
   d.pages[id] = { id, title, content, createdAt: now, updatedAt: now, parent: par, order, notebook: book };
   d.notebooks[book].updatedAt = now;
   if (par) delete d.collapsed[par];
