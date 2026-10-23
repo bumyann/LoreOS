@@ -143,3 +143,4 @@ body.pink{ --wood:color-mix(in srgb,var(--p) 18%,#c9a070);--paper:#fbf4e4 }
 .hb-zone .dash-empty{background:#f3ead2;color:#3a2e22;padding:.7rem .9rem;display:inline-block;box-shadow:3px 3px 0 rgba(0,0,0,.3);transform:rotate(-.6deg)}
 .dash-continue{background:var(--paper);color:var(--paper-ink);--tx:var(--paper-ink);--txd:#5a4a38;--txm:#7a6a55;border:2px solid var(--wood-lo);box-shadow:4px 4px 0 var(--px-shadow);transform:rotate(-.3deg)}
 .dash-continue *{text-shadow:none}
+@media (max-width:900px){.libx-case::before,.libx-case::after{display:none}.libx-case{margin-left:0;margin-right:0}}
