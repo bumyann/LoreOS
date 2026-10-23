@@ -17,9 +17,10 @@
 import { libGet, libSet, safeSet } from './storage.js';
 import { store } from './kv.js';
 import { state } from './state.js';
+import { normalizeJournal, pageCount } from './journal_model.js';
 
 export const META_KEY = 'aet_meta';
-export const KINDS = ['lore', 'char', 'preset', 'prompt', 'regex', 'persona'];
+export const KINDS = ['lore', 'char', 'preset', 'prompt', 'regex', 'persona', 'notebook'];
 const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
 
 export function newUid(prefix = 'x') {
@@ -197,6 +198,11 @@ export function allLibraryItems() {
   const add = (kind, map) => Object.values(map || {}).forEach(e => { if (isObj(e) && e.id) out.push({ kind, id: e.id, key: e.id, name: e.name || '', savedAt: e.savedAt || '', entry: e }); });
   add('char', state.charLibrary); add('preset', state.presetLibrary); add('prompt', state.promptLibrary); add('regex', state.regexLibrary);
   add('persona', state.personaLibrary);
+  // notebooks live in the Journal's data; the Library lists them too
+  try {
+    const raw = store.get('loreos_notebook');
+    if (raw) { const j = normalizeJournal(JSON.parse(raw)); Object.values(j.notebooks).forEach(b => out.push({ kind: 'notebook', id: b.id, key: b.id, name: b.title || 'Notebook', savedAt: b.updatedAt || b.createdAt || '', entry: { ...b, pages: pageCount(j, b.id) } })); }
+  } catch (e) { /* no journal yet */ }
   return out;
 }
 

@@ -13,10 +13,11 @@ import { wireMobile } from './mobile.js';
 import { createPreset, exportPreset, exportPresetLoom, handlePresetImport, makeBlankPrompt, openPresetLibrary, renderPromptList, savePreset, syncPromptOrder } from './preset.js';
 import { PT, ptRefreshManual, wirePronounTool } from './pronoun.js';
 import { setupOffline } from './pwa.js';
-import { initRouter } from './router.js';
+import { initRouter, navigateTo } from './router.js';
 import { doReplaceAll, doReplaceOne, doSearch } from './search.js';
 import { wireThemeView } from './theme_view.js';
 import { hydratePixelIcons } from './pixel_icons.js';
+import { wireJournalHooks } from './journal.js';
 import * as m_pixel_icons from './pixel_icons.js';
 import { applyAllCustomisations, applyFonts, toggleTheme, wireFonts, wireSettings } from './settings.js';
 import { state } from './state.js';
@@ -155,6 +156,7 @@ function startApp() {
   initStep('pronoun tool', wirePronounTool);
   initStep('fullscreen',   wireFullscreen);
   initStep('templates',    wireTplLibrary);
+  initStep('journalnav',   () => wireJournalHooks(navigateTo));
   initStep('pixelicons',   () => hydratePixelIcons()); // the static markup's symbols become pixel icons
   initStep('themeview',    wireThemeView); // the Theme page's controls exist before the code that wires them
   initStep('settings',     wireSettings);

@@ -10,6 +10,7 @@ import { BOOK_COLORS, bookThumb, libraryRows, openLibraryItem } from './library_
 import { navigateTo } from './router.js';
 import { KIND_SYMBOL, sym } from './symbols.js';
 import { kindIcon, px } from './pixel_icons.js';
+import { cardToJournal } from './journal.js';
 import { safeSet } from './storage.js';
 import { store } from './kv.js';
 import { registerTrashRestorer, trashPush } from './trash.js';
@@ -485,6 +486,7 @@ export function openCardEditor(id, type) {
   g('hbColorRow').style.display = editing.type === 'image' ? 'none' : '';
   g('hbDelete').style.display = card ? '' : 'none';
   g('hbEarlier').style.display = g('hbLater').style.display = card ? '' : 'none';
+  g('hbSendRow').style.display = card ? '' : 'none';
   g('hbText').placeholder = editing.type === 'image' ? 'Caption (optional)' : editing.type === 'link' ? 'Why it is here (optional)' : 'What is on your mind...';
   paintEditor();
   openModal('hbModal');
@@ -505,7 +507,7 @@ function saveCard(quiet = false) {
   const i = home.board.findIndex(c => c.id === card.id);
   if (i >= 0) { card.createdAt = home.board[i].createdAt || card.createdAt; home.board[i] = card; } else home.board.unshift(card);
   homeSet(home);
-  if (!editing.id) { editing.id = card.id; g('hbDelete').style.display = ''; g('hbEarlier').style.display = g('hbLater').style.display = ''; } // a new card exists from its first save on
+  if (!editing.id) { editing.id = card.id; g('hbDelete').style.display = ''; g('hbEarlier').style.display = g('hbLater').style.display = ''; g('hbSendRow').style.display = ''; } // a new card exists from its first save on
   return true;
 }
 // Cards save as you type: a moment after the last change, without pressing anything
@@ -545,6 +547,14 @@ export function wireHome() {
     clearTimeout(cardTimer); cardTimer = null; closeModal('hbModal'); editing = null; rerender();
   };
   const move = dir => { if (!editing || !editing.id) return; const home = homeGet(); if (moveCard(home, editing.id, dir)) { homeSet(home); rerender(); } };
+  // a card becomes a notebook, a page, or a sticky note on a page
+  const send = mode => async () => {
+    if (!editing || !editing.id) return;
+    clearTimeout(cardTimer); cardTimer = null; saveCard(true);
+    const card = homeGet().board.find(c => c.id === editing.id); if (!card) return;
+    await cardToJournal(card, mode);
+  };
+  g('hbToBook').onclick = send('notebook'); g('hbToPage').onclick = send('page'); g('hbToSticky').onclick = send('sticky');
   g('hbEarlier').onclick = () => move(-1);
   g('hbLater').onclick = () => move(1);
 }
@@ -565,6 +575,7 @@ registerMarkup(190, `<div id="hbModal" class="modal">
       <label class="pr-lbl" for="hbShape">Shape</label>
       <select class="fselect" id="hbShape"></select>
       <div id="hbColorRow"><div class="pr-lbl">Colour</div><div id="hbColors" class="libx-colorgrid"></div></div>
+      <div id="hbSendRow" style="display:none"><div class="pr-lbl">Send to the Journal</div><div class="pr-row"><button class="btn btn-s btn-sm" id="hbToBook" type="button" title="A new notebook that starts with this card">New notebook</button><button class="btn btn-s btn-sm" id="hbToPage" type="button" title="A new page made from this card">New page</button><button class="btn btn-s btn-sm" id="hbToSticky" type="button" title="Add this to a page as a sticky note">Sticky note on a page</button></div></div>
       <div class="pr-row"><button class="btn btn-p btn-sm" id="hbSave">Done</button><button class="btn btn-s btn-sm" id="hbEarlier" title="Move earlier on the board">←</button><button class="btn btn-s btn-sm" id="hbLater" title="Move later on the board">→</button><button class="btn btn-err btn-sm" id="hbDelete">Delete</button></div>
     </div>
   </div>

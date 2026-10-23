@@ -71,7 +71,7 @@ export function px(name, cls = '') {
 }
 
 // The kinds of thing LoreOS keeps, and the icon for each
-export const KIND_ICON = { lore: 'lore', char: 'char', preset: 'preset', prompt: 'prompt', regex: 'regex', persona: 'persona', image: 'image' };
+export const KIND_ICON = { lore: 'lore', char: 'char', preset: 'preset', prompt: 'prompt', regex: 'regex', persona: 'persona', image: 'image', notebook: 'journal' };
 export const kindIcon = kind => px(KIND_ICON[kind] || 'note');
 
 // The text symbols the static markup used before, and the icon each one means

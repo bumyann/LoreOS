@@ -43,7 +43,7 @@
  chk('closing a branch hides its subpages', !$(`.nb-page-item[data-nb-id="${childId}"]`) && nbGet().collapsed[parentId]===true);
  $(`[data-nb-toggle="${parentId}"]`).click(); await w(250); chk('and opening shows them again', !!$(`.nb-page-item[data-nb-id="${childId}"]`));
  $('#nbSearch').value='magic'; $('#nbSearch').dispatchEvent(new Event('input',{bubbles:true})); await w(200);
- chk('search finds the subpage and keeps its parent in view', !!$(`.nb-page-item[data-nb-id="${childId}"]`) && !!$(`.nb-page-item[data-nb-id="${parentId}"]`) && !$(`.nb-page-item[data-nb-id="n2"]`));
+ chk('search lists the matching page with where it lives, and not the others', !!$(`.nb-result[data-hit="${childId}"]`) && /Worldbuilding/.test($(`.nb-result[data-hit="${childId}"]`).textContent) && !$('.nb-result[data-hit="n2"]'));
  $('#nbSearch').value=''; $('#nbSearch').dispatchEvent(new Event('input',{bubbles:true})); await w(200);
  // move
  $('#nbMoveBtn').click(); await w(300);

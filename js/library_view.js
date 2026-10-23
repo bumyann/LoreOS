@@ -29,14 +29,15 @@ export const KIND_INFO = {
   prompt:  { label: 'Prompt pack', plural: 'Prompt packs', icon: KIND_SYMBOL.prompt,  mode: 'prompt' },
   regex:   { label: 'Regex',       plural: 'Regex',        icon: KIND_SYMBOL.regex,   mode: 'regex' },
   persona: { label: 'Persona',     plural: 'Personas',     icon: KIND_SYMBOL.persona, mode: null },
+  notebook: { label: 'Notebook',   plural: 'Notebooks',    icon: KIND_SYMBOL.notebook, mode: null },
   image:   { label: 'Picture',     plural: 'Pictures',     icon: '▣',                 mode: null }, // lives in the Gallery tab, not on the shelves
 };
 // Characters and personas always show their own picture; the rest can be given one, or a symbol
 const OWN_PICTURE = new Set(['char', 'persona', 'image']);
 // The default cover colour of each kind of book
-const KIND_COLOR = { char: '#6b82c4', lore: '#9a78c8', preset: '#5aa0b4', prompt: '#c0a060', regex: '#6cb490', persona: '#c47e9c', image: '#8a9bd2' };
+const KIND_COLOR = { char: '#6b82c4', lore: '#9a78c8', preset: '#5aa0b4', prompt: '#c0a060', regex: '#6cb490', persona: '#c47e9c', image: '#8a9bd2', notebook: '#d49a6a' };
 // The order the shelves stand in
-export const SHELF_ORDER = ['char', 'lore', 'preset', 'prompt', 'regex', 'persona'];
+export const SHELF_ORDER = ['char', 'lore', 'preset', 'prompt', 'regex', 'persona', 'notebook'];
 export const BOOK_COLORS = ['#6b82c4', '#9a78c8', '#5aa0b4', '#c0a060', '#6cb490', '#c47e9c', '#c46c6c', '#c8884c', '#8a8f9c', '#4f5f8f', '#7a5a8e', '#3f7a6a'];
 const WORLD_COLORS = ['#8a9bd2', '#c9a0dc', '#7ec8b0', '#e0b070', '#e08a8a', '#9ac0e8', '#b8c870', '#d49ab8'];
 const SORTS = [['recent', 'Recently used'], ['name', 'Name'], ['type', 'Type'], ['oldest', 'Oldest']];
@@ -93,6 +94,7 @@ export function openLibraryItem(row) {
   markOpened(row.kind, row.id, row.name);
   if (row.kind === 'image') { if (imageOpener) imageOpener(row.id); return; }
   if (row.kind === 'persona') { openPersona(row.id); return; }
+  if (row.kind === 'notebook') { if (notebookOpener) notebookOpener(row.id); return; }
   const info = KIND_INFO[row.kind];
   navigateTo('editor');
   setTimeout(() => {
@@ -123,6 +125,7 @@ function summaryOf(r) {
   if (r.kind === 'prompt') return pluralize((((r.entry.pack || {}).modules) || []).length, 'module', 'modules');
   if (r.kind === 'preset') return pluralize((((r.entry.preset || {}).prompts) || []).length, 'prompt', 'prompts');
   if (r.kind === 'persona') return ((r.entry.persona || {}).title) || '';
+  if (r.kind === 'notebook') return pluralize(r.entry.pages || 0, 'page', 'pages');
   return '';
 }
 
@@ -238,7 +241,7 @@ export function renderLibraryView() {
           <button class="dd-item" data-libnew="char">${kindIcon('char')} Character</button><button class="dd-item" data-libnew="lore">${kindIcon('lore')} Lorebook</button>
           <button class="dd-item" data-libnew="preset">${kindIcon('preset')} Preset</button><button class="dd-item" data-libnew="prompt">${kindIcon('prompt')} Prompt pack</button>
           <button class="dd-item" data-libnew="regex">${kindIcon('regex')} Regex set</button><button class="dd-item" data-libnew="regexscript">${kindIcon('regex')} Regex script</button>
-          <button class="dd-item" data-libnew="persona">${kindIcon('persona')} Persona</button><button class="dd-item" data-libnew="personafile">Import a persona (JSON)</button>
+          <button class="dd-item" data-libnew="notebook">${kindIcon('notebook')} Notebook</button><button class="dd-item" data-libnew="persona">${kindIcon('persona')} Persona</button><button class="dd-item" data-libnew="personafile">Import a persona (JSON)</button>
         </div></div>
       <div class="libx-layout" role="group" aria-label="Layout"><button class="btn btn-s btn-sm${view.layout === 'shelves' ? ' on' : ''}" id="libxLayoutShelves" aria-pressed="${view.layout === 'shelves'}">Shelves</button><button class="btn btn-s btn-sm${view.layout === 'list' ? ' on' : ''}" id="libxLayoutList" aria-pressed="${view.layout === 'list'}">List</button></div>
       <button class="btn btn-s btn-sm libx-filter-toggle" id="libxFilterToggle" aria-expanded="${view.filtersOpen}">Filters</button>
@@ -283,6 +286,8 @@ export function openItemDetails(row) { openDetails(row); }
 // The Gallery registers how to open one of its pictures
 let imageOpener = null;
 export function setImageOpener(fn) { imageOpener = fn; }
+let notebookOpener = null, notebookMaker = null;
+export function setNotebookHooks({ open, make }) { notebookOpener = open; notebookMaker = make; }
 export function setLibraryLayout(l) { view.layout = l === 'list' ? 'list' : 'shelves'; saveView(); }
 const setWorld = id => { view.world = id; view.folder = null; view.type = 'all'; view.tag = null; view.filtersOpen = false; saveView(); };
 
@@ -380,6 +385,7 @@ function newThing(kind) {
     const mm = metaGet(); fresh.forEach(i => patchItem(mm, i.kind, i.id, { world: inWorld, folder: inFolder, name: i.name })); metaSet(mm);
   };
   if (kind === 'persona') { const id = createPersona(); adopt(); openPersona(id); refresh(); return; }
+  if (kind === 'notebook') { if (notebookMaker) { const id = notebookMaker(); adopt(); refresh(); void id; } return; }
   if (kind === 'personafile') { document.getElementById('personaImportFile').click(); return; }
   if (kind === 'lore') { navigateTo('editor'); setTimeout(() => switchMode('lore'), 80); toast('Build it in the editor, then Save to Library to see it here.', 'info'); return; }
   navigateTo('editor');

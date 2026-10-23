@@ -1,7 +1,10 @@
 // ═══════════════════════════════════════════════════════
-// JOURNAL — pages that nest inside pages, written in a TipTap editor that stores Markdown.
+// JOURNAL — notebooks, each holding pages that nest inside pages, written in a TipTap editor that stores Markdown.
 //
-//   - the sidebar is a tree: open and close branches, add a subpage with the + on a row, search
+//   - the sidebar lists your notebooks; the open one shows its pages as a tree: open and close branches, add a
+//     subpage with the + on a row. Search looks through every notebook and page at once
+//   - notebooks show up in the Library too, and notebooks and pages can both be linked with "@"
+//   - things from the Inspiration board can become a notebook, a page, or a sticky note on a page
 //   - "/" in a page opens a menu of things to insert (headings, lists, to-dos, quote, code, divider, toggle,
 //     today's date, a subpage); "@" links to anything in the Library, a gallery picture, or another page
 //   - toggles are collapsible blocks; to-do lists are tickable
@@ -11,9 +14,11 @@
 // Library items as ordinary [Name](loreos://kind/id) links).
 // ═══════════════════════════════════════════════════════
 import { openViewer } from './gallery_view.js';
+import { px } from './pixel_icons.js';
 import { listPictures } from './gallery.js';
 import { allLibraryItems } from './meta.js';
-import { libraryRows, openLibraryItem } from './library_view.js';
+import { addPicture } from './gallery.js';
+import { libraryRows, openLibraryItem, setNotebookHooks } from './library_view.js';
 import { store } from './kv.js';
 import { safeSet } from './storage.js';
 import { registerTrashRestorer, trashPush } from './trash.js';
@@ -24,7 +29,8 @@ const { normalizeJournal, nbId } = model;
 export { nbId };
 
 export let _nbEditor = null;  // active tiptap instance
-export let _nbActiveId = null;
+export let _nbActiveId = null;   // the open page (null while a notebook's overview is showing)
+export let _nbBook = null;       // the open notebook
 export let _nbAutoSaveTimer = null;
 export let _nbDirty = false;   // typed since the last save (so just visiting a page doesn't bump its date)
 let searchQuery = '';
@@ -54,54 +60,88 @@ export function renderNotebookView() {
   closePop();
 
   const data = nbGet();
-  const first = model.flattenTree(data)[0];
-  _nbActiveId = data.activePageId || (first ? first.page.id : null);
+  const first = model.notebooksOf(data)[0];
+  _nbBook = data.activeNotebookId || (first ? first.id : null);
+  _nbActiveId = data.activePageId || null;
 
   el.innerHTML = `
     <div class="nb-layout">
       <div class="nb-sidebar" id="nb-sidebar">
         <div class="nb-sidebar-head">
           <div class="nb-title">Journal</div>
-          <button class="btn btn-ok btn-sm" id="nbNewBtn">+ New</button>
+          <div class="nb-head-acts"><button class="btn btn-ok btn-sm" id="nbNewBtn" title="A new page in the open notebook">${px('plus')} Page</button><button class="btn btn-s btn-sm" id="nbNewBookBtn" title="A new notebook">${px('journal')} Notebook</button></div>
         </div>
-        <div class="nb-search-row"><input class="finput nb-search" id="nbSearch" type="search" placeholder="Search pages..." aria-label="Search pages" value="${esc(searchQuery)}"></div>
+        <div class="nb-search-row"><input class="finput nb-search" id="nbSearch" type="search" placeholder="Search notebooks and pages..." aria-label="Search notebooks and pages" value="${esc(searchQuery)}"></div>
         <div class="nb-page-list" id="nb-page-list" role="tree"></div>
       </div>
       <div class="nb-editor" id="nb-editor">
-        <div class="nb-editor-inner" id="nb-editor-inner">
-          <div class="empty-state" style="min-height:200px">
-            <div>no page selected</div>
-            <button class="btn btn-ok" id="nbNewBtnAlt">+ New Page</button>
-          </div>
-        </div>
+        <div class="nb-editor-inner" id="nb-editor-inner"></div>
       </div>
     </div>
   `;
 
-  document.getElementById('nbNewBtn').addEventListener('click', () => openNewPageDialog());
-  const alt = document.getElementById('nbNewBtnAlt');
-  if (alt) alt.addEventListener('click', () => openNewPageDialog());
+  document.getElementById('nbNewBtn').addEventListener('click', () => { if (!model.notebooksOf(nbGet()).length) { newNotebookAndOpen(); return; } openNewPageDialog(); });
+  document.getElementById('nbNewBookBtn').addEventListener('click', () => newNotebookAndOpen());
   document.getElementById('nbSearch').addEventListener('input', e => { searchQuery = e.target.value; nbRenderPageList(); });
 
   nbRenderPageList();
   if (_nbActiveId && data.pages[_nbActiveId]) nbOpenPage(_nbActiveId);
+  else if (_nbBook && data.notebooks[_nbBook]) nbOpenBook(_nbBook);
+  else paintEmpty();
+}
+
+function paintEmpty() {
+  const inner = document.getElementById('nb-editor-inner'); if (!inner) return;
+  inner.innerHTML = `<div class="empty-state" style="min-height:200px"><div>${px('journal', 'px-big')}</div><div>no notebooks yet</div><button class="btn btn-ok" id="nbNewBtnAlt">${px('plus')} New notebook</button></div>`;
+  document.getElementById('nbNewBtnAlt').addEventListener('click', () => newNotebookAndOpen());
 }
 
 export function nbRenderPageList() {
   const list = document.getElementById('nb-page-list');
   if (!list) return;
   const data = nbGet();
-  const rows = model.flattenTree(data, searchQuery);
 
-  list.innerHTML = rows.length ? rows.map(({ page: p, depth, kids, open }) => `
-    <div class="nb-page-item ${p.id === _nbActiveId ? 'active' : ''}" data-nb-id="${esc(p.id)}" role="treeitem" aria-level="${depth + 1}"${kids ? ` aria-expanded="${open}"` : ''} style="--d:${depth}">
-      ${kids ? `<button class="nb-caret" data-nb-toggle="${esc(p.id)}" aria-label="${open ? 'Close' : 'Open'} ${esc(p.title || 'Untitled')}">${open ? SYM.open : SYM.closed}</button>` : '<span class="nb-caret nb-caret-none"></span>'}
-      <span class="nb-page-title">${esc(p.title || 'Untitled')}</span>
-      <button class="nb-add" data-nb-sub="${esc(p.id)}" title="Add a subpage" aria-label="Add a subpage to ${esc(p.title || 'Untitled')}">+</button>
-      <span class="nb-page-date">${p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : ''}</span>
-    </div>
-  `).join('') : `<div class="nb-empty">${searchQuery ? 'no pages match' : 'no pages yet'}</div>`;
+  // Searching: one list across every notebook and page
+  if (searchQuery.trim()) {
+    const hits = model.searchAll(data, searchQuery);
+    list.innerHTML = hits.length ? hits.map(h => `
+      <button class="nb-result" type="button" data-hit-type="${h.type}" data-hit="${esc(h.id)}">
+        <span class="nb-result-t">${px(h.type === 'notebook' ? 'journal' : 'note')}<b>${esc(h.title)}</b></span>
+        ${h.path.length ? `<span class="nb-result-path">${esc(h.path.join(' › '))}</span>` : ''}
+        <span class="nb-result-snip">${esc(h.snippet)}</span>
+      </button>`).join('') : '<div class="nb-empty">nothing matches</div>';
+    list.querySelectorAll('.nb-result').forEach(b => b.addEventListener('click', () => {
+      nbSaveActive();
+      if (b.dataset.hitType === 'notebook') nbOpenBook(b.dataset.hit); else nbOpenPage(b.dataset.hit);
+    }));
+    return;
+  }
 
+  const books = model.notebooksOf(data);
+  list.innerHTML = books.length ? books.map(bk => {
+    const on = bk.id === _nbBook;
+    const rows = on ? model.flattenTree(data, '', bk.id) : [];
+    return `<div class="nb-book${on ? ' open' : ''}" data-book="${esc(bk.id)}">
+      <div class="nb-book-row${on && !_nbActiveId ? ' active' : ''}" data-nb-book="${esc(bk.id)}" role="treeitem" aria-expanded="${on}">
+        <span class="nb-book-ico">${px('journal')}</span><span class="nb-book-title">${esc(bk.title || 'Notebook')}</span><span class="nb-book-n">${model.pageCount(data, bk.id)}</span>
+        <button class="nb-add" data-nb-addpage="${esc(bk.id)}" title="Add a page to this notebook" aria-label="Add a page to ${esc(bk.title || 'Notebook')}">+</button>
+      </div>
+      ${on ? `<div class="nb-book-pages">${rows.length ? rows.map(({ page: p, depth, kids, open }) => `
+        <div class="nb-page-item ${p.id === _nbActiveId ? 'active' : ''}" data-nb-id="${esc(p.id)}" role="treeitem" aria-level="${depth + 1}"${kids ? ` aria-expanded="${open}"` : ''} style="--d:${depth}">
+          ${kids ? `<button class="nb-caret" data-nb-toggle="${esc(p.id)}" aria-label="${open ? 'Close' : 'Open'} ${esc(p.title || 'Untitled')}">${open ? SYM.open : SYM.closed}</button>` : '<span class="nb-caret nb-caret-none"></span>'}
+          <span class="nb-page-title">${esc(p.title || 'Untitled')}</span>
+          <button class="nb-add" data-nb-sub="${esc(p.id)}" title="Add a subpage" aria-label="Add a subpage to ${esc(p.title || 'Untitled')}">+</button>
+          <span class="nb-page-date">${p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : ''}</span>
+        </div>`).join('') : '<div class="nb-empty">no pages yet</div>'}</div>` : ''}
+    </div>`;
+  }).join('') : '<div class="nb-empty">no notebooks yet</div>';
+
+  list.querySelectorAll('.nb-book-row').forEach(row => row.addEventListener('click', e => {
+    const add = e.target.closest('[data-nb-addpage]');
+    nbSaveActive();
+    if (add) { openNewPageDialog({ notebook: add.dataset.nbAddpage }); return; }
+    nbOpenBook(row.dataset.nbBook);
+  }));
   list.querySelectorAll('.nb-page-item').forEach(item => {
     item.addEventListener('click', e => {
       const tg = e.target.closest('[data-nb-toggle]'), sub = e.target.closest('[data-nb-sub]');
@@ -111,6 +151,62 @@ export function nbRenderPageList() {
       nbOpenPage(item.dataset.nbId);
     });
   });
+}
+
+// ═══════════════════════════════════════════════════════
+// A NOTEBOOK: its overview, and making, renaming and deleting
+// ═══════════════════════════════════════════════════════
+export function nbOpenBook(id) {
+  const data = nbGet(), book = data.notebooks[id];
+  if (!book) return;
+  clearTimeout(_nbAutoSaveTimer);
+  if (_nbEditor) { try { _nbEditor.destroy(); } catch (e) { /* already gone */ } _nbEditor = null; }
+  closePop();
+  _nbDirty = false; _nbActiveId = null; _nbBook = id;
+  data.activeNotebookId = id; data.activePageId = null; nbSet(data);
+  nbRenderPageList();
+
+  const inner = document.getElementById('nb-editor-inner'); if (!inner) return;
+  const tops = model.childrenOf(data, null, id);
+  inner.innerHTML = `
+    <div class="nb-page-header">
+      <input class="nb-page-title-input" id="nbBookTitle" value="${esc(book.title || '')}" placeholder="Notebook name..." aria-label="Notebook name">
+      <div class="nb-page-acts">
+        <button class="btn btn-ok btn-sm" id="nbBookAdd">${px('plus')} Page</button>
+        <button class="btn btn-err btn-sm" id="nbBookDelete">Delete notebook</button>
+      </div>
+    </div>
+    <div class="rx-none" style="padding:0 .2rem .6rem">${model.pageCount(data, id)} page${model.pageCount(data, id) === 1 ? '' : 's'} in this notebook. Notebooks also show up in the Library.</div>
+    <div class="nb-book-grid">${tops.length ? tops.map(p => `<button class="nb-card" type="button" data-open="${esc(p.id)}"><b>${esc(p.title || 'Untitled')}</b><span>${esc(snippetOf(p.content))}</span><small>${model.descendants(data, p.id).length ? model.descendants(data, p.id).length + ' subpages · ' : ''}${p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : ''}</small></button>`).join('') : `<div class="nb-empty" style="grid-column:1/-1">no pages yet<br><button class="btn btn-ok" id="nbBookAdd2" style="margin-top:.6rem">${px('plus')} Start the first page</button></div>`}</div>`;
+  inner.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => nbOpenPage(b.dataset.open)));
+  document.getElementById('nbBookAdd').addEventListener('click', () => openNewPageDialog({ notebook: id }));
+  const a2 = document.getElementById('nbBookAdd2'); if (a2) a2.addEventListener('click', () => openNewPageDialog({ notebook: id }));
+  const ti = document.getElementById('nbBookTitle');
+  ti.addEventListener('change', () => { const d = nbGet(); if (model.renameNotebook(d, id, ti.value)) { nbSet(d); nbRenderPageList(); } });
+  document.getElementById('nbBookDelete').addEventListener('click', () => deleteNotebook(id));
+}
+const snippetOf = md => String(md || '').replace(/<[^>]+>/g, ' ').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[#>*_`~-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 110);
+
+export function newNotebookAndOpen(title = '') {
+  nbSaveActive();
+  const data = nbGet(), id = model.newNotebook(data, { title });
+  data.activeNotebookId = id; data.activePageId = null; nbSet(data);
+  _nbBook = id; _nbActiveId = null;
+  nbRenderPageList(); nbOpenBook(id);
+  setTimeout(() => { const t = document.getElementById('nbBookTitle'); if (t) { t.focus(); t.select(); } }, 80);
+  return id;
+}
+
+async function deleteNotebook(id) {
+  const d0 = nbGet(), n = model.pageCount(d0, id), b = d0.notebooks[id]; if (!b) return;
+  if (!await askConfirm(`Delete the notebook “${b.title || 'Notebook'}”?` + (n ? ` Its ${n} page${n === 1 ? '' : 's'} go with it.` : '') + ' You can bring it back from Settings > Storage > Recently deleted.')) return;
+  clearTimeout(_nbAutoSaveTimer); _nbDirty = false;
+  const d = nbGet(), snap = model.removeNotebook(d, id);
+  if (snap) trashPush('notebook', b.title || 'Notebook', snap);
+  const next = model.notebooksOf(d)[0];
+  d.activeNotebookId = next ? next.id : null; d.activePageId = null;
+  nbSet(d);
+  renderNotebookView();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -126,8 +222,9 @@ export function nbOpenPage(id) {
   closePop();
 
   _nbActiveId = id;
+  _nbBook = page.notebook;
   _nbDirty = false;
-  data.activePageId = id;
+  data.activePageId = id; data.activeNotebookId = page.notebook;
   // opening a page opens the branches above it, so it can be seen in the tree
   model.breadcrumb(data, id).slice(0, -1).forEach(a => { delete data.collapsed[a.id]; });
   nbSet(data);
@@ -136,9 +233,10 @@ export function nbOpenPage(id) {
   const inner = document.getElementById('nb-editor-inner');
   if (!inner) return;
   const crumbs = model.breadcrumb(data, id).slice(0, -1);
+  const book = data.notebooks[page.notebook];
 
   inner.innerHTML = `
-    ${crumbs.length ? `<nav class="nb-crumbs" aria-label="Where this page is">${crumbs.map(c => `<a href="#" data-nb-crumb="${esc(c.id)}">${esc(c.title || 'Untitled')}</a>`).join('<span aria-hidden="true">›</span>')}</nav>` : ''}
+    <nav class="nb-crumbs" aria-label="Where this page is">${book ? `<a href="#" data-nb-crumbbook="${esc(book.id)}">${esc(book.title || 'Notebook')}</a>` : ''}${crumbs.map(c => `<span aria-hidden="true">›</span><a href="#" data-nb-crumb="${esc(c.id)}">${esc(c.title || 'Untitled')}</a>`).join('')}</nav>
     <div class="nb-page-header">
       <input class="nb-page-title-input" id="nbTitleInput" value="${esc(page.title || '')}" placeholder="Page title...">
       <div class="nb-page-acts">
@@ -157,6 +255,7 @@ export function nbOpenPage(id) {
     </div>
   `;
   inner.querySelectorAll('[data-nb-crumb]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); nbSaveActive(); nbOpenPage(a.dataset.nbCrumb); }));
+  inner.querySelectorAll('[data-nb-crumbbook]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); nbSaveActive(); nbOpenBook(a.dataset.nbCrumbbook); }));
 
   const titleIn = document.getElementById('nbTitleInput');
   const saveStatus = document.getElementById('nbSaveStatus');
@@ -249,11 +348,11 @@ export function nbSaveActive() {
 window.addEventListener('beforeunload', () => { try { if (_nbActiveId) nbSaveActive(); } catch (e) { /* closing anyway */ } });
 
 // ── Making pages ──
-export function newPageAndOpen({ parent = null, template = null } = {}) {
+export function newPageAndOpen({ parent = null, notebook = null, template = null } = {}) {
   nbSaveActive();
   const data = nbGet();
-  const id = model.newPage(data, { parent, title: template ? template.title : '', content: template ? template.content : '' });
-  data.activePageId = id;
+  const id = model.newPage(data, { parent, notebook, title: template ? template.title : '', content: template ? template.content : '' });
+  data.activePageId = id; data.activeNotebookId = data.pages[id].notebook;
   nbSet(data);
   _nbActiveId = id;
   nbRenderPageList();
@@ -266,22 +365,23 @@ export function nbNewPage() { return newPageAndOpen(); }
 // ═══════════════════════════════════════════════════════
 // DIALOGS: new page (with templates) and move
 // ═══════════════════════════════════════════════════════
-let newParent = null;
-export function openNewPageDialog({ parent = null } = {}) {
-  newParent = parent;
+let newParent = null, newBook = null;
+export function openNewPageDialog({ parent = null, notebook = null } = {}) {
+  newParent = parent; newBook = notebook;
   paintNewDialog();
   openModal('nbNewModal');
 }
 function paintNewDialog() {
   const d = nbGet(), host = g('nbNewList'); if (!host) return;
   const par = newParent && d.pages[newParent] ? d.pages[newParent] : null;
-  g('nbNewWhere').textContent = par ? 'Inside “' + (par.title || 'Untitled') + '”' : 'At the top level';
+  const bk = d.notebooks[par ? par.notebook : (newBook || _nbBook)] || model.notebooksOf(d)[0];
+  g('nbNewWhere').textContent = par ? 'Inside “' + (par.title || 'Untitled') + '”' : 'In the notebook “' + (bk ? bk.title || 'Notebook' : 'Journal') + '”';
   host.innerHTML = `<button class="nb-tpl" data-tpl="" type="button"><b>Blank page</b><span>Start with nothing</span></button>` +
     model.templatesAll(d).map(t => `<div class="nb-tpl-row"><button class="nb-tpl" data-tpl="${esc(t.id)}" type="button"><b>${esc(t.name)}</b><span>${t.builtin ? 'Built in' : 'Yours'}</span></button>${t.builtin ? '' : `<button class="btn btn-err btn-sm nb-tpl-del" data-tpl-del="${esc(t.id)}" type="button" aria-label="Delete the template ${esc(t.name)}">✕</button>`}</div>`).join('');
   host.querySelectorAll('[data-tpl]').forEach(b => b.onclick = () => {
     const tpl = b.dataset.tpl ? model.templatesAll(nbGet()).find(t => t.id === b.dataset.tpl) : null;
     closeModal('nbNewModal');
-    newPageAndOpen({ parent: newParent, template: tpl });
+    newPageAndOpen({ parent: newParent, notebook: newBook, template: tpl });
   });
   host.querySelectorAll('[data-tpl-del]').forEach(b => b.onclick = async () => {
     if (!await askConfirm('Delete this template? Pages made from it are not affected.')) return;
@@ -297,14 +397,19 @@ function paintMoveDialog() {
   const d = nbGet(), p = d.pages[moveId], host = g('nbMoveList'); if (!p || !host) return;
   const banned = new Set([moveId, ...model.descendants(d, moveId)]);
   const rows = [];
-  const walk = (parent, depth) => model.childrenOf(d, parent).forEach(c => { if (banned.has(c.id)) return; rows.push({ c, depth }); walk(c.id, depth + 1); });
-  walk(null, 0);
+  const walk = (parent, book, depth) => model.childrenOf(d, parent, book).forEach(c => { if (banned.has(c.id)) return; rows.push({ c, depth }); walk(c.id, null, depth + 1); });
   g('nbMoveName').textContent = '“' + (p.title || 'Untitled') + '”';
-  host.innerHTML = `<button class="nb-move-row${!p.parent ? ' here' : ''}" data-to="" type="button">Top level</button>` +
-    rows.map(({ c, depth }) => `<button class="nb-move-row${p.parent === c.id ? ' here' : ''}" data-to="${esc(c.id)}" style="--d:${depth + 1}" type="button">${esc(c.title || 'Untitled')}</button>`).join('');
-  host.querySelectorAll('[data-to]').forEach(b => b.onclick = () => {
+  // every notebook, with its pages under it. The page's own notebook offers "top level" (data-to="").
+  host.innerHTML = model.notebooksOf(d).map(bk => {
+    rows.length = 0; walk(null, bk.id, 1);
+    const own = bk.id === p.notebook;
+    return `<button class="nb-move-row nb-move-book${own && !p.parent ? ' here' : ''}" ${own ? 'data-to=""' : `data-book="${esc(bk.id)}"`} type="button"><b>${esc(bk.title || 'Notebook')}</b> <small>${own ? 'top level' : 'top level of this notebook'}</small></button>` +
+      rows.map(({ c, depth }) => `<button class="nb-move-row${p.parent === c.id ? ' here' : ''}" data-to="${esc(c.id)}" style="--d:${depth}" type="button">${esc(c.title || 'Untitled')}</button>`).join('');
+  }).join('');
+  host.querySelectorAll('[data-to],[data-book]').forEach(b => b.onclick = () => {
     const dd = nbGet();
-    if (model.movePage(dd, moveId, b.dataset.to || null)) { nbSet(dd); closeModal('nbMoveModal'); nbRenderPageList(); if (_nbActiveId === moveId) { nbOpenPage(moveId); } toast('Moved.', 'ok'); }
+    const ok = b.dataset.book ? model.moveToNotebook(dd, moveId, b.dataset.book) : model.movePage(dd, moveId, b.dataset.to || null);
+    if (ok) { nbSet(dd); closeModal('nbMoveModal'); nbRenderPageList(); if (_nbActiveId === moveId) { nbOpenPage(moveId); } toast('Moved.', 'ok'); }
   });
   g('nbMoveUp').onclick = () => { const dd = nbGet(); if (model.nudge(dd, moveId, -1)) { nbSet(dd); nbRenderPageList(); } };
   g('nbMoveDown').onclick = () => { const dd = nbGet(); if (model.nudge(dd, moveId, 1)) { nbSet(dd); nbRenderPageList(); } };
@@ -313,7 +418,7 @@ function paintMoveDialog() {
 // ═══════════════════════════════════════════════════════
 // THE EDITOR: extensions, the "/" menu and "@" links
 // ═══════════════════════════════════════════════════════
-const KIND_LABEL = { lore: 'Lorebook', char: 'Character', preset: 'Preset', prompt: 'Prompt pack', regex: 'Regex', persona: 'Persona', image: 'Picture', page: 'Page' };
+const KIND_LABEL = { lore: 'Lorebook', char: 'Character', preset: 'Preset', prompt: 'Prompt pack', regex: 'Regex', persona: 'Persona', image: 'Picture', page: 'Page', notebook: 'Notebook' };
 
 // Things "/" can insert. `run` gets the editor and the range holding "/something" and replaces it.
 export function slashItems() {
@@ -330,6 +435,7 @@ export function slashItems() {
     { label: 'Code block', hint: 'Monospaced text', keys: 'code pre', run: ch(c => c.toggleCodeBlock()) },
     { label: 'Divider', hint: 'A line across', keys: 'divider line rule hr', run: ch(c => c.setHorizontalRule()) },
     { label: 'Today’s date', hint: new Date().toLocaleDateString(), keys: 'date today now', run: (editor, range) => editor.chain().focus().deleteRange(range).insertContent(new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) + ' ').run() },
+    { label: 'Sticky note', hint: 'A coloured note', keys: 'sticky note postit post-it', run: ch(c => c.setSticky({ color: '#c0a060' })) },
     { label: 'Subpage', hint: 'A new page inside this one', keys: 'subpage page new child', run: (editor, range) => {
       nbSaveActive();
       const data = nbGet(); const sid = model.newPage(data, { parent: _nbActiveId, title: 'Untitled' }); nbSet(data);
@@ -349,7 +455,7 @@ export function filterSlash(items, query) {
 export function mentionCandidates(query, limit = 8) {
   const q = String(query || '').trim().toLowerCase();
   const out = [];
-  try { allLibraryItems().forEach(i => out.push({ kind: i.kind, id: i.id, name: i.name || 'Untitled' })); } catch (e) { /* library not ready */ }
+  try { allLibraryItems().forEach(i => out.push({ kind: i.kind, id: i.id, name: i.name || 'Untitled' })); } catch (e) { /* library not ready */ }  // includes the notebooks
   try { listPictures().forEach(p => out.push({ kind: 'image', id: p.id, name: p.name || 'Picture' })); } catch (e) { /* no gallery */ }
   const d = nbGet();
   Object.values(d.pages).forEach(p => { if (p.id !== _nbActiveId) out.push({ kind: 'page', id: p.id, name: p.title || 'Untitled' }); });
@@ -409,12 +515,22 @@ function buildExtensions() {
       })];
     },
   });
+  // A sticky note: a coloured block holding ordinary content. Saved inside the page's Markdown as a little <aside>.
+  const Sticky = X.Node.create({
+    name: 'sticky', group: 'block', content: 'block+', defining: true, draggable: true,
+    addAttributes() {
+      return { color: { default: '#c0a060', parseHTML: el => { const c = el.getAttribute('data-sticky') || ''; return /^#[0-9a-fA-F]{6}$/.test(c) ? c.toLowerCase() : '#c0a060'; }, renderHTML: a => ({ 'data-sticky': a.color, style: '--sk:' + a.color }) } };
+    },
+    parseHTML() { return [{ tag: 'aside[data-sticky]' }]; },
+    renderHTML({ HTMLAttributes }) { return ['aside', { ...HTMLAttributes, class: 'nb-sticky' }, 0]; },
+    addCommands() { return { setSticky: attrs => ({ commands }) => commands.wrapIn(this.name, attrs) }; },
+  });
   return [
     TiptapStarterKit.configure({ link: { openOnClick: false, autolink: true, protocols: ['loreos'], HTMLAttributes: { rel: 'noopener noreferrer' } } }),
     X.Placeholder.configure({ placeholder: 'Type / for things to add, @ to link to anything' }),
     X.TaskList, X.TaskItem.configure({ nested: true }),
     X.Details.configure({ persist: true }), X.DetailsSummary, X.DetailsContent,
-    Slash, Mention,
+    Slash, Mention, Sticky,
     TiptapMarkdown.configure({ html: true, transformPastedText: true, transformCopiedText: false }),
   ];
 }
@@ -431,6 +547,7 @@ function wireLinks(mount) {
 }
 export function openMention({ kind, id }) {
   if (kind === 'page') { if (!nbGet().pages[id]) { toast('That page no longer exists.', 'warn'); return; } nbSaveActive(); nbOpenPage(id); return; }
+  if (kind === 'notebook') { if (!nbGet().notebooks[id]) { toast('That notebook no longer exists.', 'warn'); return; } nbSaveActive(); nbOpenBook(id); return; }
   if (kind === 'image') { try { openViewer(id); } catch (e) { toast('That picture is gone.', 'warn'); } return; }
   const row = libraryRows().rows.find(r => r.kind === kind && r.id === id);
   if (!row) { toast('That item is no longer in the Library.', 'warn'); return; }
@@ -438,10 +555,15 @@ export function openMention({ kind, id }) {
   openLibraryItem(row);
 }
 
+registerTrashRestorer('notebook', snap => {
+  const d = nbGet(); model.restoreNotebook(d, snap); nbSet(d);
+  if (document.getElementById('nb-page-list')) nbRenderPageList();
+});
 registerTrashRestorer('journal', page => {
   const d = nbGet();
   const id = page.id && !d.pages[page.id] ? page.id : nbId();
   d.pages[id] = { ...page, id, parent: page.parent && d.pages[page.parent] ? page.parent : null };
+  if (!d.pages[id].parent && !d.notebooks[d.pages[id].notebook]) d.pages[id].notebook = (model.notebooksOf(d)[0] || {}).id || model.DEFAULT_BOOK; // its notebook is gone: normalising makes a Journal for it
   nbSet(d);
   if (document.getElementById('nb-page-list')) nbRenderPageList();
 });
@@ -465,3 +587,110 @@ registerMarkup(194, `<div id="nbNewModal" class="modal">
     </div>
   </div>
 </div>`);
+
+// ═══════════════════════════════════════════════════════
+// FROM THE INSPIRATION BOARD: a card can become a notebook, a page, or a sticky note on a page
+// ═══════════════════════════════════════════════════════
+const hesc = t => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+// A board card as Markdown: its text, then its link and picture. A picture is kept in the Gallery and linked,
+// so the journal does not carry the image itself.
+async function cardMarkdown(card) {
+  const parts = [];
+  if (card.text && card.text.trim()) parts.push(hesc(card.text.trim()));
+  if (card.url) parts.push(`[${hesc(card.title || card.url).replace(/[\[\]]/g, '')}](${card.url})`);
+  if (card.image) {
+    const pid = await addPicture({ dataUrl: card.image, name: card.title || 'From the board', source: 'upload' });
+    if (pid) parts.push(`[${hesc(card.title || 'Picture').replace(/[\[\]]/g, '')}](${model.mentionHref('image', pid)})`);
+  }
+  return parts.join('\n\n');
+}
+const cardTitle = card => (card.title || (card.text || '').trim().split('\n')[0].slice(0, 60) || (card.url || '').replace(/^https?:\/\//, '').slice(0, 60) || 'From the board');
+
+export const stickyMarkdown = (body, color = '#c0a060') => `<aside data-sticky="${/^#[0-9a-fA-F]{6}$/.test(color) ? color : '#c0a060'}">\n\n${body}\n\n</aside>`;
+
+// A small chooser over notebooks (and their pages). Resolves to { book, page } or null.
+function pickTarget({ title, pages = false }) {
+  const d = nbGet();
+  return new Promise(resolve => {
+    const wrap = document.createElement('div'); wrap.className = 'modal open'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-label', title);
+    const rows = [];
+    model.notebooksOf(d).forEach(bk => {
+      rows.push(pages ? `<div class="nb-pick-head">${esc(bk.title || 'Notebook')}</div>` : `<button type="button" class="nb-move-row" data-pick-book="${esc(bk.id)}"><b>${esc(bk.title || 'Notebook')}</b> <small>${model.pageCount(d, bk.id)} pages</small></button>`);
+      if (pages) { const walk = (parent, book, depth) => model.childrenOf(d, parent, book).forEach(c => { rows.push(`<button type="button" class="nb-move-row" style="--d:${depth}" data-pick-page="${esc(c.id)}">${esc(c.title || 'Untitled')}</button>`); walk(c.id, null, depth + 1); }); walk(null, bk.id, 1); }
+    });
+    wrap.innerHTML = `<div class="modal-box" style="max-width:420px"><div class="modal-head"><h2>${esc(title)}</h2></div><div class="modal-body nb-move-list">${rows.join('') || '<div class="rx-none">Nothing to choose yet.</div>'}${pages ? '' : `<button type="button" class="nb-move-row" data-pick-new><b>+ New notebook</b></button>`}</div><div class="modal-foot" style="padding:.6rem 1rem"><button class="btn btn-s" data-pick-x type="button">Cancel</button></div></div>`;
+    const done = v => { wrap.remove(); resolve(v); };
+    wrap.addEventListener('click', e => {
+      if (e.target === wrap || e.target.closest('[data-pick-x]')) return done(null);
+      const bp = e.target.closest('[data-pick-book]'); if (bp) return done({ book: bp.dataset.pickBook });
+      const pp = e.target.closest('[data-pick-page]'); if (pp) return done({ page: pp.dataset.pickPage });
+      if (e.target.closest('[data-pick-new]')) return done({ newBook: true });
+    });
+    document.body.append(wrap);
+  });
+}
+
+// mode: 'notebook' | 'page' | 'sticky'. Returns true when something was made.
+export async function cardToJournal(card, mode) {
+  if (!card) return false;
+  const title = cardTitle(card);
+  if (mode === 'notebook') {
+    const body = await cardMarkdown(card);
+    const d = nbGet(), bid = model.newNotebook(d, { title }), pid = model.newPage(d, { notebook: bid, title, content: body });
+    d.activeNotebookId = bid; d.activePageId = null; if (!nbSet(d)) { toast('Could not save (is the storage full?).', 'err'); return false; }
+    toast(`Made the notebook “${title}”.`, 'ok', { action: { label: 'Open', fn: () => showJournal({ book: bid, page: pid }) }, ms: 8000 });
+    return true;
+  }
+  if (mode === 'page') {
+    let target = { book: null };
+    const has = model.notebooksOf(nbGet()).length;
+    if (has > 1) { target = await pickTarget({ title: 'Make a page in...' }); if (!target) return false; }
+    const body = await cardMarkdown(card);
+    const d = nbGet(); let bid = target.book;
+    if (target.newBook) bid = model.newNotebook(d, { title: 'New notebook' });
+    const pid = model.newPage(d, { notebook: bid, title, content: body });
+    if (!nbSet(d)) { toast('Could not save (is the storage full?).', 'err'); return false; }
+    toast(`Made the page “${title}”.`, 'ok', { action: { label: 'Open', fn: () => showJournal({ page: pid }) }, ms: 8000 });
+    return true;
+  }
+  if (mode === 'sticky') {
+    if (!Object.keys(nbGet().pages).length) { toast('Make a page first, then add a sticky note to it.', 'warn'); return false; }
+    const target = await pickTarget({ title: 'Add a sticky note to...', pages: true }); if (!target || !target.page) return false;
+    const body = (card.title ? `**${hesc(card.title)}**\n\n` : '') + await cardMarkdown(card);
+    const html = stickyMarkdown(body.trim() || title, card.color || '#c0a060');
+    if (_nbActiveId === target.page && _nbEditor) {
+      // the page is open: put it in through the editor so nothing typed is lost
+      _nbEditor.chain().focus('end').insertContent(_nbEditor.storage.markdown.parser ? _nbEditor.storage.markdown.parser.parse(html) : html).run();
+      nbSaveActive();
+    } else {
+      const d = nbGet(), p = d.pages[target.page]; if (!p) return false;
+      p.content = (p.content ? p.content.replace(/\s+$/, '') + '\n\n' : '') + html + '\n'; p.updatedAt = new Date().toISOString();
+      if (!nbSet(d)) { toast('Could not save (is the storage full?).', 'err'); return false; }
+    }
+    toast('Added as a sticky note.', 'ok', { action: { label: 'Open', fn: () => showJournal({ page: target.page }) }, ms: 8000 });
+    return true;
+  }
+  return false;
+}
+
+// Go to the Journal and show a notebook or page (used by the Library and by toasts)
+let navigator_ = null;
+export function setJournalNavigator(fn) { navigator_ = fn; }
+export function showJournal({ book = null, page = null } = {}) {
+  const d = nbGet();
+  if (page && d.pages[page]) { d.activePageId = page; d.activeNotebookId = d.pages[page].notebook; }
+  else if (book && d.notebooks[book]) { d.activeNotebookId = book; d.activePageId = null; }
+  nbSet(d);
+  if (navigator_) navigator_('notebook');
+  if (document.getElementById('nb-page-list')) renderNotebookView();
+}
+
+// The Library opens and makes notebooks through these (wired at start-up, once every module has loaded)
+export function wireJournalHooks(navigate) {
+  setJournalNavigator(navigate);
+  setNotebookHooks({
+    open: id => showJournal({ book: id }),
+    make: () => { const d = nbGet(), id = model.newNotebook(d, { title: 'New notebook' }); nbSet(d); showJournal({ book: id }); return id; },
+  });
+}
