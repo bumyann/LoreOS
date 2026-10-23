@@ -69,7 +69,7 @@ export function renderNotebookView() {
       <div class="nb-sidebar" id="nb-sidebar">
         <div class="nb-sidebar-head">
           <div class="nb-title">Journal</div>
-          <div class="nb-head-acts"><button class="btn btn-ok btn-sm" id="nbNewBtn" title="A new page in the open notebook">${px('plus')} Page</button><button class="btn btn-s btn-sm" id="nbNewBookBtn" title="A new notebook">${px('journal')} Notebook</button></div>
+          <div class="nb-head-acts"><button class="nb-newbtn" id="nbNewBtn" title="A new page in the open notebook" type="button">${px('plus')}<span>Page</span></button><button class="nb-newbtn" id="nbNewBookBtn" title="A new notebook" type="button">${px('plus')}<span>Notebook</span></button></div>
         </div>
         <div class="nb-search-row"><input class="finput nb-search" id="nbSearch" type="search" placeholder="Search notebooks and pages..." aria-label="Search notebooks and pages" value="${esc(searchQuery)}"></div>
         <div class="nb-page-list" id="nb-page-list" role="tree"></div>
@@ -124,27 +124,29 @@ export function nbRenderPageList() {
     return `<div class="nb-book${on ? ' open' : ''}" data-book="${esc(bk.id)}">
       <div class="nb-book-row${on && !_nbActiveId ? ' active' : ''}" data-nb-book="${esc(bk.id)}" role="treeitem" aria-expanded="${on}">
         <span class="nb-book-ico">${px('journal')}</span><span class="nb-book-title">${esc(bk.title || 'Notebook')}</span><span class="nb-book-n">${model.pageCount(data, bk.id)}</span>
-        <button class="nb-add" data-nb-addpage="${esc(bk.id)}" title="Add a page to this notebook" aria-label="Add a page to ${esc(bk.title || 'Notebook')}">+</button>
+        <button class="nb-add" data-nb-addpage="${esc(bk.id)}" title="Add a page to this notebook" aria-label="Add a page to ${esc(bk.title || 'Notebook')}">+</button><button class="nb-del" data-nb-delbook="${esc(bk.id)}" title="Delete this notebook" aria-label="Delete ${esc(bk.title || 'Notebook')}">${px('close')}</button>
       </div>
       ${on ? `<div class="nb-book-pages">${rows.length ? rows.map(({ page: p, depth, kids, open }) => `
         <div class="nb-page-item ${p.id === _nbActiveId ? 'active' : ''}" data-nb-id="${esc(p.id)}" role="treeitem" aria-level="${depth + 1}"${kids ? ` aria-expanded="${open}"` : ''} style="--d:${depth}">
           ${kids ? `<button class="nb-caret" data-nb-toggle="${esc(p.id)}" aria-label="${open ? 'Close' : 'Open'} ${esc(p.title || 'Untitled')}">${open ? SYM.open : SYM.closed}</button>` : '<span class="nb-caret nb-caret-none"></span>'}
           <span class="nb-page-title">${esc(p.title || 'Untitled')}</span>
-          <button class="nb-add" data-nb-sub="${esc(p.id)}" title="Add a subpage" aria-label="Add a subpage to ${esc(p.title || 'Untitled')}">+</button>
+          <button class="nb-add" data-nb-sub="${esc(p.id)}" title="Add a subpage" aria-label="Add a subpage to ${esc(p.title || 'Untitled')}">+</button><button class="nb-del" data-nb-delpage="${esc(p.id)}" title="Delete this page" aria-label="Delete ${esc(p.title || 'Untitled')}">${px('close')}</button>
           <span class="nb-page-date">${p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : ''}</span>
         </div>`).join('') : '<div class="nb-empty">no pages yet</div>'}</div>` : ''}
     </div>`;
   }).join('') : '<div class="nb-empty">no notebooks yet</div>';
 
   list.querySelectorAll('.nb-book-row').forEach(row => row.addEventListener('click', e => {
-    const add = e.target.closest('[data-nb-addpage]');
+    const add = e.target.closest('[data-nb-addpage]'), del = e.target.closest('[data-nb-delbook]');
     nbSaveActive();
+    if (del) { deleteNotebook(del.dataset.nbDelbook); return; }
     if (add) { openNewPageDialog({ notebook: add.dataset.nbAddpage }); return; }
     nbOpenBook(row.dataset.nbBook);
   }));
   list.querySelectorAll('.nb-page-item').forEach(item => {
     item.addEventListener('click', e => {
-      const tg = e.target.closest('[data-nb-toggle]'), sub = e.target.closest('[data-nb-sub]');
+      const tg = e.target.closest('[data-nb-toggle]'), sub = e.target.closest('[data-nb-sub]'), del = e.target.closest('[data-nb-delpage]');
+      if (del) { nbSaveActive(); deletePage(del.dataset.nbDelpage); return; }
       if (tg) { const d = nbGet(); model.toggleCollapsed(d, tg.dataset.nbToggle); nbSet(d); nbRenderPageList(); return; }
       if (sub) { newPageAndOpen({ parent: sub.dataset.nbSub }); return; }
       nbSaveActive();

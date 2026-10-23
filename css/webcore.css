@@ -18,10 +18,6 @@ input,textarea,[contenteditable="true"],.ProseMirror{cursor:text}
 ::selection{background:var(--p);color:var(--bg)}
 html{scrollbar-color:var(--p) var(--bg2)}
 
-/* ── Desktop: a faint dither behind everything ── */
-#content-area{background-image:conic-gradient(rgba(255,255,255,.028) 25%,transparent 0 50%,rgba(255,255,255,.028) 0 75%,transparent 0);background-size:4px 4px}
-body.pink #content-area{background-image:conic-gradient(rgba(0,0,0,.03) 25%,transparent 0 50%,rgba(0,0,0,.03) 0 75%,transparent 0)}
-
 /* ── Scrollbars: square thumbs with a bevel on a dotted track ── */
 ::-webkit-scrollbar{width:12px;height:12px}
 ::-webkit-scrollbar-track{background-color:var(--bg2);background-image:conic-gradient(var(--sf) 25%,transparent 0 50%,var(--sf) 0 75%,transparent 0);background-size:4px 4px}
@@ -54,7 +50,7 @@ body.pink #content-area{background-image:conic-gradient(rgba(0,0,0,.03) 25%,tran
 /* ── Windows: dialogs and panels get a title bar and a hard shadow ── */
 .modal{backdrop-filter:none;background-color:rgba(0,0,0,.55);background-image:conic-gradient(rgba(0,0,0,.35) 25%,transparent 0 50%,rgba(0,0,0,.35) 0 75%,transparent 0);background-size:4px 4px}
 .modal-box{border:2px solid var(--px-frame);border-radius:0;box-shadow:var(--px-bevel),6px 6px 0 var(--px-shadow)}
-.modal-head{background:repeating-linear-gradient(0deg,var(--p) 0 2px,var(--ph) 2px 4px);border-bottom:2px solid var(--px-frame);padding:.4rem .6rem .4rem .9rem}
+.modal-head{background:var(--p);border-bottom:2px solid var(--px-frame);padding:.4rem .6rem .4rem .9rem}
 .modal-head h2{color:var(--bg);text-shadow:none;font-size:1.15rem;letter-spacing:1px}
 .modal-x{background:var(--sf2);color:var(--tx);border:1px solid var(--px-frame);box-shadow:var(--px-bevel);width:1.6rem;height:1.6rem;font-size:1rem}
 .modal-x:hover{background:var(--err);color:#fff;border-color:var(--px-frame)}
@@ -62,8 +58,8 @@ body.pink #content-area{background-image:conic-gradient(rgba(0,0,0,.03) 25%,tran
 .dd-item:hover{background:var(--p);color:var(--bg)}
 .editor-panel,.theme-card,.home-card,.sr-opts,.sr-results{border-radius:0;border:2px solid var(--px-frame);box-shadow:var(--px-bevel),3px 3px 0 var(--px-shadow)}
 .settings-section-title,.theme-card .settings-section-title{font-family:var(--fp);letter-spacing:1px}
-.theme-card>.settings-section-title{margin:-.9rem -1rem .8rem;padding:.25rem .8rem;background:repeating-linear-gradient(0deg,var(--p) 0 2px,var(--ph) 2px 4px);color:var(--bg);border-bottom:2px solid var(--px-frame);font-size:1.05rem}
-.theme-card>.settings-section-title .flabel-sm,.theme-card>.settings-section-title .rx-none{color:var(--bg)}
+.theme-card>.settings-section-title{margin:-.9rem -1rem .8rem;padding:.25rem .8rem;background:var(--p);color:var(--bg);border-bottom:2px solid var(--px-frame);font-size:1.05rem}
+.theme-card>.settings-section-title>*:not(.btn),.theme-card>.settings-section-title span{color:var(--bg)!important;opacity:1}
 
 /* ── Cards on the board, gallery, library: lift in whole pixels ── */
 .hb-card,.gal-item,.libx-folder,.theme-preset{border:2px solid var(--px-frame);box-shadow:3px 3px 0 var(--px-shadow);transition:none}
@@ -73,7 +69,7 @@ body.pink #content-area{background-image:conic-gradient(rgba(0,0,0,.03) 25%,tran
 /* ── The sidebar: a window frame with a title bar ── */
 #nav-sidebar{border-right:2px solid var(--px-frame);box-shadow:inset -1px 0 0 var(--px-hi)}
 #nav-sidebar::after{display:none}
-.nav-top{background:repeating-linear-gradient(0deg,var(--p) 0 2px,var(--ph) 2px 4px);border-bottom:2px solid var(--px-frame)}
+.nav-top{background:var(--p);border-bottom:2px solid var(--px-frame)}
 .nav-logo-text{color:var(--bg);text-shadow:none;letter-spacing:2px}
 .nav-version{color:color-mix(in srgb,var(--bg) 80%,transparent)}
 .nav-toggle{border-radius:0;box-shadow:var(--px-bevel)}
@@ -87,13 +83,16 @@ body.pink #content-area{background-image:conic-gradient(rgba(0,0,0,.03) 25%,tran
 /* ── Pixel icons ── */
 /* sizes are whole multiples of 16 so every pixel stays the same size */
 .px{width:16px;height:16px;display:inline-block;vertical-align:-3px;flex-shrink:0;image-rendering:pixelated}
-.mob-nav-btn .icon .px,.qa-ico .px{width:32px;height:32px}
+.mob-nav-btn .icon .px{width:32px;height:32px}
+.qa-ico{display:flex;align-items:center;justify-content:center;width:100%;height:100%}
+.qa-ico .px{width:16px;height:16px}
 .mob-nav-btn .icon{display:flex;align-items:center;justify-content:center;height:32px}
 .libx-sym{display:inline-flex;align-items:center;justify-content:center}
-.libx-book .libx-sym .px,.libx-cover .libx-sym .px,.dash-cover-art .px{width:48px;height:48px}
+.libx-book .libx-sym .px,.libx-cover .libx-sym .px{width:48px;height:48px}
 .libx-rail-item .libx-sym .px{width:16px;height:16px}
 .home-card-icon .px{width:32px;height:32px}
 .dash-recent-thumb .px{width:32px;height:32px}
+.dash-cover-art .px{width:32px;height:32px}
 
 /* ── Phone bar ── */
 #mob-nav{border-top:2px solid var(--px-frame);box-shadow:inset 0 1px 0 var(--px-hi)}
@@ -110,7 +109,7 @@ body.pink #content-area{background-image:conic-gradient(rgba(0,0,0,.03) 25%,tran
 .dash-covers .dash-cover:hover .dash-cover-art{transform:translate(-2px,-2px)}
 .dash-cover-art{border-radius:0;border:2px solid var(--px-frame);box-shadow:3px 3px 0 var(--px-shadow)}
 .qa-list,.qa-rail,.qa-sep{border-radius:0}
-.qa-btn{border-radius:0;border:1px solid var(--px-frame);background:var(--sf2);box-shadow:var(--px-bevel);transition:none;width:48px;height:48px}
+.qa-btn{border-radius:0;border:1px solid var(--px-frame);background:var(--sf2);box-shadow:var(--px-bevel);transition:none;width:40px;height:40px;padding:0;display:flex;align-items:center;justify-content:center}
 .qa-btn:hover{background:var(--p);color:var(--bg)}
 .qa-btn:active{box-shadow:var(--px-bevel-in)}
 .home-layout aside,.home-side,.dash-side{border-radius:0}

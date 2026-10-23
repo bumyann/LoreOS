@@ -1107,3 +1107,13 @@ textarea.bad{border-color:var(--err,#e0707f)}
 /* a sticky note inside a page */
 .ProseMirror aside.nb-sticky,.nb-sticky{--sk:#c0a060;background:color-mix(in srgb,var(--sk) 32%,var(--bg2));border:2px solid color-mix(in srgb,var(--sk) 70%,#000);box-shadow:3px 3px 0 rgba(0,0,0,.35);padding:.6rem .8rem;margin:.8rem 0;max-width:34rem;transform:rotate(-.4deg)}
 .ProseMirror aside.nb-sticky>:first-child{margin-top:0}.ProseMirror aside.nb-sticky>:last-child{margin-bottom:0}
+
+/* ── Journal sidebar: header and delete buttons ── */
+.nb-sidebar-head{flex-wrap:wrap;gap:.45rem}
+.nb-head-acts{display:flex;gap:.35rem;width:100%}
+.nb-newbtn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.3rem;padding:.32rem .4rem;font-family:var(--fx);font-size:.72rem;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);cursor:pointer}
+.nb-newbtn:hover{background:var(--p);color:var(--bg);border-color:var(--p)}
+.nb-del{opacity:0;background:none;border:0;color:var(--txm);cursor:pointer;padding:0 .15rem;display:inline-flex;align-items:center}
+.nb-del:hover{color:var(--err)}
+.nb-book-row:hover .nb-del,.nb-page-item:hover .nb-del,.nb-book-row.active .nb-del,.nb-page-item.active .nb-del,.nb-del:focus-visible{opacity:1}
+@media (hover:none){.nb-del{opacity:.7}}
