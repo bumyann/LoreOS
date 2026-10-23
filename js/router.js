@@ -14,7 +14,8 @@ import { updateMobViewBtns } from './mobile.js';
 import { createPreset, openPreset } from './preset.js';
 import { createPrompt, openPrompt } from './prompt.js';
 import { createRegex, openRegex } from './regex.js';
-import { openSettings } from './settings.js';
+import { applyCustomTheme, applyCustomTitle, openSettings } from './settings.js';
+import { openThemeView } from './theme_view.js';
 import { state } from './state.js';
 import { libGet, safeSet } from './storage.js';
 import { askConfirm, esc } from './util.js';
@@ -26,7 +27,7 @@ export let currentView = null;
 // HTML escape helper used throughout router/notebook
 export function routerEsc(s) { return esc(s); }
 
-export const VIEWS = ['home', 'library', 'notebook', 'editor', 'laboratory'];
+export const VIEWS = ['home', 'library', 'notebook', 'editor', 'laboratory', 'theme'];
 
 export function navigateTo(viewId) {
   if (!VIEWS.includes(viewId)) return;
@@ -34,6 +35,8 @@ export function navigateTo(viewId) {
   if (currentView === 'notebook' && viewId !== 'notebook') {
     try { cancelJournalAutosave(); nbSaveActive(); } catch (e) {}
   }
+  // Leaving the Theme page: colours and names tried out but not saved go back to what is saved
+  if (currentView === 'theme' && viewId !== 'theme') { try { applyCustomTheme(); applyCustomTitle(); } catch (e) {} }
   currentView = viewId;
 
   // Update nav rail active state
@@ -55,7 +58,7 @@ export function navigateTo(viewId) {
   // Home has its own hero title; editor shows LoreOS left + ? right
   const mobTopbar = document.getElementById('mob-topbar');
   if (mobTopbar) {
-    const showTopbar = viewId === 'library' || viewId === 'notebook' || viewId === 'editor' || viewId === 'laboratory';
+    const showTopbar = viewId === 'library' || viewId === 'notebook' || viewId === 'editor' || viewId === 'laboratory' || viewId === 'theme';
     mobTopbar.classList.toggle('visible', showTopbar);
     // In editor: show the ? mirror button; hide it in other views
     const topbarHelp = document.getElementById('mob-topbar-help');
@@ -67,6 +70,7 @@ export function navigateTo(viewId) {
   if (viewId === 'library') renderLibraryView();
   if (viewId === 'notebook') renderNotebookView();
   if (viewId === 'laboratory') renderLaboratoryView();
+  if (viewId === 'theme') openThemeView();
 
   // Persist last view
   try { localStorage.setItem('loreos_lastView', viewId); } catch(e) {}
@@ -169,10 +173,7 @@ export function initNavSidebar() {
     item.addEventListener('click', () => {
       const view = item.dataset.view;
       if (view === 'settings') {
-        // openSettings() is what fills the panel in — colour pickers,
-        // saved themes, font fields, storage meter. Opening the modal
-        // directly (as this used to) left every field blank, and then
-        // hitting Apply wrote those blanks back over your saved theme.
+        // openSettings() is what fills the storage panel in; opening the modal directly leaves it blank
         openSettings();
       } else {
         navigateTo(view);

@@ -28,8 +28,8 @@
  toggleTheme(); await w(300);
  chk('and back to the dark logo', iconHrefs().every(h=>!/pink/.test(h)));
  // settings picker
- openSettings(); await w(300);
- chk('Settings has the logo picker with four choices', document.querySelectorAll('#stgLogoBody .logo-card').length===4);
+ navigateTo('theme'); await w(300);
+ chk('The Theme page has the logo picker with four choices', document.querySelectorAll('#stgLogoBody .logo-card').length===4);
  const pinkRadio=document.querySelector('#stgLogoBody input[value="pink"]'); pinkRadio.click(); await w(300);
  chk('picking Pink in dark mode gives the pink logo (the case that was annoying)', logoPrefs().mode==='pink' && iconHrefs().some(h=>/pink/.test(h)) && (await manifestIcons()).every(s=>/pink/.test(s)));
  document.querySelector('#stgLogoBody input[value="dark"]').click(); await w(300);

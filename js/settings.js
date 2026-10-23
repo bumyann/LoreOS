@@ -104,19 +104,52 @@ export function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+// ── Custom CSS ──
+// Cleaned before use: no @import, and no pictures or fonts from other sites (those would tell a stranger's server
+// that you opened LoreOS, and a theme file can come from anyone). data: pictures and fonts are fine.
+export const CSS_MAX = 60000;
+export function sanitizeCss(css) {
+  return String(css || '').slice(0, CSS_MAX)
+    .replace(/@import[^;]*;?/gi, '')
+    .replace(/url\(\s*(['"]?)([^)'"]*)\1\s*\)/gi, (m, q, u) => /^(data:(image|font)\/|#)/i.test(u.trim()) ? m : 'url("")')
+    .replace(/(-webkit-)?image-set\([^)]*\)/gi, 'none');
+}
+const cssOff = () => /[?&]safe(=1|=true)?(&|$)/.test(location.search);
+function paintCss(css) {
+  let el = document.getElementById('loreos-custom-css');
+  if (!css) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('style'); el.id = 'loreos-custom-css'; document.head.append(el); }
+  el.textContent = css;
+}
+export function applyCustomCss() {
+  const cfg = settingsGet();
+  paintCss(cssOff() || cfg.customCssOn === false ? '' : sanitizeCss(cfg.customCss));
+}
+export function previewCss(text) { paintCss(cssOff() ? '' : sanitizeCss(text)); }
+
 // Called on page load
 export function applyAllCustomisations() {
   applyCustomTheme();
   applyCustomTitle();
+  applyCustomCss();
   applyLogo();
 }
 
+// The Settings dialog is for the app itself: storage, backups, sync, recently deleted. How it looks is on the Theme page.
 export function openSettings() {
   const cfg = settingsGet();
-  // Title
+  renderStoragePanel();
+  wireTrashPanel();
+  const keepFull = g('stgKeepFullAvatars');
+  if (keepFull) keepFull.checked = !!cfg.keepFullAvatars;
+  openModal('settingsModal');
+}
+
+// Fill the Theme page's editors from what is saved
+export function fillThemeEditors() {
+  const cfg = settingsGet();
   g('stgTitleMain').value = cfg.titleMain || 'LoreOS';
   g('stgTitleSub').value = cfg.titleSub || '';
-  // Pre-fill font inputs
   const savedFonts = fontsGet();
   Object.keys(FONT_ROLES).forEach(role => {
     const inputEl = g(`stgFont${role.toUpperCase()}`);
@@ -124,22 +157,9 @@ export function openSettings() {
     if (inputEl) inputEl.value = savedFonts[role]?.name || '';
     if (statusEl) statusEl.textContent = savedFonts[role] ? `✓ active: ${savedFonts[role].name}` : '';
   });
-  // Mode
   stgEditingMode = document.body.classList.contains('pink') ? 'pink' : 'dark';
   updateSettingsModeLabel();
-  // Populate pickers
   populateColourPickers();
-  // Theme slots
-  renderThemeSlots();
-  // Storage panel
-  renderStoragePanel();
-  wireTrashPanel();
-  wireLogoSettings();
-  renderLogoSettings();
-  // Avatar handling toggle
-  const keepFull = g('stgKeepFullAvatars');
-  if (keepFull) keepFull.checked = !!cfg.keepFullAvatars;
-  openModal('settingsModal');
 }
 
 export function updateSettingsModeLabel() {
@@ -166,19 +186,6 @@ export function populateColourPickers() {
 
 export function wireSettings() {
   if (g('settingsBtn')) g('settingsBtn').addEventListener('click', openSettings);
-
-  // Closing Settings without Apply used to leave the live colour preview on
-  // screen while the swatches (read from saved settings) showed the old
-  // palette. Now any close re-applies the saved theme, dropping unapplied
-  // preview colours. Apply saves first, so this is a no-op after Apply.
-  const stgModal = g('settingsModal');
-  if (stgModal && typeof MutationObserver !== 'undefined') {
-    // Uses oldValue so an open+close batched into one callback still counts
-    new MutationObserver(records => {
-      const wasOpen = records.some(r => /(^|\s)open(\s|$)/.test(r.oldValue || ''));
-      if (wasOpen && !stgModal.classList.contains('open')) applyCustomTheme();
-    }).observe(stgModal, { attributes: true, attributeFilter: ['class'], attributeOldValue: true });
-  }
 
   g('stgModeToggle').addEventListener('click', () => {
     stgEditingMode = stgEditingMode === 'dark' ? 'pink' : 'dark';
@@ -249,8 +256,7 @@ export function wireSettings() {
 
     applyCustomTheme();
     applyCustomTitle();
-    closeModal('settingsModal');
-    toast('Settings applied.', 'ok');
+    toast('Theme saved.', 'ok');
   });
 
   // ── Storage panel ──
@@ -265,80 +271,8 @@ export function wireSettings() {
       : 'Avatars will be resized on import.', 'ok');
   });
 
-  // Save current as named theme
-  g('stgThemeSaveBtn').addEventListener('click', () => {
-    const name = g('stgThemeSaveName').value.trim();
-    if (!name) { toast('Enter a theme name.', 'warn'); return; }
-    const cfg = settingsGet();
-    if (!cfg.savedThemes) cfg.savedThemes = {};
-    // Capture current colour state for both modes
-    cfg.savedThemes[name] = {
-      dark:  { ...(DEFAULT_THEMES.dark),  ...(cfg.colours?.dark  || {}) },
-      pink:  { ...(DEFAULT_THEMES.pink),  ...(cfg.colours?.pink  || {}) },
-      titleMain: cfg.titleMain || 'LoreOS',
-      titleSub:  cfg.titleSub || '',
-    };
-    settingsSet(cfg);
-    g('stgThemeSaveName').value = '';
-    renderThemeSlots();
-    toast(`Theme "${name}" saved.`, 'ok');
-  });
 }
 
-export function renderThemeSlots() {
-  const cfg = settingsGet();
-  const slots = g('stgThemeSlots');
-  slots.innerHTML = '';
-  const themes = cfg.savedThemes || {};
-
-  if (!Object.keys(themes).length) {
-    slots.innerHTML = '<div style="font-family:var(--fx);font-size:.72rem;color:var(--txm)">// no saved themes yet</div>';
-    return;
-  }
-
-  Object.entries(themes).forEach(([name, themeData]) => {
-    const row = document.createElement('div');
-    row.className = 'theme-slot';
-    const swatch = document.createElement('div');
-    swatch.className = 'theme-slot-swatch';
-    swatch.style.background = themeData.dark?.['--p'] || '#8a9bd2';
-    const label = document.createElement('span');
-    label.className = 'theme-slot-name';
-    label.textContent = name;
-    const loadBtn = document.createElement('button');
-    loadBtn.className = 'btn btn-p btn-sm';
-    loadBtn.textContent = 'Load';
-    loadBtn.addEventListener('click', () => loadThemeSlot(name, themeData));
-    const delBtn = document.createElement('button');
-    delBtn.className = 'btn btn-err btn-sm';
-    delBtn.textContent = '✕';
-    delBtn.addEventListener('click', async () => {
-      if (!await askConfirm(`Delete theme "${name}"?`)) return;
-      const cfg2 = settingsGet();
-      delete cfg2.savedThemes[name];
-      settingsSet(cfg2);
-      renderThemeSlots();
-    });
-    row.append(swatch, label, loadBtn, delBtn);
-    slots.append(row);
-  });
-}
-
-export function loadThemeSlot(name, themeData) {
-  const cfg = settingsGet();
-  if (!cfg.colours) cfg.colours = {};
-  cfg.colours.dark = { ...themeData.dark };
-  cfg.colours.pink = { ...themeData.pink };
-  if (themeData.titleMain) cfg.titleMain = themeData.titleMain;
-  if (themeData.titleSub !== undefined) cfg.titleSub = themeData.titleSub;
-  settingsSet(cfg);
-  applyCustomTheme();
-  applyCustomTitle();
-  populateColourPickers();
-  g('stgTitleMain').value = cfg.titleMain || 'LoreOS';
-  g('stgTitleSub').value = cfg.titleSub || '';
-  toast(`Loaded theme "${name}".`, 'ok');
-}
 // ═══════════════════════════════════════════════════════
 // FONT MANAGEMENT
 // ═══════════════════════════════════════════════════════
@@ -669,25 +603,6 @@ registerMarkup(250, `<!-- SETTINGS MODAL (still accessible via ⚙︎ and settin
     <div class="modal-body">
 
       <div class="settings-section">
-        <div class="settings-section-title">Site Title</div>
-        <div style="display:flex;flex-direction:column;gap:.4rem">
-          <div class="settings-row">
-            <span class="settings-lbl">Main title</span>
-            <input type="text" id="stgTitleMain" class="finput" placeholder="LoreOS">
-          </div>
-          <div class="settings-row">
-            <span class="settings-lbl">Subtitle</span>
-            <input type="text" id="stgTitleSub" class="finput" placeholder="v1.0">
-          </div>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-section-title">Logo</div>
-        <div id="stgLogoBody"></div>
-      </div>
-
-      <div class="settings-section">
         <div class="settings-section-title">Storage
           <button class="btn btn-s btn-sm" id="stgStorageRefresh" style="margin-left:.5rem">Refresh</button>
         </div>
@@ -703,76 +618,6 @@ registerMarkup(250, `<!-- SETTINGS MODAL (still accessible via ⚙︎ and settin
           Avatars are resized to 512px on import — that's the size every frontend
           displays them at, and it keeps your storage from filling up. Turn the
           toggle on if you want originals kept instead.
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-section-title">Saved Themes</div>
-        <div id="stgThemeSlots" style="display:flex;flex-direction:column;gap:.3rem;margin-bottom:.6rem"></div>
-        <div style="display:flex;gap:.4rem">
-          <input type="text" id="stgThemeSaveName" class="finput" style="flex:1" placeholder="Theme name...">
-          <button class="btn btn-ok btn-sm" id="stgThemeSaveBtn">Save Current</button>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-section-title">Colours — <span id="stgModeLabel" style="color:var(--txm);font-size:.8em">editing: dark mode</span>
-          <button class="btn btn-s btn-sm" id="stgModeToggle" style="margin-left:.5rem">Switch to Light</button>
-          <button class="btn btn-s btn-sm" id="stgResetTheme" style="margin-left:.25rem">Reset to Default</button>
-        </div>
-        <div class="settings-grid">
-          <div class="settings-row"><span class="settings-lbl">Accent (--p)</span><div class="settings-color"><input type="color" data-var="--p"><input type="text" data-var="--p" class="stg-hex"></div></div>
-          <div class="settings-row"><span class="settings-lbl">Accent hover (--ph)</span><div class="settings-color"><input type="color" data-var="--ph"><input type="text" data-var="--ph" class="stg-hex"></div></div>
-          <div class="settings-row"><span class="settings-lbl">Accent soft (--a)</span><div class="settings-color"><input type="color" data-var="--a"><input type="text" data-var="--a" class="stg-hex"></div></div>
-          <div class="settings-row"><span class="settings-lbl">Accent lightest (--a2)</span><div class="settings-color"><input type="color" data-var="--a2"><input type="text" data-var="--a2" class="stg-hex"></div></div>
-          <div class="settings-row"><span class="settings-lbl">Background (--bg)</span><div class="settings-color"><input type="color" data-var="--bg"><input type="text" data-var="--bg" class="stg-hex"></div></div>
-          <div class="settings-row"><span class="settings-lbl">Background 2 (--bg2)</span><div class="settings-color"><input type="color" data-var="--bg2"><input type="text" data-var="--bg2" class="stg-hex"></div></div>
-          <div class="settings-row"><span class="settings-lbl">Background 3 (--bg3)</span><div class="settings-color"><input type="color" data-var="--bg3"><input type="text" data-var="--bg3" class="stg-hex"></div></div>
-          <div class="settings-row"><span class="settings-lbl">Surface (--sf)</span><div class="settings-color"><input type="color" data-var="--sf"><input type="text" data-var="--sf" class="stg-hex"></div></div>
-          <div class="settings-row"><span class="settings-lbl">Surface 2 (--sf2)</span><div class="settings-color"><input type="color" data-var="--sf2"><input type="text" data-var="--sf2" class="stg-hex"></div></div>
-          <div class="settings-row"><span class="settings-lbl">Text (--tx)</span><div class="settings-color"><input type="color" data-var="--tx"><input type="text" data-var="--tx" class="stg-hex"></div></div>
-          <div class="settings-row"><span class="settings-lbl">Text dim (--txd)</span><div class="settings-color"><input type="color" data-var="--txd"><input type="text" data-var="--txd" class="stg-hex"></div></div>
-          <div class="settings-row"><span class="settings-lbl">Text muted (--txm)</span><div class="settings-color"><input type="color" data-var="--txm"><input type="text" data-var="--txm" class="stg-hex"></div></div>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-section-title">Fonts</div>
-        <div style="display:flex;flex-direction:column;gap:.65rem">
-          <div style="font-family:var(--fx);font-size:.68rem;color:var(--txm);letter-spacing:.4px;line-height:1.6">
-            Three font roles: <strong style="color:var(--txd)">Display</strong> · <strong style="color:var(--txd)">UI</strong> · <strong style="color:var(--txd)">Body</strong><br>
-            Enter a Google Fonts name and click Load GF, or upload a file (.ttf / .woff2).
-          </div>
-          <div style="display:flex;flex-direction:column;gap:.3rem">
-            <span class="settings-lbl">Display (--fp) — default: VT323</span>
-            <div style="display:flex;gap:.4rem;align-items:center">
-              <input type="text" id="stgFontFP" class="finput" style="flex:1;font-size:.78rem" placeholder="VT323">
-              <button class="btn btn-s btn-sm" data-font-role="fp">Load GF</button>
-              <label class="btn btn-s btn-sm" style="cursor:pointer;margin:0">Upload<input type="file" accept=".ttf,.woff,.woff2,.otf" data-font-upload="fp" style="display:none"></label>
-              <button class="btn btn-err btn-sm" data-font-reset="fp" title="Reset to default">↺</button>
-            </div>
-            <span id="stgFontStatusFP" style="font-family:var(--fx);font-size:.65rem;color:var(--txm)"></span>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:.3rem">
-            <span class="settings-lbl">UI (--fx) — default: Pixelify Sans</span>
-            <div style="display:flex;gap:.4rem;align-items:center">
-              <input type="text" id="stgFontFX" class="finput" style="flex:1;font-size:.78rem" placeholder="Pixelify Sans">
-              <button class="btn btn-s btn-sm" data-font-role="fx">Load GF</button>
-              <label class="btn btn-s btn-sm" style="cursor:pointer;margin:0">Upload<input type="file" accept=".ttf,.woff,.woff2,.otf" data-font-upload="fx" style="display:none"></label>
-              <button class="btn btn-err btn-sm" data-font-reset="fx" title="Reset to default">↺</button>
-            </div>
-            <span id="stgFontStatusFX" style="font-family:var(--fx);font-size:.65rem;color:var(--txm)"></span>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:.3rem">
-            <span class="settings-lbl">Body (--fb) — default: Noto Sans</span>
-            <div style="display:flex;gap:.4rem;align-items:center">
-              <input type="text" id="stgFontFB" class="finput" style="flex:1;font-size:.78rem" placeholder="Noto Sans">
-              <button class="btn btn-s btn-sm" data-font-role="fb">Load GF</button>
-              <label class="btn btn-s btn-sm" style="cursor:pointer;margin:0">Upload<input type="file" accept=".ttf,.woff,.woff2,.otf" data-font-upload="fb" style="display:none"></label>
-              <button class="btn btn-err btn-sm" data-font-reset="fb" title="Reset to default">↺</button>
-            </div>
-            <span id="stgFontStatusFB" style="font-family:var(--fx);font-size:.65rem;color:var(--txm)"></span>
-          </div>
         </div>
       </div>
 
@@ -812,7 +657,6 @@ registerMarkup(250, `<!-- SETTINGS MODAL (still accessible via ⚙︎ and settin
 
       <div class="modal-foot" style="justify-content:space-between">
         <button class="btn btn-s" data-close="settingsModal">Close</button>
-        <button class="btn btn-p" id="stgApplyBtn">Apply</button>
       </div>
     </div>
   </div>

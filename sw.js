@@ -75,6 +75,8 @@ const ASSETS = [
   'js/imagegen.js',
   'js/secrets.js',
   'js/stamps.js',
+  'js/theme_view.js',
+  'js/theme_presets.js',
   'js/journal.js',
   'js/journal_model.js',
   'js/persona.js',

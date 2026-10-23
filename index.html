@@ -73,13 +73,17 @@
     </div>
 
     <div class="nav-bottom">
+      <button class="nav-item" data-view="theme" title="Theme">
+        <span class="nav-item-icon">✎︎</span>
+        <span class="nav-item-label">Theme</span>
+      </button>
       <button class="nav-item" data-view="settings" title="Settings">
         <span class="nav-item-icon">⚙︎</span>
         <span class="nav-item-label">Settings</span>
       </button>
-      <button class="nav-item nav-item-icon-only" id="navThemeBtn" title="Toggle theme">
+      <button class="nav-item nav-item-icon-only" id="navThemeBtn" title="Switch between light and dark">
         <span class="nav-item-icon">◑</span>
-        <span class="nav-item-label">Theme</span>
+        <span class="nav-item-label">Light / Dark</span>
       </button>
     </div>
   </nav>
@@ -100,6 +104,11 @@
     <!-- ── JOURNAL VIEW ── -->
     <div id="view-notebook" class="view-panel">
       <div id="notebook-content" style="flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0"></div>
+    </div>
+
+    <!-- ── THEME VIEW ── -->
+    <div id="view-theme" class="view-panel">
+      <div id="theme-content" class="view-scroll"></div>
     </div>
 
     <!-- ── LABORATORY VIEW ── -->

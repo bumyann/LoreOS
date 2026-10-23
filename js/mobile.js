@@ -10,7 +10,7 @@ import { exportJanitorJson, exportJson, exportSaucepanJson, openJanitorPasteModa
 import { createPreset, makeBlankPrompt, openPresetLibrary, renderPromptList, syncPromptOrder } from './preset.js';
 import { PT, ptRefreshManual } from './pronoun.js';
 import { currentView, navigateTo } from './router.js';
-import { toggleTheme } from './settings.js';
+import { openSettings, toggleTheme } from './settings.js';
 import { state } from './state.js';
 import { openEntryPicker, openTemplateLibrary } from './templates.js';
 import { closeModal, g, openModal, registerMarkup, toast } from './util.js';
@@ -142,7 +142,8 @@ export function wireMobile() {
   // ── Always-on ──
   g('mobEntries').addEventListener('click', openSidebar);
   g('mobTheme').addEventListener('click', toggleTheme);
-  g('mobSettings').addEventListener('click', () => openModal('settingsModal'));
+  g('mobSettings').addEventListener('click', () => openSettings());
+  if (g('mobThemePage')) g('mobThemePage').addEventListener('click', () => { navigateTo('theme'); updateMobViewBtns('theme'); });
 
   // ── LORE buttons ──
   g('mobNewEntry').addEventListener('click', () => { openEntryPicker(); if(isMob()) closeSidebar(); });
@@ -332,8 +333,11 @@ registerMarkup(140, `<!-- MOBILE BOTTOM NAV -->
 
   <!-- always-visible: settings/theme -->
   <div id="mob-nav-sep2" style="width:1px;background:var(--bd);margin:.3rem .1rem;flex-shrink:0;align-self:stretch;"></div>
-  <button class="mob-nav-btn" id="mobTheme" title="Toggle theme">
-    <span class="icon">◑</span><span class="mob-nav-lbl">Theme</span>
+  <button class="mob-nav-btn" id="mobTheme" title="Switch between light and dark">
+    <span class="icon">◑</span><span class="mob-nav-lbl">Light/Dark</span>
+  </button>
+  <button class="mob-nav-btn" id="mobThemePage" title="Theme">
+    <span class="icon">✎︎</span><span class="mob-nav-lbl">Theme</span>
   </button>
   <button class="mob-nav-btn" id="mobSettings" title="Settings">
     <span class="icon">⚙︎</span><span class="mob-nav-lbl">Settings</span>
