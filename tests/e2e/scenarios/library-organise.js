@@ -36,7 +36,7 @@
  document.getElementById('libxPicClear').click(); await w(150); document.getElementById('libxDetailDone').click(); await w(300);
  chk('without the picture the symbol shows', cardOf('Preset One').querySelector('.libx-thumb').textContent.includes('☾'));
  cardOf('Pack One').querySelector('[data-act="details"]').click(); await w(200); document.getElementById('libxDetailDone').click(); await w(300);
- chk('default is the kind symbol, not an emoji', /✎/.test(cardOf('Pack One').querySelector('.libx-thumb').textContent) && !/[\u{1F300}-\u{1FAFF}]/u.test(document.getElementById('library-content').textContent));
+ chk('default is the kind pixel icon, not an emoji', !!cardOf('Pack One').querySelector('.libx-thumb svg.px') && !/[\u{1F300}-\u{1FAFF}]/u.test(document.getElementById('library-content').textContent));
  cardOf('Mira').querySelector('[data-act="details"]').click(); await w(200);
  chk('characters use their own picture (no picker)', document.getElementById('libxPicBox').style.display==='none' && !!cardOf('Mira').querySelector('.libx-thumb img'));
  document.getElementById('libxDetailDone').click(); await w(200);

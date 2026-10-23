@@ -26,7 +26,7 @@
  // ── quick actions panel ──
  chk('quick actions are a side panel with six buttons and the Library', !!document.querySelector('.dash-side .qa-list') && document.querySelectorAll('.dash-side .qa-btn[data-new]').length===6 && !!document.querySelector('.dash-side [data-go="library"]'));
  chk('icon-only: no visible text, but each has a tooltip and an accessible name', [...document.querySelectorAll('.dash-side .qa-btn')].every(b=>b.getAttribute('aria-label') && b.dataset.tip && getComputedStyle(b.querySelector('.qa-lbl')).position==='absolute' && b.getBoundingClientRect().width<=48));
- chk('buttons carry a symbol, a label and a hint', [...document.querySelectorAll('.dash-side .qa-btn[data-new]')].every(b=>b.querySelector('.qa-ico').textContent.trim() && b.querySelector('.qa-lbl').textContent.trim() && b.querySelector('.qa-hint').textContent.trim()));
+ chk('buttons carry an icon, a label and a hint', [...document.querySelectorAll('.dash-side .qa-btn[data-new]')].every(b=>b.querySelector('.qa-ico svg.px') && b.querySelector('.qa-lbl').textContent.trim() && b.querySelector('.qa-hint').textContent.trim()));
  document.querySelector('.qa-btn[data-new="persona"]').click(); await w(500);
  chk('New Persona opens the persona dialog', document.getElementById('personaModal').classList.contains('open') && Object.keys(state.personaLibrary).length>=1);
  closeModal('personaModal');
@@ -49,8 +49,8 @@
  { const b=document.querySelector('.qa-btn[data-new="preset"]'); const rest=getComputedStyle(b).color; const hov=getComputedStyle(b).getPropertyValue('--qa-h').trim();
    chk('rail icons share the app colour and keep the category colour for hover', hov==='#5aa0b4' && rest!=='rgb(90, 160, 180)' && getComputedStyle(document.querySelector('.qa-btn[data-new="char"]')).color===rest, [rest,hov]); }
  // ── navigation uses symbols, not sparkles ──
- const navIcons=[...document.querySelectorAll('.nav-item-icon')].slice(0,5).map(e=>e.textContent.replace(/\uFE0E/g,''));
- chk('desktop nav has distinct symbols', navIcons.join('')==='⌂▤❡⚒⚗' && !navIcons.includes('✦'), navIcons);
+ const navIcons=[...document.querySelectorAll('.nav-item-icon')].slice(0,5).map(e=>(e.querySelector('svg.px path')||{getAttribute:()=>''}).getAttribute('d'));
+ chk('desktop nav has five distinct pixel icons', navIcons.every(Boolean) && new Set(navIcons).size===5, navIcons.map(x=>x.length));
  chk('phone nav too', !/✦/.test(document.getElementById('mob-nav').textContent), [...document.querySelectorAll('#mob-nav .icon')].slice(0,5).map(e=>e.textContent));
  // ── board ──
  chk('empty board explains itself', /sparks an idea/.test(document.getElementById('home-content').textContent));
