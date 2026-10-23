@@ -21,7 +21,7 @@ import { getEntry as galleryEntry, getFull as galleryFull } from './gallery.js';
 import { listPictures } from './gallery.js';
 import { allLibraryItems } from './meta.js';
 import { addFiles, addPicture } from './gallery.js';
-import { libraryRows, openLibraryItem, setNotebookHooks, kindColor } from './library_view.js';
+import { libraryRows, openLibraryItem, setNotebookHooks, kindColor, kindIsCustom } from './library_view.js';
 import { store } from './kv.js';
 import { safeSet } from './storage.js';
 import { registerTrashRestorer, trashPush } from './trash.js';
@@ -65,7 +65,7 @@ export function setNbMode(mode) { nbSaveActive(); ssSet(SESSION_KEY, mode === 'i
 
 // Notebooks wear the Library's notebook colour (the one chosen under Book colours); a preset cover is that same pale tone
 // washed over its pattern, so a notebook on the desk looks like the same book as on the shelf.
-const bookColour = () => kindColor('notebook');
+const bookColour = () => (kindIsCustom('notebook') ? kindColor('notebook') : 'color-mix(in srgb, var(--p) 34%, #f4f4fa)');   // unless you picked one, the theme's accent
 const COVER_COLOUR = { night: '#9ba6dc', dusk: '#b9a4d9', forest: '#9cc4c4', sea: '#9cc3e0', rose: '#e0a8c6', ember: '#e6aab9', paper: '#d6d9e8', ink: '#9096b4', grid: '#adb8da', stars: '#a4aed9' };
 const bookTone = bk => (bk.cover && bk.cover.t === 'preset' && COVER_COLOUR[bk.cover.v]) || bookColour(bk);
 

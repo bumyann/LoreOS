@@ -31,7 +31,7 @@
  $('#nbCloseBook').click(); await w(500);
  chk('closing shows all notebooks lying on the desk', $$('.nb-closed-book').length===2 && !!$('.nb-desk-scroll') && $('.nb-desk-scroll').scrollHeight>0);
  chk('the desk has things scattered on it', $$('.nb-desk-decor i').length>=12);
- chk('the buttons match the desk', !!$('.nb-deskbtn') && /rgb\(58, 62, 84\)/.test(getComputedStyle($('.nb-deskbtn')).backgroundColor), getComputedStyle($('.nb-deskbtn')).backgroundColor);
+ { const col=()=>getComputedStyle($('.nb-deskbtn')).backgroundColor, deskCol=()=>getComputedStyle($('.nb-layout.immersive')).backgroundImage; const d0=col(), g0=deskCol(); document.body.classList.toggle('pink'); await w(100); chk('the desk and buttons follow the theme', !!$('.nb-deskbtn') && col()!==d0 && deskCol()!==g0, [d0,col()]); document.body.classList.toggle('pink'); await w(50); }
  $$('.nb-closed-book').find(b=>/Amaranthine/.test(b.textContent)).click(); await w(800);
  chk('clicking one opens it', !!$('#nb-book-open') && nbGet().activeNotebookId===b2 && $$('.nb-empty-page').length===2 && $$('.nb-book-open .nb-page').length===2);
  // switching views and the setting

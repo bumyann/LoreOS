@@ -40,6 +40,7 @@ const OWN_PICTURE = new Set(['char', 'persona', 'image']);
 const KIND_DEFAULT = { notebook: '#cfcbe6', char: '#aebbe6', lore: '#c7b3e6', preset: '#a9cfe6', prompt: '#e6bcd6', regex: '#bfc7f0', persona: '#e6b3cc', image: '#b3c2ea' };
 const KC_KEY = 'loreos_kindcolors';
 const kindOverrides = () => { try { return JSON.parse(localStorage.getItem(KC_KEY) || '{}') || {}; } catch (e) { return {}; } };
+export const kindIsCustom = kind => /^#[0-9a-fA-F]{6}$/.test(kindOverrides()[kind] || '');
 export const kindColor = kind => { const o = kindOverrides()[kind]; return /^#[0-9a-fA-F]{6}$/.test(o || '') ? o : KIND_DEFAULT[kind] || '#aebbe6'; };
 const KIND_COLOR = new Proxy({}, { get: (t, k) => kindColor(String(k)) });
 // The order the shelves stand in
