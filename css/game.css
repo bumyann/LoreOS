@@ -171,14 +171,14 @@ body.pink{ --wood:#aab0c8; --wood-hi:#e2e5f0; --wood-lo:#6a708a; --paper:#ffffff
 
 /* ─────────── Home board: notes and links are sticky notes, pictures are polaroids ─────────── */
 .hb-note,.hb-link{--ink:#2b2e42;--sk:#fde1ee;background:var(--sk)!important;color:var(--ink);border:0!important;border-radius:0;
-  clip-path:polygon(0 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%);box-shadow:none!important;filter:drop-shadow(3px 4px 0 rgba(0,0,0,.35));
+  clip-path:polygon(0 0,100% 0,100% 100%,18px 100%,0 calc(100% - 18px));box-shadow:none!important;filter:drop-shadow(3px 4px 0 rgba(0,0,0,.35));   /* the folded corner is bottom-left, so the resize grip in the bottom-right stays usable */
   background-image:linear-gradient(180deg,rgba(0,0,0,.1) 0 9px,transparent 9px)!important;padding-top:1.1rem}
 .hb-note:nth-child(4n+1),.hb-link:nth-child(4n+1){--sk:#fde1ee;transform:rotate(-1.1deg)}
 .hb-note:nth-child(4n+2),.hb-link:nth-child(4n+2){--sk:#dce8ff;transform:rotate(.9deg)}
 .hb-note:nth-child(4n+3),.hb-link:nth-child(4n+3){--sk:#e6dcfa;transform:rotate(-.6deg)}
 .hb-note:nth-child(4n+4),.hb-link:nth-child(4n+4){--sk:#fff3c8;transform:rotate(1.2deg)}
 .hb-card.tinted.hb-note,.hb-card.tinted.hb-link{--sk:color-mix(in srgb,var(--hb) 45%,#fff)}
-.hb-note::after,.hb-link::after{content:'';position:absolute;right:0;bottom:0;width:18px;height:18px;background:linear-gradient(135deg,color-mix(in srgb,var(--sk) 60%,#000) 50%,transparent 50%);pointer-events:none}
+.hb-note::after,.hb-link::after{content:'';position:absolute;left:0;bottom:0;width:18px;height:18px;background:linear-gradient(225deg,color-mix(in srgb,var(--sk) 60%,#000) 50%,transparent 50%);pointer-events:none}
 .hb-note .hb-title,.hb-link .hb-title{color:var(--ink);font-family:var(--fp);font-size:1.05rem;letter-spacing:.5px}
 .hb-note .hb-text,.hb-link .hb-text{color:#454a68}
 .hb-link .hb-open{color:#3a4590;border-bottom:1px solid currentColor;width:fit-content;font-family:var(--fx);font-size:.7rem}
