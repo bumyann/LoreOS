@@ -3,16 +3,16 @@
 // filter, with a viewer (lightbox) that can edit, favourite, tag, download, or pin a picture to Home.
 // ═══════════════════════════════════════════════════════
 import { resizeImage } from './avatar.js';
-import { SOURCES, addFiles, exportGalleryZip, filterPictures, getEntry, getFull, hooks, importGalleryZip, listPictures, removePicture, renamePicture, restorePicture } from './gallery.js';
+import { SOURCES, addFiles, exportGalleryZip, filterPictures, folderAdd, folderMove, folderPathIds, folderRemove, folderRename, foldersGet, getEntry, getFull, hooks, importGalleryZip, listPictures, moveToFolder, removePicture, renamePicture, restorePicture } from './gallery.js';
 import { homeGet, homeId, homeSet, normalizeCard } from './home.js';
 import { openItemDetails, refreshLibrary, setImageOpener, tabsHtml, wireTabs } from './library_view.js';
 import { metaGet, metaSet, recordOf, togglePin } from './meta.js';
-import { closeAllDropdowns, closeModal, dlFile, esc, g, openModal, registerMarkup, toast } from './util.js';
+import { askConfirm, askInput, closeAllDropdowns, closeModal, dlFile, esc, g, openModal, registerMarkup, toast } from './util.js';
 
 const GV_KEY = 'loreos_galview';
-const gv = { q: '', source: 'all', sort: 'newest', tag: null, world: '', favs: false, size: 'm' };
+const gv = { folder: '', q: '', source: 'all', sort: 'newest', tag: null, world: '', favs: false, size: 'm' };
 try { Object.assign(gv, JSON.parse(localStorage.getItem(GV_KEY) || '{}'), { q: '' }); } catch (e) { /* first run */ }
-const saveGv = () => { try { localStorage.setItem(GV_KEY, JSON.stringify({ source: gv.source, sort: gv.sort, tag: gv.tag, world: gv.world, favs: gv.favs, size: gv.size })); } catch (e) { /* private mode */ } };
+const saveGv = () => { try { localStorage.setItem(GV_KEY, JSON.stringify({ folder: gv.folder, source: gv.source, sort: gv.sort, tag: gv.tag, world: gv.world, favs: gv.favs, size: gv.size })); } catch (e) { /* private mode */ } };
 
 let shownIds = [];       // the pictures on screen, in order, for the viewer's arrows
 let openId = null;
@@ -38,6 +38,15 @@ export function renderGalleryView(el) {
     if (gv.world && rec.world !== gv.world) return false;
     return true;
   });
+  // inside a folder you see that folder; searching or filtering looks through every folder
+  const folders = foldersGet();
+  if (gv.folder && !folders.some(f => f.id === gv.folder)) gv.folder = '';
+  const filteringAny = gv.q.trim() || gv.source !== 'all' || gv.tag || gv.world || gv.favs;
+  const here = filteringAny ? null : gv.folder;
+  if (here !== null) shown = shown.filter(p => (p.folder || '') === here);
+  const subfolders = here === null ? [] : folders.filter(f => f.parent === here).sort((a, b) => a.name.localeCompare(b.name));
+  const crumbs = here ? folderPathIds(folders, here).map(i => folders.find(f => f.id === i)) : [];
+  const countIn = id => { const ids = new Set([id]); let grew = true; while (grew) { grew = false; folders.forEach(f => { if (f.parent && ids.has(f.parent) && !ids.has(f.id)) { ids.add(f.id); grew = true; } }); } return all.filter(p => ids.has(p.folder)).length; };
   shownIds = shown.map(p => p.id);
   const worlds = Object.values(m.worlds).sort((a, b) => a.name.localeCompare(b.name));
   const filtering = gv.q.trim() || gv.source !== 'all' || gv.tag || gv.world || gv.favs;
@@ -52,6 +61,7 @@ export function renderGalleryView(el) {
         <div class="dd-menu">
           <button class="dd-item" data-galadd="upload">Upload pictures</button>
           ${hooks.generate ? '<button class="dd-item" data-galadd="generate">Generate a picture...</button>' : ''}
+          <button class="dd-item" data-galadd="folder">New folder</button>
           <button class="dd-item" data-galadd="zipin">Import a zip of pictures</button>
           <button class="dd-item" data-galadd="zipout">Export everything as a zip</button>
         </div></div>
@@ -64,11 +74,14 @@ export function renderGalleryView(el) {
       ${tags.map(t => `<button class="gal-chip${gv.tag && gv.tag.toLowerCase() === t.tag.toLowerCase() ? ' on' : ''}" data-galtag="${esc(t.tag)}">${esc(t.tag)}</button>`).join('')}
       ${worlds.length ? `<select class="fselect" id="galWorld" aria-label="World" style="width:auto"><option value="">All worlds</option>${worlds.map(w => `<option value="${esc(w.id)}"${gv.world === w.id ? ' selected' : ''}>${esc(w.name)}</option>`).join('')}</select>` : ''}
     </div>
+    ${here === null ? '' : `<nav class="gal-crumbs" aria-label="Folders"><button type="button" data-galfolder="" class="gal-crumb">All pictures</button>${crumbs.map(c => `<span aria-hidden="true">›</span><button type="button" data-galfolder="${esc(c.id)}" class="gal-crumb${c.id === here ? ' on' : ''}">${esc(c.name)}</button>`).join('')}${here ? `<span class="gal-crumb-tools"><button type="button" class="btn btn-s btn-sm" id="galFolderRename">Rename</button><button type="button" class="btn btn-s btn-sm" id="galFolderMove">Move folder</button><button type="button" class="btn btn-s btn-sm" id="galFolderDel">Delete folder</button></span>` : ''}</nav>`}
+    ${subfolders.length ? `<div class="gal-folders" role="list">${subfolders.map(f => `<button type="button" role="listitem" class="gal-folder" data-galfolder="${esc(f.id)}" data-dropfolder="${esc(f.id)}"><span class="gal-folder-ico" aria-hidden="true">▤</span><span class="gal-folder-name">${esc(f.name)}</span><span class="gal-folder-n">${countIn(f.id)}</span></button>`).join('')}</div>` : ''}
     <div class="gal-zone" id="galZone" data-drop-own>
       ${shown.length ? `<div class="gal-grid ${gv.size}" id="galGrid" role="list">${shown.map((p, i) => {
         const rec = recordOf(m, 'image', p.id);
-        return `<figure class="gal-item" role="listitem" tabindex="0" data-gal="${esc(p.id)}" aria-label="${esc(p.name)}"><img src="${esc(p.thumb)}" alt="${esc(p.name)}"${p.w && p.h ? ` width="${p.w}" height="${p.h}"` : ''} loading="lazy">${rec.pinned ? '<span class="gal-fav" aria-label="Favourite">★</span>' : ''}<figcaption class="gal-cap"><span>${esc(p.name)}</span><span>${esc((SOURCES.find(s => s[0] === p.source) || [])[1] || '')}</span></figcaption></figure>`;
+        return `<figure class="gal-item" role="listitem" tabindex="0" draggable="true" data-gal="${esc(p.id)}" aria-label="${esc(p.name)}"><img src="${esc(p.thumb)}" alt="${esc(p.name)}"${p.w && p.h ? ` width="${p.w}" height="${p.h}"` : ''} loading="lazy">${rec.pinned ? '<span class="gal-fav" aria-label="Favourite">★</span>' : ''}<figcaption class="gal-cap"><span>${esc(p.name)}</span><span>${esc((SOURCES.find(s => s[0] === p.source) || [])[1] || '')}</span></figcaption></figure>`;
       }).join('')}</div>`
+      : subfolders.length && !filtering ? `<div class="lib-view-empty">no loose pictures in here</div>`
       : `<div class="lib-view-empty">${filtering ? 'no pictures match that<br><span style="font-size:.7rem;opacity:.6">try another search or clear the filters</span>' : 'no pictures yet<br><span style="font-size:.7rem;opacity:.6">use + Add, or drop pictures here, or paste one</span>'}</div>`}
     </div>
   </div>`;
@@ -90,6 +103,20 @@ function wireGallery(el) {
   const dd = el.querySelector('#galAddDd'), menu = dd.querySelector('.dd-menu');
   dd.querySelector('.dd-btn').onclick = e => { e.stopPropagation(); const open = menu.classList.contains('open'); closeAllDropdowns(); if (!open) menu.classList.add('open'); };
   el.querySelectorAll('[data-galadd]').forEach(b => b.onclick = () => { closeAllDropdowns(); addAction(b.dataset.galadd); });
+  el.querySelectorAll('[data-galfolder]').forEach(b => b.onclick = () => { gv.folder = b.dataset.galfolder; saveGv(); re(); });
+  const fr = el.querySelector('#galFolderRename'); if (fr) fr.onclick = async () => { const f = foldersGet().find(x => x.id === gv.folder); if (!f) return; const n = await askInput('Folder name', f.name); if (n && n.trim()) { folderRename(f.id, n); re(); } };
+  const fm = el.querySelector('#galFolderMove'); if (fm) fm.onclick = async () => { const to = await pickFolder('Move this folder into...', gv.folder); if (to === null) return; if (!folderMove(gv.folder, to)) toast('A folder cannot go inside itself.', 'warn'); re(); };
+  const fd = el.querySelector('#galFolderDel'); if (fd) fd.onclick = async () => { if (!await askConfirm('Delete this folder? The pictures and folders inside move up one level.')) return; const f = foldersGet().find(x => x.id === gv.folder); folderRemove(gv.folder); gv.folder = f ? f.parent : ''; saveGv(); re(); };
+  // drag a picture onto a folder (or onto the breadcrumb) to file it
+  let dragId = null;
+  el.querySelectorAll('[data-gal]').forEach(n => { n.addEventListener('dragstart', e => { dragId = n.dataset.gal; try { e.dataTransfer.setData('text/x-loreos-pic', dragId); e.dataTransfer.effectAllowed = 'move'; } catch (x) { /* fine */ } }); n.addEventListener('dragend', () => { dragId = null; }); });
+  const dropTargets = [...el.querySelectorAll('[data-dropfolder]'), ...el.querySelectorAll('.gal-crumb')];
+  dropTargets.forEach(t => {
+    const target = () => t.dataset.dropfolder !== undefined ? t.dataset.dropfolder : t.dataset.galfolder;
+    t.addEventListener('dragover', e => { if (dragId) { e.preventDefault(); t.classList.add('over'); } });
+    t.addEventListener('dragleave', () => t.classList.remove('over'));
+    t.addEventListener('drop', e => { if (!dragId) return; e.preventDefault(); e.stopPropagation(); t.classList.remove('over'); moveToFolder(dragId, target()); dragId = null; re(); });
+  });
   el.querySelectorAll('[data-gal]').forEach(n => {
     const open = () => openViewer(n.dataset.gal);
     n.addEventListener('click', open);
@@ -107,11 +134,17 @@ async function ingest(files) {
   if (!imgs.length) { toast('Drop pictures here to add them.', 'info'); return; }
   toast('Adding ' + imgs.length + ' picture' + (imgs.length === 1 ? '' : 's') + '...', 'info');
   const ids = await addFiles(imgs);
+  if (gv.folder && ids.length) moveToFolder(ids, gv.folder);
   toast(ids.length ? `Added ${ids.length} picture${ids.length === 1 ? '' : 's'} to the gallery.` : 'Could not keep those pictures (is the browser storage full?).', ids.length ? 'ok' : 'err');
   refreshLibrary();
 }
 
 async function addAction(kind) {
+  if (kind === 'folder') {
+    const name = await askInput('Folder name', ''); if (!name || !name.trim()) return;
+    const f = folderAdd(name, gv.folder || ''); if (!f) { toast('Could not make the folder.', 'err'); return; }
+    gv.folder = f.id; saveGv(); refreshLibrary(); return;
+  }
   if (kind === 'upload') { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true; inp.onchange = () => ingest(inp.files); inp.click(); return; }
   if (kind === 'generate' && hooks.generate) { hooks.generate(); return; }
   if (kind === 'zipin') {
@@ -140,9 +173,28 @@ export function openViewer(id) {
   g('galLbFav').textContent = rec.pinned ? '★ Favourite' : '☆ Favourite';
   g('galLbFav').setAttribute('aria-pressed', String(!!rec.pinned));
   g('galLbEdit').style.display = hooks.edit ? '' : 'none';
+  g('galLbFolderName').textContent = folderLabel(e.folder);
   const i = shownIds.indexOf(id);
   g('galLbPrev').style.display = g('galLbNext').style.display = shownIds.length > 1 && i >= 0 ? '' : 'none';
   openModal('galLightbox');
+}
+const folderLabel = id => { if (!id) return 'none'; const l = foldersGet(); return folderPathIds(l, id).map(i => l.find(f => f.id === i).name).join(' / ') || 'none'; };
+// A small chooser: every folder as a path, plus the top level. Resolves to a folder id ('' for the top), or null if dismissed.
+function pickFolder(title, exclude = '') {
+  const l = foldersGet(); const blocked = new Set();
+  if (exclude) { blocked.add(exclude); let grew = true; while (grew) { grew = false; l.forEach(f => { if (f.parent && blocked.has(f.parent) && !blocked.has(f.id)) { blocked.add(f.id); grew = true; } }); } }
+  const rows = [['', 'Top level (no folder)'], ...l.filter(f => !blocked.has(f.id)).map(f => [f.id, folderPathIds(l, f.id).map(i => l.find(x => x.id === i).name).join(' / ')]).sort((a, b) => a[1].localeCompare(b[1]))];
+  return new Promise(resolve => {
+    const wrap = document.createElement('div'); wrap.className = 'modal open gal-pick'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-label', title);
+    wrap.innerHTML = `<div class="modal-box" style="max-width:360px"><div class="modal-hdr"><b>${esc(title)}</b></div><div class="modal-body gal-pick-list">${rows.map(([id, n]) => `<button type="button" class="dd-item" data-pick="${esc(id)}">${esc(n)}</button>`).join('')}<button type="button" class="dd-item" data-pick-new>+ New folder...</button></div><div class="modal-ftr"><button class="btn btn-s" data-pick-x>Cancel</button></div></div>`;
+    const done = v => { wrap.remove(); resolve(v); };
+    wrap.addEventListener('click', async e => {
+      if (e.target === wrap || e.target.closest('[data-pick-x]')) return done(null);
+      const nw = e.target.closest('[data-pick-new]'); if (nw) { wrap.remove(); const name = await askInput('Folder name', ''); if (!name || !name.trim()) return resolve(null); const f = folderAdd(name, ''); return resolve(f ? f.id : null); }
+      const b = e.target.closest('[data-pick]'); if (b) done(b.dataset.pick);
+    });
+    document.body.append(wrap);
+  });
 }
 const step = d => { if (!openId) return; const i = shownIds.indexOf(openId); if (i < 0 || shownIds.length < 2) return; openViewer(shownIds[(i + d + shownIds.length) % shownIds.length]); };
 
@@ -180,6 +232,7 @@ export function wireGalleryViewer() {
   g('galLbName').addEventListener('change', () => { if (openId) { renamePicture(openId, g('galLbName').value); refreshLibrary(); } });
   g('galLbFav').onclick = () => { if (!openId) return; const on = togglePin('image', openId); g('galLbFav').textContent = on ? '★ Favourite' : '☆ Favourite'; g('galLbFav').setAttribute('aria-pressed', String(on)); refreshLibrary(); };
   g('galLbDetails').onclick = () => { const e = openId && getEntry(openId); if (!e) return; closeModal('galLightbox'); openItemDetails({ kind: 'image', id: e.id, key: e.id, name: e.name, entry: e }); };
+  g('galLbFolder').onclick = async () => { if (!openId) return; const to = await pickFolder('Put this picture in...'); if (to === null) return; moveToFolder(openId, to); g('galLbFolderName').textContent = folderLabel(to); refreshLibrary(); };
   g('galLbEdit').onclick = () => { if (openId && hooks.edit) { const id = openId; closeModal('galLightbox'); hooks.edit(id); } };
   g('galLbHome').onclick = async () => { if (openId && await pinToHome(openId)) toast('Pinned to the Home board.', 'ok'); };
   g('galLbDl').onclick = () => {
@@ -216,6 +269,7 @@ registerMarkup(191, `<div id="galLightbox" class="modal gal-lb" aria-label="Pict
       <div class="gal-lb-meta" id="galLbMeta"></div>
       <div id="galLbPromptWrap"><div class="pr-lbl">Prompt</div><div class="gal-lb-prompt" id="galLbPrompt"></div><button class="btn btn-s btn-sm" id="galLbCopyPrompt" style="margin-top:.3rem">Copy prompt</button></div>
       <div class="pr-row"><button class="btn btn-s btn-sm" id="galLbFav" aria-pressed="false">☆ Favourite</button><button class="btn btn-s btn-sm" id="galLbDetails">World, tags, notes</button></div>
+      <div class="pr-row"><button class="btn btn-s btn-sm" id="galLbFolder">Folder: <span id="galLbFolderName">none</span></button></div>
       <div class="pr-row"><button class="btn btn-p btn-sm" id="galLbEdit">Edit</button><button class="btn btn-s btn-sm" id="galLbHome">Pin to Home</button><button class="btn btn-s btn-sm" id="galLbDl">Download</button></div>
       <div class="pr-row"><button class="btn btn-err btn-sm" id="galLbDelete">Delete</button></div>
     </div>

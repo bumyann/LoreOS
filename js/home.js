@@ -494,24 +494,33 @@ function paintEditor() {
   g('hbImgClear').style.display = editing.image ? '' : 'none';
   g('hbColors').querySelectorAll('[data-c]').forEach(b => b.classList.toggle('on', b.dataset.c === editing.color));
 }
-function saveCard() {
+function saveCard(quiet = false) {
   if (!editing) return false;
   const card = normalizeCard({ id: editing.id || homeId(), type: editing.type, title: g('hbTitle').value.trim(), text: g('hbText').value, url: g('hbUrl').value, image: editing.image, color: editing.color, w: Number(g('hbSize').value) || 1, ar: g('hbShape').value === 'custom' ? editing.ar : Number(g('hbShape').value), iw: editing.iw, ih: editing.ih, createdAt: new Date().toISOString() });
-  if (editing.type === 'link' && g('hbUrl').value.trim() && !card.url) { toast('That link needs to start with http:// or https://', 'warn'); return false; }
-  if (editing.type === 'image' && !card.image) { toast('Choose a picture first.', 'warn'); return false; }
-  if (editing.type !== 'image' && !card.title && !card.text && !card.url) { toast('Write something first.', 'warn'); return false; }
+  if (editing.type === 'link' && g('hbUrl').value.trim() && !card.url) { { if (!quiet) toast('That link needs to start with http:// or https://', 'warn'); return false; } }
+  if (editing.type === 'image' && !card.image) { if (!quiet) toast('Choose a picture first.', 'warn'); return false; }
+  if (editing.type !== 'image' && !card.title && !card.text && !card.url) { if (!quiet) toast('Write something first.', 'warn'); return false; }
   const home = homeGet();
   const i = home.board.findIndex(c => c.id === card.id);
   if (i >= 0) { card.createdAt = home.board[i].createdAt || card.createdAt; home.board[i] = card; } else home.board.unshift(card);
   homeSet(home);
+  if (!editing.id) { editing.id = card.id; g('hbDelete').style.display = ''; g('hbEarlier').style.display = g('hbLater').style.display = ''; } // a new card exists from its first save on
   return true;
 }
+// Cards save as you type: a moment after the last change, without pressing anything
+let cardTimer = null;
+function queueCardSave() { if (!editing) return; clearTimeout(cardTimer); cardTimer = setTimeout(() => { cardTimer = null; saveCard(true); }, 450); }
+function flushCardSave() { if (cardTimer) { clearTimeout(cardTimer); cardTimer = null; saveCard(true); } }
 const rerender = () => { const el = document.getElementById('home-content'); if (el && document.getElementById('view-home') && document.getElementById('view-home').classList.contains('view-active')) renderHomeDashboard(el); };
 
 export function wireHome() {
   wirePaste();
   g('hbColors').innerHTML = BOOK_COLORS.map(c => `<button type="button" class="libx-swatch" data-c="${c}" style="background:${c}" aria-label="Colour ${c}"></button>`).join('') + '<button type="button" class="btn btn-s btn-sm" data-c="">None</button>';
-  g('hbColors').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (!b || !editing) return; editing.color = b.dataset.c; paintEditor(); });
+  g('hbColors').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (!b || !editing) return; editing.color = b.dataset.c; paintEditor(); queueCardSave(); });
+  ['hbTitle', 'hbText', 'hbUrl'].forEach(id => g(id).addEventListener('input', queueCardSave));
+  ['hbSize', 'hbShape'].forEach(id => g(id).addEventListener('change', queueCardSave));
+  // however the dialog closes (Done, the X, a click outside), keep the last edit and refresh the board
+  new MutationObserver(() => { const m = g('hbModal'); if (m && !m.classList.contains('open') && editing) { flushCardSave(); editing = null; rerender(); } }).observe(g('hbModal'), { attributes: true, attributeFilter: ['class'] });
   g('hbImgBtn').onclick = () => {
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
     inp.onchange = async () => {
@@ -520,19 +529,19 @@ export function wireHome() {
       const out = await resizeImage(await readFileAsDataUrl(f), 640, 640);
       if (!out) { toast('Could not read that picture.', 'err'); return; }
       if (out.length > MAX_IMG) { toast('That picture is too big to keep. Try a smaller one.', 'warn'); return; }
-      editing.image = out; const d = await imgDims(out); editing.iw = d.iw; editing.ih = d.ih; paintEditor();
+      editing.image = out; const d = await imgDims(out); editing.iw = d.iw; editing.ih = d.ih; paintEditor(); queueCardSave();
     };
     inp.click();
   };
-  g('hbImgClear').onclick = () => { if (editing) { editing.image = ''; paintEditor(); } };
-  g('hbSave').onclick = () => { if (saveCard()) { closeModal('hbModal'); editing = null; rerender(); } };
+  g('hbImgClear').onclick = () => { if (editing) { editing.image = ''; paintEditor(); queueCardSave(); } };
+  g('hbSave').onclick = () => { clearTimeout(cardTimer); cardTimer = null; if (saveCard()) { closeModal('hbModal'); editing = null; rerender(); } };
   g('hbDelete').onclick = async () => {
     if (!editing || !editing.id) return;
     if (!await askConfirm('Delete this card? You can bring it back from Settings > Storage > Recently deleted.')) return;
     const home = homeGet(); const c = home.board.find(x => x.id === editing.id); if (!c) return;
     trashPush('homecard', c.title || c.type + ' card', c);
     home.board = home.board.filter(x => x.id !== c.id); homeSet(home);
-    closeModal('hbModal'); editing = null; rerender();
+    clearTimeout(cardTimer); cardTimer = null; closeModal('hbModal'); editing = null; rerender();
   };
   const move = dir => { if (!editing || !editing.id) return; const home = homeGet(); if (moveCard(home, editing.id, dir)) { homeSet(home); rerender(); } };
   g('hbEarlier').onclick = () => move(-1);
@@ -555,7 +564,7 @@ registerMarkup(190, `<div id="hbModal" class="modal">
       <label class="pr-lbl" for="hbShape">Shape</label>
       <select class="fselect" id="hbShape"></select>
       <div id="hbColorRow"><div class="pr-lbl">Colour</div><div id="hbColors" class="libx-colorgrid"></div></div>
-      <div class="pr-row"><button class="btn btn-p btn-sm" id="hbSave">Save</button><button class="btn btn-s btn-sm" id="hbEarlier" title="Move earlier on the board">←</button><button class="btn btn-s btn-sm" id="hbLater" title="Move later on the board">→</button><button class="btn btn-err btn-sm" id="hbDelete">Delete</button></div>
+      <div class="pr-row"><button class="btn btn-p btn-sm" id="hbSave">Done</button><button class="btn btn-s btn-sm" id="hbEarlier" title="Move earlier on the board">←</button><button class="btn btn-s btn-sm" id="hbLater" title="Move later on the board">→</button><button class="btn btn-err btn-sm" id="hbDelete">Delete</button></div>
     </div>
   </div>
 </div>`);

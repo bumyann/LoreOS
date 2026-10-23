@@ -32,6 +32,8 @@ const T=[
  ['audit-j2', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['audit-d1', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['image-editor-extras', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
+ ['gallery-folders', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
+ ['board-autosave', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['companion-import', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['audit-m1', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['audit-t1', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],

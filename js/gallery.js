@@ -1,7 +1,8 @@
 // ═══════════════════════════════════════════════════════
 // GALLERY — pictures you keep: uploaded, generated, or edited in the Workshop.
 //
-//   state.galleryLibrary = { [id]: { id, name, thumb, w, h, source: 'upload'|'generated'|'edited', prompt, model, savedAt } }
+//   state.galleryLibrary = { [id]: { id, name, thumb, w, h, source: 'upload'|'generated'|'edited', prompt, model, savedAt, folder } }
+//   folders (aet_galfolders) = [{ id, name, parent }], nested as deep as you like; a picture sits in at most one
 //   the full-size picture lives under its own key, aet_img_<id>, so saving one picture never rewrites the rest.
 //
 // Pictures stay on this device. They are not part of the Drive sync or the backup file (they can be big);
@@ -10,7 +11,7 @@
 import { readFileAsDataUrl, resizeImage } from './avatar.js';
 import { store } from './kv.js';
 import { state } from './state.js';
-import { saveGalleryLibrary } from './storage.js';
+import { safeSet, saveGalleryLibrary } from './storage.js';
 
 export const GALLERY_MAX = 1800;     // px, longest edge of the stored picture
 export const THUMB_MAX = 360;        // px, longest edge of the thumbnail
@@ -30,6 +31,7 @@ export function normalizeEntry(e) {
     source: SOURCES.some(s => s[0] === o.source) ? o.source : 'upload',
     prompt: typeof o.prompt === 'string' ? o.prompt.slice(0, 4000) : '', model: typeof o.model === 'string' ? o.model.slice(0, 80) : '',
     savedAt: typeof o.savedAt === 'string' ? o.savedAt : new Date().toISOString(),
+    folder: typeof o.folder === 'string' && o.folder ? o.folder.slice(0, 40) : '',
   };
 }
 
@@ -93,6 +95,48 @@ export function restorePicture(snapshot) {
   return saveGalleryLibrary();
 }
 
+// ── Folders ──
+export const FOLDERS_KEY = 'aet_galfolders';
+export const folderId = () => 'f' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+export function normalizeFolders(raw) {
+  const list = (Array.isArray(raw) ? raw : []).filter(f => isObj(f) && typeof f.id === 'string' && f.id).slice(0, 200)
+    .map(f => ({ id: f.id.slice(0, 40), name: String(f.name || 'Folder').trim().slice(0, 60) || 'Folder', parent: typeof f.parent === 'string' && f.parent ? f.parent : '' }));
+  const ids = new Set(list.map(f => f.id)), by = new Map(list.map(f => [f.id, f]));
+  list.forEach(f => { if (f.parent && (!ids.has(f.parent) || f.parent === f.id)) f.parent = ''; });
+  // a folder must not lead back to itself
+  list.forEach(f => { let p = f.parent, hops = 0; while (p && hops++ < 60) { if (p === f.id) { f.parent = ''; break; } p = by.get(p) ? by.get(p).parent : ''; } });
+  return list;
+}
+export function foldersGet() { try { const raw = store.get(FOLDERS_KEY); return normalizeFolders(raw ? JSON.parse(raw) : []); } catch (e) { return []; } }
+function foldersSet(list) { return safeSet(FOLDERS_KEY, JSON.stringify(normalizeFolders(list))); }
+export function folderAdd(name, parent = '') {
+  const l = foldersGet(); const f = { id: folderId(), name: String(name || '').trim().slice(0, 60) || 'New folder', parent: l.some(x => x.id === parent) ? parent : '' };
+  l.push(f); return foldersSet(l) ? f : null;
+}
+export function folderRename(id, name) { const l = foldersGet(), f = l.find(x => x.id === id); if (!f) return false; f.name = String(name || '').trim().slice(0, 60) || f.name; return foldersSet(l); }
+export function folderMove(id, parent) {
+  const l = foldersGet(), f = l.find(x => x.id === id); if (!f) return false;
+  if (parent && (parent === id || folderPathIds(l, parent).includes(id))) return false; // not into itself
+  f.parent = l.some(x => x.id === parent) ? parent : ''; return foldersSet(l);
+}
+// Deleting a folder keeps what is in it: pictures and subfolders move up one level
+export function folderRemove(id) {
+  const l = foldersGet(), f = l.find(x => x.id === id); if (!f) return false;
+  l.forEach(c => { if (c.parent === id) c.parent = f.parent; });
+  Object.values(state.galleryLibrary).forEach(e => { if (e.folder === id) e.folder = f.parent; });
+  saveGalleryLibrary();
+  return foldersSet(l.filter(x => x.id !== id));
+}
+export function folderPathIds(list, id) { const by = new Map(list.map(f => [f.id, f])), out = []; let cur = id, hops = 0; while (cur && by.has(cur) && hops++ < 60) { out.unshift(cur); cur = by.get(cur).parent; } return out; }
+export const folderPathNames = (list, id) => folderPathIds(list, id).map(i => list.find(f => f.id === i).name);
+export function moveToFolder(ids, folder) {
+  const ok = !folder || foldersGet().some(f => f.id === folder);
+  if (!ok) return false;
+  let n = 0; [].concat(ids).forEach(id => { const e = state.galleryLibrary[id]; if (e && e.folder !== (folder || '')) { e.folder = folder || ''; n++; } });
+  if (n) saveGalleryLibrary();
+  return n;
+}
+
 // ── Filtering and sorting the grid ──
 export function filterPictures(list, { q = '', source = 'all', sort = 'newest' } = {}, tagsOf = () => []) {
   const words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
@@ -121,10 +165,22 @@ export async function exportGalleryZip() {
     while (used.has(n.toLowerCase())) n = base + '-' + k++;
     used.add(n.toLowerCase());
     zip.file('images/' + n + '.' + ext, m[2], { base64: true });
-    index.push({ file: 'images/' + n + '.' + ext, name: e.name, source: e.source, prompt: e.prompt, model: e.model, savedAt: e.savedAt });
+    index.push({ file: 'images/' + n + '.' + ext, folder: e.folder ? folderPathNames(foldersGet(), e.folder) : [], name: e.name, source: e.source, prompt: e.prompt, model: e.model, savedAt: e.savedAt });
   }
   zip.file('gallery.json', JSON.stringify({ format: 'loreos-gallery', version: 1, images: index }, null, 2));
   return zip.generateAsync({ type: 'blob' });
+}
+// Find or make the folders along a path of names; returns the last folder's id
+function ensureFolderPath(names) {
+  let parent = '';
+  for (const raw of names.slice(0, 8)) {
+    const name = raw.trim().slice(0, 60); if (!name) continue;
+    let f = foldersGet().find(x => x.parent === parent && x.name === name);
+    if (!f) f = folderAdd(name, parent);
+    if (!f) return parent;
+    parent = f.id;
+  }
+  return parent;
 }
 export async function importGalleryZip(buf) {
   if (typeof JSZip === 'undefined') throw new Error('The zip library did not load.');
@@ -138,7 +194,7 @@ export async function importGalleryZip(buf) {
     const dataUrl = 'data:image/' + ext + ';base64,' + await f.async('base64');
     const info = meta[name] || {};
     const id = await addPicture({ dataUrl, name: info.name || name.split('/').pop().replace(/\.[^.]+$/, ''), source: info.source || 'upload', prompt: info.prompt || '', model: info.model || '' });
-    if (id) added++;
+    if (id) { added++; if (Array.isArray(info.folder) && info.folder.length) { const f = ensureFolderPath(info.folder.map(String)); if (f) moveToFolder(id, f); } }
   }
   return added;
 }

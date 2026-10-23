@@ -1045,3 +1045,16 @@ textarea.bad{border-color:var(--err,#e0707f)}
 @media (max-width:760px){.nb-page-acts{width:100%;justify-content:flex-start}}
 .img-add-row{list-style:none;padding:.4rem .5rem}
 .img-add-btn{width:100%}
+.gal-crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem;padding:.2rem .1rem .5rem;font-family:var(--fx);font-size:.74rem;color:var(--txm)}
+.gal-crumb{background:none;border:1px solid transparent;border-radius:4px;padding:.15rem .45rem;color:var(--txd);cursor:pointer;font:inherit}
+.gal-crumb:hover,.gal-crumb.over{border-color:var(--bdb);color:var(--tx)}
+.gal-crumb.on{color:var(--tx);font-weight:700}
+.gal-crumb-tools{margin-left:auto;display:flex;gap:.3rem}
+.gal-folders{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px}
+.gal-folder{display:flex;align-items:center;gap:.5rem;background:var(--sf);border:1px solid var(--bd);border-radius:5px;padding:.55rem .7rem;cursor:pointer;color:var(--tx);font-family:var(--fx);font-size:.78rem;text-align:left}
+.gal-folder:hover,.gal-folder.over{border-color:var(--bdb);background:var(--bg2)}
+.gal-folder-ico{color:var(--p);font-size:1.1rem}
+.gal-folder-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gal-folder-n{color:var(--txm);font-size:.68rem}
+.gal-pick{display:flex;align-items:center;justify-content:center}
+.gal-pick-list{display:flex;flex-direction:column;gap:2px;max-height:50vh;overflow:auto}
