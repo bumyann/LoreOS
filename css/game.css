@@ -1,0 +1,43 @@
+/* ═══════════════════════════════════════════════════════
+   GAME — LoreOS as a small pixel 2D game: rooms with furniture. Loaded last. Colours all come from the theme
+   variables, so a theme recolours the whole room.
+   ═══════════════════════════════════════════════════════ */
+body{
+  --wood:color-mix(in srgb,var(--p) 22%,#6a4a2e);
+  --wood-hi:color-mix(in srgb,var(--wood) 70%,#fff);
+  --wood-lo:color-mix(in srgb,var(--wood) 55%,#000);
+  --wall:color-mix(in srgb,var(--bg3) 86%,var(--p));
+  --paper:color-mix(in srgb,#f3ead2 82%,var(--bg));
+  --paper-ink:#3a2e22;
+}
+body.pink{ --wood:color-mix(in srgb,var(--p) 18%,#c9a070);--paper:#fbf4e4 }
+
+/* ─────────── Library: a bookcase ─────────── */
+.libx-shelf{margin-bottom:1rem}
+.libx-plate{display:inline-flex;align-items:center;gap:.45rem;cursor:pointer;margin:0 0 .35rem 0;padding:.22rem .7rem .22rem .45rem;background:var(--wood);border:2px solid var(--wood-lo);box-shadow:inset 1px 1px 0 var(--wood-hi),3px 3px 0 var(--px-shadow);color:var(--paper);font-family:var(--fp);font-size:1.05rem;letter-spacing:1px;text-shadow:1px 1px 0 var(--wood-lo)}
+.libx-plate-caret{display:inline-flex;transition:none}
+.libx-shelf.closed .libx-plate-caret{transform:rotate(-90deg)}
+.libx-plate-n{font-size:.8rem;opacity:.75}
+.libx-shelf.closed .libx-books{display:none}
+.libx-shelf.closed{margin-bottom:.5rem}
+
+@media (hover:hover){
+  /* a row of books you can scroll sideways; the plank is under them */
+  .libx-books{display:flex;align-items:flex-end;gap:2px;grid-template-columns:none;grid-auto-rows:auto;overflow-x:auto;overflow-y:hidden;margin-top:0;padding:14px 18px 0;min-height:calc(var(--bh) + 28px);
+    background:linear-gradient(to bottom,transparent calc(100% - 16px),var(--wood) calc(100% - 16px) calc(100% - 13px),color-mix(in srgb,var(--wood) 85%,#000) calc(100% - 13px));
+    background-color:color-mix(in srgb,var(--bg) 88%,var(--wood));box-shadow:inset 0 10px 0 rgba(0,0,0,.18),inset 3px 0 0 var(--wood-lo),inset -3px 0 0 var(--wood-lo);border-radius:0;border:2px solid var(--wood-lo);border-top-color:var(--wood-hi);scrollbar-width:thin;scrollbar-color:var(--wood) transparent}
+  .libx-books .libx-book{flex:none;width:var(--sw);height:var(--sh);margin-bottom:16px;border-radius:0;border:2px solid color-mix(in srgb,var(--bk) 45%,#000);overflow:hidden;
+    background:var(--bk);background-image:linear-gradient(90deg,rgba(255,255,255,.22) 0 3px,transparent 3px calc(100% - 4px),rgba(0,0,0,.25) calc(100% - 4px));
+    box-shadow:2px 0 0 rgba(0,0,0,.25);transition:none}
+  .libx-books .libx-book.kind-notebook{--bk:#c08a54}
+  .libx-book .libx-spine{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0 10px;color:#fff;font-family:var(--fp);text-shadow:1px 1px 0 rgba(0,0,0,.6)}
+  .libx-book .libx-spine::before,.libx-book .libx-spine::after{content:'';position:absolute;left:0;right:0;height:5px;border-block:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.18)}
+  .libx-book .libx-spine::before{top:30px}.libx-book .libx-spine::after{bottom:10px}
+  .libx-spine-ico{display:inline-flex;color:#fff;opacity:.9}
+  .libx-spine-title{writing-mode:vertical-rl;font-size:1.05rem;letter-spacing:1px;line-height:1;max-height:calc(var(--sh) - 76px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:10px}
+  /* pulled off the shelf: the cover shows */
+  .libx-books .libx-book:not(:hover):not(:focus-within) :is(.libx-cover,.libx-info,.libx-acts,.libx-extra){display:none}
+  .libx-books .libx-book:hover,.libx-books .libx-book:focus-within{width:var(--bw);height:var(--bh);z-index:5;transform:none;box-shadow:4px 4px 0 rgba(0,0,0,.45);background-image:none;background:linear-gradient(145deg,color-mix(in srgb,var(--bk) 42%,var(--bg2)),color-mix(in srgb,var(--bk) 18%,var(--bg)))}
+  .libx-books .libx-book:hover .libx-spine,.libx-books .libx-book:focus-within .libx-spine{display:none}
+}
+@media (hover:none){.libx-spine{display:none}.libx-plate{margin-left:0}}

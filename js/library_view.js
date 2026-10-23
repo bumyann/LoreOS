@@ -37,7 +37,7 @@ const OWN_PICTURE = new Set(['char', 'persona', 'image']);
 // The default cover colour of each kind of book
 const KIND_COLOR = { char: '#6b82c4', lore: '#9a78c8', preset: '#5aa0b4', prompt: '#c0a060', regex: '#6cb490', persona: '#c47e9c', image: '#8a9bd2', notebook: '#d49a6a' };
 // The order the shelves stand in
-export const SHELF_ORDER = ['char', 'lore', 'preset', 'prompt', 'regex', 'persona', 'notebook'];
+export const SHELF_ORDER = ['notebook', 'char', 'lore', 'preset', 'prompt', 'regex', 'persona'];
 export const BOOK_COLORS = ['#6b82c4', '#9a78c8', '#5aa0b4', '#c0a060', '#6cb490', '#c47e9c', '#c46c6c', '#c8884c', '#8a8f9c', '#4f5f8f', '#7a5a8e', '#3f7a6a'];
 const WORLD_COLORS = ['#8a9bd2', '#c9a0dc', '#7ec8b0', '#e0b070', '#e08a8a', '#9ac0e8', '#b8c870', '#d49ab8'];
 const SORTS = [['recent', 'Recently used'], ['name', 'Name'], ['type', 'Type'], ['oldest', 'Oldest']];
@@ -134,7 +134,11 @@ function bookHtml(r, m, i) {
   const w = r.rec.world && m.worlds[r.rec.world];
   const fp = r.rec.folder ? folderPath(m, r.rec.folder).map(f => f.name).join(' › ') : '';
   const tip = [r.name, r.kindLabel, w ? w.name + (fp ? ' › ' + fp : '') : '', r.rec.tags.join(', '), r.rec.note].filter(Boolean).join(' · ');
-  return `<div class="libx-card libx-book kind-${r.kind}${r.rec.pinned ? ' pinned' : ''}${r.rec.color ? ' colored' : ''}"${r.rec.color ? ` style="--bk:${esc(r.rec.color)}"` : ''} data-i="${i}" tabindex="0" role="button" title="${esc(tip)}" aria-label="Open ${esc(r.name)}">
+  // each book on the shelf has its own height and thickness, kept the same every time
+  let hash = 0; for (const ch of String(r.id || r.name)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  const sh = 150 + (hash % 6) * 7, sw = 40 + ((hash >> 3) % 4) * 5 + Math.min(14, Math.floor((r.name || '').length / 6));
+  return `<div class="libx-card libx-book kind-${r.kind}${r.rec.pinned ? ' pinned' : ''}${r.rec.color ? ' colored' : ''}" data-i="${i}" tabindex="0" role="button" title="${esc(tip)}" aria-label="Open ${esc(r.name)}" style="--sh:${sh}px;--sw:${sw}px${r.rec.color ? ';--bk:' + esc(r.rec.color) : ''}">
+    <div class="libx-spine" aria-hidden="true"><span class="libx-spine-ico">${kindIcon(r.kind)}</span><span class="libx-spine-title">${esc(r.name || 'Untitled')}</span></div>
     <div class="libx-cover"><div class="libx-thumb">${thumb(r)}</div></div>
     <div class="libx-info">
       <div class="libx-name">${esc(r.name || 'Untitled')}</div>
@@ -157,10 +161,15 @@ export function shelfGroups(shown, v = view) {
   SHELF_ORDER.forEach(k => { const rs = shown.filter(r => r.kind === k); if (rs.length) groups.push({ key: k, label: KIND_INFO[k].plural, icon: KIND_INFO[k].icon, rows: rs }); });
   return groups;
 }
+// Which shelves are closed is remembered between visits
+const SHELF_KEY = 'loreos_libshelves';
+const shelvesClosed = () => { try { return JSON.parse(localStorage.getItem(SHELF_KEY) || '{}') || {}; } catch (e) { return {}; } };
+const saveShelvesClosed = o => { try { localStorage.setItem(SHELF_KEY, JSON.stringify(o)); } catch (e) { /* private mode */ } };
 function shelvesHtml(shown, m, idx) {
+  const closed = shelvesClosed();
   return shelfGroups(shown).map(gr => `
-    <section class="libx-shelf" data-shelf="${gr.key}" aria-label="${esc(gr.label)}">
-      <div class="libx-plate"><span class="libx-plate-name">${esc(gr.label)}</span><span class="libx-plate-n">${gr.rows.length}</span></div>
+    <section class="libx-shelf${closed[gr.key] ? ' closed' : ''}" data-shelf="${gr.key}" aria-label="${esc(gr.label)}">
+      <button type="button" class="libx-plate" data-plate="${gr.key}" aria-expanded="${!closed[gr.key]}" title="Show or hide this shelf"><span class="libx-plate-caret" aria-hidden="true">${px('chevron-down')}</span><span class="libx-plate-name">${esc(gr.label)}</span><span class="libx-plate-n">${gr.rows.length}</span></button>
       <div class="libx-books">${gr.rows.map(r => bookHtml(r, m, idx.get(r))).join('')}</div>
     </section>`).join('');
 }
@@ -360,6 +369,12 @@ function wire(el, shown) {
   const df = el.querySelector('#libxDeleteFolder');
   if (df) df.onclick = async () => { const mm = metaGet(); const f = mm.folders[view.folder]; if (!f) return; if (!await askConfirm(`Delete the folder "${f.name}"? Everything in it moves up one level.`)) return; const up = f.parent; removeFolder(mm, f.id); metaSet(mm); view.folder = up || null; saveView(); refresh(); };
 
+  el.querySelectorAll('[data-plate]').forEach(b => b.addEventListener('click', () => {
+    const sec = b.closest('.libx-shelf'), closed = shelvesClosed(), key = b.dataset.plate;
+    const now = !sec.classList.contains('closed'); sec.classList.toggle('closed', now); b.setAttribute('aria-expanded', String(!now));
+    if (now) closed[key] = true; else delete closed[key];
+    saveShelvesClosed(closed);
+  }));
   el.querySelectorAll('.libx-card').forEach(card => {
     const row = shown[Number(card.dataset.i)];
     const open = () => openLibraryItem(row);

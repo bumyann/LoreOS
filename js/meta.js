@@ -20,7 +20,7 @@ import { state } from './state.js';
 import { normalizeJournal, pageCount } from './journal_model.js';
 
 export const META_KEY = 'aet_meta';
-export const KINDS = ['lore', 'char', 'preset', 'prompt', 'regex', 'persona', 'notebook'];
+export const KINDS = ['notebook', 'lore', 'char', 'preset', 'prompt', 'regex', 'persona'];
 const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
 
 export function newUid(prefix = 'x') {
