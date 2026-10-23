@@ -18,6 +18,7 @@ import { createRegex, openRegex } from './regex.js';
 import { navigateTo } from './router.js';
 import { KIND_SYMBOL, SYMBOL_CHOICES, sym } from './symbols.js';
 import { kindIcon, px } from './pixel_icons.js';
+import { getEntry as galleryEntry } from './gallery.js';
 import { askConfirm, askInput, closeAllDropdowns, closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
 import { renderGalleryView } from './gallery_view.js';
 import { switchMode } from './workshop.js';
@@ -116,6 +117,11 @@ function thumb(r) {
   if (r.rec.image) return `<img src="${esc(r.rec.image)}" alt="" loading="lazy">`;
   if (r.kind === 'char' && r.entry.imageData) return `<img src="${esc(r.entry.imageData)}" alt="" loading="lazy">`;
   if (r.kind === 'persona' && r.entry.persona && r.entry.persona.avatar) return `<img src="${esc(r.entry.persona.avatar)}" alt="" loading="lazy">`;
+  if (r.kind === 'notebook' && r.entry.cover) {      // a notebook's own cover (set in the Journal)
+    const c = r.entry.cover, ge = c.t === 'img' ? galleryEntry(c.id) : null;
+    if (ge && ge.thumb) return `<img src="${esc(ge.thumb)}" alt="" loading="lazy">`;
+    if (c.t === 'preset') return `<span class="nb-cv nb-cv-${esc(c.v)} nb-cv-fill"></span>`;
+  }
   if (r.rec.symbol) return `<span class="libx-sym">${esc(sym(r.rec.symbol))}</span>`;
   return `<span class="libx-sym">${kindIcon(r.kind)}</span>`;
 }

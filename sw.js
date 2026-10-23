@@ -82,6 +82,7 @@ const ASSETS = [
   'js/theme_presets.js',
   'js/journal.js',
   'js/journal_model.js',
+  'js/journal_editor.js',
   'js/persona.js',
   'js/library_view.js',
   'js/regex_worker.js',

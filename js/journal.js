@@ -15,9 +15,11 @@
 // ═══════════════════════════════════════════════════════
 import { openViewer } from './gallery_view.js';
 import { px } from './pixel_icons.js';
+import { blockHandlesExt, blockMoveExt, imageNode, pasteDropExt, toolbarHtml, wireToolbar } from './journal_editor.js';
+import { getEntry as galleryEntry, getFull as galleryFull } from './gallery.js';
 import { listPictures } from './gallery.js';
 import { allLibraryItems } from './meta.js';
-import { addPicture } from './gallery.js';
+import { addFiles, addPicture } from './gallery.js';
 import { libraryRows, openLibraryItem, setNotebookHooks } from './library_view.js';
 import { store } from './kv.js';
 import { safeSet } from './storage.js';
@@ -171,6 +173,7 @@ export function nbOpenBook(id) {
   const inner = document.getElementById('nb-editor-inner'); if (!inner) return;
   const tops = model.childrenOf(data, null, id);
   inner.innerHTML = `
+    ${coverBlock(book.cover, 'notebook')}
     <div class="nb-page-header">
       <input class="nb-page-title-input" id="nbBookTitle" value="${esc(book.title || '')}" placeholder="Notebook name..." aria-label="Notebook name">
       <div class="nb-page-acts">
@@ -183,6 +186,7 @@ export function nbOpenBook(id) {
   inner.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => nbOpenPage(b.dataset.open)));
   document.getElementById('nbBookAdd').addEventListener('click', () => openNewPageDialog({ notebook: id }));
   const a2 = document.getElementById('nbBookAdd2'); if (a2) a2.addEventListener('click', () => openNewPageDialog({ notebook: id }));
+  wireCover(inner, 'notebook', id);
   const ti = document.getElementById('nbBookTitle');
   ti.addEventListener('change', () => { const d = nbGet(); if (model.renameNotebook(d, id, ti.value)) { nbSet(d); nbRenderPageList(); } });
   document.getElementById('nbBookDelete').addEventListener('click', () => deleteNotebook(id));
@@ -238,6 +242,7 @@ export function nbOpenPage(id) {
   const book = data.notebooks[page.notebook];
 
   inner.innerHTML = `
+    ${coverBlock(page.cover, 'page')}
     <nav class="nb-crumbs" aria-label="Where this page is">${book ? `<a href="#" data-nb-crumbbook="${esc(book.id)}">${esc(book.title || 'Notebook')}</a>` : ''}${crumbs.map(c => `<span aria-hidden="true">›</span><a href="#" data-nb-crumb="${esc(c.id)}">${esc(c.title || 'Untitled')}</a>`).join('')}</nav>
     <div class="nb-page-header">
       <input class="nb-page-title-input" id="nbTitleInput" value="${esc(page.title || '')}" placeholder="Page title...">
@@ -248,6 +253,7 @@ export function nbOpenPage(id) {
         <button class="btn btn-err btn-sm" id="nbDeleteBtn">✕ Delete</button>
       </div>
     </div>
+    <div class="nb-toolbar-host" id="nbToolbarHost">${toolbarHtml()}</div>
     <div class="nb-content-wrap">
       <div id="nb-tiptap-mount" class="nb-tiptap-mount"></div>
       <div class="nb-stk-layer" id="nbStickyLayer"></div>
@@ -286,6 +292,8 @@ export function nbOpenPage(id) {
     onUpdate() { markUnsaved(); },
   });
   wireLinks(mount);
+  wireToolbar(document.getElementById('nbToolbarHost'), _nbEditor, { onSticky: () => newStickyHere() });
+  wireCover(inner, 'page', id);
   renderStickies(page);
 
   document.getElementById('nbSaveBtn').addEventListener('click', () => {
@@ -524,7 +532,7 @@ function buildExtensions() {
     X.Placeholder.configure({ placeholder: 'Type / for things to add, @ to link to anything' }),
     X.TaskList, X.TaskItem.configure({ nested: true }),
     X.Details.configure({ persist: true }), X.DetailsSummary, X.DetailsContent,
-    Slash, Mention,
+    Slash, Mention, imageNode(), pasteDropExt(), blockHandlesExt(), blockMoveExt(),
     TiptapMarkdown.configure({ html: true, transformPastedText: true, transformCopiedText: false }),
   ];
 }
@@ -747,4 +755,52 @@ export function newStickyHere() {
   flashSticky = sid; renderStickies(d.pages[_nbActiveId]);
   setTimeout(() => { const ta = document.querySelector(`[data-stk="${sid}"] textarea`); if (ta) ta.focus(); }, 80);
   return true;
+}
+
+// ═══════════════════════════════════════════════════════
+// COVERS: across the top of a page or a notebook
+// ═══════════════════════════════════════════════════════
+export function coverCss(cover) {
+  if (!cover) return '';
+  if (cover.t === 'img') { const src = galleryFull(cover.id); return src ? `background-image:url("${src}")` : ''; }
+  return '';
+}
+export const coverClass = cover => cover ? (cover.t === 'preset' ? 'nb-cv nb-cv-' + cover.v : 'nb-cv nb-cv-img') : '';
+function coverBlock(cover, kind) {
+  return `<div class="nb-cover-wrap${cover ? ' has' : ''}" data-cover-kind="${kind}">${cover ? `<div class="${coverClass(cover)}" style="${esc(coverCss(cover))}" role="img" aria-label="Cover"></div>` : ''}
+    <div class="nb-cover-acts"><button type="button" class="btn btn-s btn-sm" data-cover="set">${cover ? 'Change cover' : 'Add cover'}</button>${cover ? '<button type="button" class="btn btn-s btn-sm" data-cover="remove">Remove cover</button>' : ''}</div></div>`;
+}
+function wireCover(inner, kind, id) {
+  inner.querySelectorAll('[data-cover]').forEach(b => b.addEventListener('click', async () => {
+    if (b.dataset.cover === 'remove') { const d = nbGet(); model.setCover(d, kind, id, null); nbSet(d); reopen(kind, id); return; }
+    const c = await pickCover(); if (c === undefined) return;
+    const d = nbGet(); model.setCover(d, kind, id, c); nbSet(d); reopen(kind, id);
+  }));
+}
+function reopen(kind, id) { nbSaveActive(); if (kind === 'notebook') nbOpenBook(id); else nbOpenPage(id); }
+
+// The cover chooser. Resolves to a cover, or null to remove it, or undefined if dismissed.
+function pickCover() {
+  return new Promise(resolve => {
+    const wrap = document.createElement('div'); wrap.className = 'modal open'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-label', 'Choose a cover');
+    const pics = listPictures().slice(0, 48);
+    wrap.innerHTML = `<div class="modal-box" style="max-width:560px"><div class="modal-head"><h2>Choose a cover</h2></div><div class="modal-body" style="display:flex;flex-direction:column;gap:.7rem">
+      <div class="pr-lbl">Patterns</div><div class="nb-cover-grid">${model.COVER_PRESETS.map(([k, n]) => `<button type="button" class="nb-cover-opt nb-cv nb-cv-${k}" data-preset="${k}" title="${esc(n)}" aria-label="${esc(n)}"></button>`).join('')}</div>
+      <div class="pr-row"><button type="button" class="btn btn-s btn-sm" data-up>${px('image')} Upload a picture</button><button type="button" class="btn btn-s btn-sm" data-none>No cover</button></div>
+      ${pics.length ? `<div class="pr-lbl">From the Gallery</div><div class="nb-cover-grid pics">${pics.map(p => `<button type="button" class="nb-cover-opt" data-pic="${esc(p.id)}" title="${esc(p.name)}"><img src="${esc(p.thumb)}" alt="${esc(p.name)}"></button>`).join('')}</div>` : ''}
+    </div><div class="modal-foot" style="padding:.6rem 1rem"><button class="btn btn-s" data-x type="button">Cancel</button></div></div>`;
+    const done = v => { wrap.remove(); resolve(v); };
+    wrap.addEventListener('click', async e => {
+      if (e.target === wrap || e.target.closest('[data-x]')) return done(undefined);
+      const pr = e.target.closest('[data-preset]'); if (pr) return done({ t: 'preset', v: pr.dataset.preset });
+      const pc = e.target.closest('[data-pic]'); if (pc) return done({ t: 'img', id: pc.dataset.pic });
+      if (e.target.closest('[data-none]')) return done(null);
+      if (e.target.closest('[data-up]')) {
+        const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+        inp.onchange = async () => { const f = inp.files && inp.files[0]; if (!f) return; const ids = await addFiles([f]); if (ids[0]) done({ t: 'img', id: ids[0] }); else toast('Could not keep that picture.', 'err'); };
+        inp.click();
+      }
+    });
+    document.body.append(wrap);
+  });
 }

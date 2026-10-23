@@ -14,6 +14,20 @@ const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
 const MAX_DEPTH = 40;
 export const DEFAULT_BOOK = 'bk_journal';
 
+// ── Covers: a picture or a ready-made pattern across the top of a page or a notebook ──
+//   cover = { t: 'preset', v: name } | { t: 'img', id: galleryPictureId } | null
+export const COVER_PRESETS = [['night', 'Night sky'], ['dusk', 'Dusk'], ['forest', 'Forest'], ['sea', 'Sea'], ['rose', 'Rose'], ['ember', 'Ember'], ['paper', 'Paper'], ['ink', 'Ink'], ['grid', 'Graph paper'], ['stars', 'Stars']];
+export function normalizeCover(c) {
+  if (!isObj(c)) return null;
+  if (c.t === 'preset' && COVER_PRESETS.some(p => p[0] === c.v)) return { t: 'preset', v: c.v };
+  if (c.t === 'img' && typeof c.id === 'string' && c.id) return { t: 'img', id: c.id.slice(0, 40) };
+  return null;
+}
+export function setCover(d, kind, id, cover) {
+  const o = kind === 'notebook' ? d.notebooks[id] : d.pages[id]; if (!o) return false;
+  const c = normalizeCover(cover); if (c) o.cover = c; else delete o.cover; return true;
+}
+
 // ── Sticky notes: loose notes placed on a page, kept apart from its text ──
 //   page.stickies = [{ id, x (0-1 across the page), y (px down), w (px), text, color, locked }]
 export const STICKY_COLORS = ['#f2d45c', '#f08fb0', '#7fd4e6', '#9fe0a0', '#f6a75c', '#c9a6f0'];
@@ -52,6 +66,7 @@ export function normalizeJournal(d) {
     if (!isObj(p)) return;
     pages[id] = { ...p, id: typeof p.id === 'string' && p.id ? p.id : id, title: typeof p.title === 'string' ? p.title : '', content: typeof p.content === 'string' ? p.content : '' };
     if (Array.isArray(p.stickies)) pages[id].stickies = p.stickies.slice(0, 80).map(normalizeSticky); else delete pages[id].stickies;
+    { const c = normalizeCover(p.cover); if (c) pages[id].cover = c; else delete pages[id].cover; }
   });
   // a page's parent must exist and must not lead back to the page itself
   Object.values(pages).forEach(p => {
@@ -71,7 +86,7 @@ export function normalizeJournal(d) {
   Object.entries(isObj(src.notebooks) ? src.notebooks : {}).forEach(([id, b]) => {
     if (!isObj(b)) return;
     const bid = typeof b.id === 'string' && b.id ? b.id : id;
-    notebooks[bid] = { id: bid, title: String(b.title || 'Notebook').slice(0, 80), createdAt: typeof b.createdAt === 'string' ? b.createdAt : '', updatedAt: typeof b.updatedAt === 'string' ? b.updatedAt : (typeof b.createdAt === 'string' ? b.createdAt : ''), order: Number.isFinite(b.order) ? b.order : 0 };
+    notebooks[bid] = { id: bid, title: String(b.title || 'Notebook').slice(0, 80), createdAt: typeof b.createdAt === 'string' ? b.createdAt : '', updatedAt: typeof b.updatedAt === 'string' ? b.updatedAt : (typeof b.createdAt === 'string' ? b.createdAt : ''), order: Number.isFinite(b.order) ? b.order : 0, ...(normalizeCover(b.cover) ? { cover: normalizeCover(b.cover) } : {}) };
   });
   const rootOf = p => { let cur = p, hops = 0; while (cur.parent && pages[cur.parent] && hops++ < MAX_DEPTH) cur = pages[cur.parent]; return cur; };
   const orphan = Object.values(pages).some(p => !p.parent && !notebooks[p.notebook]);
