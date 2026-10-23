@@ -36,7 +36,12 @@ export const KIND_INFO = {
 // Characters and personas always show their own picture; the rest can be given one, or a symbol
 const OWN_PICTURE = new Set(['char', 'persona', 'image']);
 // The default cover colour of each kind of book
-const KIND_COLOR = { char: '#6b82c4', lore: '#9a78c8', preset: '#5aa0b4', prompt: '#c0a060', regex: '#6cb490', persona: '#c47e9c', image: '#8a9bd2', notebook: '#d49a6a' };
+// The colour a kind of book is, unless you colour that book yourself. Pale and cool by default; changeable per category.
+const KIND_DEFAULT = { notebook: '#cfcbe6', char: '#aebbe6', lore: '#c7b3e6', preset: '#a9cfe6', prompt: '#e6bcd6', regex: '#bfc7f0', persona: '#e6b3cc', image: '#b3c2ea' };
+const KC_KEY = 'loreos_kindcolors';
+const kindOverrides = () => { try { return JSON.parse(localStorage.getItem(KC_KEY) || '{}') || {}; } catch (e) { return {}; } };
+export const kindColor = kind => { const o = kindOverrides()[kind]; return /^#[0-9a-fA-F]{6}$/.test(o || '') ? o : KIND_DEFAULT[kind] || '#aebbe6'; };
+const KIND_COLOR = new Proxy({}, { get: (t, k) => kindColor(String(k)) });
 // The order the shelves stand in
 export const SHELF_ORDER = ['notebook', 'char', 'lore', 'preset', 'prompt', 'regex', 'persona'];
 export const BOOK_COLORS = ['#6b82c4', '#9a78c8', '#5aa0b4', '#c0a060', '#6cb490', '#c47e9c', '#c46c6c', '#c8884c', '#8a8f9c', '#4f5f8f', '#7a5a8e', '#3f7a6a'];
@@ -143,7 +148,7 @@ function bookHtml(r, m, i) {
   // each book on the shelf has its own height and thickness, kept the same every time
   let hash = 0; for (const ch of String(r.id || r.name)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
   const sh = 150 + (hash % 6) * 7, sw = 40 + ((hash >> 3) % 4) * 5 + Math.min(14, Math.floor((r.name || '').length / 6));
-  return `<div class="libx-card libx-book kind-${r.kind}${r.rec.pinned ? ' pinned' : ''}${r.rec.color ? ' colored' : ''}" data-i="${i}" tabindex="0" role="button" title="${esc(tip)}" aria-label="Open ${esc(r.name)}" style="--sh:${sh}px;--sw:${sw}px${r.rec.color ? ';--bk:' + esc(r.rec.color) : ''}">
+  return `<div class="libx-card libx-book kind-${r.kind}${r.rec.pinned ? ' pinned' : ''}${r.rec.color ? ' colored' : ''}" data-i="${i}" tabindex="0" role="button" title="${esc(tip)}" aria-label="Open ${esc(r.name)}" style="--sh:${sh}px;--sw:${sw}px;--bk:${esc(r.rec.color || kindColor(r.kind))}">
     <div class="libx-spine" aria-hidden="true"><span class="libx-spine-ico">${kindIcon(r.kind)}</span><span class="libx-spine-title">${esc(r.name || 'Untitled')}</span></div>
     <div class="libx-cover"><div class="libx-thumb">${thumb(r)}</div></div>
     <div class="libx-info">
@@ -246,7 +251,7 @@ export function renderLibraryView() {
   const rest = pinned.length ? shown.filter(r => !r.rec.pinned) : shown;
   const idx = new Map(shown.map((r, i) => [r, i]));
 
-  const rail = (label, key, count) => `<button class="libx-rail-item${(view.type === key && !view.world && !view.tag) ? ' active' : ''}" data-type="${key}">${label}<span>${count}</span></button>`;
+  const rail = (label, key, count) => `<button class="libx-rail-item${(view.type === key && !view.world && !view.tag) ? ' active' : ''}" data-type="${key}"><span class="libx-rail-lbl">${label}</span><span class="libx-rail-n">${count}</span></button>`;
   el.innerHTML = `
   <div class="libx">
     <div class="libx-top">
@@ -261,6 +266,7 @@ export function renderLibraryView() {
           <button class="dd-item" data-libnew="notebook">${kindIcon('notebook')} Notebook</button><button class="dd-item" data-libnew="persona">${kindIcon('persona')} Persona</button><button class="dd-item" data-libnew="personafile">Import a persona (JSON)</button>
         </div></div>
       <div class="libx-layout" role="group" aria-label="Layout"><button class="btn btn-s btn-sm${view.layout === 'shelves' ? ' on' : ''}" id="libxLayoutShelves" aria-pressed="${view.layout === 'shelves'}">Shelves</button><button class="btn btn-s btn-sm${view.layout === 'list' ? ' on' : ''}" id="libxLayoutList" aria-pressed="${view.layout === 'list'}">List</button></div>
+      <button class="btn btn-s btn-sm" id="libxSpineBtn" title="Choose the colour of the books in each category">Book colours</button>
       <button class="btn btn-s btn-sm libx-filter-toggle" id="libxFilterToggle" aria-expanded="${view.filtersOpen}">Filters</button>
     </div>
     <div class="libx-body">
@@ -270,8 +276,8 @@ export function renderLibraryView() {
         <div class="libx-rail-h">Types</div>
         ${KINDS.map(k => rail(`<span class="libx-sym">${kindIcon(k)}</span> ${KIND_INFO[k].plural}`, k, typeCount(k))).join('')}
         <div class="libx-rail-h">Worlds <button class="libx-icon-btn" id="libxAddWorld" title="New world" aria-label="New world">+</button></div>
-        ${Object.values(m.worlds).sort((a, b) => a.name.localeCompare(b.name)).map(w => `<button class="libx-rail-item${view.world === w.id ? ' active' : ''}" data-world="${esc(w.id)}"><i class="libx-dot" style="background:${esc(w.color || '#8a9bd2')}"></i>${esc(w.name)}<span>${wc[w.id] || 0}</span></button>`).join('')}
-        ${Object.keys(m.worlds).length ? `<button class="libx-rail-item${view.world === 'none' ? ' active' : ''}" data-world="none">No world<span>${noWorld}</span></button>` : '<div class="libx-hint">Worlds group things that belong together, like a story or an AU. Inside a world you can make folders, like one per series.</div>'}
+        ${Object.values(m.worlds).sort((a, b) => a.name.localeCompare(b.name)).map(w => `<button class="libx-rail-item${view.world === w.id ? ' active' : ''}" data-world="${esc(w.id)}"><span class="libx-rail-lbl"><i class="libx-dot" style="background:${esc(w.color || '#8a9bd2')}"></i>${esc(w.name)}</span><span class="libx-rail-n">${wc[w.id] || 0}</span></button>`).join('')}
+        ${Object.keys(m.worlds).length ? `<button class="libx-rail-item${view.world === 'none' ? ' active' : ''}" data-world="none"><span class="libx-rail-lbl">No world</span><span class="libx-rail-n">${noWorld}</span></button>` : '<div class="libx-hint">Worlds group things that belong together, like a story or an AU. Inside a world you can make folders, like one per series.</div>'}
         ${tags.length ? `<div class="libx-rail-h">Tags</div><div class="libx-tagcloud">${tags.map(t => `<button class="libx-tag${view.tag && view.tag.toLowerCase() === t.tag.toLowerCase() ? ' on' : ''}" data-tagf="${esc(t.tag)}">${esc(t.tag)} <span>${t.count}</span></button>`).join('')}</div>` : ''}
       </nav>
       <main class="libx-main">
@@ -331,6 +337,7 @@ function wire(el, shown) {
   let t = null;
   q.addEventListener('input', () => { view.q = q.value; clearTimeout(t); t = setTimeout(() => { refresh(); const n = document.getElementById('libxSearch'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 160); });
   el.querySelector('#libxSort').onchange = e => { view.sort = e.target.value; saveView(); refresh(); };
+  el.querySelector('#libxSpineBtn').onclick = openSpineColours;
   el.querySelector('#libxLayoutShelves').onclick = () => { view.layout = 'shelves'; saveView(); refresh(); };
   el.querySelector('#libxLayoutList').onclick = () => { view.layout = 'list'; saveView(); refresh(); };
   el.querySelector('#libxFilterToggle').onclick = () => { view.filtersOpen = !view.filtersOpen; refresh(); };
@@ -563,3 +570,22 @@ registerMarkup(189, `<div id="libxDetailModal" class="modal">
     </div>
   </div>
 </div>`);
+
+// Choose the colour of the books in each category (the default for a book you have not coloured yourself)
+function openSpineColours() {
+  const wrap = document.createElement('div'); wrap.className = 'modal open'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-label', 'Book colours');
+  const draw = () => {
+    wrap.innerHTML = `<div class="modal-box" style="max-width:380px"><div class="modal-head"><h2>Book colours</h2></div><div class="modal-body" style="display:flex;flex-direction:column;gap:.5rem">
+      <div class="rx-none">The colour of the books in each category. A book you colour yourself keeps its own.</div>
+      ${KINDS.map(k => `<label class="pr-row" style="align-items:center"><span class="libx-sc-sw" style="background:${esc(kindColor(k))}"></span><span style="flex:1;font-family:var(--fx);font-size:.8rem">${esc(KIND_INFO[k].plural)}</span><input type="color" data-kc="${k}" value="${esc(kindColor(k))}" aria-label="Colour for ${esc(KIND_INFO[k].plural)}"></label>`).join('')}
+      </div><div class="modal-foot" style="padding:.6rem 1rem;display:flex;gap:.4rem;justify-content:space-between"><button class="btn btn-s" data-reset type="button">Back to the pale defaults</button><button class="btn btn-p" data-done type="button">Done</button></div></div>`;
+  };
+  draw();
+  const save = o => { try { localStorage.setItem(KC_KEY, JSON.stringify(o)); } catch (e) { /* private mode */ } refresh(); };
+  wrap.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.kc; if (!k) return; const o = kindOverrides(); o[k] = e.target.value; save(o); e.target.closest('label').querySelector('.libx-sc-sw').style.background = e.target.value; });
+  wrap.addEventListener('click', e => {
+    if (e.target === wrap || e.target.closest('[data-done]')) { wrap.remove(); return; }
+    if (e.target.closest('[data-reset]')) { save({}); draw(); }
+  });
+  document.body.append(wrap);
+}

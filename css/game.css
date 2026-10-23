@@ -3,14 +3,15 @@
    variables, so a theme recolours the whole room.
    ═══════════════════════════════════════════════════════ */
 body{
-  --wood:color-mix(in srgb,var(--p) 22%,#6a4a2e);
-  --wood-hi:color-mix(in srgb,var(--wood) 70%,#fff);
-  --wood-lo:color-mix(in srgb,var(--wood) 55%,#000);
-  --wall:color-mix(in srgb,var(--bg3) 86%,var(--p));
-  --paper:color-mix(in srgb,#f3ead2 82%,var(--bg));
-  --paper-ink:#3a2e22;
+  /* the furniture is slate grey, charcoal and white: it stays out of the way of the theme's blues, purples and pinks */
+  --wood:#6b7189;
+  --wood-hi:#9aa1bb;
+  --wood-lo:#2c3042;
+  --wall:color-mix(in srgb,var(--bg3) 88%,#8f96b4);
+  --paper:#f2f3f8;
+  --paper-ink:#2b2e42;
 }
-body.pink{ --wood:color-mix(in srgb,var(--p) 18%,#c9a070);--paper:#fbf4e4 }
+body.pink{ --wood:#aab0c8; --wood-hi:#e2e5f0; --wood-lo:#6a708a; --paper:#ffffff; --wall:color-mix(in srgb,var(--bg3) 80%,#c8cde0) }
 
 /* ─────────── Library: a bookcase ─────────── */
 .libx-shelf{margin-bottom:1rem}
@@ -26,14 +27,13 @@ body.pink{ --wood:color-mix(in srgb,var(--p) 18%,#c9a070);--paper:#fbf4e4 }
   .libx-books{display:flex;align-items:flex-end;gap:2px;grid-template-columns:none;grid-auto-rows:auto;overflow-x:auto;overflow-y:hidden;margin-top:0;padding:14px 18px 0;min-height:calc(var(--bh) + 28px);
     background:linear-gradient(to bottom,transparent calc(100% - 16px),var(--wood) calc(100% - 16px) calc(100% - 13px),color-mix(in srgb,var(--wood) 85%,#000) calc(100% - 13px));
     background-color:color-mix(in srgb,var(--bg) 88%,var(--wood));box-shadow:inset 0 10px 0 rgba(0,0,0,.18),inset 3px 0 0 var(--wood-lo),inset -3px 0 0 var(--wood-lo);border-radius:0;border:2px solid var(--wood-lo);border-top-color:var(--wood-hi);scrollbar-width:thin;scrollbar-color:var(--wood) transparent}
-  .libx-books .libx-book{flex:none;width:var(--sw);height:var(--sh);margin-bottom:16px;border-radius:0;border:2px solid color-mix(in srgb,var(--bk) 45%,#000);overflow:hidden;
-    background:var(--bk);background-image:linear-gradient(90deg,rgba(255,255,255,.22) 0 3px,transparent 3px calc(100% - 4px),rgba(0,0,0,.25) calc(100% - 4px));
+  .libx-books .libx-book{flex:none;width:var(--sw);height:var(--sh);margin-bottom:16px;border-radius:0;border:2px solid color-mix(in srgb,var(--bk) 55%,#2b2e42);overflow:hidden;
+    background:var(--bk);background-image:linear-gradient(90deg,rgba(255,255,255,.4) 0 3px,transparent 3px calc(100% - 4px),rgba(43,46,66,.22) calc(100% - 4px));
     box-shadow:2px 0 0 rgba(0,0,0,.25);transition:none}
-  .libx-books .libx-book.kind-notebook{--bk:#c08a54}
-  .libx-book .libx-spine{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0 10px;color:#fff;font-family:var(--fp);text-shadow:1px 1px 0 rgba(0,0,0,.6)}
-  .libx-book .libx-spine::before,.libx-book .libx-spine::after{content:'';position:absolute;left:0;right:0;height:5px;border-block:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.18)}
+  .libx-book .libx-spine{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0 10px;color:#2b2e42;font-family:var(--fp);text-shadow:1px 1px 0 rgba(255,255,255,.35)}
+  .libx-book .libx-spine::before,.libx-book .libx-spine::after{content:'';position:absolute;left:0;right:0;height:5px;border-block:1px solid rgba(255,255,255,.55);background:rgba(43,46,66,.16)}
   .libx-book .libx-spine::before{top:30px}.libx-book .libx-spine::after{bottom:10px}
-  .libx-spine-ico{display:inline-flex;color:#fff;opacity:.9}
+  .libx-spine-ico{display:inline-flex;color:#2b2e42;opacity:.85}
   .libx-spine-title{writing-mode:vertical-rl;font-size:1.05rem;letter-spacing:1px;line-height:1;max-height:calc(var(--sh) - 76px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:10px}
   /* pulled off the shelf: the cover shows */
   .libx-books .libx-book:not(:hover):not(:focus-within) :is(.libx-cover,.libx-info,.libx-acts,.libx-extra){display:none}
@@ -42,19 +42,18 @@ body.pink{ --wood:color-mix(in srgb,var(--p) 18%,#c9a070);--paper:#fbf4e4 }
 }
 @media (hover:none){.libx-spine{display:none}.libx-plate{margin-left:0}}
 
-/* ─────────── Gallery: a wall of photos joined with string ─────────── */
+/* ─────────── Gallery: photos hung on a string, one string per row ─────────── */
 #library-content .gal-zone{position:relative;border:0;padding:0;min-height:60vh;
-  background:
-    repeating-linear-gradient(90deg,transparent 0 22px,rgba(255,255,255,.035) 22px 24px),
-    linear-gradient(180deg,color-mix(in srgb,var(--wall) 92%,#000),var(--wall));
+  background:repeating-linear-gradient(90deg,transparent 0 22px,rgba(255,255,255,.03) 22px 24px),linear-gradient(180deg,color-mix(in srgb,var(--wall) 94%,#000),var(--wall));
   box-shadow:inset 0 0 0 3px var(--wood-lo),inset 0 0 0 6px var(--wood),inset 0 -10px 0 6px var(--wood-lo)}
 .gal-zone.over{outline:3px dashed var(--p);outline-offset:-10px}
-.gal-grid{position:relative;display:grid;column-width:auto;column-gap:0;grid-template-columns:repeat(auto-fill,minmax(var(--gw),1fr));gap:44px 30px;padding:34px 30px 46px;align-items:start}
-.gal-grid .gal-item{margin:0;break-inside:auto;z-index:2}
-.gal-grid .gal-item::before{content:'';position:absolute;top:-7px;left:calc(50% - 5px);width:10px;height:10px;background:#d8463c;box-shadow:inset -2px -2px 0 #8f2a24,inset 2px 2px 0 #ff8a80,0 3px 0 rgba(0,0,0,.35);z-index:3}
+.gal-grid{position:relative;display:grid;column-width:auto;column-gap:0;grid-template-columns:repeat(auto-fill,minmax(var(--gw),1fr));gap:58px 28px;padding:56px 30px 50px;align-items:start}
+.gal-grid .gal-item{margin:0;break-inside:auto;z-index:2;transform:translateY(var(--dy,0px)) rotate(var(--tilt,0deg))}
+.gal-grid .gal-item:hover,.gal-grid .gal-item:focus-visible{transform:translateY(var(--dy,0px)) rotate(0deg) scale(1.02)}
+.gal-grid .gal-item::before{content:'';position:absolute;top:-14px;left:calc(50% - 5px);width:10px;height:26px;background:linear-gradient(90deg,#e7e9f3 0 4px,#b8bdd0 4px 6px,#e7e9f3 6px);border:1px solid #6a708a;box-shadow:0 3px 0 rgba(0,0,0,.35);z-index:3}
 .gal-strings{position:absolute;left:0;top:0;pointer-events:none;z-index:1;overflow:visible}
-.gal-strings path{fill:none;stroke:#c8554a;stroke-width:2;stroke-linecap:square}
-.gal-strings path.sh{stroke:rgba(0,0,0,.35);stroke-width:2;transform:translate(2px,4px)}
+.gal-strings path{fill:none;stroke:#dfe3f2;stroke-width:2}
+.gal-strings path.sh{stroke:rgba(0,0,0,.35);transform:translate(2px,4px)}
 .lib-view-empty{color:var(--txd)}
 
 /* ─────────── Journal: normal view button, and the immersive desk ─────────── */
@@ -62,7 +61,7 @@ body.pink{ --wood:color-mix(in srgb,var(--p) 18%,#c9a070);--paper:#fbf4e4 }
 .nb-modebtn:hover{background:var(--p);color:var(--bg)}
 .px-flip{transform:scaleX(-1)}
 .nb-layout.immersive{position:relative;display:flex;align-items:stretch;justify-content:center;padding:16px 18px 12px;overflow:hidden;
-  background:repeating-linear-gradient(0deg,rgba(0,0,0,.16) 0 2px,transparent 2px 58px),repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 3px,transparent 3px 8px),linear-gradient(180deg,color-mix(in srgb,var(--wood) 88%,#000),var(--wood-lo))}
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.16) 0 2px,transparent 2px 58px),repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 3px,transparent 3px 8px),linear-gradient(180deg,#2c3042,#1d2030)}
 .nb-desk-decor{position:absolute;inset:0;pointer-events:none;z-index:1}
 .nb-desk-decor>span{position:absolute;filter:drop-shadow(4px 5px 0 rgba(0,0,0,.35))}
 .d-lamp{left:8px;top:6px}.d-plant{left:12px;bottom:6px}.d-pencils{right:14px;top:10px}.d-books{right:10px;top:84px}.d-mug{right:16px;bottom:12px}
@@ -144,3 +143,18 @@ body.pink{ --wood:color-mix(in srgb,var(--p) 18%,#c9a070);--paper:#fbf4e4 }
 .dash-continue{background:var(--paper);color:var(--paper-ink);--tx:var(--paper-ink);--txd:#5a4a38;--txm:#7a6a55;border:2px solid var(--wood-lo);box-shadow:4px 4px 0 var(--px-shadow);transform:rotate(-.3deg)}
 .dash-continue *{text-shadow:none}
 @media (max-width:900px){.libx-case::before,.libx-case::after{display:none}.libx-case{margin-left:0;margin-right:0}}
+
+
+/* ─────────── Library: the side panel is a genre directory (a catalogue of little drawers) ─────────── */
+.libx-rail{background:var(--wood);border:3px solid var(--wood-lo);box-shadow:inset 0 0 0 2px var(--wood-hi),5px 5px 0 var(--px-shadow);padding:8px 8px 10px;gap:5px}
+.libx-rail-h{background:var(--wood-lo);color:var(--paper);margin:.5rem -2px .1rem;padding:.2rem .5rem;font-family:var(--fp);font-size:.95rem;letter-spacing:2px;text-transform:uppercase}
+.libx-rail-h:first-child{margin-top:-2px}
+.libx-rail-item{position:relative;background:linear-gradient(180deg,var(--wood-hi),var(--wood) 14%,color-mix(in srgb,var(--wood) 85%,#000));border:2px solid var(--wood-lo);border-radius:0;padding:.35rem .55rem .35rem .5rem;color:var(--paper-ink);box-shadow:inset 1px 1px 0 rgba(255,255,255,.5)}
+.libx-rail-item::after{content:'';position:absolute;right:7px;bottom:5px;width:14px;height:5px;background:#e7e9f3;border:1px solid var(--wood-lo);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+.libx-rail-lbl{flex:1;min-width:0;display:flex;align-items:center;gap:.35rem;background:var(--paper);color:var(--paper-ink);padding:.12rem .4rem;border:1px solid var(--wood-lo);box-shadow:inset 1px 1px 0 rgba(0,0,0,.1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.libx-rail-n{margin-right:24px;color:var(--paper)!important;font-size:.62rem;text-shadow:1px 1px 0 var(--wood-lo)}
+.libx-rail-item:hover{background:linear-gradient(180deg,#fff,var(--wood-hi));border-color:var(--wood-lo)}
+.libx-rail-item.active{background:var(--paper);box-shadow:inset 2px 2px 0 rgba(0,0,0,.18)}
+.libx-sc-sw{width:22px;height:22px;border:2px solid var(--wood-lo);display:inline-block}
+@media (max-width:760px){.libx-rail{box-shadow:none}}
+.gal-zone{overflow:hidden}

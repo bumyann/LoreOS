@@ -89,17 +89,27 @@ export function renderGalleryView(el) {
   drawStrings(el);
 }
 
-// String from pin to pin, hanging a little between the photos. Redrawn whenever the wall changes size.
+// One string per row, hung across the wall with a few small lights on it; each photo hangs from it by a peg.
+// Redrawn whenever the wall changes size.
 function drawStrings(el) {
   const grid = el.querySelector('#galGrid'); if (!grid) return;
   let svg = grid.querySelector('.gal-strings');
   if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'gal-strings'); svg.setAttribute('aria-hidden', 'true'); grid.prepend(svg); }
+  const LIGHTS = ['#ffd9ec', '#d6e4ff', '#ffffff', '#e6d9ff'];
   const paint = () => {
-    const items = [...grid.querySelectorAll('.gal-item')]; svg.setAttribute('width', grid.clientWidth); svg.setAttribute('height', grid.clientHeight);
-    const pts = items.map(it => ({ x: it.offsetLeft + it.offsetWidth / 2, y: it.offsetTop + 1 }));
-    let d = '';
-    for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], sag = Math.min(70, 14 + Math.hypot(b.x - a.x, b.y - a.y) * 0.16); d += `M${a.x} ${a.y}Q${(a.x + b.x) / 2} ${(a.y + b.y) / 2 + sag} ${b.x} ${b.y}`; }
-    svg.innerHTML = d ? `<path class="sh" d="${d}"/><path d="${d}"/>` : '';
+    const items = [...grid.querySelectorAll('.gal-item')], W = grid.clientWidth;
+    svg.setAttribute('width', W); svg.setAttribute('height', grid.clientHeight);
+    items.forEach(it => it.style.setProperty('--dy', '0px'));
+    const rows = []; items.forEach(it => { const top = it.offsetTop, r = rows.find(x => Math.abs(x.top - top) < 24); if (r) r.items.push(it); else rows.push({ top, items: [it] }); });
+    let d = '', dots = '';
+    rows.forEach(r => {
+      const sag = 20, y0 = r.top - 10;
+      const yAt = x => y0 + 4 * sag * (x / W) * (1 - x / W);
+      d += `M-6 ${y0}Q${W / 2} ${y0 + 2 * sag} ${W + 6} ${y0}`;
+      r.items.forEach(it => { const cx = it.offsetLeft + it.offsetWidth / 2; it.style.setProperty('--dy', Math.round(yAt(cx) - y0) + 'px'); });
+      for (let x = 24, i = 0; x < W - 12; x += 52, i++) { const y = yAt(x); dots += `<rect x="${x - 7}" y="${y - 6}" width="14" height="14" fill="${LIGHTS[i % LIGHTS.length]}" opacity=".16"/><rect x="${x - 2}" y="${y}" width="5" height="7" fill="${LIGHTS[i % LIGHTS.length]}"/>`; }
+    });
+    svg.innerHTML = d ? `<path class="sh" d="${d}"/><path d="${d}"/>${dots}` : '';
   };
   paint();
   if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(paint); ro.observe(grid); grid.querySelectorAll('img').forEach(im => { if (!im.complete) im.addEventListener('load', paint, { once: true }); }); }
