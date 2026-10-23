@@ -41,3 +41,105 @@ body.pink{ --wood:color-mix(in srgb,var(--p) 18%,#c9a070);--paper:#fbf4e4 }
   .libx-books .libx-book:hover .libx-spine,.libx-books .libx-book:focus-within .libx-spine{display:none}
 }
 @media (hover:none){.libx-spine{display:none}.libx-plate{margin-left:0}}
+
+/* ─────────── Gallery: a wall of photos joined with string ─────────── */
+#library-content .gal-zone{position:relative;border:0;padding:0;min-height:60vh;
+  background:
+    repeating-linear-gradient(90deg,transparent 0 22px,rgba(255,255,255,.035) 22px 24px),
+    linear-gradient(180deg,color-mix(in srgb,var(--wall) 92%,#000),var(--wall));
+  box-shadow:inset 0 0 0 3px var(--wood-lo),inset 0 0 0 6px var(--wood),inset 0 -10px 0 6px var(--wood-lo)}
+.gal-zone.over{outline:3px dashed var(--p);outline-offset:-10px}
+.gal-grid{position:relative;display:grid;column-width:auto;column-gap:0;grid-template-columns:repeat(auto-fill,minmax(var(--gw),1fr));gap:44px 30px;padding:34px 30px 46px;align-items:start}
+.gal-grid .gal-item{margin:0;break-inside:auto;z-index:2}
+.gal-grid .gal-item::before{content:'';position:absolute;top:-7px;left:calc(50% - 5px);width:10px;height:10px;background:#d8463c;box-shadow:inset -2px -2px 0 #8f2a24,inset 2px 2px 0 #ff8a80,0 3px 0 rgba(0,0,0,.35);z-index:3}
+.gal-strings{position:absolute;left:0;top:0;pointer-events:none;z-index:1;overflow:visible}
+.gal-strings path{fill:none;stroke:#c8554a;stroke-width:2;stroke-linecap:square}
+.gal-strings path.sh{stroke:rgba(0,0,0,.35);stroke-width:2;transform:translate(2px,4px)}
+.lib-view-empty{color:var(--txd)}
+
+/* ─────────── Journal: normal view button, and the immersive desk ─────────── */
+.nb-modebtn{margin:.5rem .6rem;padding:.35rem .5rem;display:inline-flex;align-items:center;justify-content:center;gap:.35rem;background:var(--sf2);color:var(--txd);border:1px solid var(--px-frame);cursor:pointer;font-family:var(--fx);font-size:.7rem}
+.nb-modebtn:hover{background:var(--p);color:var(--bg)}
+.px-flip{transform:scaleX(-1)}
+.nb-layout.immersive{position:relative;display:flex;align-items:stretch;justify-content:center;padding:16px 18px 12px;overflow:hidden;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.16) 0 2px,transparent 2px 58px),repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 3px,transparent 3px 8px),linear-gradient(180deg,color-mix(in srgb,var(--wood) 88%,#000),var(--wood-lo))}
+.nb-desk-decor{position:absolute;inset:0;pointer-events:none;z-index:1}
+.nb-desk-decor>span{position:absolute;filter:drop-shadow(4px 5px 0 rgba(0,0,0,.35))}
+.d-lamp{left:8px;top:6px}.d-plant{left:12px;bottom:6px}.d-pencils{right:14px;top:10px}.d-books{right:10px;top:84px}.d-mug{right:16px;bottom:12px}
+.d-mug .steam{position:absolute;left:20px;top:-14px;width:6px;height:6px;background:rgba(255,255,255,.6);box-shadow:8px -10px 0 rgba(255,255,255,.4),-4px -22px 0 rgba(255,255,255,.3);animation:nbsteam 2.4s steps(6) infinite}
+@keyframes nbsteam{from{transform:translateY(8px);opacity:0}30%{opacity:1}to{transform:translateY(-14px);opacity:0}}
+.nb-bookwrap{position:relative;z-index:2;display:flex;flex-direction:column;align-items:stretch;gap:8px;width:min(1180px,100%);min-height:0;flex:1}
+.nb-book-open{position:relative;flex:1;min-height:0;display:grid;grid-template-columns:minmax(210px,.72fr) 22px minmax(0,1.6fr);background:var(--bk,#7a4a3a);padding:10px 10px 12px;border:3px solid color-mix(in srgb,var(--bk,#7a4a3a) 50%,#000);box-shadow:inset 2px 2px 0 rgba(255,255,255,.18),7px 8px 0 rgba(0,0,0,.4);
+  --bg:var(--paper);--bg2:var(--paper);--bg3:color-mix(in srgb,var(--paper) 90%,#8a6a3a);--sf:color-mix(in srgb,var(--paper) 86%,#8a6a3a);--sf2:color-mix(in srgb,var(--paper) 76%,#8a6a3a);
+  --tx:var(--paper-ink);--txd:#5a4a38;--txm:#7a6a55;--bd:rgba(90,70,40,.28);--bdb:rgba(90,70,40,.5);--p:#8a4a2a;--ph:#6a3a20;--a:#a8642f;
+  --px-frame:#a8875a;--px-hi:#fffaf0;--px-lo:#cdb78c;--px-shadow:rgba(60,40,20,.28);--ok:#4a8a4a;--err:#b04a4a;--warn:#a87a20}
+.nb-book-open .nb-sidebar,.nb-book-open .nb-editor{background:var(--paper);min-width:0;min-height:0;border:0}
+.nb-book-open .nb-sidebar{box-shadow:inset -14px 0 16px -12px rgba(60,40,20,.35);border-radius:0}
+.nb-book-open .nb-editor{box-shadow:inset 14px 0 16px -12px rgba(60,40,20,.35);transform-origin:left center;backface-visibility:hidden}
+.nb-book-open .nb-editor-inner{padding-left:1.4rem}
+.nb-spine{position:relative;background:linear-gradient(90deg,rgba(0,0,0,.3),rgba(0,0,0,.04) 40%,rgba(0,0,0,.3));background-color:color-mix(in srgb,var(--paper) 70%,#000)}
+.nb-spine::before{content:'';position:absolute;inset:6px 3px;background:radial-gradient(circle,#2b2233 0 3px,transparent 3.5px) center 0/100% 36px repeat-y;mix-blend-mode:multiply;opacity:.55}
+.nb-spine::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 30px,#c8c8d0 30px 36px,transparent 36px 36px);opacity:.0}
+.nb-book-open .nb-toolbar{background:color-mix(in srgb,var(--paper) 90%,#8a6a3a)}
+.nb-book-open .nb-toolbar-host{background:var(--paper)}
+.nb-book-tools{display:flex;align-items:center;gap:.4rem;justify-content:center;flex-wrap:wrap}
+.nb-book-tools-gap{flex:1}
+.nb-bookwrap .nb-book-tools{padding:0 .2rem}
+.nb-editor.turn-out{animation:nbTurnOut .17s steps(4) forwards}
+.nb-editor.turn-out-back{transform-origin:right center;animation:nbTurnOutBack .17s steps(4) forwards}
+.nb-editor.turn-in{animation:nbTurnIn .26s steps(5)}
+@keyframes nbTurnOut{to{transform:perspective(1500px) rotateY(-78deg);opacity:.25}}
+@keyframes nbTurnOutBack{to{transform:perspective(1500px) rotateY(78deg);opacity:.25}}
+@keyframes nbTurnIn{from{transform:perspective(1500px) rotateY(78deg);opacity:.25}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.nb-editor.turn-out,.nb-editor.turn-out-back,.nb-editor.turn-in{animation:none}.d-mug .steam{animation:none}}
+/* closed: just the cover */
+.nb-closed-stage{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;width:100%}
+.nb-closed-book{position:relative;width:250px;height:330px;border:3px solid color-mix(in srgb,var(--bk) 45%,#000);background:var(--bk);padding:0;cursor:pointer;overflow:hidden;box-shadow:inset 8px 0 0 rgba(0,0,0,.25),inset 10px 0 0 rgba(255,255,255,.1),10px 0 0 #efe3c8,10px 0 0 2px rgba(0,0,0,.4),14px 12px 0 rgba(0,0,0,.4);transition:none}
+.nb-closed-book:hover{transform:translate(-3px,-3px);box-shadow:inset 8px 0 0 rgba(0,0,0,.25),inset 10px 0 0 rgba(255,255,255,.1),10px 0 0 #efe3c8,17px 15px 0 rgba(0,0,0,.4)}
+.nb-cb-face{position:absolute;inset:0;background-size:cover;background-position:center;background-color:var(--bk)}
+.nb-cb-plate{position:absolute;left:26px;right:18px;top:44%;transform:translateY(-50%);padding:.7rem .4rem;background:#efe3c8;color:#3a2e22;border:2px solid #3a2e22;font-family:var(--fp);font-size:1.6rem;letter-spacing:1px;line-height:1.1;text-align:center;box-shadow:3px 3px 0 rgba(0,0,0,.3);word-break:break-word}
+.nb-cb-strap{position:absolute;top:0;bottom:0;right:26px;width:14px;background:color-mix(in srgb,var(--bk) 55%,#000);box-shadow:inset 2px 0 0 rgba(255,255,255,.15)}
+.nb-closed-hint{color:var(--paper)!important;text-shadow:1px 1px 0 rgba(0,0,0,.5)}
+.nb-shelf-small{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:90%}
+.nb-small-book{position:relative;width:58px;height:84px;background:var(--bk);border:2px solid color-mix(in srgb,var(--bk) 45%,#000);cursor:pointer;padding:0;box-shadow:inset 5px 0 0 rgba(0,0,0,.25),3px 3px 0 rgba(0,0,0,.4)}
+.nb-small-book:hover{transform:translateY(-4px)}
+.nb-small-title{position:absolute;inset:6px 4px;font-family:var(--fx);font-size:.56rem;color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.6);overflow:hidden;word-break:break-word;line-height:1.2;text-align:left}
+@media (max-width:820px){.nb-desk-decor{display:none}.nb-book-open{grid-template-columns:1fr}.nb-book-open .nb-spine{display:none}.nb-book-open .nb-sidebar{max-height:34%}.nb-layout.immersive{padding:8px}}
+.nb-book-open .nb-sidebar{width:auto;min-width:0;max-width:none;flex:none}
+.nb-cb-plate{z-index:2}.nb-cb-strap{z-index:1}
+
+/* ─────────── Library: the room and the bookcase ─────────── */
+#library-content{background:repeating-linear-gradient(90deg,transparent 0 30px,rgba(255,255,255,.028) 30px 32px)}
+.libx-case{background:color-mix(in srgb,var(--bg) 82%,var(--wood));border:4px solid var(--wood);border-top-width:12px;box-shadow:inset 0 0 0 3px var(--wood-lo),inset 0 12px 0 rgba(0,0,0,.25),7px 7px 0 var(--px-shadow);padding:12px 16px 6px;margin-top:4px;position:relative}
+.libx-case::before,.libx-case::after{content:'';position:absolute;top:-12px;bottom:0;width:14px;background:linear-gradient(90deg,var(--wood-hi),var(--wood) 30%,var(--wood-lo));pointer-events:none}
+.libx-case::before{left:-18px}.libx-case::after{right:-18px}
+@media (hover:hover){.libx-case .libx-books{border:0;box-shadow:none;background-color:transparent}}
+.libx-case .libx-shelf:last-child{margin-bottom:0}
+
+/* ─────────── Home: a cosy studio ─────────── */
+.studio{position:relative;height:178px;margin:0 0 18px;overflow:hidden;border:4px solid var(--wood);box-shadow:inset 0 0 0 3px var(--wood-lo),6px 6px 0 var(--px-shadow);
+  background:repeating-linear-gradient(90deg,transparent 0 26px,rgba(255,255,255,.04) 26px 28px),linear-gradient(180deg,color-mix(in srgb,var(--wall) 94%,#000),var(--wall))}
+.studio>span{position:absolute;filter:drop-shadow(3px 4px 0 rgba(0,0,0,.3))}
+.st-floor{position:absolute;left:0;right:0;bottom:0;height:34px;background:repeating-linear-gradient(90deg,rgba(0,0,0,.2) 0 2px,transparent 2px 46px),linear-gradient(180deg,var(--wood-hi),var(--wood) 14%,var(--wood-lo));border-top:3px solid var(--wood-lo)}
+.st-window{left:7%;top:14px}
+.st-shelf{left:34%;top:44px;width:170px;height:70px;filter:none!important}
+.st-plank{position:absolute;left:0;right:0;bottom:0;height:8px;background:var(--wood);border-bottom:3px solid var(--wood-lo);box-shadow:inset 0 2px 0 var(--wood-hi),3px 4px 0 rgba(0,0,0,.3)}
+.st-books{position:absolute;left:6px;bottom:8px;filter:drop-shadow(2px 3px 0 rgba(0,0,0,.3))}
+.st-pot{position:absolute;right:10px;bottom:8px;filter:drop-shadow(2px 3px 0 rgba(0,0,0,.3))}
+.st-lamp{right:11%;bottom:34px}
+.st-glow{position:absolute;left:-60px;top:-30px;width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,rgba(255,220,120,.32),transparent 68%);pointer-events:none;filter:none}
+.studio.day .st-glow{opacity:.35}
+.st-rug{left:40%;bottom:6px;width:240px;height:22px;background:repeating-linear-gradient(90deg,var(--p) 0 12px,color-mix(in srgb,var(--p) 55%,#000) 12px 24px);border:3px solid color-mix(in srgb,var(--p) 40%,#000);filter:none!important}
+.st-cat{left:calc(40% + 70px);bottom:20px;transform-origin:bottom center;animation:stbreathe 3.2s steps(4) infinite}
+@keyframes stbreathe{50%{transform:scaleY(1.05)}}
+.st-plant{left:2.5%;bottom:28px}
+.st-mug{right:3.5%;bottom:30px}
+.st-mug .steam{position:absolute;left:16px;top:-12px;width:5px;height:5px;background:rgba(255,255,255,.6);box-shadow:7px -9px 0 rgba(255,255,255,.4),-3px -19px 0 rgba(255,255,255,.3);animation:nbsteam 2.4s steps(6) infinite}
+.home-hero .studio,.dashboard .studio{max-width:100%}
+@media (max-width:700px){.studio{height:128px}.st-shelf,.st-rug,.st-plant{display:none}.st-cat{left:46%;bottom:14px}.st-window{left:4%;top:8px;transform:scale(.7);transform-origin:left top}.st-floor{height:20px}.st-lamp{right:6%;bottom:20px;transform:scale(.8);transform-origin:bottom right}.st-mug{display:none}}
+@media (prefers-reduced-motion:reduce){.st-cat,.st-mug .steam{animation:none}}
+/* the board is a corkboard, the "jump back in" note is a bit of paper */
+.hb-zone{background:radial-gradient(#9a6c40 1px,transparent 1.5px) 0 0/9px 9px,radial-gradient(#6a4526 1px,transparent 1.5px) 4px 4px/11px 11px,#b8864f;border:6px solid var(--wood-lo);box-shadow:inset 0 0 0 2px var(--wood),4px 4px 0 var(--px-shadow);padding:12px}
+.hb-zone .dash-empty{background:#f3ead2;color:#3a2e22;padding:.7rem .9rem;display:inline-block;box-shadow:3px 3px 0 rgba(0,0,0,.3);transform:rotate(-.6deg)}
+.dash-continue{background:var(--paper);color:var(--paper-ink);--tx:var(--paper-ink);--txd:#5a4a38;--txm:#7a6a55;border:2px solid var(--wood-lo);box-shadow:4px 4px 0 var(--px-shadow);transform:rotate(-.3deg)}
+.dash-continue *{text-shadow:none}

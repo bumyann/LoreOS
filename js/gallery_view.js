@@ -86,6 +86,23 @@ export function renderGalleryView(el) {
     </div>
   </div>`;
   wireGallery(el);
+  drawStrings(el);
+}
+
+// String from pin to pin, hanging a little between the photos. Redrawn whenever the wall changes size.
+function drawStrings(el) {
+  const grid = el.querySelector('#galGrid'); if (!grid) return;
+  let svg = grid.querySelector('.gal-strings');
+  if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'gal-strings'); svg.setAttribute('aria-hidden', 'true'); grid.prepend(svg); }
+  const paint = () => {
+    const items = [...grid.querySelectorAll('.gal-item')]; svg.setAttribute('width', grid.clientWidth); svg.setAttribute('height', grid.clientHeight);
+    const pts = items.map(it => ({ x: it.offsetLeft + it.offsetWidth / 2, y: it.offsetTop + 1 }));
+    let d = '';
+    for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], sag = Math.min(70, 14 + Math.hypot(b.x - a.x, b.y - a.y) * 0.16); d += `M${a.x} ${a.y}Q${(a.x + b.x) / 2} ${(a.y + b.y) / 2 + sag} ${b.x} ${b.y}`; }
+    svg.innerHTML = d ? `<path class="sh" d="${d}"/><path d="${d}"/>` : '';
+  };
+  paint();
+  if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(paint); ro.observe(grid); grid.querySelectorAll('img').forEach(im => { if (!im.complete) im.addEventListener('load', paint, { once: true }); }); }
 }
 
 function wireGallery(el) {

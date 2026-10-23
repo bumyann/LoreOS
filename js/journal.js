@@ -15,6 +15,7 @@
 // ═══════════════════════════════════════════════════════
 import { openViewer } from './gallery_view.js';
 import { px } from './pixel_icons.js';
+import { sprite } from './pixel_sprites.js';
 import { blockHandlesExt, blockMoveExt, imageNode, pasteDropExt, toolbarHtml, wireToolbar } from './journal_editor.js';
 import { getEntry as galleryEntry, getFull as galleryFull } from './gallery.js';
 import { listPictures } from './gallery.js';
@@ -49,6 +50,67 @@ const SYM = { open: '▾︎', closed: '▸︎' };
 // ═══════════════════════════════════════════════════════
 // THE VIEW
 // ═══════════════════════════════════════════════════════
+// ── Two ways to see the Journal: normal (a full-screen document app) and immersive (an open notebook on a desk) ──
+const MODE_KEY = 'loreos_nb_mode', CLOSED_KEY = 'loreos_nb_closed';
+const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } };
+export const nbMode = () => (lsGet(MODE_KEY) === 'immersive' ? 'immersive' : 'normal');
+const nbClosed = () => lsGet(CLOSED_KEY) === '1';
+export function setNbMode(mode) { nbSaveActive(); lsSet(MODE_KEY, mode === 'immersive' ? 'immersive' : 'normal'); renderNotebookView(); }
+
+const BOOK_LEATHER = ['#7a4a3a', '#3f5f7a', '#4f6a48', '#7a3f55', '#6a5a8a', '#8a6a3a'];
+const bookColour = bk => { let h = 0; for (const c of bk.id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return BOOK_LEATHER[h % BOOK_LEATHER.length]; };
+const COVER_COLOUR = { night: '#2a3270', dusk: '#8a3f7a', forest: '#2f6b4a', sea: '#2a8fb4', rose: '#a04a72', ember: '#a8341c', paper: '#b8a070', ink: '#1a1e30', grid: '#6a7aa0', stars: '#3a4570' };
+
+function sidebarHtml(immersive) {
+  return `<div class="nb-sidebar" id="nb-sidebar">
+        <div class="nb-sidebar-head">
+          <div class="nb-title">${immersive ? 'Contents' : 'Journal'}</div>
+          <div class="nb-head-acts"><button class="nb-newbtn" id="nbNewBtn" title="A new page in the open notebook" type="button">${px('plus')}<span>Page</span></button><button class="nb-newbtn" id="nbNewBookBtn" title="A new notebook" type="button">${px('plus')}<span>Notebook</span></button></div>
+        </div>
+        <div class="nb-search-row"><input class="finput nb-search" id="nbSearch" type="search" placeholder="Search notebooks and pages..." aria-label="Search notebooks and pages" value="${esc(searchQuery)}"></div>
+        <div class="nb-page-list" id="nb-page-list" role="tree"></div>
+        ${immersive ? '' : `<button class="nb-modebtn" id="nbModeBtn" type="button" title="Show the Journal as an open notebook on a desk">${px('journal')} Immersive view</button>`}
+      </div>`;
+}
+function deskDecor() {
+  return `<div class="nb-desk-decor" aria-hidden="true"><span class="d-lamp">${sprite('lamp', 5)}</span><span class="d-mug">${sprite('mug', 5)}<i class="steam"></i></span><span class="d-plant">${sprite('plant', 5)}</span><span class="d-pencils">${sprite('pencils', 5)}</span><span class="d-books">${sprite('books', 5)}</span></div>`;
+}
+function openBookHtml(data) {
+  const bk = data.notebooks[data.activeNotebookId] || model.notebooksOf(data)[0];
+  const colour = bk ? (bk.cover && bk.cover.t === 'preset' ? COVER_COLOUR[bk.cover.v] : bookColour(bk)) : '#7a4a3a';
+  return `<div class="nb-layout immersive" style="--bk:${colour}">
+      ${deskDecor()}
+      <div class="nb-bookwrap">
+        <div class="nb-book-open">
+          ${sidebarHtml(true)}
+          <div class="nb-spine" aria-hidden="true"></div>
+          <div class="nb-editor" id="nb-editor"><div class="nb-editor-inner" id="nb-editor-inner"></div></div>
+        </div>
+        <div class="nb-book-tools">
+          <button type="button" class="btn btn-s btn-sm" id="nbPrevPage" title="Turn back a page">${px('arrow-left')} Previous</button>
+          <button type="button" class="btn btn-s btn-sm" id="nbNextPage" title="Turn to the next page">Next ${px('arrow-left', 'px-flip')}</button>
+          <span class="nb-book-tools-gap"></span>
+          <button type="button" class="btn btn-s btn-sm" id="nbCloseBook" title="Close the notebook and see its cover">Close the book</button>
+          <button type="button" class="btn btn-s btn-sm" id="nbModeBtn" title="Back to the normal view">Normal view</button>
+        </div>
+      </div>
+    </div>`;
+}
+function closedDeskHtml(data) {
+  const books = model.notebooksOf(data), cur = data.notebooks[data.activeNotebookId] || books[0];
+  const face = bk => { const c = bk.cover; const col = c && c.t === 'preset' ? COVER_COLOUR[c.v] : bookColour(bk); return `<span class="nb-cb-face ${c && c.t === 'preset' ? 'nb-cv nb-cv-' + esc(c.v) : ''}" style="--bk:${col};${c && c.t === 'img' ? esc(coverCss(c)) : ''}"></span>`; };
+  return `<div class="nb-layout immersive closed">
+      ${deskDecor()}
+      <div class="nb-closed-stage">
+        ${cur ? `<button type="button" class="nb-closed-book" id="nbOpenBook" style="--bk:${cur.cover && cur.cover.t === 'preset' ? COVER_COLOUR[cur.cover.v] : bookColour(cur)}" aria-label="Open ${esc(cur.title || 'Notebook')}">${face(cur)}<span class="nb-cb-plate">${esc(cur.title || 'Notebook')}</span><span class="nb-cb-strap"></span></button>
+        <div class="rx-none nb-closed-hint">Click the notebook to open it</div>` : `<div class="empty-state"><div>no notebooks yet</div><button class="btn btn-ok" id="nbNewBtnAlt">${px('plus')} New notebook</button></div>`}
+        ${books.length > 1 ? `<div class="nb-shelf-small">${books.filter(b => !cur || b.id !== cur.id).map(b => `<button type="button" class="nb-small-book" data-pick-book="${esc(b.id)}" title="${esc(b.title || 'Notebook')}" style="--bk:${b.cover && b.cover.t === 'preset' ? COVER_COLOUR[b.cover.v] : bookColour(b)}"><span class="nb-small-title">${esc(b.title || 'Notebook')}</span></button>`).join('')}</div>` : ''}
+        <div class="nb-book-tools"><button type="button" class="btn btn-s btn-sm" id="nbNewBookBtn">${px('plus')} Notebook</button><button type="button" class="btn btn-s btn-sm" id="nbModeBtn">Normal view</button></div>
+      </div>
+    </div>`;
+}
+
 export function renderNotebookView() {
   const el = document.getElementById('notebook-content');
   if (!el) return;
@@ -65,17 +127,22 @@ export function renderNotebookView() {
   const first = model.notebooksOf(data)[0];
   _nbBook = data.activeNotebookId || (first ? first.id : null);
   _nbActiveId = data.activePageId || null;
+  const immersive = nbMode() === 'immersive', closed = immersive && nbClosed();
 
-  el.innerHTML = `
+  if (closed) {
+    el.innerHTML = closedDeskHtml(data); _nbActiveId = null;
+    const open = () => { lsSet(CLOSED_KEY, '0'); renderNotebookView(); };
+    const ob = document.getElementById('nbOpenBook'); if (ob) ob.addEventListener('click', open);
+    el.querySelectorAll('[data-pick-book]').forEach(b => b.addEventListener('click', () => { const d = nbGet(); d.activeNotebookId = b.dataset.pickBook; d.activePageId = null; nbSet(d); renderNotebookView(); }));
+    document.getElementById('nbNewBookBtn').addEventListener('click', () => { lsSet(CLOSED_KEY, '0'); newNotebookAndOpen(); });
+    const alt = document.getElementById('nbNewBtnAlt'); if (alt) alt.addEventListener('click', () => { lsSet(CLOSED_KEY, '0'); newNotebookAndOpen(); });
+    document.getElementById('nbModeBtn').addEventListener('click', () => setNbMode('normal'));
+    return;
+  }
+
+  el.innerHTML = immersive ? openBookHtml(data) : `
     <div class="nb-layout">
-      <div class="nb-sidebar" id="nb-sidebar">
-        <div class="nb-sidebar-head">
-          <div class="nb-title">Journal</div>
-          <div class="nb-head-acts"><button class="nb-newbtn" id="nbNewBtn" title="A new page in the open notebook" type="button">${px('plus')}<span>Page</span></button><button class="nb-newbtn" id="nbNewBookBtn" title="A new notebook" type="button">${px('plus')}<span>Notebook</span></button></div>
-        </div>
-        <div class="nb-search-row"><input class="finput nb-search" id="nbSearch" type="search" placeholder="Search notebooks and pages..." aria-label="Search notebooks and pages" value="${esc(searchQuery)}"></div>
-        <div class="nb-page-list" id="nb-page-list" role="tree"></div>
-      </div>
+      ${sidebarHtml(false)}
       <div class="nb-editor" id="nb-editor">
         <div class="nb-editor-inner" id="nb-editor-inner"></div>
       </div>
@@ -85,11 +152,31 @@ export function renderNotebookView() {
   document.getElementById('nbNewBtn').addEventListener('click', () => { if (!model.notebooksOf(nbGet()).length) { newNotebookAndOpen(); return; } openNewPageDialog(); });
   document.getElementById('nbNewBookBtn').addEventListener('click', () => newNotebookAndOpen());
   document.getElementById('nbSearch').addEventListener('input', e => { searchQuery = e.target.value; nbRenderPageList(); });
+  const modeBtn = document.getElementById('nbModeBtn'); if (modeBtn) modeBtn.addEventListener('click', () => setNbMode(immersive ? 'normal' : 'immersive'));
+  if (immersive) {
+    document.getElementById('nbCloseBook').addEventListener('click', () => { nbSaveActive(); lsSet(CLOSED_KEY, '1'); renderNotebookView(); });
+    document.getElementById('nbPrevPage').addEventListener('click', () => turnPage(-1));
+    document.getElementById('nbNextPage').addEventListener('click', () => turnPage(1));
+  }
 
   nbRenderPageList();
   if (_nbActiveId && data.pages[_nbActiveId]) nbOpenPage(_nbActiveId);
   else if (_nbBook && data.notebooks[_nbBook]) nbOpenBook(_nbBook);
   else paintEmpty();
+}
+
+// Turn to the next or previous page of the open notebook, with a page-turn
+function turnPage(dir) {
+  const d = nbGet(), book = d.activeNotebookId; if (!book) return;
+  const pages = model.orderedPages(d, book); if (!pages.length) return;
+  const i = _nbActiveId ? pages.findIndex(p => p.id === _nbActiveId) : -1;
+  const j = i + dir; if (j >= pages.length) return;
+  const ed = document.getElementById('nb-editor'); nbSaveActive();
+  if (ed) { ed.classList.remove('turn-in'); ed.classList.add(dir > 0 ? 'turn-out' : 'turn-out-back'); }
+  setTimeout(() => {
+    if (j < 0) nbOpenBook(book); else nbOpenPage(pages[j].id);
+    if (ed) { ed.classList.remove('turn-out', 'turn-out-back'); ed.classList.add('turn-in'); setTimeout(() => ed.classList.remove('turn-in'), 260); }
+  }, 170);
 }
 
 function paintEmpty() {
@@ -674,6 +761,7 @@ export async function cardToJournal(card, mode) {
 let navigator_ = null;
 export function setJournalNavigator(fn) { navigator_ = fn; }
 export function showJournal({ book = null, page = null } = {}) {
+  lsSet(CLOSED_KEY, '0');                         // a closed notebook opens when something sends you to it
   const d = nbGet();
   if (page && d.pages[page]) { d.activePageId = page; d.activeNotebookId = d.pages[page].notebook; }
   else if (book && d.notebooks[book]) { d.activeNotebookId = book; d.activePageId = null; }

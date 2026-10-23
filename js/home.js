@@ -10,6 +10,7 @@ import { BOOK_COLORS, bookThumb, libraryRows, openLibraryItem } from './library_
 import { navigateTo } from './router.js';
 import { KIND_SYMBOL, sym } from './symbols.js';
 import { kindIcon, px } from './pixel_icons.js';
+import { studioHtml } from './pixel_sprites.js';
 import { cardToJournal } from './journal.js';
 import { safeSet } from './storage.js';
 import { store } from './kv.js';
@@ -119,6 +120,7 @@ export function renderHomeDashboard(el) {
   const qaBtn = ([kind, label, hint, color]) => `<button class="qa-btn qa-${color} dash-act" data-new="${kind}" data-tip="${esc(label)}" title="${esc(label)}" aria-label="${esc(label)}"><span class="qa-ico" aria-hidden="true">${kindIcon(color)}</span><span class="qa-lbl sr-only">${esc(label)}</span><span class="qa-hint sr-only">${esc(hint)}</span></button>`;
 
   el.innerHTML = `
+    ${studioHtml()}
     <div class="dashboard home-layout">
      <div class="dash-main">
       ${last ? `<div class="dash-continue"><div><div class="dash-continue-k">Jump back in</div><div class="dash-continue-n">${esc(last.name || 'Untitled')}</div><div class="dash-continue-m">${esc(last.kindLabel)} · ${esc(fmtDate(last.used))}</div></div><button class="btn btn-p" id="homeContinue">Continue →</button></div>` : ''}

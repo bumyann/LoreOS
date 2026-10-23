@@ -141,6 +141,14 @@ export function flattenTree(d, query = '', notebook = null) {
   return out;
 }
 
+// Every page of a notebook in reading order (parents before their subpages), whatever is collapsed
+export function orderedPages(d, notebook) {
+  const out = [];
+  const walk = (parent, book) => childrenOf(d, parent, book).forEach(p => { out.push(p); walk(p.id, null); });
+  walk(null, notebook);
+  return out;
+}
+
 // ── Notebooks ──
 export const notebooksOf = d => Object.values(d.notebooks).sort(byOrder);
 export const pageCount = (d, notebook) => Object.values(d.pages).filter(p => p.notebook === notebook).length;

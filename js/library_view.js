@@ -165,6 +165,7 @@ export function shelfGroups(shown, v = view) {
   if (!filtering) { const fav = shown.filter(r => r.rec.pinned); if (fav.length) groups.push({ key: 'pinned', label: 'Favourites', icon: '★', rows: fav }); }
   if (v.type === 'pinned') return [{ key: 'pinned', label: 'Favourites', icon: '★', rows: shown }];
   SHELF_ORDER.forEach(k => { const rs = shown.filter(r => r.kind === k); if (rs.length) groups.push({ key: k, label: KIND_INFO[k].plural, icon: KIND_INFO[k].icon, rows: rs }); });
+  const nb = groups.findIndex(g => g.key === 'notebook'); if (nb > 0) groups.unshift(groups.splice(nb, 1)[0]);   // notebooks stand on the top shelf
   return groups;
 }
 // Which shelves are closed is remembered between visits
@@ -173,11 +174,12 @@ const shelvesClosed = () => { try { return JSON.parse(localStorage.getItem(SHELF
 const saveShelvesClosed = o => { try { localStorage.setItem(SHELF_KEY, JSON.stringify(o)); } catch (e) { /* private mode */ } };
 function shelvesHtml(shown, m, idx) {
   const closed = shelvesClosed();
-  return shelfGroups(shown).map(gr => `
+  const body = shelfGroups(shown).map(gr => `
     <section class="libx-shelf${closed[gr.key] ? ' closed' : ''}" data-shelf="${gr.key}" aria-label="${esc(gr.label)}">
       <button type="button" class="libx-plate" data-plate="${gr.key}" aria-expanded="${!closed[gr.key]}" title="Show or hide this shelf"><span class="libx-plate-caret" aria-hidden="true">${px('chevron-down')}</span><span class="libx-plate-name">${esc(gr.label)}</span><span class="libx-plate-n">${gr.rows.length}</span></button>
       <div class="libx-books">${gr.rows.map(r => bookHtml(r, m, idx.get(r))).join('')}</div>
     </section>`).join('');
+  return `<div class="libx-case">${body}</div>`;
 }
 
 function cardHtml(r, m, i) {
