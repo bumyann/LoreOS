@@ -250,6 +250,7 @@ export function nbOpenPage(id) {
     </div>
     <div class="nb-content-wrap">
       <div id="nb-tiptap-mount" class="nb-tiptap-mount"></div>
+      <div class="nb-stk-layer" id="nbStickyLayer"></div>
     </div>
     <div class="nb-footer">
       <span class="nb-save-status" id="nbSaveStatus">saved</span>
@@ -285,6 +286,7 @@ export function nbOpenPage(id) {
     onUpdate() { markUnsaved(); },
   });
   wireLinks(mount);
+  renderStickies(page);
 
   document.getElementById('nbSaveBtn').addEventListener('click', () => {
     nbSaveActive();
@@ -437,7 +439,7 @@ export function slashItems() {
     { label: 'Code block', hint: 'Monospaced text', keys: 'code pre', run: ch(c => c.toggleCodeBlock()) },
     { label: 'Divider', hint: 'A line across', keys: 'divider line rule hr', run: ch(c => c.setHorizontalRule()) },
     { label: 'Today’s date', hint: new Date().toLocaleDateString(), keys: 'date today now', run: (editor, range) => editor.chain().focus().deleteRange(range).insertContent(new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) + ' ').run() },
-    { label: 'Sticky note', hint: 'A coloured note', keys: 'sticky note postit post-it', run: ch(c => c.setSticky({ color: '#c0a060' })) },
+    { label: 'Sticky note', hint: 'A coloured note', keys: 'sticky note postit post-it', run: (editor, range) => { editor.chain().focus().deleteRange(range).run(); newStickyHere(); } },
     { label: 'Subpage', hint: 'A new page inside this one', keys: 'subpage page new child', run: (editor, range) => {
       nbSaveActive();
       const data = nbGet(); const sid = model.newPage(data, { parent: _nbActiveId, title: 'Untitled' }); nbSet(data);
@@ -517,22 +519,12 @@ function buildExtensions() {
       })];
     },
   });
-  // A sticky note: a coloured block holding ordinary content. Saved inside the page's Markdown as a little <aside>.
-  const Sticky = X.Node.create({
-    name: 'sticky', group: 'block', content: 'block+', defining: true, draggable: true,
-    addAttributes() {
-      return { color: { default: '#c0a060', parseHTML: el => { const c = el.getAttribute('data-sticky') || ''; return /^#[0-9a-fA-F]{6}$/.test(c) ? c.toLowerCase() : '#c0a060'; }, renderHTML: a => ({ 'data-sticky': a.color, style: '--sk:' + a.color }) } };
-    },
-    parseHTML() { return [{ tag: 'aside[data-sticky]' }]; },
-    renderHTML({ HTMLAttributes }) { return ['aside', { ...HTMLAttributes, class: 'nb-sticky' }, 0]; },
-    addCommands() { return { setSticky: attrs => ({ commands }) => commands.wrapIn(this.name, attrs) }; },
-  });
   return [
     TiptapStarterKit.configure({ link: { openOnClick: false, autolink: true, protocols: ['loreos'], HTMLAttributes: { rel: 'noopener noreferrer' } } }),
     X.Placeholder.configure({ placeholder: 'Type / for things to add, @ to link to anything' }),
     X.TaskList, X.TaskItem.configure({ nested: true }),
     X.Details.configure({ persist: true }), X.DetailsSummary, X.DetailsContent,
-    Slash, Mention, Sticky,
+    Slash, Mention,
     TiptapMarkdown.configure({ html: true, transformPastedText: true, transformCopiedText: false }),
   ];
 }
@@ -597,9 +589,9 @@ const hesc = t => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g
 
 // A board card as Markdown: its text, then its link and picture. A picture is kept in the Gallery and linked,
 // so the journal does not carry the image itself.
-async function cardMarkdown(card) {
+async function cardMarkdown(card, plain = false) {
   const parts = [];
-  if (card.text && card.text.trim()) parts.push(hesc(card.text.trim()));
+  if (card.text && card.text.trim()) parts.push(plain ? card.text.trim() : hesc(card.text.trim()));
   if (card.url) parts.push(`[${hesc(card.title || card.url).replace(/[\[\]]/g, '')}](${card.url})`);
   if (card.image) {
     const pid = await addPicture({ dataUrl: card.image, name: card.title || 'From the board', source: 'upload' });
@@ -608,8 +600,6 @@ async function cardMarkdown(card) {
   return parts.join('\n\n');
 }
 const cardTitle = card => (card.title || (card.text || '').trim().split('\n')[0].slice(0, 60) || (card.url || '').replace(/^https?:\/\//, '').slice(0, 60) || 'From the board');
-
-export const stickyMarkdown = (body, color = '#c0a060') => `<aside data-sticky="${/^#[0-9a-fA-F]{6}$/.test(color) ? color : '#c0a060'}">\n\n${body}\n\n</aside>`;
 
 // A small chooser over notebooks (and their pages). Resolves to { book, page } or null.
 function pickTarget({ title, pages = false }) {
@@ -641,7 +631,8 @@ export async function cardToJournal(card, mode) {
     const body = await cardMarkdown(card);
     const d = nbGet(), bid = model.newNotebook(d, { title }), pid = model.newPage(d, { notebook: bid, title, content: body });
     d.activeNotebookId = bid; d.activePageId = null; if (!nbSet(d)) { toast('Could not save (is the storage full?).', 'err'); return false; }
-    toast(`Made the notebook “${title}”.`, 'ok', { action: { label: 'Open', fn: () => showJournal({ book: bid, page: pid }) }, ms: 8000 });
+    showJournal({ book: bid, page: pid });
+    toast(`Made the notebook “${title}”.`, 'ok');
     return true;
   }
   if (mode === 'page') {
@@ -653,24 +644,19 @@ export async function cardToJournal(card, mode) {
     if (target.newBook) bid = model.newNotebook(d, { title: 'New notebook' });
     const pid = model.newPage(d, { notebook: bid, title, content: body });
     if (!nbSet(d)) { toast('Could not save (is the storage full?).', 'err'); return false; }
-    toast(`Made the page “${title}”.`, 'ok', { action: { label: 'Open', fn: () => showJournal({ page: pid }) }, ms: 8000 });
+    showJournal({ page: pid });
+    toast(`Made the page “${title}”.`, 'ok');
     return true;
   }
   if (mode === 'sticky') {
     if (!Object.keys(nbGet().pages).length) { toast('Make a page first, then add a sticky note to it.', 'warn'); return false; }
     const target = await pickTarget({ title: 'Add a sticky note to...', pages: true }); if (!target || !target.page) return false;
-    const body = (card.title ? `**${hesc(card.title)}**\n\n` : '') + await cardMarkdown(card);
-    const html = stickyMarkdown(body.trim() || title, card.color || '#c0a060');
-    if (_nbActiveId === target.page && _nbEditor) {
-      // the page is open: put it in through the editor so nothing typed is lost
-      _nbEditor.chain().focus('end').insertContent(_nbEditor.storage.markdown.parser ? _nbEditor.storage.markdown.parser.parse(html) : html).run();
-      nbSaveActive();
-    } else {
-      const d = nbGet(), p = d.pages[target.page]; if (!p) return false;
-      p.content = (p.content ? p.content.replace(/\s+$/, '') + '\n\n' : '') + html + '\n'; p.updatedAt = new Date().toISOString();
-      if (!nbSet(d)) { toast('Could not save (is the storage full?).', 'err'); return false; }
-    }
-    toast('Added as a sticky note.', 'ok', { action: { label: 'Open', fn: () => showJournal({ page: target.page }) }, ms: 8000 });
+    const body = ((card.title ? card.title + '\n' : '') + (await cardMarkdown(card, true))).trim() || title;
+    nbSaveActive();
+    const d = nbGet(), sid = model.addSticky(d, target.page, { text: body, color: card.color && /^#[0-9a-f]{6}$/i.test(card.color) ? card.color : model.STICKY_COLORS[0] });
+    if (!sid || !nbSet(d)) { toast('Could not add the sticky note.', 'err'); return false; }
+    flashSticky = sid;
+    showJournal({ page: target.page });           // straight to the page, with the new note on it
     return true;
   }
   return false;
@@ -684,8 +670,8 @@ export function showJournal({ book = null, page = null } = {}) {
   if (page && d.pages[page]) { d.activePageId = page; d.activeNotebookId = d.pages[page].notebook; }
   else if (book && d.notebooks[book]) { d.activeNotebookId = book; d.activePageId = null; }
   nbSet(d);
-  if (navigator_) navigator_('notebook');
-  if (document.getElementById('nb-page-list')) renderNotebookView();
+  if (navigator_) navigator_('notebook');           // showing the Journal draws it
+  else if (document.getElementById('nb-page-list')) renderNotebookView();
 }
 
 // The Library opens and makes notebooks through these (wired at start-up, once every module has loaded)
@@ -695,4 +681,70 @@ export function wireJournalHooks(navigate) {
     open: id => showJournal({ book: id }),
     make: () => { const d = nbGet(), id = model.newNotebook(d, { title: 'New notebook' }); nbSet(d); showJournal({ book: id }); return id; },
   });
+}
+
+// ═══════════════════════════════════════════════════════
+// STICKY NOTES: loose notes on a page. Drag one by its top strip, lock it where it is, change its colour, or
+// delete it with the x on its corner. They are saved with the page (page.stickies), apart from its text.
+// ═══════════════════════════════════════════════════════
+let flashSticky = null;
+function stickyRot(id) { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return ((h % 5) - 2) * 0.8; }   // each note sits a little crooked, always the same
+function saveSticky(pageId, id, patch) { const d = nbGet(); if (model.updateSticky(d, pageId, id, patch)) nbSet(d); }
+
+function renderStickies(page) {
+  const layer = document.getElementById('nbStickyLayer'); if (!layer || !page) return;
+  const list = (nbGet().pages[page.id] || {}).stickies || [];
+  layer.innerHTML = '';
+  list.forEach(st => layer.append(stickyEl(page.id, st)));
+  if (flashSticky) { const el = layer.querySelector(`[data-stk="${flashSticky}"]`); if (el) { el.classList.add('nb-stk-new'); setTimeout(() => el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 120); } flashSticky = null; }
+}
+
+function stickyEl(pageId, st) {
+  const el = document.createElement('div');
+  el.className = 'nb-stk' + (st.locked ? ' locked' : ''); el.dataset.stk = st.id;
+  el.style.cssText = `left:${(st.x * 100).toFixed(2)}%;top:${st.y}px;width:${st.w}px;--sk:${st.color};--rot:${stickyRot(st.id)}deg`;
+  el.innerHTML = `<div class="nb-stk-paper"><div class="nb-stk-bar" title="${st.locked ? 'Locked in place' : 'Drag to move'}"><button type="button" class="nb-stk-lock" aria-pressed="${st.locked}" title="${st.locked ? 'Unlock so it can be moved' : 'Lock it in place'}" aria-label="${st.locked ? 'Unlock' : 'Lock'} this sticky note">${px(st.locked ? 'lock' : 'unlock')}</button><button type="button" class="nb-stk-col" title="Change colour" aria-label="Change colour"></button></div>
+    <textarea class="nb-stk-text" rows="3" spellcheck="false" aria-label="Sticky note text" placeholder="Write a note...">${esc(st.text)}</textarea></div>
+    <button type="button" class="nb-stk-x" title="Delete this sticky note" aria-label="Delete this sticky note">${px('close')}</button>`;
+  const layer = () => document.getElementById('nbStickyLayer');
+  const ta = el.querySelector('textarea');
+  const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(520, ta.scrollHeight) + 'px'; };
+  setTimeout(fit, 0);
+  let t = null; ta.addEventListener('input', () => { fit(); clearTimeout(t); t = setTimeout(() => saveSticky(pageId, st.id, { text: ta.value }), 500); });
+  ta.addEventListener('blur', () => { clearTimeout(t); saveSticky(pageId, st.id, { text: ta.value }); });
+  el.querySelector('.nb-stk-x').addEventListener('click', () => { const d = nbGet(); if (model.removeSticky(d, pageId, st.id)) nbSet(d); el.remove(); });
+  el.querySelector('.nb-stk-lock').addEventListener('click', e => {
+    e.stopPropagation(); const now = !el.classList.contains('locked'); el.classList.toggle('locked', now); saveSticky(pageId, st.id, { locked: now });
+    const b = e.currentTarget; b.innerHTML = px(now ? 'lock' : 'unlock'); b.setAttribute('aria-pressed', String(now)); b.title = now ? 'Unlock so it can be moved' : 'Lock it in place';
+  });
+  el.querySelector('.nb-stk-col').addEventListener('click', e => {
+    e.stopPropagation(); const cur = el.style.getPropertyValue('--sk').trim(), all = model.STICKY_COLORS, next = all[(all.indexOf(cur) + 1) % all.length];
+    el.style.setProperty('--sk', next); saveSticky(pageId, st.id, { color: next });
+  });
+  // moving: by the strip along the top, unless it is locked
+  const bar = el.querySelector('.nb-stk-bar'); let drag = null;
+  bar.addEventListener('pointerdown', e => {
+    if (el.classList.contains('locked') || e.target.closest('button')) return;
+    const lay = layer(); if (!lay) return; const lr = lay.getBoundingClientRect(), er = el.getBoundingClientRect();
+    drag = { dx: e.clientX - er.left, dy: e.clientY - er.top, lr, w: er.width };
+    try { bar.setPointerCapture(e.pointerId); } catch (x) { /* fine without */ }
+    el.classList.add('dragging'); e.preventDefault();
+  });
+  bar.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const x = Math.max(0, Math.min(drag.lr.width - drag.w, e.clientX - drag.lr.left - drag.dx)), y = Math.max(0, e.clientY - drag.lr.top - drag.dy);
+    el.style.left = (x / drag.lr.width * 100).toFixed(2) + '%'; el.style.top = Math.round(y) + 'px';
+  });
+  const end = () => { if (!drag) return; const lr = drag.lr; drag = null; el.classList.remove('dragging'); saveSticky(pageId, st.id, { x: parseFloat(el.style.left) / 100, y: parseInt(el.style.top, 10) || 0 }); void lr; };
+  bar.addEventListener('pointerup', end); bar.addEventListener('pointercancel', end);
+  return el;
+}
+
+// A new, empty sticky note on the open page
+export function newStickyHere() {
+  if (!_nbActiveId) return false;
+  const d = nbGet(), sid = model.addSticky(d, _nbActiveId, {}); if (!sid || !nbSet(d)) return false;
+  flashSticky = sid; renderStickies(d.pages[_nbActiveId]);
+  setTimeout(() => { const ta = document.querySelector(`[data-stk="${sid}"] textarea`); if (ta) ta.focus(); }, 80);
+  return true;
 }

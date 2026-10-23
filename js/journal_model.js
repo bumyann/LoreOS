@@ -14,6 +14,33 @@ const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
 const MAX_DEPTH = 40;
 export const DEFAULT_BOOK = 'bk_journal';
 
+// ── Sticky notes: loose notes placed on a page, kept apart from its text ──
+//   page.stickies = [{ id, x (0-1 across the page), y (px down), w (px), text, color, locked }]
+export const STICKY_COLORS = ['#f2d45c', '#f08fb0', '#7fd4e6', '#9fe0a0', '#f6a75c', '#c9a6f0'];
+export const stickyId = () => 'sk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+export function normalizeSticky(s) {
+  const o = isObj(s) ? s : {};
+  return { id: typeof o.id === 'string' && o.id ? o.id : stickyId(), x: clamp(o.x, 0, 0.95, 0.6), y: clamp(o.y, 0, 40000, 60), w: clamp(o.w, 140, 420, 210),
+    text: typeof o.text === 'string' ? o.text.slice(0, 4000) : '', color: /^#[0-9a-fA-F]{6}$/.test(o.color) ? o.color.toLowerCase() : STICKY_COLORS[0], locked: !!o.locked };
+}
+export function addSticky(d, pageId, init = {}) {
+  const p = d.pages[pageId]; if (!p) return '';
+  p.stickies = Array.isArray(p.stickies) ? p.stickies : [];
+  if (p.stickies.length >= 80) return '';
+  const n = p.stickies.length, st = normalizeSticky({ x: 0.58 + (n % 3) * 0.04, y: 70 + (n % 5) * 34, ...init, id: undefined });
+  p.stickies.push(st); p.updatedAt = new Date().toISOString();
+  return st.id;
+}
+export function updateSticky(d, pageId, id, patch) {
+  const p = d.pages[pageId]; const i = p && Array.isArray(p.stickies) ? p.stickies.findIndex(s => s.id === id) : -1; if (i < 0) return false;
+  p.stickies[i] = normalizeSticky({ ...p.stickies[i], ...patch, id }); return true;
+}
+export function removeSticky(d, pageId, id) {
+  const p = d.pages[pageId]; if (!p || !Array.isArray(p.stickies)) return false;
+  const n = p.stickies.length; p.stickies = p.stickies.filter(s => s.id !== id); return p.stickies.length < n;
+}
+
 export const bookId = () => 'bk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 export const nbId = () => 'nb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
 export const tplId = () => 'tp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -24,6 +51,7 @@ export function normalizeJournal(d) {
   Object.entries(isObj(src.pages) ? src.pages : {}).forEach(([id, p]) => {
     if (!isObj(p)) return;
     pages[id] = { ...p, id: typeof p.id === 'string' && p.id ? p.id : id, title: typeof p.title === 'string' ? p.title : '', content: typeof p.content === 'string' ? p.content : '' };
+    if (Array.isArray(p.stickies)) pages[id].stickies = p.stickies.slice(0, 80).map(normalizeSticky); else delete pages[id].stickies;
   });
   // a page's parent must exist and must not lead back to the page itself
   Object.values(pages).forEach(p => {
