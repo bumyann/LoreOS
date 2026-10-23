@@ -2,7 +2,8 @@
 // STAMPS — reusable marks for pictures (a signature, a logo, "© me", a diagonal watermark).
 // Kept on this device only (aet_stamps), not in backups or Drive sync.
 //   { id, name, kind: 'text'|'image', text: {text, font, color, bold, italic, outline, outlineColor}, image: dataUrl,
-//     size (% of the picture's width), opacity (0-1), position ('tl'..'br'), margin (% of the shorter side), tile }
+//     size (% of the picture's width), opacity (0-1), position ('tl'..'br'), margin (% of the shorter side), tile,
+//     fx, fy (where its centre sits, 0-1 across the picture; null uses the position grid) }
 // ═══════════════════════════════════════════════════════
 import { store } from './kv.js';
 import { safeSet } from './storage.js';
@@ -24,6 +25,7 @@ export function normalizeStamp(s) {
     text: { text: String(t.text || '').slice(0, 200), font: ['sans', 'serif', 'mono', 'script'].includes(t.font) ? t.font : 'serif', color: /^#[0-9a-fA-F]{6}$/.test(t.color) ? t.color.toLowerCase() : '#ffffff', bold: !!t.bold, italic: !!t.italic, outline: t.outline !== false, outlineColor: /^#[0-9a-fA-F]{6}$/.test(t.outlineColor) ? t.outlineColor.toLowerCase() : '#000000', size: 64 },
     image: kind === 'image' && typeof o.image === 'string' && o.image.startsWith('data:image/') && o.image.length <= MAX_IMG ? o.image : '',
     size: num(o.size, 3, 100, 22), opacity: num(o.opacity, 0.05, 1, 0.7), position: STAMP_POSITIONS.includes(o.position) ? o.position : 'br', margin: num(o.margin, 0, 30, 3), tile: !!o.tile,
+    fx: o.fx === null || o.fx === undefined ? null : num(o.fx, 0, 1, 0.5), fy: o.fy === null || o.fy === undefined ? null : num(o.fy, 0, 1, 0.5),
   };
 }
 export function stampsGet() {

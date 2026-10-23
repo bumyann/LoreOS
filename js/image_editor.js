@@ -7,7 +7,7 @@
 // Saving writes back to the Gallery (over the original or as a copy); nothing is autosaved, because
 // an edit that overwrites a picture is not something to do behind your back.
 // ═══════════════════════════════════════════════════════
-import { addPicture, getEntry, getFull, hooks, listPictures, replacePicture } from './gallery.js';
+import { addFiles, addPicture, getEntry, getFull, hooks, listPictures, replacePicture } from './gallery.js';
 import { state } from './state.js';
 import { askConfirm, askInput, closeAllDropdowns, esc, g, toast } from './util.js';
 import { closeMobSidebar } from './mobile.js';
@@ -39,6 +39,16 @@ export const isImageDirty = id => !!(sessions.get(id) && sessions.get(id).dirty)
 export const dropImageSession = id => { sessions.delete(id); };
 const cur = () => sessions.get(state.activeImageId);
 
+// Add pictures straight from the editor: they go into the Gallery, and the first one opens here
+const pickFiles = () => new Promise(res => { const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.multiple = true; i.onchange = () => res([...(i.files || [])]); i.click(); });
+export async function addPicturesHere(files) {
+  const list = files || await pickFiles(); if (!list.length) return;
+  const ids = await addFiles(list);
+  if (!ids.length) { toast('Those did not look like pictures I can read.', 'warn'); return; }
+  toast(ids.length === 1 ? 'Added to the Gallery.' : `Added ${ids.length} pictures to the Gallery.`, 'ok');
+  wsShowItem('image', ids[0]);
+}
+
 const loadImage = url => new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('That picture could not be read.')); im.src = url; });
 
 export async function openImageDoc(id) {
@@ -64,10 +74,14 @@ export function renderImageSidebar() {
   const pics = listPictures().filter(p => !q || (p.name || '').toLowerCase().includes(q)).sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
   count.textContent = `${pics.length} ${pics.length === 1 ? 'picture' : 'pictures'}`;
   list.innerHTML = '';
+  const add = document.createElement('li'); add.className = 'img-add-row';
+  add.innerHTML = '<button type="button" class="btn btn-s btn-sm img-add-btn">+ Add pictures</button>';
+  add.querySelector('button').onclick = () => addPicturesHere();
+  list.append(add);
   if (!pics.length) {
     const li = document.createElement('li');
     li.style.cssText = 'padding:1.2rem .75rem;text-align:center;font-family:var(--fx);font-size:.75rem;color:var(--txm);letter-spacing:1px';
-    li.textContent = 'no pictures yet. add some in the Library > Gallery';
+    li.textContent = 'no pictures yet. add some with the button above';
     list.append(li); return;
   }
   pics.forEach(p => {
@@ -181,7 +195,8 @@ export function renderImageEditor() {
   const host = g('editorContent'); if (!host) return;
   const s = cur();
   if (!s) {
-    host.innerHTML = `<div class="empty-state" style="flex-direction:column;gap:.6rem"><div style="font-family:var(--fp);font-size:1.4rem;color:var(--p);opacity:.6">▣ image editor</div><div style="font-family:var(--fx);font-size:.78rem;color:var(--txm);max-width:320px;text-align:center">pick a picture from the list, or open one from the Library > Gallery with <b>Edit</b>.${hooks.generate ? '<br><br><button class="btn btn-s btn-sm" id="imgEmptyGen">Generate a picture</button>' : ''}</div></div>`;
+    host.innerHTML = `<div class="empty-state" style="flex-direction:column;gap:.6rem"><div style="font-family:var(--fp);font-size:1.4rem;color:var(--p);opacity:.6">▣ image editor</div><div style="font-family:var(--fx);font-size:.78rem;color:var(--txm);max-width:320px;text-align:center">pick a picture from the list, or open one from the Library > Gallery with <b>Edit</b>.<br><br><button class="btn btn-p btn-sm" id="imgEmptyAdd">Add a picture</button>${hooks.generate ? ' <button class="btn btn-s btn-sm" id="imgEmptyGen">Generate a picture</button>' : ''}</div></div>`;
+    const ab = g('imgEmptyAdd'); if (ab) ab.onclick = () => addPicturesHere();
     const gb = g('imgEmptyGen'); if (gb) gb.onclick = () => hooks.generate && hooks.generate();
     return;
   }
@@ -189,6 +204,7 @@ export function renderImageEditor() {
     <div class="img-bar">
       <input class="finput img-name" id="imgName" value="${esc(s.name)}" maxlength="80" aria-label="Picture name">
       <span class="rx-none" id="imgDims"></span>
+      <button class="btn btn-s btn-sm" id="imgAddPic" title="Add pictures to the Gallery and open them here">+ Add</button>
       <button class="btn btn-s btn-sm" id="imgUndo" title="Undo">↶</button>
       <button class="btn btn-s btn-sm" id="imgRedo" title="Redo">↷</button>
       <button class="btn btn-s btn-sm" id="imgCompare" title="Hold to see the original">Original</button>
@@ -347,7 +363,8 @@ function panelStamp(s, p) {
       <label class="img-sl"><span>Size</span><input type="range" id="stSize" min="3" max="100" value="${st.size}"><output id="stSizeO">${st.size}%</output></label>
       <label class="img-sl"><span>Opacity</span><input type="range" id="stOp" min="5" max="100" value="${Math.round(st.opacity * 100)}"><output id="stOpO">${Math.round(st.opacity * 100)}%</output></label>
       <label class="img-sl"><span>Margin</span><input type="range" id="stMargin" min="0" max="30" value="${st.margin}"><output id="stMarginO">${st.margin}%</output></label>
-      <div class="img-pos" id="stPos">${ops.STAMP_POSITIONS.map(k => `<button type="button" class="${st.position === k && !st.tile ? 'on' : ''}" data-pos="${k}" aria-label="Position ${k}"></button>`).join('')}</div>
+      <div class="img-pos" id="stPos">${ops.STAMP_POSITIONS.map(k => `<button type="button" class="${st.position === k && !st.tile && st.fx === null ? 'on' : ''}" data-pos="${k}" aria-label="Position ${k}"></button>`).join('')}</div>
+      <div class="rx-none">${st.tile ? 'Repeating across the picture.' : st.fx !== null ? 'Placed by hand. Drag it on the picture, or pick a spot on the grid.' : 'Pick a spot on the grid, or drag the stamp anywhere on the picture.'}</div>
       <label class="rx-none"><input type="checkbox" id="stTile"${st.tile ? ' checked' : ''}> repeat across the picture (watermark)</label>
       <div class="pr-row"><button class="btn btn-p btn-sm" id="stApply" type="button">Stamp this picture</button><button class="btn btn-s btn-sm" id="stAll" type="button">Stamp the whole Gallery</button></div>
       <div class="pr-row">${st.kind === 'text' ? '<button class="btn btn-s btn-sm" id="stEdit" type="button">Edit text</button>' : ''}<button class="btn btn-err btn-sm" id="stDel" type="button">Delete stamp</button></div>
@@ -362,8 +379,8 @@ function panelStamp(s, p) {
   g('stSize').oninput = e => { g('stSizeO').textContent = e.target.value + '%'; save({ size: Number(e.target.value) }); };
   g('stOp').oninput = e => { g('stOpO').textContent = e.target.value + '%'; save({ opacity: Number(e.target.value) / 100 }); };
   g('stMargin').oninput = e => { g('stMarginO').textContent = e.target.value + '%'; save({ margin: Number(e.target.value) }); };
-  g('stTile').onchange = e => { save({ tile: e.target.checked }); panelStamp(s, p); };
-  g('stPos').querySelectorAll('[data-pos]').forEach(b => b.onclick = () => { save({ position: b.dataset.pos, tile: false }); panelStamp(s, p); });
+  g('stTile').onchange = e => { save({ tile: e.target.checked, ...(e.target.checked ? { fx: null, fy: null } : {}) }); panelStamp(s, p); };
+  g('stPos').querySelectorAll('[data-pos]').forEach(b => b.onclick = () => { save({ position: b.dataset.pos, tile: false, fx: null, fy: null }); panelStamp(s, p); });
   g('stDel').onclick = async () => { if (!await askConfirm('Delete this stamp?')) return; stampRemove(st.id); stampSel = ''; pending = null; panelStamp(s, p); paintStage(); };
   const ed = g('stEdit'); if (ed) ed.onclick = async () => { const text = await askInput('Stamp text', st.text.text); if (text === null || !text.trim()) return; const n = stampUpdate(st.id, { name: text.trim().slice(0, 24), text: { ...st.text, text: text.trim() } }); if (n) { panelStamp(s, p); showStamp(s, n); } };
   g('stApply').onclick = async () => { const cur2 = stampsGet().find(x => x.id === st.id); const src = await stampCanvas(cur2); pending = null; edit(s, c => { ops.drawStamp(c, src, cur2); return null; }); };
@@ -437,6 +454,7 @@ function toPicture(ev) {
 }
 
 function wireEditor(s) {
+  g('imgAddPic').onclick = () => addPicturesHere();
   g('imgUndo').onclick = () => undo(s);
   g('imgRedo').onclick = () => redo(s);
   g('imgSave').onclick = () => saveImage();
@@ -468,6 +486,9 @@ const capture = (el, ev) => { try { el.setPointerCapture(ev.pointerId); } catch 
 function wireStage(s) {
   const wrap = g('imgWrap'); let drag = null;
   wrap.style.touchAction = 'none';
+  const stageEl = g('imgStage');
+  stageEl.addEventListener('dragover', ev => { if (ev.dataTransfer && [...ev.dataTransfer.types].includes('Files')) ev.preventDefault(); });
+  stageEl.addEventListener('drop', ev => { const f = [...(ev.dataTransfer && ev.dataTransfer.files || [])].filter(x => /^image\//.test(x.type)); if (!f.length) return; ev.preventDefault(); ev.stopPropagation(); addPicturesHere(f); });
   wrap.addEventListener('pointerdown', ev => {
     if (showOriginal) return;
     const pt = toPicture(ev);
@@ -479,6 +500,9 @@ function wireStage(s) {
     } else if (tool === 'layer' && pending && pending.kind === 'image') {
       ev.preventDefault(); capture(wrap, ev);
       pending.x = pt.x; pending.y = pt.y; drag = { kind: 'layer' }; paintStage();
+    } else if (tool === 'stamp' && pending && pending.kind === 'stamp' && !pending.params.tile) {
+      ev.preventDefault(); capture(wrap, ev);
+      moveStamp(s, pt); drag = { kind: 'stamp' };
     } else if (tool === 'cutout' && picking) {
       ev.preventDefault(); const d = s.canvas.getContext('2d').getImageData(Math.max(0, Math.min(s.canvas.width - 1, Math.round(pt.x))), Math.max(0, Math.min(s.canvas.height - 1, Math.round(pt.y))), 1, 1).data;
       cutColor = [d[0], d[1], d[2]]; picking = false; renderPanel(s);
@@ -498,6 +522,7 @@ function wireStage(s) {
     if (drag.kind === 'draw') { stroke.push(pt); drawLive(s); }
     else if (drag.kind === 'text') { textOpts.x = pt.x; textOpts.y = pt.y; paintStage(); }
     else if (drag.kind === 'layer' && pending) { pending.x = pt.x; pending.y = pt.y; paintStage(); }
+    else if (drag.kind === 'stamp' && pending) moveStamp(s, pt);
     else if (drag.kind === 'crop') {
       const W = s.canvas.width, H = s.canvas.height, f = drag.from, dx = pt.x - drag.start.x, dy = pt.y - drag.start.y;
       if (drag.handle === 'move') crop = { x: Math.max(0, Math.min(W - f.w, f.x + dx)), y: Math.max(0, Math.min(H - f.h, f.y + dy)), w: f.w, h: f.h };
@@ -517,9 +542,19 @@ function wireStage(s) {
   });
   const end = () => {
     if (drag && drag.kind === 'draw') { stroke = null; strokeBase = null; markDirty(s); paintStage(); }
+    if (drag && drag.kind === 'stamp' && pending && pending.kind === 'stamp') {
+      // remember where the stamp was left, so it comes back there next time
+      const n = stampUpdate(pending.params.id, { fx: pending.params.fx, fy: pending.params.fy, tile: false });
+      if (n) { pending.params = n; const p = g('imgPanel'); if (p && tool === 'stamp') panelStamp(s, p); }
+    }
     drag = null;
   };
   wrap.addEventListener('pointerup', end); wrap.addEventListener('pointercancel', end);
+}
+// Drag a stamp to a spot on the picture (its centre follows the pointer)
+function moveStamp(s, pt) {
+  const fx = Math.min(1, Math.max(0, pt.x / s.canvas.width)), fy = Math.min(1, Math.max(0, pt.y / s.canvas.height));
+  pending.params = { ...pending.params, fx, fy, tile: false }; paintStage();
 }
 const inside = (p, r) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
 // Paint the stroke so far on top of the picture while drawing (committed pixel by pixel on the canvas)

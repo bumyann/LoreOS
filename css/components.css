@@ -1043,3 +1043,5 @@ textarea.bad{border-color:var(--err,#e0707f)}
 .nb-page-header{flex-wrap:wrap}
 .nb-page-title-input{min-width:0;flex:1 1 180px}
 @media (max-width:760px){.nb-page-acts{width:100%;justify-content:flex-start}}
+.img-add-row{list-style:none;padding:.4rem .5rem}
+.img-add-btn{width:100%}
