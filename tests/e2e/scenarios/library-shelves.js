@@ -5,7 +5,7 @@
  state.charLibrary={c1:{id:'c1',name:'Mira',card:{data:{name:'Mira'}},savedAt:new Date().toISOString()}};
  state.presetLibrary={p1:{id:'p1',name:'Pre',preset:{prompts:[]},savedAt:new Date().toISOString()}};
  state.promptLibrary={}; state.regexLibrary={r1:{id:'r1',name:'Rx',set:{scripts:[{id:'a'}]},savedAt:new Date().toISOString()}}; state.personaLibrary={};
- setLibraryLayout('shelves'); navigateTo('library'); await w(500);
+ navigateTo('library'); await w(500);
  const shelves=()=>[...document.querySelectorAll('.libx-shelf')].map(s=>s.dataset.shelf);
  const booksOf=k=>[...document.querySelectorAll('.libx-shelf[data-shelf="'+k+'"] .libx-book .libx-name')].map(e=>e.textContent);
  chk('shelves in order, empty ones hidden', shelves().join()==='char,lore,preset,regex', shelves());
@@ -42,13 +42,9 @@
  book('Pre').click(); await w(700);
  chk('clicking a book opens it in its editor', state.mode==='preset' && state.activePresetId==='p1', [state.mode,state.activePresetId]);
  navigateTo('library'); await w(400);
- // layout switch persists
- document.getElementById('libxLayoutList').click(); await w(300);
- chk('list layout shows cards, no shelves', document.querySelectorAll('.libx-shelf').length===0 && document.querySelectorAll('.libx-card').length>=5 && JSON.parse(localStorage.getItem('loreos_libview')).layout==='list');
- document.getElementById('libxLayoutShelves').click(); await w(300);
- chk('and back to shelves', document.querySelectorAll('.libx-shelf').length>=4 && JSON.parse(localStorage.getItem('loreos_libview')).layout==='shelves');
+ chk('there is no list view any more, only shelves', !document.getElementById('libxLayoutList') && document.querySelectorAll('.libx-shelf').length>=4);
  // shelf groups with nothing at all
- setLibraryLayout('shelves'); store.set('aet_library','{}'); state.charLibrary={}; state.presetLibrary={}; state.regexLibrary={}; navigateTo('library'); await w(300); document.querySelector('[data-type="all"]').click(); await w(300);
+ store.set('aet_library','{}'); state.charLibrary={}; state.presetLibrary={}; state.regexLibrary={}; navigateTo('library'); await w(300); document.querySelector('[data-type="all"]').click(); await w(300);
  chk('empty library shows the welcome message, no shelves', document.querySelectorAll('.libx-shelf').length===0 && /nothing in your library yet/.test(document.getElementById('library-content').textContent));
  return out;
 })()

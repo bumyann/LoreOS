@@ -64,7 +64,10 @@ body.pink{ --wood:#aab0c8; --wood-hi:#e2e5f0; --wood-lo:#6a708a; --paper:#ffffff
   background:repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0 2px,transparent 2px 60px),linear-gradient(180deg,#2c3042,#1d2030)}
 /* things lying about on the desk, at the size of real notebooks */
 .nb-desk-decor{position:absolute;inset:0;pointer-events:none;z-index:1;overflow:hidden}
-.nb-desk-decor>i{position:absolute;display:block;background:var(--c,#f4f5fa);box-shadow:3px 4px 0 rgba(0,0,0,.4)}
+.nb-desk-decor>i{position:absolute;display:block;background:var(--c,#f4f5fa);box-shadow:4px 4px 0 rgba(0,0,0,.42);image-rendering:pixelated}
+/* pixel shading: hard bands and a dither, never a smooth blend */
+.nb-desk-decor>i::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent 0 58%,rgba(40,46,100,.09) 58% 74%,rgba(40,46,100,.17) 74% 88%,rgba(40,46,100,.26) 88%),conic-gradient(rgba(40,46,100,.07) 25%,transparent 0 50%,rgba(40,46,100,.07) 0 75%,transparent 0) 0 0/4px 4px}
+.nb-desk-decor .d-book::after{background:linear-gradient(90deg,rgba(255,255,255,.28) 0 4px,transparent 4px),linear-gradient(135deg,transparent 0 58%,rgba(20,24,60,.12) 58% 78%,rgba(20,24,60,.24) 78%)}
 .nb-desk-decor .d-sheet{background:repeating-linear-gradient(0deg,rgba(80,90,140,.16) 0 1px,transparent 1px 14px),var(--c)}
 .nb-desk-decor .d-scrap{clip-path:polygon(0 8%,12% 0,40% 6%,70% 0,100% 10%,94% 55%,100% 92%,60% 100%,30% 94%,0 100%,6% 50%)}
 .nb-desk-decor .d-book{background:linear-gradient(90deg,rgba(43,46,66,.28) 0 10px,transparent 10px),var(--c);border:2px solid rgba(43,46,66,.5)}
@@ -75,20 +78,30 @@ body.pink{ --wood:#aab0c8; --wood-hi:#e2e5f0; --wood-lo:#6a708a; --paper:#ffffff
   --tx:var(--paper-ink);--txd:#4a4e68;--txm:#6a6e88;--bd:rgba(60,66,100,.25);--bdb:rgba(60,66,100,.5);--p:#5a64a8;--ph:#454e8a;--a:#7a82c0;
   --px-frame:#8f96b4;--px-hi:#ffffff;--px-lo:#c9cde0;--px-shadow:rgba(40,44,70,.28);--ok:#4a8a6a;--err:#b04a6a;--warn:#a87a30}
 .nb-book-open .nb-page{background:var(--paper);min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden;border:0}
-.nb-book-open .nb-page-left{box-shadow:inset -14px 0 16px -12px rgba(40,44,80,.4);transform-origin:right center;backface-visibility:hidden}
-.nb-book-open .nb-page-right{box-shadow:inset 14px 0 16px -12px rgba(40,44,80,.4);transform-origin:left center;backface-visibility:hidden}
+.nb-book-open .nb-page{position:relative}
+/* the gutter is shaded in stepped bands with a dither, and the pages underneath show as a stack of edges */
+.nb-book-open .nb-page::after{content:'';position:absolute;top:0;bottom:0;width:30px;pointer-events:none;z-index:3;
+  background:conic-gradient(rgba(40,44,100,.12) 25%,transparent 0 50%,rgba(40,44,100,.12) 0 75%,transparent 0) 0 0/4px 4px}
+.nb-book-open .nb-page-left::after{right:0;background-color:transparent;-webkit-mask:linear-gradient(90deg,transparent 0 40%,#000 40% 55%,transparent 55% 70%,#000 70%);mask:linear-gradient(90deg,transparent 0 40%,#000 40% 55%,transparent 55% 70%,#000 70%)}
+.nb-book-open .nb-page-right::after{left:0;-webkit-mask:linear-gradient(270deg,transparent 0 40%,#000 40% 55%,transparent 55% 70%,#000 70%);mask:linear-gradient(270deg,transparent 0 40%,#000 40% 55%,transparent 55% 70%,#000 70%)}
+.nb-book-open .nb-page-left{box-shadow:inset -4px 0 0 rgba(40,44,100,.12),inset -8px 0 0 rgba(40,44,100,.08),-3px 3px 0 #dfe2f0,-6px 6px 0 #c9cde2,-9px 9px 0 #b3b8d2}
+.nb-book-open .nb-page-right{box-shadow:inset 4px 0 0 rgba(40,44,100,.12),inset 8px 0 0 rgba(40,44,100,.08),3px 3px 0 #dfe2f0,6px 6px 0 #c9cde2,9px 9px 0 #b3b8d2}
 .nb-book-open .nb-editor-inner{padding:1rem 1.3rem 1rem 1.6rem;min-height:0}
 .nb-book-open .nb-page-left .nb-editor-inner{padding:1rem 1.6rem 1rem 1.3rem}
 .nb-book-open .nb-cover-wrap,.nb-book-open .nb-crumbs{display:none}
+/* the scrollbars belong to the paper, not to the site */
+.nb-book-open,.nb-book-open *{scrollbar-color:#a4abcf #e4e6f2;scrollbar-width:thin}
 .nb-book-open .nb-page-acts{flex-wrap:wrap}
 .nb-pgno{font-family:var(--fp);font-size:.9rem;color:var(--txm);margin-right:auto}
 .nb-empty-page{margin:auto;display:flex;flex-direction:column;align-items:center;gap:.6rem;color:var(--txm);font-family:var(--fx);font-size:.8rem}
-.nb-spine{position:relative;background:linear-gradient(90deg,rgba(0,0,0,.3),rgba(0,0,0,.04) 40%,rgba(0,0,0,.3));background-color:color-mix(in srgb,var(--paper) 70%,#000)}
+.nb-spine{position:relative;background:linear-gradient(90deg,rgba(0,0,0,.3) 0 6px,rgba(0,0,0,.14) 6px 10px,rgba(0,0,0,.04) 10px 12px,rgba(0,0,0,.16) 12px 16px,rgba(0,0,0,.3) 16px);background-color:color-mix(in srgb,var(--paper) 70%,#000)}
 .nb-spine::before{content:'';position:absolute;inset:6px 3px;background:radial-gradient(circle,#2b2e42 0 3px,transparent 3.5px) center 0/100% 36px repeat-y;mix-blend-mode:multiply;opacity:.55}
 /* the contents: a bookmark ribbon on the edge of the book; click it and the list slides over the left page */
-.nb-bookmark{position:absolute;right:46px;top:-2px;z-index:6;width:30px;height:62px;border:0;padding:0;cursor:pointer;background:#c9788f;color:#fff;box-shadow:2px 3px 0 rgba(0,0,0,.35);clip-path:polygon(0 0,100% 0,100% 100%,50% 82%,0 100%);font-family:var(--fx)}
-.nb-bookmark span{display:block;writing-mode:vertical-rl;font-size:.58rem;letter-spacing:1px;margin:6px auto 0}
-.nb-bookmark:hover{background:#d98aa0}
+.nb-bookmark{position:absolute;left:calc(50% - 26px);top:-6px;z-index:6;width:52px;height:124px;border:0;padding:0;cursor:pointer;color:#fff;font-family:var(--fx);
+  background:linear-gradient(90deg,rgba(255,255,255,.22) 0 6px,transparent 6px calc(100% - 8px),rgba(60,20,40,.22) calc(100% - 8px)),#cf7a95;filter:drop-shadow(4px 5px 0 rgba(0,0,0,.4));clip-path:polygon(0 0,100% 0,100% 100%,50% 84%,0 100%)}
+.nb-bookmark::before{content:'';position:absolute;left:0;right:0;top:0;height:10px;background:conic-gradient(rgba(60,20,40,.2) 25%,transparent 0 50%,rgba(60,20,40,.2) 0 75%,transparent 0) 0 0/4px 4px}
+.nb-bookmark span{display:block;writing-mode:vertical-rl;font-size:.95rem;letter-spacing:3px;margin:16px auto 0;text-shadow:2px 2px 0 rgba(60,20,40,.45)}
+.nb-bookmark:hover{background:linear-gradient(90deg,rgba(255,255,255,.22) 0 6px,transparent 6px calc(100% - 8px),rgba(60,20,40,.22) calc(100% - 8px)),#e08da8}
 .nb-book-open .nb-contents{position:absolute;left:10px;top:10px;bottom:12px;width:min(340px,46%);z-index:9;display:none;background:var(--paper);box-shadow:6px 0 0 rgba(0,0,0,.28),inset -10px 0 14px -12px rgba(40,44,80,.4);width:min(340px,46%);min-width:0}
 .nb-book-open .nb-contents.open{display:flex}
 .nb-book-tools{display:flex;align-items:center;gap:.4rem;justify-content:center;flex-wrap:wrap}
@@ -97,23 +110,37 @@ body.pink{ --wood:#aab0c8; --wood-hi:#e2e5f0; --wood-lo:#6a708a; --paper:#ffffff
 .nb-deskbtn:hover{background:#4a4f6a;color:#fff}
 .nb-deskbtn:active{box-shadow:inset 1px 1px 0 rgba(0,0,0,.3);transform:translate(2px,2px)}
 .nb-deskbtn.nb-paper{background:var(--sf2);color:var(--tx);border-color:var(--px-frame)}
-.nb-page.turn-out,.nb-editor.turn-out{animation:nbTurnOut .17s steps(4) forwards}
-.nb-page.turn-out-back{animation:nbTurnOutBack .17s steps(4) forwards}
-.nb-page.turn-in,.nb-editor.turn-in{animation:nbTurnIn .26s steps(5)}
-@keyframes nbTurnOut{to{transform:perspective(1500px) rotateY(-78deg);opacity:.25}}
-@keyframes nbTurnOutBack{to{transform:perspective(1500px) rotateY(78deg);opacity:.25}}
-@keyframes nbTurnIn{from{transform:perspective(1500px) rotateY(78deg);opacity:.25}to{transform:none;opacity:1}}
-@media (prefers-reduced-motion:reduce){.nb-page.turn-out,.nb-page.turn-out-back,.nb-page.turn-in,.nb-editor.turn-out,.nb-editor.turn-in{animation:none}}
+/* turning a page: a leaf (the old page on its front, blank paper on its back) swings across, with blank leaves behind it */
+.nb-flip{position:absolute;z-index:8;pointer-events:none;perspective:9000px}
+.nb-flip .nb-leaf{position:absolute;inset:0;transform-style:preserve-3d;animation:nbLeaf .46s steps(9) both}
+.nb-flip.back .nb-leaf{animation-name:nbLeafBack}
+.nb-flip .nb-leaf.l2{animation-delay:.05s}.nb-flip .nb-leaf.l3{animation-delay:.1s}
+.nb-flip.fwd .nb-leaf{transform-origin:left center}.nb-flip.back .nb-leaf{transform-origin:right center}
+.nb-leaf-f,.nb-leaf-b,.nb-leaf-shade{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.nb-leaf-f>.nb-page{position:absolute;inset:0;width:auto;height:auto;box-shadow:none}
+.nb-leaf-f>.nb-page::after{display:none}
+.nb-leaf.l2 .nb-leaf-f,.nb-leaf.l3 .nb-leaf-f{background:var(--paper)}
+.nb-leaf-b{transform:rotateY(180deg);background:repeating-linear-gradient(0deg,rgba(80,90,150,.1) 0 2px,transparent 2px 22px),var(--paper);box-shadow:inset 0 0 0 2px rgba(40,44,100,.1)}
+.nb-leaf-shade{background:conic-gradient(rgba(30,34,90,.35) 25%,transparent 0 50%,rgba(30,34,90,.35) 0 75%,transparent 0) 0 0/4px 4px;opacity:0;animation:nbShade .46s steps(9) both}
+.nb-leaf.l2 .nb-leaf-shade{animation-delay:.05s}.nb-leaf.l3 .nb-leaf-shade{animation-delay:.1s}
+@keyframes nbLeaf{from{transform:rotateY(0)}to{transform:rotateY(-180deg)}}
+@keyframes nbLeafBack{from{transform:rotateY(0)}to{transform:rotateY(180deg)}}
+@keyframes nbShade{0%,100%{opacity:0}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.nb-flip{display:none}}
 /* closed: every notebook lying on the desk, scrollable when there are many */
-.nb-closed-stage{position:relative;z-index:2;display:flex;flex-direction:column;gap:.8rem;width:100%;min-height:0}
-.nb-desk-scroll{flex:1;min-height:0;overflow:auto;padding:14px 8px 20px;scrollbar-width:thin}
-.nb-desk-books{display:flex;flex-wrap:wrap;gap:30px 34px;justify-content:center;align-content:flex-start;padding:10px}
-.nb-closed-book{position:relative;flex:none;width:170px;height:230px;border:3px solid color-mix(in srgb,var(--bk) 45%,#000);background:var(--bk);padding:0;cursor:pointer;overflow:hidden;transform:rotate(var(--rot,0deg));box-shadow:inset 7px 0 0 rgba(0,0,0,.22),inset 9px 0 0 rgba(255,255,255,.12),7px 0 0 #e7e9f3,10px 9px 0 rgba(0,0,0,.45);transition:none}
+.nb-closed-stage{position:relative;z-index:2;display:flex;flex-direction:column;gap:.8rem;width:min(820px,64%);min-height:0}
+@media (max-width:820px){.nb-closed-stage{width:100%}}
+.nb-desk-scroll{flex:1;min-height:0;overflow:auto;padding:14px 8px 20px;display:flex;scrollbar-width:thin;scrollbar-color:#6b7189 #1d2030}
+.nb-desk-books{display:flex;flex-wrap:wrap;gap:30px 34px;justify-content:center;align-content:flex-start;padding:10px;margin:auto}
+.nb-closed-book{position:relative;flex:none;width:170px;height:230px;border:3px solid color-mix(in srgb,var(--bk) 45%,#000);background:var(--bk);padding:0;cursor:pointer;overflow:hidden;transform:rotate(var(--rot,0deg));box-shadow:inset 7px 0 0 rgba(0,0,0,.2),inset 11px 0 0 rgba(255,255,255,.14),inset 0 -8px 0 rgba(0,0,0,.14),inset -4px 0 0 rgba(255,255,255,.1),7px 0 0 #eceef6,10px 9px 0 rgba(0,0,0,.45);transition:none;image-rendering:pixelated}
+.nb-cb-face::after{content:'';position:absolute;inset:0;background:color-mix(in srgb,var(--bk) 64%,transparent)}
+.nb-cb-face.nb-cv::after{background:color-mix(in srgb,var(--bk) 70%,transparent)}
+.nb-closed-book::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:3;background:conic-gradient(rgba(30,34,90,.12) 25%,transparent 0 50%,rgba(30,34,90,.12) 0 75%,transparent 0) 0 0/4px 4px;-webkit-mask:linear-gradient(90deg,#000 0 20px,transparent 20px calc(100% - 14px),#000 calc(100% - 14px));mask:linear-gradient(90deg,#000 0 20px,transparent 20px calc(100% - 14px),#000 calc(100% - 14px))}
 .nb-closed-book:hover{transform:rotate(0deg) translate(-3px,-3px)}
 .nb-cb-face{position:absolute;inset:0;background-size:cover;background-position:center;background-color:var(--bk)}
 .nb-cb-plate{position:absolute;left:20px;right:14px;top:42%;transform:translateY(-50%);padding:.45rem .3rem;background:#f2f3f8;color:#2b2e42;border:2px solid #2b2e42;font-family:var(--fp);font-size:1.15rem;letter-spacing:1px;line-height:1.1;text-align:center;box-shadow:3px 3px 0 rgba(0,0,0,.3);word-break:break-word;z-index:2}
 .nb-cb-strap{position:absolute;top:0;bottom:0;right:20px;width:10px;background:color-mix(in srgb,var(--bk) 55%,#000);box-shadow:inset 2px 0 0 rgba(255,255,255,.15);z-index:1}
-@media (max-width:820px){.nb-book-open{grid-template-columns:1fr}.nb-book-open .nb-spine,.nb-book-open .nb-page-left{display:none}.nb-layout.immersive{padding:8px}.nb-bookmark{right:20px}}
+@media (max-width:820px){.nb-book-open{grid-template-columns:1fr}.nb-book-open .nb-spine,.nb-book-open .nb-page-left{display:none}.nb-layout.immersive{padding:8px}.nb-bookmark{left:auto;right:20px;width:40px;height:96px}.nb-bookmark span{font-size:.75rem}}
 
 /* ─────────── Library: the room and the bookcase ─────────── */
 #library-content{background:repeating-linear-gradient(90deg,transparent 0 30px,rgba(255,255,255,.028) 30px 32px)}

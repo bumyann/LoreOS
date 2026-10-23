@@ -50,9 +50,9 @@ const SORTS = [['recent', 'Recently used'], ['name', 'Name'], ['type', 'Type'], 
 const VIEW_KEY = 'loreos_libview';
 
 // What the view is showing (kept across visits)
-const view = { tab: 'library', type: 'all', world: null, folder: null, tag: null, q: '', sort: 'recent', layout: 'shelves', filtersOpen: false };
+const view = { tab: 'library', type: 'all', world: null, folder: null, tag: null, q: '', sort: 'recent', filtersOpen: false };
 try { Object.assign(view, JSON.parse(localStorage.getItem(VIEW_KEY) || '{}'), { q: '', filtersOpen: false }); } catch (e) { /* first run */ }
-const saveView = () => { try { localStorage.setItem(VIEW_KEY, JSON.stringify({ tab: view.tab, type: view.type, world: view.world, folder: view.folder, tag: view.tag, sort: view.sort, layout: view.layout })); } catch (e) { /* private mode */ } };
+const saveView = () => { try { localStorage.setItem(VIEW_KEY, JSON.stringify({ tab: view.tab, type: view.type, world: view.world, folder: view.folder, tag: view.tag, sort: view.sort })); } catch (e) { /* private mode */ } };
 
 // ── Items with their organisation attached ──
 export function libraryRows() {
@@ -187,25 +187,6 @@ function shelvesHtml(shown, m, idx) {
   return `<div class="libx-case">${body}</div>`;
 }
 
-function cardHtml(r, m, i) {
-  const w = r.rec.world && m.worlds[r.rec.world];
-  const fp = r.rec.folder ? folderPath(m, r.rec.folder).map(f => f.name).join(' › ') : '';
-  return `<div class="libx-card${r.rec.pinned ? ' pinned' : ''}${r.rec.color ? ' colored' : ''}"${r.rec.color ? ` style="--bk:${esc(r.rec.color)}"` : ''} data-i="${i}" tabindex="0" role="button" aria-label="Open ${esc(r.name)}">
-    <div class="libx-thumb">${thumb(r)}</div>
-    <div class="libx-info">
-      <div class="libx-name" title="${esc(r.name)}">${esc(r.name || 'Untitled')}</div>
-      <div class="libx-meta"><span class="libx-kind">${esc(r.kindLabel)}</span>${summaryOf(r) ? ' · ' + esc(summaryOf(r)) : ''}${r.used ? ' · ' + esc(fmtDate(r.used)) : ''}</div>
-      ${w ? `<div class="libx-world"><i style="background:${esc(w.color || '#8a9bd2')}"></i>${esc(w.name)}${fp ? ' › ' + esc(fp) : ''}</div>` : ''}
-      ${r.rec.tags.length ? `<div class="libx-tags">${r.rec.tags.map(t => `<span class="libx-tag" data-tag="${esc(t)}">${esc(t)}</span>`).join('')}</div>` : ''}
-      ${r.rec.note ? `<div class="libx-note">${esc(r.rec.note)}</div>` : ''}
-    </div>
-    <div class="libx-acts">
-      <button class="libx-icon-btn" data-act="pin" title="${r.rec.pinned ? 'Unpin' : 'Pin to the top'}" aria-pressed="${r.rec.pinned}">${r.rec.pinned ? '★' : '☆'}</button>
-      <button class="libx-icon-btn" data-act="details" title="World, folder, tags, picture and notes">⋯</button>
-    </div>
-  </div>`;
-}
-
 function worldHeadHtml(w, m, rows) {
   const crumbs = folderPath(m, view.folder);
   const folders = childFolders(m, w.id, view.folder || null);
@@ -247,8 +228,6 @@ export function renderLibraryView() {
   const noWorld = rows.filter(r => !r.rec.world).length;
   const curWorld = view.world && view.world !== 'none' ? m.worlds[view.world] : null;
   const filtering = view.q.trim() || view.tag || view.world || view.type !== 'all';
-  const pinned = !filtering && view.sort === 'recent' ? shown.filter(r => r.rec.pinned) : [];
-  const rest = pinned.length ? shown.filter(r => !r.rec.pinned) : shown;
   const idx = new Map(shown.map((r, i) => [r, i]));
 
   const rail = (label, key, count) => `<button class="libx-rail-item${(view.type === key && !view.world && !view.tag) ? ' active' : ''}" data-type="${key}"><span class="libx-rail-lbl">${label}</span><span class="libx-rail-n">${count}</span></button>`;
@@ -265,7 +244,6 @@ export function renderLibraryView() {
           <button class="dd-item" data-libnew="regex">${kindIcon('regex')} Regex set</button><button class="dd-item" data-libnew="regexscript">${kindIcon('regex')} Regex script</button>
           <button class="dd-item" data-libnew="notebook">${kindIcon('notebook')} Notebook</button><button class="dd-item" data-libnew="persona">${kindIcon('persona')} Persona</button><button class="dd-item" data-libnew="personafile">Import a persona (JSON)</button>
         </div></div>
-      <div class="libx-layout" role="group" aria-label="Layout"><button class="btn btn-s btn-sm${view.layout === 'shelves' ? ' on' : ''}" id="libxLayoutShelves" aria-pressed="${view.layout === 'shelves'}">Shelves</button><button class="btn btn-s btn-sm${view.layout === 'list' ? ' on' : ''}" id="libxLayoutList" aria-pressed="${view.layout === 'list'}">List</button></div>
       <button class="btn btn-s btn-sm" id="libxSpineBtn" title="Choose the colour of the books in each category">Book colours</button>
       <button class="btn btn-s btn-sm libx-filter-toggle" id="libxFilterToggle" aria-expanded="${view.filtersOpen}">Filters</button>
     </div>
@@ -283,9 +261,7 @@ export function renderLibraryView() {
       <main class="libx-main">
         ${curWorld ? worldHeadHtml(curWorld, m, rows) : ''}
         ${view.tag ? `<div class="libx-filterline">Tag: <b>${esc(view.tag)}</b> <button class="btn btn-s btn-sm" id="libxClearTag">Clear</button></div>` : ''}
-        ${shown.length ? (view.layout === 'list' ? `
-          ${pinned.length ? `<div class="libx-sec">★ Pinned</div><div class="libx-grid">${pinned.map(r => cardHtml(r, m, idx.get(r))).join('')}</div><div class="libx-sec">Everything else</div>` : ''}
-          <div class="libx-grid">${rest.map(r => cardHtml(r, m, idx.get(r))).join('')}</div>` : shelvesHtml(shown, m, idx))
+        ${shown.length ? shelvesHtml(shown, m, idx)
           : curWorld ? '<div class="lib-view-empty">nothing here yet<br><span style="font-size:.7rem;opacity:.6">use + New, or open an item\'s ⋯ and pick this world or folder</span></div>'
           : `<div class="lib-view-empty">${rows.length ? 'nothing matches that<br><span style="font-size:.7rem;opacity:.6">try another search or clear the filters</span>' : 'nothing in your library yet<br><span style="font-size:.7rem;opacity:.6">use + New to start something, or drop a file anywhere to import it</span>'}</div>`}
       </main>
@@ -311,7 +287,6 @@ let imageOpener = null;
 export function setImageOpener(fn) { imageOpener = fn; }
 let notebookOpener = null, notebookMaker = null;
 export function setNotebookHooks({ open, make }) { notebookOpener = open; notebookMaker = make; }
-export function setLibraryLayout(l) { view.layout = l === 'list' ? 'list' : 'shelves'; saveView(); }
 const setWorld = id => { view.world = id; view.folder = null; view.type = 'all'; view.tag = null; view.filtersOpen = false; saveView(); };
 
 // A picture file turned into a small data URL, or '' (and a message) when it is not an image
@@ -338,8 +313,6 @@ function wire(el, shown) {
   q.addEventListener('input', () => { view.q = q.value; clearTimeout(t); t = setTimeout(() => { refresh(); const n = document.getElementById('libxSearch'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 160); });
   el.querySelector('#libxSort').onchange = e => { view.sort = e.target.value; saveView(); refresh(); };
   el.querySelector('#libxSpineBtn').onclick = openSpineColours;
-  el.querySelector('#libxLayoutShelves').onclick = () => { view.layout = 'shelves'; saveView(); refresh(); };
-  el.querySelector('#libxLayoutList').onclick = () => { view.layout = 'list'; saveView(); refresh(); };
   el.querySelector('#libxFilterToggle').onclick = () => { view.filtersOpen = !view.filtersOpen; refresh(); };
   el.querySelectorAll('[data-type]').forEach(b => b.onclick = () => { view.type = b.dataset.type; view.world = null; view.folder = null; view.tag = null; view.filtersOpen = false; saveView(); refresh(); });
   el.querySelectorAll('[data-world]').forEach(b => b.onclick = () => { setWorld(b.dataset.world); refresh(); });

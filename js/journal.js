@@ -21,7 +21,7 @@ import { getEntry as galleryEntry, getFull as galleryFull } from './gallery.js';
 import { listPictures } from './gallery.js';
 import { allLibraryItems } from './meta.js';
 import { addFiles, addPicture } from './gallery.js';
-import { libraryRows, openLibraryItem, setNotebookHooks } from './library_view.js';
+import { libraryRows, openLibraryItem, setNotebookHooks, kindColor } from './library_view.js';
 import { store } from './kv.js';
 import { safeSet } from './storage.js';
 import { registerTrashRestorer, trashPush } from './trash.js';
@@ -63,9 +63,11 @@ export const nbMode = () => { const m = ssGet(SESSION_KEY); return (m === 'immer
 const nbClosed = () => lsGet(CLOSED_KEY) === '1';
 export function setNbMode(mode) { nbSaveActive(); ssSet(SESSION_KEY, mode === 'immersive' ? 'immersive' : 'normal'); renderNotebookView(); }
 
-const BOOK_LEATHER = ['#8e9bd6', '#a493d6', '#c98fb4', '#8fb4d6', '#9aa0c8', '#b79ad0'];   // pale, cool and muted
-const bookColour = bk => { let h = 0; for (const c of bk.id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return BOOK_LEATHER[h % BOOK_LEATHER.length]; };
-const COVER_COLOUR = { night: '#3a4590', dusk: '#8a5a9a', forest: '#5a8a8a', sea: '#4a8fb4', rose: '#b06a92', ember: '#b8607a', paper: '#aab0c8', ink: '#2a2e45', grid: '#7a8ab0', stars: '#4a5590' };
+// Notebooks wear the Library's notebook colour (the one chosen under Book colours); a preset cover is that same pale tone
+// washed over its pattern, so a notebook on the desk looks like the same book as on the shelf.
+const bookColour = () => kindColor('notebook');
+const COVER_COLOUR = { night: '#9ba6dc', dusk: '#b9a4d9', forest: '#9cc4c4', sea: '#9cc3e0', rose: '#e0a8c6', ember: '#e6aab9', paper: '#d6d9e8', ink: '#9096b4', grid: '#adb8da', stars: '#a4aed9' };
+const bookTone = bk => (bk.cover && bk.cover.t === 'preset' && COVER_COLOUR[bk.cover.v]) || bookColour(bk);
 
 function sidebarHtml(immersive) {
   return `<div class="nb-sidebar${immersive ? ' nb-contents' : ''}" id="nb-sidebar">
@@ -80,20 +82,21 @@ function sidebarHtml(immersive) {
 }
 
 // Bits and pieces lying about on the desk: sheets, scraps, small notebooks and sticky notes, at the scale of a real notebook.
-// The same every time (a fixed seed), so the desk does not rearrange itself.
+// They sit in the bands either side (the notebooks stay in the middle) and are the same every time (a fixed seed).
 function deskDecor() {
   let seed = 7; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-  const kinds = [['sheet', 150, 200, '#f4f5fa'], ['sheet', 140, 190, '#e8ebf6'], ['scrap', 90, 64, '#fafafc'], ['scrap', 70, 90, '#e2e5f2'], ['book', 130, 176, '#aebbe6'], ['book', 120, 166, '#c7b3e6'], ['book', 128, 172, '#e6bcd6'], ['sticky', 82, 82, '#fde7f1'], ['sticky', 82, 82, '#d9e6ff'], ['sticky', 82, 82, '#fff4c2'], ['sheet', 160, 210, '#ffffff'], ['scrap', 100, 70, '#ecebf7']];
+  const kinds = [['sheet', 150, 200, '#f4f5fa'], ['book', 130, 176, '#aebbe6'], ['scrap', 90, 64, '#fafafc'], ['sticky', 82, 82, '#fde7f1'], ['sheet', 140, 190, '#e8ebf6'], ['book', 120, 166, '#c7b3e6'], ['scrap', 70, 90, '#e2e5f2'], ['sticky', 82, 82, '#d9e6ff'], ['book', 128, 172, '#e6bcd6'], ['sheet', 160, 210, '#ffffff'], ['scrap', 100, 70, '#ecebf7'], ['sticky', 82, 82, '#fff4c2']];
   const items = [];
-  for (let i = 0; i < 18; i++) {
-    const [k, w, h, c] = kinds[i % kinds.length];
-    items.push(`<i class="d-${k}" style="left:${(rnd() * 96 - 4).toFixed(1)}%;top:${(rnd() * 96 - 4).toFixed(1)}%;width:${w}px;height:${h}px;--c:${c};transform:rotate(${(rnd() * 70 - 35).toFixed(1)}deg)"></i>`);
+  for (let i = 0; i < 16; i++) {
+    const [k, w, h, c] = kinds[i % kinds.length], left = i % 2 === 0;
+    const x = left ? rnd() * 13 - 3 : 90 + rnd() * 13 - 3;
+    items.push(`<i class="d-${k}" style="left:${x.toFixed(1)}%;top:${(rnd() * 94 - 4).toFixed(1)}%;width:${w}px;height:${h}px;--c:${c};transform:rotate(${(rnd() * 70 - 35).toFixed(1)}deg)"></i>`);
   }
   return `<div class="nb-desk-decor" aria-hidden="true">${items.join('')}</div>`;
 }
 function openBookHtml(data) {
   const bk = data.notebooks[data.activeNotebookId] || model.notebooksOf(data)[0];
-  const colour = bk ? (bk.cover && bk.cover.t === 'preset' ? COVER_COLOUR[bk.cover.v] : bookColour(bk)) : '#7a8099';
+  const colour = bk ? bookTone(bk) : '#aeb4d0';
   return `<div class="nb-layout immersive" style="--bk:${colour}">
       ${deskDecor()}
       <div class="nb-bookwrap">
@@ -117,11 +120,11 @@ function openBookHtml(data) {
 }
 function closedDeskHtml(data) {
   const books = model.notebooksOf(data);
-  const face = bk => { const c = bk.cover; const col = c && c.t === 'preset' ? COVER_COLOUR[c.v] : bookColour(bk); return `<span class="nb-cb-face ${c && c.t === 'preset' ? 'nb-cv nb-cv-' + esc(c.v) : ''}" style="--bk:${col};${c && c.t === 'img' ? esc(coverCss(c)) : ''}"></span>`; };
+  const face = bk => { const c = bk.cover; const col = bookTone(bk); return `<span class="nb-cb-face ${c && c.t === 'preset' ? 'nb-cv nb-cv-' + esc(c.v) : ''}" style="--bk:${col};${c && c.t === 'img' ? esc(coverCss(c)) : ''}"></span>`; };
   return `<div class="nb-layout immersive closed">
       ${deskDecor()}
       <div class="nb-closed-stage">
-        <div class="nb-desk-scroll">${books.length ? `<div class="nb-desk-books">${books.map((bk, i) => `<button type="button" class="nb-closed-book" data-open-book="${esc(bk.id)}" style="--bk:${bk.cover && bk.cover.t === 'preset' ? COVER_COLOUR[bk.cover.v] : bookColour(bk)};--rot:${((i * 37) % 9 - 4) * 0.9}deg" aria-label="Open ${esc(bk.title || 'Notebook')}">${face(bk)}<span class="nb-cb-plate">${esc(bk.title || 'Notebook')}</span><span class="nb-cb-strap"></span></button>`).join('')}</div>` : `<div class="empty-state"><div>no notebooks yet</div></div>`}</div>
+        <div class="nb-desk-scroll">${books.length ? `<div class="nb-desk-books">${books.map((bk, i) => `<button type="button" class="nb-closed-book" data-open-book="${esc(bk.id)}" style="--bk:${bookTone(bk)};--rot:${((i * 37) % 9 - 4) * 0.9}deg" aria-label="Open ${esc(bk.title || 'Notebook')}">${face(bk)}<span class="nb-cb-plate">${esc(bk.title || 'Notebook')}</span><span class="nb-cb-strap"></span></button>`).join('')}</div>` : `<div class="empty-state"><div>no notebooks yet</div></div>`}</div>
         <div class="nb-book-tools"><button type="button" class="nb-deskbtn" id="nbNewBookBtn">${px('plus')} Notebook</button><button type="button" class="nb-deskbtn" id="nbModeBtn">Normal view</button></div>
       </div>
     </div>`;
@@ -191,12 +194,20 @@ function turnPage(dir) {
   const base = cur - (cur % 2), to = base + dir * 2;
   if (to < 0 || to >= pages.length) return;
   nbSaveActive();
-  const side = document.getElementById(dir > 0 ? 'nb-editor' : 'nb-page-left');
-  if (side) { side.classList.remove('turn-in'); side.classList.add(dir > 0 ? 'turn-out' : 'turn-out-back'); }
-  setTimeout(() => {
-    nbOpenPage(pages[to].id);
-    if (side) { side.classList.remove('turn-out', 'turn-out-back'); side.classList.add('turn-in'); setTimeout(() => side.classList.remove('turn-in'), 260); }
-  }, 170);
+  const side = document.getElementById(dir > 0 ? 'nb-editor' : 'nb-page-left'), bookEl = document.getElementById('nb-book-open');
+  const swap = () => nbOpenPage(pages[to].id);
+  if (!side || !bookEl || matchMedia('(prefers-reduced-motion: reduce)').matches || matchMedia('(max-width: 820px)').matches) { swap(); return; }
+  // The leaf that is turning: the page as it was on its front, blank paper on its back, with a couple of blank leaves
+  // riding behind it so it reads as one page of a stack. The new spread is put in underneath while the leaf is edge-on.
+  const frame = document.createElement('div'); frame.className = 'nb-flip ' + (dir > 0 ? 'fwd' : 'back'); frame.setAttribute('aria-hidden', 'true');
+  frame.style.cssText = `left:${side.offsetLeft}px;top:${side.offsetTop}px;width:${side.offsetWidth}px;height:${side.offsetHeight}px`;
+  const snap = side.cloneNode(true); snap.removeAttribute('id'); snap.className = side.className.replace(/turn-\S+/g, '').trim(); snap.querySelectorAll('[id]').forEach(e => e.removeAttribute('id')); snap.querySelectorAll('[contenteditable]').forEach(e => e.removeAttribute('contenteditable'));
+  const leaf = (cls, front) => `<div class="nb-leaf ${cls}"><div class="nb-leaf-f">${front || ''}</div><div class="nb-leaf-b"></div><div class="nb-leaf-shade"></div></div>`;
+  frame.innerHTML = leaf('l3') + leaf('l2') + leaf('l1');
+  frame.querySelector('.l1 .nb-leaf-f').appendChild(snap);
+  bookEl.appendChild(frame);
+  setTimeout(swap, 230);
+  setTimeout(() => frame.remove(), 620);
 }
 
 // ── The open notebook: two pages side by side ──
@@ -474,7 +485,7 @@ export function nbOpenPage(id) {
     element: mount,
     extensions: buildExtensions(),
     content: page.content || '',
-    autofocus: 'end',
+    autofocus: spread ? 'start' : 'end',   // in the open book a page starts at its top
     onUpdate() { markUnsaved(); },
   });
   wireLinks(mount);

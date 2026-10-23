@@ -40,7 +40,7 @@
  state.presetLibrary.p1={id:'p1',name:'My Preset',preset:{prompts:[]},savedAt:new Date(Date.now()-9*86400000).toISOString()};
  state.promptLibrary.k1={id:'k1',name:'Pack One',pack:{modules:[]},savedAt:new Date(Date.now()-8*86400000).toISOString()};
  state.regexLibrary.r1={id:'r1',name:'Bold',single:true,set:{scripts:[{id:'s'}]},savedAt:new Date(Date.now()-7*86400000).toISOString()};
- setLibraryLayout('list'); navigateTo('library'); await w(500);
+ navigateTo('library'); await w(500);
  const names=()=>[...document.querySelectorAll('.libx-card .libx-name')].map(e=>e.textContent);
  const total=names().length;
  chk('every kind shows up', ['Mira','My Preset','Pack One','Bold','Cartographer','Alpha Prime','Beta'].every(n=>names().includes(n)) && total===9, names());
@@ -56,7 +56,7 @@
  type(document.getElementById('libxSearch'),''); await w(400);
  // sort by name
  document.getElementById('libxSort').value='name'; document.getElementById('libxSort').dispatchEvent(new Event('change')); await w(200);
- chk('sort by name', names().join()===[...names()].sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'})).join(), names());
+ { const shelves=[...document.querySelectorAll('.libx-shelf')].map(sh=>[...sh.querySelectorAll('.libx-name')].map(e=>e.textContent)); chk('sort by name (within each shelf)', shelves.every(l=>l.join()===[...l].sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'})).join()), shelves); }
  document.getElementById('libxSort').value='recent'; document.getElementById('libxSort').dispatchEvent(new Event('change')); await w(200);
  // details: world, tags, note through the dialog
  const cardOf=n=>[...document.querySelectorAll('.libx-card')].find(c=>c.querySelector('.libx-name').textContent===n);
@@ -71,7 +71,7 @@
  chk('card shows world, tags and note', cardOf('Mira').textContent.includes('Amaranthine') && cardOf('Mira').textContent.includes('Main Cast') && cardOf('Mira').textContent.includes('Needs greeting'));
  // pin
  cardOf('Beta').querySelector('[data-act="pin"]').click(); await w(300);
- chk('pinned shows in its own section first', /Pinned/.test(document.querySelector('.libx-sec').textContent) && document.querySelector('.libx-grid .libx-name').textContent==='Beta');
+ chk('pinned shows on the Favourites shelf first', /Favourites/.test(document.querySelector('.libx-shelf .libx-plate').textContent) && document.querySelector('.libx-shelf .libx-name').textContent==='Beta');
  document.querySelector('[data-type="pinned"]').click(); await w(150); chk('pinned filter', names().join()==='Beta', names());
  document.querySelector('[data-type="all"]').click(); await w(150);
  // world filter + tag filter
@@ -85,7 +85,7 @@
  document.getElementById('libxRenameWorld').click(); await answer('Court AU'); await w(300);
  chk('world renamed', /Court AU/.test(document.querySelector('.libx-worldname').textContent));
  document.getElementById('libxDeleteWorld').click(); await w(200); document.getElementById('confirmOkBtn').click(); await w(400);
- chk('deleting a world keeps its items', names().length===9 && recordOf(metaGet(),'char','c1').world===null && recordOf(metaGet(),'char','c1').tags.length===2, [names().length]);
+ chk('deleting a world keeps its items', new Set(names()).size===9 && recordOf(metaGet(),'char','c1').world===null && recordOf(metaGet(),'char','c1').tags.length===2, [names().length]);
  // persona from the library
  document.querySelector('[data-libnew="persona"]').click(); await w(400);
  chk('new persona opens its dialog', document.getElementById('personaModal').classList.contains('open') && Object.keys(state.personaLibrary).length===2);
