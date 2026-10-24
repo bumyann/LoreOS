@@ -11,6 +11,7 @@
 // ═══════════════════════════════════════════════════════
 import { PALETTES, THEME_PRESETS, normalizeTheme, themeFromCurrent } from './theme_presets.js';
 import { CSS_MAX, FONT_ROLES, applyCustomCss, applyCustomTheme, applyCustomTitle, fillThemeEditors, fontsGet, loadGoogleFont, populateColourPickers, previewCss, resetFont, settingsGet, settingsSet } from './settings.js';
+import { appearance, setAppearance } from './appearance.js';
 import { applyLogo, renderLogoSettings, wireLogoSettings } from './logo.js';
 import { askConfirm, dlFile, esc, g, toast } from './util.js';
 
@@ -25,6 +26,16 @@ export function buildThemeView() {
     <h1>Theme</h1>
     <p>How LoreOS looks. Presets apply right away. Colour, name and font edits show as you make them, and <b>Save</b> keeps them.</p>
   </header>
+
+  <section class="settings-section theme-card" id="thAppearance">
+    <div class="settings-section-title">Appearance</div>
+    <div class="rx-none" style="margin-bottom:.6rem">How LoreOS is laid out. Your theme (colours, fonts, CSS) applies to either one.</div>
+    <div class="theme-tabs" role="radiogroup" aria-label="Appearance">
+      <button type="button" class="theme-tab" role="radio" data-appearance="pixel" aria-checked="false"><b>Pixel</b></button>
+      <button type="button" class="theme-tab" role="radio" data-appearance="standard" aria-checked="false"><b>Standard</b></button>
+    </div>
+    <div class="rx-none" id="thAppearanceNote"></div>
+  </section>
 
   <section class="settings-section theme-card" id="thPresets">
     <div class="settings-section-title">Presets</div>
@@ -143,7 +154,7 @@ const card = (kind, id, name, sub, sw, mine) => `<div class="theme-preset" data-
 export function renderPresets() {
   const body = g('thPresetBody'), note = g('thPresetNote'); if (!body) return;
   const cfg = settingsGet();
-  document.querySelectorAll('.theme-tab').forEach(t => { const on = t.dataset.thtab === presetTab; t.classList.toggle('on', on); t.setAttribute('aria-selected', String(on)); });
+  document.querySelectorAll('#thPresets [data-thtab]').forEach(t => { const on = t.dataset.thtab === presetTab; t.classList.toggle('on', on); t.setAttribute('aria-selected', String(on)); });
   if (presetTab === 'colours') {
     note.textContent = 'Just the palette, for light and dark. Your fonts, name and CSS stay as they are.';
     const mine = Object.entries(cfg.savedThemes || {});
@@ -183,6 +194,21 @@ export function applyThemePreset(raw) {
   Object.keys(FONT_ROLES).forEach(role => { if (t.fonts[role]) loadGoogleFont(role, t.fonts[role], true); else if (fontsGet()[role]) resetFont(role); });
   applyCustomTheme(); applyCustomTitle(); applyCustomCss(); refreshEditors();
   return true;
+}
+
+const APPEARANCE_NOTES = {
+  pixel: 'The pixel-art rooms: a bookshelf Library, a clothesline Gallery, and a Journal you can open as a notebook on a desk.',
+  standard: 'The plain application look: cards, panels and a full-screen Journal. Nothing about your data changes.',
+};
+function paintAppearance() {
+  const cur = appearance();
+  document.querySelectorAll('#thAppearance [data-appearance]').forEach(b => { const on = b.dataset.appearance === cur; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); });
+  const n = g('thAppearanceNote'); if (n) n.textContent = APPEARANCE_NOTES[cur];
+}
+function wireAppearance() {
+  const host = g('thAppearance'); if (!host) return;
+  host.addEventListener('click', e => { const b = e.target.closest('[data-appearance]'); if (!b) return; setAppearance(b.dataset.appearance); paintAppearance(); toast(b.dataset.appearance === 'standard' ? 'Standard appearance.' : 'Pixel appearance.', 'ok'); });
+  paintAppearance();
 }
 
 function wirePresets() {
@@ -249,7 +275,7 @@ function wireCss() {
 
 export function wireThemeView() {
   buildThemeView();
-  wirePresets(); wireCss();
+  wireAppearance(); wirePresets(); wireCss();
   g('stgRevertBtn').addEventListener('click', () => { applyCustomTheme(); applyCustomTitle(); refreshEditors(); toast('Back to what was saved.', 'ok'); });
 }
 export function openThemeView() { buildThemeView(); renderPresets(); refreshEditors(); wireLogoSettings(); }

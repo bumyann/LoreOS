@@ -2,6 +2,7 @@
 // GALLERY VIEW — the Library's second tab: every picture you have kept, as a wall you can search and
 // filter, with a viewer (lightbox) that can edit, favourite, tag, download, or pin a picture to Home.
 // ═══════════════════════════════════════════════════════
+import { appearance } from './appearance.js';
 import { resizeImage } from './avatar.js';
 import { SOURCES, addFiles, exportGalleryZip, filterPictures, folderAdd, folderMove, folderPathIds, folderRemove, folderRename, foldersGet, getEntry, getFull, hooks, importGalleryZip, listPictures, moveToFolder, removePicture, renamePicture, restorePicture } from './gallery.js';
 import { homeGet, homeId, homeSet, normalizeCard } from './home.js';
@@ -86,7 +87,7 @@ export function renderGalleryView(el) {
     </div>
   </div>`;
   wireGallery(el);
-  drawStrings(el);
+  if (appearance() === 'pixel') drawStrings(el);   // the clothesline belongs to the Pixel appearance
 }
 
 // One string per row, hung across the wall with a few small lights on it; each photo hangs from it by a peg.

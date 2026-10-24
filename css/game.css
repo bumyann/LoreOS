@@ -171,13 +171,7 @@ body.pink{ --wood:#aab0c8; --wood-hi:#e2e5f0; --wood-lo:#6a708a; --paper:#ffffff
 .nb-book-open .nb-page-acts{display:none}
 
 /* ─────────── Phones ─────────── */
-.nb-mtoggle{display:none}
 @media (max-width:700px){
-  /* normal Journal: the page list folds away behind a Pages button */
-  .nb-layout:not(.immersive) .nb-mtoggle{display:inline-flex}
-  .nb-layout:not(.immersive) .nb-sidebar{max-height:none}
-  .nb-layout:not(.immersive) .nb-sidebar:not(.m-open) :is(.nb-search-row,.nb-page-list,.nb-modebtn){display:none}
-  .nb-layout:not(.immersive) .nb-sidebar.m-open .nb-page-list{max-height:32vh}
   /* the open book fills the screen between the top bar and the footer, and its controls stay in view */
   .nb-layout.immersive{flex:none;height:calc(100dvh - 44px - 52px - env(safe-area-inset-bottom));min-height:0;padding:6px 6px 4px;overflow:hidden}
   .nb-bookwrap{gap:6px;width:100%}

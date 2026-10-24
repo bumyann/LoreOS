@@ -21,6 +21,7 @@ import { getEntry as galleryEntry, getFull as galleryFull } from './gallery.js';
 import { listPictures } from './gallery.js';
 import { allLibraryItems } from './meta.js';
 import { addFiles, addPicture } from './gallery.js';
+import { appearance } from './appearance.js';
 import { libraryRows, openLibraryItem, setNotebookHooks, kindColor, kindIsCustom } from './library_view.js';
 import { store } from './kv.js';
 import { safeSet } from './storage.js';
@@ -59,7 +60,9 @@ const ssGet = k => { try { return sessionStorage.getItem(k); } catch (e) { retur
 const ssSet = (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) { /* private mode */ } };
 export const nbDefaultMode = () => (lsGet(DEFAULT_KEY) === 'immersive' ? 'immersive' : 'normal');
 export function setNbDefaultMode(mode) { lsSet(DEFAULT_KEY, mode === 'immersive' ? 'immersive' : 'normal'); try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* fine */ } }
-export const nbMode = () => { const m = ssGet(SESSION_KEY); return (m === 'immersive' || m === 'normal') ? m : nbDefaultMode(); };
+export const nbMode = () => {
+  if (appearance() === 'standard') return 'normal';   // the open-notebook desk is part of the Pixel appearance
+  const m = ssGet(SESSION_KEY); return (m === 'immersive' || m === 'normal') ? m : nbDefaultMode(); };
 const nbClosed = () => lsGet(CLOSED_KEY) === '1';
 export function setNbMode(mode) { nbSaveActive(); ssSet(SESSION_KEY, mode === 'immersive' ? 'immersive' : 'normal'); renderNotebookView(); }
 
@@ -77,7 +80,7 @@ function sidebarHtml(immersive) {
         </div>
         <div class="nb-search-row"><input class="finput nb-search" id="nbSearch" type="search" placeholder="Search notebooks and pages..." aria-label="Search notebooks and pages" value="${esc(searchQuery)}"></div>
         <div class="nb-page-list" id="nb-page-list" role="tree"></div>
-        ${immersive ? '' : `<button class="nb-modebtn" id="nbModeBtn" type="button" title="Show the Journal as an open notebook on a desk">${px('journal')} Immersive view</button>`}
+        ${immersive || appearance() === 'standard' ? '' : `<button class="nb-modebtn" id="nbModeBtn" type="button" title="Show the Journal as an open notebook on a desk">${px('journal')} Immersive view</button>`}
       </div>`;
 }
 

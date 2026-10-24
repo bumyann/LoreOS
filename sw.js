@@ -73,6 +73,8 @@ const ASSETS = [
   'js/gallery.js',
   'js/gallery_view.js',
   'js/boot_fonts.js',
+  'js/appearance_boot.js',
+  'js/appearance.js',
   'js/boot_filecheck.js',
   'js/image_ops.js',
   'js/image_editor.js',
