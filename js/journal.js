@@ -189,11 +189,13 @@ export function renderNotebookView() {
 }
 
 // Turn to the next or previous spread of the open notebook, with a page-turn. Pages sit two to a spread.
+// On a phone the book shows one page at a time instead of a two-page spread
+const onePage = () => matchMedia('(max-width: 820px)').matches;
 function turnPage(dir) {
   const d = nbGet(), book = d.activeNotebookId; if (!book) return;
   const pages = model.orderedPages(d, book); if (!pages.length) return;
   const cur = _nbActiveId ? Math.max(0, pages.findIndex(p => p.id === _nbActiveId)) : 0;
-  const base = cur - (cur % 2), to = base + dir * 2;
+  const step = onePage() ? 1 : 2, base = step === 1 ? cur : cur - (cur % 2), to = base + dir * step;
   if (to < 0 || to >= pages.length) return;
   nbSaveActive();
   const side = document.getElementById(dir > 0 ? 'nb-editor' : 'nb-page-left'), bookEl = document.getElementById('nb-book-open');
@@ -222,7 +224,7 @@ function secDestroy() { if (_sec) { clearTimeout(_sec.timer); try { _sec.editor.
 // (the main one is always #nb-editor-inner, which the page code already knows how to fill). Returns the other page's id, or ''.
 function arrangeSpread(d, id) {
   const pages = model.orderedPages(d, d.pages[id].notebook), i = pages.findIndex(p => p.id === id);
-  const left = i % 2 === 0, other = left ? pages[i + 1] : pages[i - 1];
+  const single = onePage(), left = !single && i % 2 === 0, other = single ? undefined : (left ? pages[i + 1] : pages[i - 1]);   // on a phone only one page is shown: the one you opened
   const lin = document.getElementById('nb-page-left').firstElementChild, rin = document.getElementById('nb-editor').firstElementChild;
   secDestroy();
   if (_nbEditor) { try { _nbEditor.destroy(); } catch (e) { /* already gone */ } _nbEditor = null; }   // the old page's editor lives in one of the two areas; clear both before the new ones go in

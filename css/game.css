@@ -197,6 +197,7 @@ body.pink{ --wood:#aab0c8; --wood-hi:#e2e5f0; --wood-lo:#6a708a; --paper:#ffffff
   /* the contents bookmark is a tab on the edge of the book, out of the way of the toolbar, and its list covers the page */
   .nb-bookmark{left:auto;right:-9px;top:42%;width:32px;height:88px;clip-path:polygon(28% 0,100% 0,100% 100%,28% 100%,0 50%);filter:drop-shadow(2px 3px 0 rgba(0,0,0,.4))}
   .nb-bookmark::before{display:none}
-  .nb-bookmark span{font-size:.7rem;letter-spacing:2px;margin:12px 0 0 12px}
+  .nb-bookmark{display:flex;align-items:center;justify-content:center;padding-left:9px}
+  .nb-bookmark span{font-size:.7rem;letter-spacing:2px;margin:0}
   .nb-book-open .nb-contents{left:6px;right:6px;width:auto;top:6px;bottom:8px}
 }
