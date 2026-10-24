@@ -371,6 +371,8 @@ function wire(el, shown) {
       const act = e.target.closest('[data-act]'), tag = e.target.closest('.libx-tag');
       if (act) { e.stopPropagation(); if (act.dataset.act === 'pin') { togglePin(row.kind, row.id); refresh(); } else openDetails(row); return; }
       if (tag && tag.dataset.tag) { e.stopPropagation(); view.tag = tag.dataset.tag; saveView(); refresh(); return; }
+      // on a touchscreen a tap pulls the book off the shelf first (there is no hover), and a second tap opens it
+      if (card.closest('.libx-books') && matchMedia('(hover: none)').matches && !card.classList.contains('pulled')) { el.querySelectorAll('.libx-book.pulled').forEach(c => c.classList.remove('pulled')); card.classList.add('pulled'); return; }
       open();
     });
     card.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === card) { e.preventDefault(); open(); } });

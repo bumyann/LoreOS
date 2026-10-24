@@ -83,10 +83,10 @@ html{scrollbar-color:var(--p) var(--bg2)}
 /* ── Pixel icons ── */
 /* sizes are whole multiples of 16 so every pixel stays the same size */
 .px{width:16px;height:16px;display:inline-block;vertical-align:-3px;flex-shrink:0;image-rendering:pixelated}
-.mob-nav-btn .icon .px{width:32px;height:32px}
+.mob-nav-btn .icon .px{width:16px;height:16px}
 .qa-ico{display:flex;align-items:center;justify-content:center;width:100%;height:100%}
 .qa-ico .px{width:16px;height:16px}
-.mob-nav-btn .icon{display:flex;align-items:center;justify-content:center;height:32px}
+.mob-nav-btn .icon{display:flex;align-items:center;justify-content:center;height:16px}
 .libx-sym{display:inline-flex;align-items:center;justify-content:center}
 .libx-book .libx-sym .px,.libx-cover .libx-sym .px{width:48px;height:48px}
 .libx-rail-item .libx-sym .px{width:16px;height:16px}

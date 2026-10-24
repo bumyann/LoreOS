@@ -73,7 +73,7 @@ function sidebarHtml(immersive) {
   return `<div class="nb-sidebar${immersive ? ' nb-contents' : ''}" id="nb-sidebar">
         <div class="nb-sidebar-head">
           <div class="nb-title">${immersive ? 'Contents' : 'Journal'}</div>
-          <div class="nb-head-acts"><button class="nb-newbtn" id="nbNewBtn" title="A new page in the open notebook" type="button">${px('plus')}<span>Page</span></button><button class="nb-newbtn" id="nbNewBookBtn" title="A new notebook" type="button">${px('plus')}<span>Notebook</span></button></div>
+          <div class="nb-head-acts">${immersive ? '' : `<button class="nb-newbtn nb-mtoggle" id="nbMToggle" type="button" aria-expanded="false">Pages</button>`}<button class="nb-newbtn" id="nbNewBtn" title="A new page in the open notebook" type="button">${px('plus')}<span>Page</span></button><button class="nb-newbtn" id="nbNewBookBtn" title="A new notebook" type="button">${px('plus')}<span>Notebook</span></button></div>
         </div>
         <div class="nb-search-row"><input class="finput nb-search" id="nbSearch" type="search" placeholder="Search notebooks and pages..." aria-label="Search notebooks and pages" value="${esc(searchQuery)}"></div>
         <div class="nb-page-list" id="nb-page-list" role="tree"></div>
@@ -108,10 +108,10 @@ function openBookHtml(data) {
           ${sidebarHtml(true)}
         </div>
         <div class="nb-book-tools">
-          <button type="button" class="nb-deskbtn" id="nbPrevPage" title="Turn back a page">${px('arrow-left')} Previous</button>
-          <button type="button" class="nb-deskbtn" id="nbNextPage" title="Turn to the next page">Next ${px('arrow-left', 'px-flip')}</button>
+          <button type="button" class="nb-deskbtn" id="nbPrevPage" title="Turn back a page">${px('arrow-left')}<span class="nb-bl"> Previous</span></button>
+          <button type="button" class="nb-deskbtn" id="nbNextPage" title="Turn to the next page"><span class="nb-bl">Next </span>${px('arrow-left', 'px-flip')}</button>
           <span class="nb-book-tools-gap"></span>
-          <button type="button" class="nb-deskbtn" id="nbNewBookBtn2" title="A new notebook">${px('plus')} Notebook</button>
+          <button type="button" class="nb-deskbtn" id="nbNewBookBtn2" title="A new notebook">${px('plus')}<span class="nb-bl"> Notebook</span></button>
           <button type="button" class="nb-deskbtn" id="nbCloseBook" title="Close the notebook and see all your notebooks on the desk">Close the book</button>
           <button type="button" class="nb-deskbtn" id="nbModeBtn" title="Back to the normal view">Normal view</button>
         </div>
@@ -167,6 +167,8 @@ export function renderNotebookView() {
 
   document.getElementById('nbNewBtn').addEventListener('click', () => { if (!model.notebooksOf(nbGet()).length) { newNotebookAndOpen(); return; } openNewPageDialog(); });
   document.getElementById('nbNewBookBtn').addEventListener('click', () => newNotebookAndOpen());
+  const mt = document.getElementById('nbMToggle'), sdb = document.getElementById('nb-sidebar');
+  if (mt) mt.addEventListener('click', () => { const on = !sdb.classList.contains('m-open'); sdb.classList.toggle('m-open', on); mt.setAttribute('aria-expanded', String(on)); });
   document.getElementById('nbSearch').addEventListener('input', e => { searchQuery = e.target.value; nbRenderPageList(); });
   const modeBtn = document.getElementById('nbModeBtn'); if (modeBtn) modeBtn.addEventListener('click', () => setNbMode(immersive ? 'normal' : 'immersive'));
   if (immersive) {
@@ -418,6 +420,7 @@ export function nbOpenPage(id) {
   if (!page) return;
   const spread = nbMode() === 'immersive' && !!document.getElementById('nb-book-open');
   const partner = spread ? arrangeSpread(data, id) : undefined;
+  if (!spread) { const sd = document.getElementById('nb-sidebar'); if (sd && sd.classList.contains('m-open')) { sd.classList.remove('m-open'); const t = document.getElementById('nbMToggle'); if (t) t.setAttribute('aria-expanded', 'false'); } }   // on a phone the page list folds away once you pick a page
 
   clearTimeout(_nbAutoSaveTimer);
   if (_nbEditor) { try { _nbEditor.destroy(); } catch (e) { /* already gone */ } _nbEditor = null; }
