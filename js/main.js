@@ -4,7 +4,7 @@
 
 import { openAttachLbModal } from './attach_lb.js';
 import { createChar, openCharLibrary, saveChar } from './character.js';
-import { exportCharCharx, exportCharCompanion, exportCharJson, exportCharJsonV2, handleCharCompanionImport, handleCharImport, handleCharxImport, openCharPngExport } from './character_io.js';
+import { exportCharByaf, exportCharCharx, exportCharCompanion, exportCharJson, exportCharJsonV2, handleCharCompanionImport, handleCharImport, handleByafImport, handleCharxImport, openCharPngExport } from './character_io.js';
 import { wireFullscreen } from './fullscreen.js';
 import { libSaveCurrent, openLibrary } from './library.js';
 import { applyLoreSettings, changeZoom, clearEditor, clearSelection, closeTab, createEntry, handleSbSearch, openLoreSettings, renderEditor, renderTabs, saveEntry, toggleView } from './lorebook.js';
@@ -45,6 +45,7 @@ import * as m_journal from './journal.js';
 import * as m_journal_model from './journal_model.js';
 import * as m_appearance from './appearance.js';
 import * as m_saucepan from './adapters/saucepan.js';
+import * as m_byaf from './adapters/byaf.js';
 import { applyAppearance } from './appearance.js';
 import * as m_image_ops from './image_ops.js';
 import * as m_image_editor from './image_editor.js';
@@ -243,6 +244,8 @@ export function wireEvents() {
   g('filePresetInput').onchange = handlePresetImport;
   g('charImportPngBtn').onclick = () => { g('fileCharInput').accept = '.png'; g('fileCharInput').click(); };
   g('fileCharInput').onchange = handleCharImport;
+  if (g('charImportByafBtn')) g('charImportByafBtn').onclick = () => { if(g('fileByafInput')) g('fileByafInput').click(); };
+  if (g('fileByafInput')) g('fileByafInput').onchange = handleByafImport;
   if (g('charImportCharxBtn')) g('charImportCharxBtn').onclick = () => { if(g('fileCharxInput')) g('fileCharxInput').click(); };
   if (g('charImportSaucepanBtn')) g('charImportSaucepanBtn').onclick = () => { if(g('fileCharCompanionInput')) g('fileCharCompanionInput').click(); };
   if (g('fileCharCompanionInput')) g('fileCharCompanionInput').onchange = handleCharCompanionImport;
@@ -256,6 +259,7 @@ export function wireEvents() {
   if (g('charHdrExportJanitorBtn')) g('charHdrExportJanitorBtn').onclick = () => exportCharJsonV2(state.activeCharId, { janitor: true });
   if (g('charHdrExportJanitorPngBtn')) g('charHdrExportJanitorPngBtn').onclick = () => openCharPngExport(state.activeCharId, true, { janitor: true });
   if (g('charHdrExportCharxBtn')) g('charHdrExportCharxBtn').onclick = () => exportCharCharx(state.activeCharId);
+  if (g('charHdrExportByafBtn')) g('charHdrExportByafBtn').onclick = () => exportCharByaf(state.activeCharId);
   if (g('charHdrExportCompanionBtn')) g('charHdrExportCompanionBtn').onclick = () => exportCharCompanion(state.activeCharId);
   // Header export button (preset)
   if (g('presetHdrExportBtn')) g('presetHdrExportBtn').onclick = () => exportPreset();
@@ -410,7 +414,7 @@ export function wireEvents() {
 // through to the shared state object.
 // ═══════════════════════════════════════════════════════
 const LoreOS = {};
-[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa, m_character_io, m_avatar, m_templates_data, m_dropimport, m_header_fit, m_trash, m_kv, m_prompt, m_prompt_model, m_logo, m_regex, m_regex_model, m_lumiverse, m_loom_vars, m_meta, m_persona, m_library_view, m_symbols, m_home, m_gallery, m_gallery_view, m_image_ops, m_image_editor, m_imagegen, m_secrets, m_stamps, m_theme_view, m_theme_presets, m_pixel_icons, m_journal_editor, m_journal, m_journal_model, m_appearance, m_saucepan].forEach(ns => {
+[m_util, m_storage, m_history, m_pronoun, m_lorebook_model, m_lorebook, m_lorebook_io, m_library, m_search, m_workshop, m_character, m_preset, m_templates, m_attach_lb, m_fullscreen, m_settings, m_sync, m_gdrive, m_mobile, m_router, m_pwa, m_character_io, m_avatar, m_templates_data, m_dropimport, m_header_fit, m_trash, m_kv, m_prompt, m_prompt_model, m_logo, m_regex, m_regex_model, m_lumiverse, m_loom_vars, m_meta, m_persona, m_library_view, m_symbols, m_home, m_gallery, m_gallery_view, m_image_ops, m_image_editor, m_imagegen, m_secrets, m_stamps, m_theme_view, m_theme_presets, m_pixel_icons, m_journal_editor, m_journal, m_journal_model, m_appearance, m_saucepan, m_byaf].forEach(ns => {
   Object.keys(ns).forEach(k => {
     if (!(k in LoreOS)) Object.defineProperty(LoreOS, k, { get: () => ns[k], enumerable: true, configurable: true });
   });

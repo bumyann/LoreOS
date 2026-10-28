@@ -4,7 +4,7 @@
 
 import { migrateCharacterBook, openAttachLbModal, updateLbStatus } from './attach_lb.js';
 import { downscaleAvatar } from './avatar.js';
-import { exportCharCharx, exportCharCompanion, exportCharJson, exportCharJsonV2, openCharPngExport } from './character_io.js';
+import { exportCharByaf, exportCharCharx, exportCharCompanion, exportCharJson, exportCharJsonV2, openCharPngExport } from './character_io.js';
 import { openFullscreen } from './fullscreen.js';
 import { itemHistoryPush, itemUndoGet, itemUndoPush, openItemHistory, syncItemUndoButtons, wireFieldUndoRedo } from './history.js';
 import { closeMobSidebar } from './mobile.js';
@@ -369,6 +369,7 @@ export function renderCharEditor() {
             <button class="dd-item" id="chExportJanitorBtn" title="For JanitorAI: puts the character definition in Personality (where a V2 card keeps it) and your Creator Notes in the Bio.">JanitorAI JSON</button>
           </details>
           <button class="dd-item" id="chExportCharxBtn">.CHARX</button>
+          <button class="dd-item" id="chExportByafBtn" title="Backyard AI archive: persona, lore items, the first picture, and each greeting as a scenario.">Backyard (.byaf)</button>
           <button class="dd-item" id="chExportCompanionBtn" title="Saves a companion.json for SaucepanAI. Description, personality and scenario are joined under [Headers]; the picture is picked on Saucepan.">SaucepanAI</button>
         </div>
       </div>
@@ -460,6 +461,7 @@ export function renderCharEditor() {
   if (g('chExportJanitorBtn')) g('chExportJanitorBtn').addEventListener('click', () => exportCharJsonV2(state.activeCharId, { janitor: true }));
   if (g('chExportJanitorPngBtn')) g('chExportJanitorPngBtn').addEventListener('click', () => openCharPngExport(state.activeCharId, true, { janitor: true }));
   if (g('chExportCharxBtn')) g('chExportCharxBtn').addEventListener('click', () => exportCharCharx(state.activeCharId));
+  if (g('chExportByafBtn')) g('chExportByafBtn').addEventListener('click', () => exportCharByaf(state.activeCharId));
   if (g('chExportCompanionBtn')) g('chExportCompanionBtn').addEventListener('click', () => exportCharCompanion(state.activeCharId));
   // Wire the char export dropdown
   const ddCharExport = document.getElementById('dd-char-export');
@@ -985,6 +987,7 @@ export function closeCharLibraryModal() {
 registerMarkup(30, `<input type="file" id="fileCharInput" accept=".json,.png" style="display:none">`);
 
 registerMarkup(40, `<input type="file" id="fileCharxInput" accept=".charx" style="display:none">`);
+registerMarkup(40, `<input type="file" id="fileByafInput" accept=".byaf" style="display:none">`);
 
 registerMarkup(50, `<input type="file" id="fileCharCompanionInput" accept=".json" style="display:none">`);
 

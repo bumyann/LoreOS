@@ -76,6 +76,8 @@ const ASSETS = [
   'js/appearance.js',
   'js/adapters/saucepan.js',
   'js/adapters/tavern.js',
+  'js/adapters/byaf.js',
+  'js/adapters/common.js',
   'js/boot_filecheck.js',
   'js/image_ops.js',
   'js/image_editor.js',

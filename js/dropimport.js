@@ -15,6 +15,7 @@ export async function classifyDrop(file) {
   const name = (file.name || '').toLowerCase();
   if (name.endsWith('.png')) return { input: 'fileCharInput', mode: 'char' };
   if (name.endsWith('.charx')) return { input: 'fileCharxInput', mode: 'char' };
+  if (name.endsWith('.byaf')) return { input: 'fileByafInput', mode: 'char' };
   if (name.endsWith('.md') || name.endsWith('.markdown')) return { input: 'filePromptInput', mode: 'prompt' }; // a prompt page
   if (!name.endsWith('.json')) return null;
   let data;

@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════
 
 import { createChar, openCharLibrary } from './character.js';
-import { exportCharCharx, exportCharCompanion, exportCharJson, exportCharJsonV2, openCharPngExport } from './character_io.js';
+import { exportCharByaf, exportCharCharx, exportCharCompanion, exportCharJson, exportCharJsonV2, openCharPngExport } from './character_io.js';
 import { openLibrary } from './library.js';
 import { clearEditor, openLoreSettings } from './lorebook.js';
 import { exportJanitorJson, exportJson, exportSaucepanJson, openJanitorPasteModal, openPublicExport } from './lorebook_io.js';
@@ -192,6 +192,7 @@ export function wireMobile() {
   if (g('mobCharExportJanitorBtn'))   g('mobCharExportJanitorBtn').addEventListener('click',   () => { closeModal('mobCharExportModal'); exportCharJsonV2(state.activeCharId, { janitor: true }); });
   if (g('mobCharExportJanitorPngBtn')) g('mobCharExportJanitorPngBtn').addEventListener('click', () => { closeModal('mobCharExportModal'); openCharPngExport(state.activeCharId, true, { janitor: true }); });
   if (g('mobCharExportCharxBtn'))     g('mobCharExportCharxBtn').addEventListener('click',     () => { closeModal('mobCharExportModal'); exportCharCharx(state.activeCharId); });
+  if (g('mobCharExportByafBtn')) g('mobCharExportByafBtn').addEventListener('click', () => { closeModal('mobCharExportModal'); exportCharByaf(state.activeCharId); });
   if (g('mobCharExportCompanionBtn')) g('mobCharExportCompanionBtn').addEventListener('click', () => { closeModal('mobCharExportModal'); exportCharCompanion(state.activeCharId); });
 
   // ── PRESET buttons ──
@@ -398,6 +399,7 @@ registerMarkup(180, `<div id="mobCharExportModal" class="modal">
         </div>
       </details>
       <button class="btn btn-s" id="mobCharExportCharxBtn" style="width:100%;justify-content:center;padding:.65rem">.CHARX</button>
+      <button class="btn btn-s" id="mobCharExportByafBtn" style="width:100%;justify-content:center;padding:.65rem">Backyard (.byaf)</button>
       <button class="btn btn-s" id="mobCharExportCompanionBtn" style="width:100%;justify-content:center;padding:.65rem">SaucepanAI</button>
     </div>
   </div>

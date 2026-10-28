@@ -14,9 +14,10 @@
 // instructions or a lorebook, so those are reported as left out.
 // ═══════════════════════════════════════════════════════
 
+import { countFilled, foldSections, str } from './common.js';
+
 export const SAUCEPAN_CARD_SOFT_LIMIT = 30000;   // Saucepan's own limit for the definition; imports can go past it
 
-const str = v => (typeof v === 'string' ? v : '');
 const MAPPED = new Set(['name', 'display_name', 'full_description', 'short_description', 'tags', 'fandom_tags', 'image', 'card', 'persona', 'description',
   'example_dialogue', 'mes_example', 'starting_scenarios', 'formatting_instructions', 'advanced_prompt', 'personality', 'scenario', 'system_prompt',
   'post_history_instructions', 'creator_notes', 'creator', 'character_version', 'extensions', 'character_book']);
@@ -25,11 +26,7 @@ const MAPPED = new Set(['name', 'display_name', 'full_description', 'short_descr
 export const slugTag = t => String(t || '').trim().replace(/^#+/, '').toLowerCase().replace(/[\s-]+/g, '_').replace(/[^\p{L}\p{N}_]/gu, '');
 
 // Description, personality and scenario become one definition. With more than one filled in, each gets a [Header]
-export function foldDefinition(d) {
-  const parts = [['Description', str(d.description)], ['Personality', str(d.personality)], ['Scenario', str(d.scenario)]].filter(p => p[1].trim());
-  if (parts.length <= 1) return parts.length ? parts[0][1] : '';
-  return parts.map(([h, t]) => '[' + h + ']\n' + t).join('\n\n');
-}
+export const foldDefinition = d => foldSections([['Description', d.description], ['Personality', d.personality], ['Scenario', d.scenario]]);
 
 export function isCompanion(data) {
   return !!data && typeof data === 'object' && !Array.isArray(data) && (Array.isArray(data.starting_scenarios) || ('card' in data && 'name' in data) || ('persona' in data && 'name' in data));
@@ -110,7 +107,7 @@ export function toCompanion(d) {
   if (!sp.image) notes.push('Saucepan will not restore a companion file without a picture from its own library, and LoreOS cannot add one. If this card did not come from Saucepan, import its V2 or V3 card there instead; Saucepan takes those.');
   if (!str(sp.short_description).trim()) notes.push('There is no short description yet. Add one in the SaucepanAI view.');
   if (def.length > SAUCEPAN_CARD_SOFT_LIMIT) notes.push('The definition is ' + def.length.toLocaleString() + ' characters. Saucepan\'s own limit is about 30,000, though imports can go past it.');
-  if (parts(d) > 1) notes.push('Description, personality and scenario were joined into one definition, each under a [Header].');
+  if (countFilled(d, ['description', 'personality', 'scenario']) > 1) notes.push('Description, personality and scenario were joined into one definition, each under a [Header].');
   const left = [];
   if (str(d.system_prompt).trim()) left.push('system prompt');
   if (str(d.post_history_instructions).trim()) left.push('post-history instructions');
@@ -119,4 +116,3 @@ export function toCompanion(d) {
   if (left.length) notes.push('Left out, because Saucepan has no place for them: ' + left.join(', ') + '.');
   return { companion, notes };
 }
-const parts = d => ['description', 'personality', 'scenario'].filter(k => str(d[k]).trim()).length;

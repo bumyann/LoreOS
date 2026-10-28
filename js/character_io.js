@@ -8,6 +8,7 @@ import { lumiToScript, normalizeScript, scriptToLumi } from './regex_model.js';
 import { charId, normalizeCharCard, openChar, renderCharSidebar, saveChar } from './character.js';
 import { state } from './state.js';
 import { saveCharLibrary } from './storage.js';
+import { byafPaths, fromByaf, imageArchivePath, toByaf } from './adapters/byaf.js';
 import { fromCompanion, toCompanion } from './adapters/saucepan.js';
 import { janitorGreetingsMd, toJanitorData, toV2Card, toV3Card } from './adapters/tavern.js';
 import { dlFile, esc, openModal, registerMarkup, safeFileName, toast } from './util.js';
@@ -72,6 +73,69 @@ export function showExportNotes(title, notes) {
   document.getElementById('exportNotesTitle').textContent = title;
   list.innerHTML = notes.map(n => '<li>' + esc(n) + '</li>').join('');
   openModal('exportNotesModal');
+}
+
+// ── Backyard AI .byaf (a zip: manifest.json, one character and its images, the scenarios) ──
+const BYAF_MAX_IMAGE = 25 * 1024 * 1024;
+export async function readByaf(buf) {
+  const zip = await JSZip.loadAsync(buf);
+  const mf = zip.file('manifest.json'); if (!mf) throw new Error('This is not a Backyard archive (no manifest.json).');
+  const manifest = JSON.parse(await mf.async('string'));
+  const { characterPath, characterId, scenarioPaths } = byafPaths(manifest);   // only the places the spec names are opened
+  const cf = zip.file(characterPath); if (!cf) throw new Error('The archive has no character file.');
+  const character = JSON.parse(await cf.async('string'));
+  const scenarios = [];
+  for (const p of scenarioPaths) { const f = zip.file(p); if (f) scenarios.push({ path: p, data: JSON.parse(await f.async('string')) }); }
+  const res = fromByaf({ manifest, character, scenarios });
+  let imageData = null;
+  const ip = imageArchivePath(characterId, res.imagePath), imf = ip && zip.file(ip);
+  if (imf) {
+    const b64 = await imf.async('base64');
+    if (b64.length * 0.75 <= BYAF_MAX_IMAGE) imageData = 'data:' + (MIME_BY_EXT[extOf(ip)] || 'image/png') + ';base64,' + b64;
+    else res.notes.push('The picture was over 25 MB, so it was not imported.');
+  }
+  return { ...res, imageData };
+}
+
+export function handleByafImport(e) {
+  const file = e.target.files[0]; if (!file) return;
+  if (typeof JSZip === 'undefined') { toast('JSZip not loaded — check your connection.', 'err'); return; }
+  const r = new FileReader();
+  r.onload = ev => {
+    readByaf(ev.target.result).then(res => {
+      importCharCard(res.card, file.name, res.imageData);
+      toast('Imported Backyard character: ' + res.card.data.name, 'ok');
+      showExportNotes('Imported from Backyard', res.notes);
+    }).catch(err => toast('.byaf import error: ' + err.message, 'err'));
+  };
+  r.readAsArrayBuffer(file);
+  e.target.value = '';
+}
+
+export function exportCharByaf(id) {
+  const entry = state.charLibrary[id]; if (!entry) return;
+  if (typeof JSZip === 'undefined') { toast('JSZip not loaded — check your connection.', 'err'); return; }
+  commitBeforeExport(id);
+  const m = /^data:image\/(png|jpeg|jpg|webp|gif);base64,(.+)$/i.exec(entry.imageData || '');
+  const imageExt = m ? (m[1].toLowerCase() === 'jpeg' ? 'jpg' : m[1].toLowerCase()) : '';
+  const out = toByaf(entry.card.data, { imageExt });
+  const zip = new JSZip();
+  zip.file('manifest.json', JSON.stringify(out.manifest, null, 2));
+  zip.file(out.manifest.characters[0], JSON.stringify(out.character, null, 2));
+  out.scenarios.forEach(s => zip.file(s.path, JSON.stringify(s.data, null, 2)));
+  if (m) {
+    let bytes = Uint8Array.from(atob(m[2]), c => c.charCodeAt(0));
+    if (imageExt === 'png') bytes = stripExistingCharaChunks(bytes);   // no leftover generation prompts or card data in the picture
+    zip.file('characters/' + out.characterId + '/' + out.character.images[0].path, bytes);
+  }
+  const name = safeFileName(entry.card.data.name, 'character');
+  zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }).then(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = name + '.byaf';
+    document.body.append(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    toast('Exported for Backyard AI: ' + name + '.byaf', 'ok');
+    showExportNotes('Backyard export notes', out.notes);
+  }).catch(err => toast('.byaf export error: ' + err.message, 'err'));
 }
 
 // SaucepanAI companion.json
