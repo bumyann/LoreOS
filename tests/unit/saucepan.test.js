@@ -71,8 +71,9 @@ test('export: description, personality and scenario are folded under headers', (
 test('export: tells you what Saucepan needs or cannot take', () => {
   const { notes } = toCompanion({ name: 'X', description: 'd', personality: 'p', system_prompt: 'sys', post_history_instructions: 'phi', character_book: { entries: [{}, {}] } });
   const all = notes.join(' | ');
-  assert.match(all, /at least one tag/);
+  assert.match(all, /without at least one tag/);
   assert.match(all, /picture from its own library/);
+  assert.match(all, /import its V2 or V3 card/);
   assert.match(all, /short description/);
   assert.match(all, /joined into one definition/);
   assert.match(all, /system prompt, post-history instructions, the lorebook \(2 entries/);

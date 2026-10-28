@@ -106,8 +106,8 @@ export function toCompanion(d) {
   if (sp.image) companion.image = sp.image;
 
   const notes = [];
-  if (!tags.length) notes.push('Saucepan needs at least one tag. Add some in Tags before you upload.');
-  if (!sp.image) notes.push('Saucepan needs a picture from its own library. Pick one on Saucepan after you import (LoreOS cannot add one).');
+  if (!tags.length) notes.push('Saucepan will not restore a companion file without at least one tag. Add some in Tags first.');
+  if (!sp.image) notes.push('Saucepan will not restore a companion file without a picture from its own library, and LoreOS cannot add one. If this card did not come from Saucepan, import its V2 or V3 card there instead; Saucepan takes those.');
   if (!str(sp.short_description).trim()) notes.push('There is no short description yet. Add one in the SaucepanAI view.');
   if (def.length > SAUCEPAN_CARD_SOFT_LIMIT) notes.push('The definition is ' + def.length.toLocaleString() + ' characters. Saucepan\'s own limit is about 30,000, though imports can go past it.');
   if (parts(d) > 1) notes.push('Description, personality and scenario were joined into one definition, each under a [Header].');

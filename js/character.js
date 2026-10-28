@@ -359,14 +359,14 @@ export function renderCharEditor() {
       <div class="dd" id="dd-char-export">
         <button class="btn btn-s dd-btn">&#8657; Export</button>
         <div class="dd-menu">
-          <button class="dd-item" id="chExportV3PngBtn">V3 PNG</button>
-          <button class="dd-item" id="chExportPngBtn" title="Works in most apps. JanitorAI shows a card's description as its public Bio, so for JanitorAI use the JanitorAI option instead.">V2 PNG</button>
-          <button class="dd-item" id="chExportJanitorPngBtn" title="For JanitorAI: puts the character definition where JanitorAI reads it (Personality) and your Creator Notes in the Bio.">JanitorAI PNG</button>
+          <button class="dd-item" id="chExportV3PngBtn" title="Same layout SillyTavern writes. Works in SillyTavern, JanitorAI and most apps, and keeps your description as the description.">V3 PNG</button>
+          <button class="dd-item" id="chExportPngBtn" title="Works in most apps. JanitorAI shows a V2 card's description as its public Bio. For JanitorAI use V3 PNG, or the JanitorAI option.">V2 PNG</button>
+          <button class="dd-item" id="chExportJanitorPngBtn" title="For JanitorAI: puts the character definition in Personality (where a V2 card keeps it) and your Creator Notes in the Bio.">JanitorAI PNG</button>
           <details class="dd-group">
             <summary>JSON</summary>
             <button class="dd-item" id="chExportJsonBtn">V3 JSON</button>
-            <button class="dd-item" id="chExportV2JsonBtn" title="Works in most apps. JanitorAI shows a card's description as its public Bio, so for JanitorAI use the JanitorAI option instead.">V2 JSON</button>
-            <button class="dd-item" id="chExportJanitorBtn" title="For JanitorAI: puts the character definition where JanitorAI reads it (Personality) and your Creator Notes in the Bio.">JanitorAI JSON</button>
+            <button class="dd-item" id="chExportV2JsonBtn" title="Works in most apps. JanitorAI shows a V2 card's description as its public Bio. For JanitorAI use V3 PNG, or the JanitorAI option.">V2 JSON</button>
+            <button class="dd-item" id="chExportJanitorBtn" title="For JanitorAI: puts the character definition in Personality (where a V2 card keeps it) and your Creator Notes in the Bio.">JanitorAI JSON</button>
           </details>
           <button class="dd-item" id="chExportCharxBtn">.CHARX</button>
           <button class="dd-item" id="chExportCompanionBtn" title="Saves a companion.json for SaucepanAI. Description, personality and scenario are joined under [Headers]; the picture is picked on Saucepan.">SaucepanAI</button>

@@ -9,6 +9,7 @@ import { charId, normalizeCharCard, openChar, renderCharSidebar, saveChar } from
 import { state } from './state.js';
 import { saveCharLibrary } from './storage.js';
 import { fromCompanion, toCompanion } from './adapters/saucepan.js';
+import { janitorGreetingsMd, toJanitorData, toV2Card, toV3Card } from './adapters/tavern.js';
 import { dlFile, esc, openModal, registerMarkup, safeFileName, toast } from './util.js';
 import { wsShowItem } from './workshop.js';
 
@@ -152,77 +153,12 @@ export function exportCharJson(id) {
   toast('Exported: ' + fn, 'ok');
 }
 
-// Build a clean chara_card_v2-shaped card from internal card data.
-// Flattens alternate_greetings from internal {title,message} objects back to
-// plain strings (V2 spec requires string[]) and drops LoreOS-internal fields
-// (top-level `id`, greeting titles, etc.) that aren't part of the V2 spec.
-// JanitorAI reads a card's `description` as the public bio and only `personality`
-// as the character definition. For a Janitor export the definition therefore
-// moves into `personality` (joined with any personality text) and the bio gets
-// the creator notes, if there are any.
-export function toJanitorData(d) {
-  const def = [d.description, d.personality].map(x => (x || '').trim()).filter(Boolean).join('\n\n');
-  return { ...d, description: d.creator_notes || '', personality: def };
-}
-
-// JanitorAI only reads the first message from an imported card, so the other greetings come as a
-// markdown file next to it, ready to paste in.
-export function janitorGreetingsMd(d) {
-  const list = (d.alternate_greetings || []).map(g => (typeof g === 'object' && g ? { title: g.title || '', message: g.message || '' } : { title: '', message: g || '' })).filter(g => g.message.trim());
-  if (!list.length) return '';
-  return '# ' + (d.name || 'Character') + ': alternate greetings\n\n'
-    + 'JanitorAI only imports the first message from a card. Paste these in by hand.\n\n'
-    + list.map((g, i) => '---\n\n## ' + (i + 2) + '. ' + (g.title || 'Greeting ' + (i + 2)) + '\n\n' + g.message.trim() + '\n').join('\n');
-}
+// The pure card builders (toV2Card, toV3Card, JanitorAI helpers) live in js/adapters/tavern.js
+export { toV2Card, toV3Card, toJanitorData, janitorGreetingsMd };
 export function downloadJanitorGreetings(d) {
   const md = janitorGreetingsMd(d); if (!md) return;
   // a moment after the card, so browsers treat it as a second download rather than a duplicate
   setTimeout(() => { dlFile(md, safeFileName(d.name, 'character') + '_janitor_greetings.md', 'text/markdown'); toast('Also saved the ' + (d.alternate_greetings || []).length + ' alternate greeting(s) as a .md to paste into JanitorAI.', 'info'); }, 500);
-}
-
-export function toV2Card(d) {
-  return {
-    spec: 'chara_card_v2',
-    spec_version: '2.0',
-    data: {
-      name:                     d.name || '',
-      description:              d.description || '',
-      personality:              d.personality || '',
-      scenario:                 d.scenario || '',
-      first_mes:                d.first_mes || '',
-      mes_example:              d.mes_example || '',
-      creator_notes:            d.creator_notes || '',
-      system_prompt:            d.system_prompt || '',
-      post_history_instructions:d.post_history_instructions || '',
-      alternate_greetings:      (d.alternate_greetings || []).map(g => typeof g === 'object' ? (g.message || '') : (g || '')),
-      tags:                     d.tags || [],
-      creator:                  d.creator || '',
-      character_version:        d.character_version || '',
-      extensions:               d.extensions || {},
-      ...(d.character_book ? { character_book: d.character_book } : {})
-    }
-  };
-}
-
-// Build a spec-clean chara_card_v3 from the internal card. The editor keeps one
-// canonical card (stored as V3-shaped); every export derives its target format
-// from it. Drops LoreOS-internal fields (top-level `id`, greeting titles) and
-// guarantees the fields the V3 spec requires, which blank/imported cards lack.
-export function toV3Card(card) {
-  const d = (card && card.data) || {};
-  const flat = a => (Array.isArray(a) ? a : []).map(g => typeof g === 'object' && g ? (g.message || '') : (g || ''));
-  return {
-    spec: 'chara_card_v3',
-    spec_version: '3.0',
-    data: {
-      ...d,
-      name: d.name || '',
-      alternate_greetings: flat(d.alternate_greetings),
-      group_only_greetings: flat(d.group_only_greetings),
-      tags: Array.isArray(d.tags) ? d.tags : [],
-      extensions: d.extensions || {},
-    }
-  };
 }
 
 // Export as V2 JSON (chara_card_v2 / spec_version 2.0)
@@ -438,11 +374,11 @@ export function openCharPngExport(id, forceV2 = true, { janitor = false } = {}) 
   const doExport = (arrayBuf) => {
     try {
       const buf = new Uint8Array(arrayBuf);
-      // V2: one `chara` chunk. V3: `ccv3` (the V3 card) plus a V2 `chara` chunk
-      // so older readers still find something, as SillyTavern does.
-      const outBuf = forceV2
-        ? embedCharInPng(buf, toV2Card(janitor ? toJanitorData(entry.card.data) : entry.card.data))
-        : embedCharInPng(buf, toV2Card(entry.card.data), toV3Card(entry.card));
+      // V2: one `chara` chunk. V3: the same V3 card (with the old top-level fields) in both `chara` and `ccv3`, exactly as
+      // SillyTavern writes it. JanitorAI only reads `chara`, and reads a V3 card correctly only when those top-level fields are there.
+      let outBuf;
+      if (forceV2) outBuf = embedCharInPng(buf, toV2Card(janitor ? toJanitorData(entry.card.data) : entry.card.data));
+      else { const v3 = toV3Card(entry.card, { legacy: true }); outBuf = embedCharInPng(buf, v3, v3); }
       const blob = new Blob([outBuf], { type: 'image/png' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
