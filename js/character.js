@@ -4,7 +4,7 @@
 
 import { migrateCharacterBook, openAttachLbModal, updateLbStatus } from './attach_lb.js';
 import { downscaleAvatar } from './avatar.js';
-import { exportCharCharx, exportCharJson, exportCharJsonV2, openCharPngExport } from './character_io.js';
+import { exportCharCharx, exportCharCompanion, exportCharJson, exportCharJsonV2, openCharPngExport } from './character_io.js';
 import { openFullscreen } from './fullscreen.js';
 import { itemHistoryPush, itemUndoGet, itemUndoPush, openItemHistory, syncItemUndoButtons, wireFieldUndoRedo } from './history.js';
 import { closeMobSidebar } from './mobile.js';
@@ -228,6 +228,7 @@ export function renderCharEditor() {
   const sysPrompt = get('system_prompt', d.system_prompt);
   const phi = get('post_history_instructions', d.post_history_instructions);
   const notes = get('creator_notes', d.creator_notes);
+  const shortDesc = get('shortDesc', ((d.extensions || {}).saucepan || {}).short_description || '');
   const creator = get('creator', d.creator);
   const version = get('character_version', d.character_version);
   const tags = get('tags', (d.tags||[]).join(', '));
@@ -277,6 +278,12 @@ export function renderCharEditor() {
         </div>
       </div>
       <input type="file" id="chImageFileInput" accept="image/png,image/jpeg,image/webp" style="display:none">
+    </div>
+
+    <div class="fg"${isSauce ? '' : ' style="display:none"'}>
+      <label class="flabel">Short description</label>
+      <input id="chShortDesc" class="finput" value="${esc(shortDesc)}" placeholder="One line shown on the character's SaucepanAI page...">
+      <span class="form-note">SaucepanAI keeps this apart from the definition. Your Creator Notes become its full description.</span>
     </div>
 
     <div class="fg">
@@ -362,6 +369,7 @@ export function renderCharEditor() {
             <button class="dd-item" id="chExportJanitorBtn" title="For JanitorAI: puts the character definition where JanitorAI reads it (Personality) and your Creator Notes in the Bio.">JanitorAI JSON</button>
           </details>
           <button class="dd-item" id="chExportCharxBtn">.CHARX</button>
+          <button class="dd-item" id="chExportCompanionBtn" title="Saves a companion.json for SaucepanAI. Description, personality and scenario are joined under [Headers]; the picture is picked on Saucepan.">SaucepanAI</button>
         </div>
       </div>
       <button class="btn btn-err" id="chDeleteBtn">Delete Character</button>
@@ -452,6 +460,7 @@ export function renderCharEditor() {
   if (g('chExportJanitorBtn')) g('chExportJanitorBtn').addEventListener('click', () => exportCharJsonV2(state.activeCharId, { janitor: true }));
   if (g('chExportJanitorPngBtn')) g('chExportJanitorPngBtn').addEventListener('click', () => openCharPngExport(state.activeCharId, true, { janitor: true }));
   if (g('chExportCharxBtn')) g('chExportCharxBtn').addEventListener('click', () => exportCharCharx(state.activeCharId));
+  if (g('chExportCompanionBtn')) g('chExportCompanionBtn').addEventListener('click', () => exportCharCompanion(state.activeCharId));
   // Wire the char export dropdown
   const ddCharExport = document.getElementById('dd-char-export');
   if (ddCharExport) {
@@ -844,6 +853,7 @@ export function captureCharState() {
   state.charFormState.system_prompt = g('chSysPrompt')?.value;
   state.charFormState.post_history_instructions = g('chPHI')?.value;
   state.charFormState.creator_notes = g('chNotes')?.value;
+  state.charFormState.shortDesc = g('chShortDesc')?.value;
   state.charFormState.creator = g('chCreator')?.value;
   state.charFormState.character_version = g('chVersion')?.value;
   state.charFormState.tags = g('chTags')?.value;
@@ -881,6 +891,11 @@ export function saveChar(opts = {}) {
   card.data.system_prompt = keepEol(s.system_prompt || '', was.system_prompt);
   card.data.post_history_instructions = keepEol(s.post_history_instructions || '', was.post_history_instructions);
   card.data.creator_notes = keepEol(s.creator_notes || '', was.creator_notes);
+  if (s.shortDesc !== undefined) {   // SaucepanAI's short description lives with the rest of its extras
+    const ext = card.data.extensions || (card.data.extensions = {});
+    const sauce = ext.saucepan || {};
+    if (s.shortDesc.trim() || sauce.short_description) ext.saucepan = { ...sauce, short_description: s.shortDesc };
+  }
   card.data.creator = s.creator || '';
   card.data.character_version = s.character_version || '';
   card.data.tags = (s.tags || '').split(',').map(t => t.trim()).filter(Boolean);

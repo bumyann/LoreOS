@@ -127,6 +127,10 @@ npm run build
 node tests/e2e/run.js            # all scenarios
 node tests/e2e/run.js image      # only scenarios starting with "image"
 ```
+The format adapters under `js/adapters/` are plain functions with no browser needed, so they have their own tests:
+```bash
+node --test                      # no install, finds every *.test.js
+```
 The image providers and the Pollinations sign-in are only tested against a mocked network, so they need real-world testing.
 
 Development happens on `staging`. `main` is for versioned releases.

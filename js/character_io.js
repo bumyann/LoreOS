@@ -8,7 +8,8 @@ import { lumiToScript, normalizeScript, scriptToLumi } from './regex_model.js';
 import { charId, normalizeCharCard, openChar, renderCharSidebar, saveChar } from './character.js';
 import { state } from './state.js';
 import { saveCharLibrary } from './storage.js';
-import { dlFile, safeFileName, toast } from './util.js';
+import { fromCompanion, toCompanion } from './adapters/saucepan.js';
+import { dlFile, esc, openModal, registerMarkup, safeFileName, toast } from './util.js';
 import { wsShowItem } from './workshop.js';
 
 // ── Import / Export ──
@@ -52,47 +53,35 @@ export function handleCharCompanionImport(e) {
   const r = new FileReader();
   r.onload = ev => {
     try {
-      const data = JSON.parse(ev.target.result);
-      // SaucepanAI companion.json: the definition lives in `card`; `full_description` and `short_description`
-      // are the public profile blurbs, `formatting_instructions` / `advanced_prompt` are chat settings,
-      // and `starting_scenarios` are the greetings ({title, message}). Older exports used `persona`.
-      if (!data.name && !data.persona && !data.card) { toast('Unrecognized companion.json format.', 'err'); return; }
-      const str = v => typeof v === 'string' ? v : '';
-      const notes = [str(data.short_description), str(data.full_description)].filter(Boolean).join('\n\n');
-      const extra = {};
-      if (str(data.formatting_instructions)) extra.formatting_instructions = data.formatting_instructions;
-      if (str(data.advanced_prompt)) extra.advanced_prompt = data.advanced_prompt;
-      if (str(data.display_name)) extra.display_name = data.display_name;
-      const altGreets = (data.starting_scenarios || []).slice(1).map(s => ({
-        title: s.title || '',
-        message: s.text || s.message || ''
-      }));
-      const firstMes = data.starting_scenarios?.[0]?.text || data.starting_scenarios?.[0]?.message || '';
-      const card = {
-        spec: 'chara_card_v2', spec_version: '2.0',
-        data: {
-          name: data.name || 'Unnamed',
-          description: str(data.card) || str(data.persona) || str(data.description),
-          personality: data.personality || '',
-          scenario: data.scenario || '',
-          first_mes: firstMes,
-          mes_example: str(data.mes_example) || str(data.example_dialogue),
-          system_prompt: data.system_prompt || '',
-          post_history_instructions: data.post_history_instructions || '',
-          creator_notes: data.creator_notes || notes,
-          creator: data.creator || '',
-          character_version: data.character_version || '',
-          tags: data.tags || [],
-          alternate_greetings: altGreets,
-          extensions: { ...(data.extensions || {}), ...(Object.keys(extra).length ? { saucepan: extra } : {}) },
-          character_book: data.character_book || null
-        }
-      };
-      importCharCard(card, file.name);
+      // The mapping lives in js/adapters/saucepan.js (SaucepanAI companion.json <-> a card)
+      importCharCard(fromCompanion(JSON.parse(ev.target.result)), file.name);
     } catch(err) { toast('Companion import error: ' + err.message, 'err'); console.error(err); }
   };
   r.readAsText(file);
   e.target.value = '';
+}
+
+// A short list of what an export left out or still needs, for the export targets that cannot take every field
+registerMarkup(251, `<div id="exportNotesModal" class="modal"><div class="modal-box" style="max-width:520px">
+  <div class="modal-head"><h2 id="exportNotesTitle">Export notes</h2><button class="modal-x" data-close="exportNotesModal">×</button></div>
+  <div class="modal-body"><ul id="exportNotesList" style="margin:0 0 .6rem 1.1rem;display:flex;flex-direction:column;gap:.45rem;font-size:.82rem"></ul>
+  <div style="text-align:right"><button class="btn btn-s btn-sm" data-close="exportNotesModal">Got it</button></div></div></div></div>`);
+export function showExportNotes(title, notes) {
+  const list = document.getElementById('exportNotesList'); if (!list || !notes.length) return;
+  document.getElementById('exportNotesTitle').textContent = title;
+  list.innerHTML = notes.map(n => '<li>' + esc(n) + '</li>').join('');
+  openModal('exportNotesModal');
+}
+
+// SaucepanAI companion.json
+export function exportCharCompanion(id) {
+  const entry = state.charLibrary[id]; if (!entry) return;
+  commitBeforeExport(id);
+  const { companion, notes } = toCompanion(entry.card.data);
+  const fn = safeFileName(entry.card.data.name, 'character') + '_companion.json';
+  dlFile(JSON.stringify(companion, null, 2), fn, 'application/json');
+  toast('Exported for SaucepanAI: ' + fn, 'ok');
+  showExportNotes('Before you upload to SaucepanAI', notes);
 }
 
 export function importCharCard(data, filename, imageData = null, extra = null) {
