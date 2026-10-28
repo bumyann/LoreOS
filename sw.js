@@ -31,7 +31,6 @@ const ASSETS = [
   'css/webcore.css',
   'css/game.css',
   'js/pixel_icons.js',
-  'js/pixel_sprites.js',
   'js/tiptap-bundle.js',
   'js/util.js',
   'js/state.js',

@@ -15,7 +15,6 @@
 // ═══════════════════════════════════════════════════════
 import { openViewer } from './gallery_view.js';
 import { px } from './pixel_icons.js';
-import { sprite } from './pixel_sprites.js';
 import { blockHandlesExt, blockMoveExt, imageNode, pasteDropExt, toolbarHtml, wireToolbar } from './journal_editor.js';
 import { getEntry as galleryEntry, getFull as galleryFull } from './gallery.js';
 import { listPictures } from './gallery.js';

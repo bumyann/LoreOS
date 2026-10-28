@@ -21,7 +21,6 @@ import { libGet, safeSet } from './storage.js';
 import { askConfirm, esc } from './util.js';
 import { switchMode } from './workshop.js';
 import { px } from './pixel_icons.js';
-import { studioHtml } from './pixel_sprites.js';
 import { cancelJournalAutosave, nbSaveActive, renderNotebookView } from './journal.js';
 
 export let currentView = null;
@@ -106,7 +105,6 @@ export function renderHomeView() {
 
 export function renderGetStarted(el) {
   el.innerHTML = `
-    ${studioHtml()}
     <div class="home-hero">
       <div class="home-hero-title">LoreOS</div>
       <div class="home-hero-tagline">// lorebooks. characters. presets. prompts. all in one place.</div>

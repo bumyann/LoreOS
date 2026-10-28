@@ -353,13 +353,13 @@ export function renderCharEditor() {
         <button class="btn btn-s dd-btn">&#8657; Export</button>
         <div class="dd-menu">
           <button class="dd-item" id="chExportV3PngBtn">V3 PNG</button>
-          <button class="dd-item" id="chExportPngBtn">V2 PNG</button>
-          <button class="dd-item" id="chExportJanitorPngBtn">JanitorAI PNG</button>
+          <button class="dd-item" id="chExportPngBtn" title="Works in most apps. JanitorAI shows a card's description as its public Bio, so for JanitorAI use the JanitorAI option instead.">V2 PNG</button>
+          <button class="dd-item" id="chExportJanitorPngBtn" title="For JanitorAI: puts the character definition where JanitorAI reads it (Personality) and your Creator Notes in the Bio.">JanitorAI PNG</button>
           <details class="dd-group">
             <summary>JSON</summary>
             <button class="dd-item" id="chExportJsonBtn">V3 JSON</button>
-            <button class="dd-item" id="chExportV2JsonBtn">V2 JSON</button>
-            <button class="dd-item" id="chExportJanitorBtn">JanitorAI JSON</button>
+            <button class="dd-item" id="chExportV2JsonBtn" title="Works in most apps. JanitorAI shows a card's description as its public Bio, so for JanitorAI use the JanitorAI option instead.">V2 JSON</button>
+            <button class="dd-item" id="chExportJanitorBtn" title="For JanitorAI: puts the character definition where JanitorAI reads it (Personality) and your Creator Notes in the Bio.">JanitorAI JSON</button>
           </details>
           <button class="dd-item" id="chExportCharxBtn">.CHARX</button>
         </div>
@@ -868,22 +868,30 @@ export function saveChar(opts = {}) {
 
   card.spec = s.spec || card.spec;
   card.spec = 'chara_card_v3'; card.spec_version = '3.0'; // always export V3
+  // A text box turns Windows line endings (\r\n) into \n, so text nobody touched would come back changed on every
+  // save and export. Keep the card's own line endings when the text is the same apart from them.
+  const keepEol = (now, was) => (typeof was === 'string' && was !== now && was.replace(/\r\n?/g, '\n') === now ? was : now);
+  const was = card.data;
   card.data.name = s.name || 'Unnamed';
-  card.data.description = s.description || '';
-  card.data.personality = s.personality || '';
-  card.data.scenario = s.scenario || '';
-  card.data.first_mes = s.first_mes || '';
-  card.data.mes_example = s.mes_example || '';
-  card.data.system_prompt = s.system_prompt || '';
-  card.data.post_history_instructions = s.post_history_instructions || '';
-  card.data.creator_notes = s.creator_notes || '';
+  card.data.description = keepEol(s.description || '', was.description);
+  card.data.personality = keepEol(s.personality || '', was.personality);
+  card.data.scenario = keepEol(s.scenario || '', was.scenario);
+  card.data.first_mes = keepEol(s.first_mes || '', was.first_mes);
+  card.data.mes_example = keepEol(s.mes_example || '', was.mes_example);
+  card.data.system_prompt = keepEol(s.system_prompt || '', was.system_prompt);
+  card.data.post_history_instructions = keepEol(s.post_history_instructions || '', was.post_history_instructions);
+  card.data.creator_notes = keepEol(s.creator_notes || '', was.creator_notes);
   card.data.creator = s.creator || '';
   card.data.character_version = s.character_version || '';
   card.data.tags = (s.tags || '').split(',').map(t => t.trim()).filter(Boolean);
   // Kept as { title, message } here (the titles belong to SaucepanAI and the editor);
   // every export flattens them back to the plain strings SillyTavern expects
+  const oldGreetings = Array.isArray(was.alternate_greetings) ? was.alternate_greetings : [];
+  const eolOf = new Map();   // the same greeting with its own line endings, found by its text
+  oldGreetings.forEach(o => { const m = o && typeof o === 'object' ? o.message : o; if (typeof m === 'string' && m.includes('\r')) eolOf.set(m.replace(/\r\n?/g, '\n'), m); });
+  const keepMsg = m => (eolOf.has(m) ? eolOf.get(m) : m);
   card.data.alternate_greetings = (s.alternate_greetings || [])
-    .map(g => typeof g === 'object' ? { title: g.title || '', message: g.message || '' } : { title: '', message: g || '' })
+    .map(g => typeof g === 'object' ? { title: g.title || '', message: keepMsg(g.message || '') } : { title: '', message: keepMsg(g || '') })
     .filter(g => g.message.trim() !== '');
 
   // Lumiverse alternate_fields

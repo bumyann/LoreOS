@@ -684,8 +684,6 @@ textarea.bad{border-color:var(--err,#e0707f)}
 .libx-tag span{color:var(--txm)}
 .libx-tag.on,.libx-tag:hover{border-color:var(--bdb);color:var(--tx)}
 .libx-main{min-width:0;display:flex;flex-direction:column;gap:.7rem}
-.libx-sec{font-family:var(--fx);font-size:.68rem;letter-spacing:1px;text-transform:uppercase;color:var(--txm);margin-top:.2rem}
-.libx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:.6rem}
 .libx-card{display:flex;gap:.7rem;padding:.65rem;background:var(--bg2);border:1px solid var(--bd);border-radius:4px;cursor:pointer;position:relative;min-width:0}
 .libx-card:hover,.libx-card:focus-visible{border-color:var(--bdb);outline:none}
 .libx-card.pinned{border-color:var(--bdb)}
@@ -697,8 +695,6 @@ textarea.bad{border-color:var(--err,#e0707f)}
 .libx-kind{color:var(--a);text-transform:uppercase;letter-spacing:.5px}
 .libx-world{font-size:.66rem;color:var(--txd);display:flex;align-items:center;gap:.3rem}
 .libx-world i{width:.5rem;height:.5rem;border-radius:50%;display:inline-block}
-.libx-tags{display:flex;flex-wrap:wrap;gap:.2rem}
-.libx-note{font-size:.68rem;color:var(--txm);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .libx-acts{display:flex;flex-direction:column;gap:.1rem}
 .libx-icon-btn{background:none;border:none;color:var(--txd);cursor:pointer;font-size:1rem;line-height:1;padding:.15rem .3rem;border-radius:3px;min-width:28px;min-height:28px}
 .libx-icon-btn:hover{background:var(--sf);color:var(--tx)}
@@ -713,7 +709,6 @@ textarea.bad{border-color:var(--err,#e0707f)}
   .libx-rail{display:none;position:static;border:1px solid var(--bd);border-radius:4px;padding:.4rem;background:var(--bg2)}
   .libx-rail.open{display:flex}
   .libx-search{max-width:none;flex-basis:100%;order:5}
-  .libx-grid{grid-template-columns:1fr}
 }
 .libx-sym{font-variant-emoji:text}
 .libx-banner{height:130px;border-radius:4px;border:1px solid var(--bd);background:linear-gradient(135deg,var(--sf2),var(--bg3));background-size:cover;background-position:center;display:flex;align-items:flex-end;overflow:hidden}
@@ -764,10 +759,7 @@ textarea.bad{border-color:var(--err,#e0707f)}
 .libx-book .libx-name{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.74rem;line-height:1.25;min-height:2.5em}
 .libx-book .libx-meta{font-size:.55rem;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .libx-book .libx-world{font-size:.58rem}
-.libx-book .libx-tags{flex-wrap:nowrap;overflow:hidden}
 .libx-book .libx-tag{font-size:.54rem;padding:0 .35rem;cursor:pointer;white-space:nowrap;flex-shrink:0}
-.libx-book .libx-more{font-size:.54rem;color:var(--txm)}
-.libx-book .libx-note{display:none}
 .libx-book .libx-acts{position:absolute;top:2px;right:2px;flex-direction:row;opacity:0;transition:opacity .12s;background:color-mix(in srgb,var(--bg) 78%,transparent);border-radius:4px}
 .libx-book:hover .libx-acts,.libx-book:focus-within .libx-acts{opacity:1}
 .libx-book.pinned .libx-acts{right:22px}

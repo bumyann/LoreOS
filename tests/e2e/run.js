@@ -39,6 +39,7 @@ const T=[
  ['journal-editor', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['journal-immersive', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['appearance', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
+ ['card-eol', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['companion-import', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['audit-m1', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
  ['audit-t1', o=>o&&Array.isArray(o.fail)&&o.fail.length===0],
