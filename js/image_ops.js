@@ -220,13 +220,14 @@ export function drawOverlay(c, src, o) {
 // ── Stamps (watermarks) ──
 export const STAMP_POSITIONS = ['tl', 'tc', 'tr', 'ml', 'mc', 'mr', 'bl', 'bc', 'br'];
 // Where a stamp of sw x sh goes on a W x H picture. Returns centres: [{ x, y, rot }]
-export function stampPlacements(W, H, sw, sh, { position = 'br', margin = 3, tile = false } = {}) {
+export function stampPlacements(W, H, sw, sh, { position = 'br', margin = 3, tile = false, fx = null, fy = null } = {}) {
   const m = Math.max(0, Number(margin) || 0) / 100 * Math.min(W, H);
   if (tile) {
     const out = [], sx = sw * 1.9, sy = Math.max(sh * 3, sh + 40), rot = -25;
     for (let r = 0, y = sy / 2; y < H + sy; y += sy, r++) for (let x = (r % 2 ? sx / 2 : 0) + sx / 2; x < W + sx; x += sx) out.push({ x: Math.round(x - sx / 4), y: Math.round(y), rot });
     return out;
   }
+  if (fx !== null && fy !== null && Number.isFinite(Number(fx)) && Number.isFinite(Number(fy))) return [{ x: Math.round(Math.min(1, Math.max(0, Number(fx))) * W), y: Math.round(Math.min(1, Math.max(0, Number(fy))) * H), rot: 0 }];
   const pos = STAMP_POSITIONS.includes(position) ? position : 'br';
   const x = pos[1] === 'l' ? m + sw / 2 : pos[1] === 'r' ? W - m - sw / 2 : W / 2;
   const y = pos[0] === 't' ? m + sh / 2 : pos[0] === 'b' ? H - m - sh / 2 : H / 2;

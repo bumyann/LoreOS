@@ -12,7 +12,7 @@
  { const el=card('a'); el.scrollIntoView({block:'center'}); await w(200);
    const r=el.getBoundingClientRect(), grip=el.querySelector('[data-resize]'); const gr=grip.getBoundingClientRect(); const x=gr.left+gr.width/2, y=gr.top+gr.height/2;
    dispatch(grip,'pointerdown',x,y); dispatch(document,'pointermove',x+5,y+150); dispatch(document,'pointermove',x+10,y+240); dispatch(document,'pointerup',x+10,y+240); await w(300);
-   const c=homeGet().board.find(b=>b.id==='a'); const r2=card('a').getBoundingClientRect();
+   const c=homeGet().board.find(b=>b.id==='a'); const r2={width:card('a').offsetWidth,height:card('a').offsetHeight};
    chk('dragging down makes a fixed, taller shape', c.ar>0 && c.ar<r.width/r.height && r2.height>r.height+100, [c.ar,r.height,r2.height]);
    chk('the shape is kept in the record and on the card', card('a').dataset.ar===String(c.ar) && card('a').classList.contains('hb-fixed'));
    chk('height follows the stored shape', Math.abs(r2.height - r2.width/c.ar) < 3, [r2.width,r2.height,c.ar]);
@@ -25,13 +25,13 @@
  { const el=card('c'); const gr=el.querySelector('[data-resize]').getBoundingClientRect(); const x=gr.left+gr.width/2, y=gr.top+gr.height/2;
    dispatch(el.querySelector('[data-resize]'),'pointerdown',x,y); dispatch(document,'pointermove',x,y+120,{shiftKey:true}); dispatch(document,'pointerup',x,y+120,{shiftKey:true}); await w(250);
    chk('Shift while dragging makes it square', homeGet().board.find(b=>b.id==='c').ar===1, homeGet().board.find(b=>b.id==='c').ar);
-   const rr=card('c').getBoundingClientRect(); chk('square on screen', Math.abs(rr.width-rr.height)<3, [rr.width,rr.height]);
+   const rr={width:card('c').offsetWidth,height:card('c').offsetHeight}; chk('square on screen', Math.abs(rr.width-rr.height)<3, [rr.width,rr.height]);
  }
  // wide rectangle via the editor
  openCardEditor('d'); await w(200);
  chk('editor offers shapes', document.querySelectorAll('#hbShape option').length>=8);
  document.getElementById('hbShape').value='3.5'; document.getElementById('hbSize').value='3'; document.getElementById('hbSave').click(); await w(300);
- { const c=homeGet().board.find(b=>b.id==='d'); const rr=card('d').getBoundingClientRect();
+ { const c=homeGet().board.find(b=>b.id==='d'); const rr={width:card('d').offsetWidth,height:card('d').offsetHeight};
    chk('long and thin from the editor', c.ar===3.5 && c.w===3 && rr.width/rr.height>3.2, [c.ar,c.w,rr.width,rr.height]); }
  openCardEditor('a'); await w(150);
  chk('a dragged shape shows as custom', document.getElementById('hbShape').value==='custom' || SHAPES.some(s=>Number(s[0])===homeGet().board[0].ar));

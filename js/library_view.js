@@ -17,6 +17,8 @@ import { createPrompt, openPrompt } from './prompt.js';
 import { createRegex, openRegex } from './regex.js';
 import { navigateTo } from './router.js';
 import { KIND_SYMBOL, SYMBOL_CHOICES, sym } from './symbols.js';
+import { kindIcon, px } from './pixel_icons.js';
+import { getEntry as galleryEntry } from './gallery.js';
 import { askConfirm, askInput, closeAllDropdowns, closeModal, esc, g, openModal, registerMarkup, toast } from './util.js';
 import { renderGalleryView } from './gallery_view.js';
 import { switchMode } from './workshop.js';
@@ -28,23 +30,30 @@ export const KIND_INFO = {
   prompt:  { label: 'Prompt pack', plural: 'Prompt packs', icon: KIND_SYMBOL.prompt,  mode: 'prompt' },
   regex:   { label: 'Regex',       plural: 'Regex',        icon: KIND_SYMBOL.regex,   mode: 'regex' },
   persona: { label: 'Persona',     plural: 'Personas',     icon: KIND_SYMBOL.persona, mode: null },
+  notebook: { label: 'Notebook',   plural: 'Notebooks',    icon: KIND_SYMBOL.notebook, mode: null },
   image:   { label: 'Picture',     plural: 'Pictures',     icon: '▣',                 mode: null }, // lives in the Gallery tab, not on the shelves
 };
 // Characters and personas always show their own picture; the rest can be given one, or a symbol
 const OWN_PICTURE = new Set(['char', 'persona', 'image']);
 // The default cover colour of each kind of book
-const KIND_COLOR = { char: '#6b82c4', lore: '#9a78c8', preset: '#5aa0b4', prompt: '#c0a060', regex: '#6cb490', persona: '#c47e9c', image: '#8a9bd2' };
+// The colour a kind of book is, unless you colour that book yourself. Pale and cool by default; changeable per category.
+const KIND_DEFAULT = { notebook: '#cfcbe6', char: '#aebbe6', lore: '#c7b3e6', preset: '#a9cfe6', prompt: '#e6bcd6', regex: '#bfc7f0', persona: '#e6b3cc', image: '#b3c2ea' };
+const KC_KEY = 'loreos_kindcolors';
+const kindOverrides = () => { try { return JSON.parse(localStorage.getItem(KC_KEY) || '{}') || {}; } catch (e) { return {}; } };
+export const kindIsCustom = kind => /^#[0-9a-fA-F]{6}$/.test(kindOverrides()[kind] || '');
+export const kindColor = kind => { const o = kindOverrides()[kind]; return /^#[0-9a-fA-F]{6}$/.test(o || '') ? o : KIND_DEFAULT[kind] || '#aebbe6'; };
+const KIND_COLOR = new Proxy({}, { get: (t, k) => kindColor(String(k)) });
 // The order the shelves stand in
-export const SHELF_ORDER = ['char', 'lore', 'preset', 'prompt', 'regex', 'persona'];
+export const SHELF_ORDER = ['notebook', 'char', 'lore', 'preset', 'prompt', 'regex', 'persona'];
 export const BOOK_COLORS = ['#6b82c4', '#9a78c8', '#5aa0b4', '#c0a060', '#6cb490', '#c47e9c', '#c46c6c', '#c8884c', '#8a8f9c', '#4f5f8f', '#7a5a8e', '#3f7a6a'];
 const WORLD_COLORS = ['#8a9bd2', '#c9a0dc', '#7ec8b0', '#e0b070', '#e08a8a', '#9ac0e8', '#b8c870', '#d49ab8'];
 const SORTS = [['recent', 'Recently used'], ['name', 'Name'], ['type', 'Type'], ['oldest', 'Oldest']];
 const VIEW_KEY = 'loreos_libview';
 
 // What the view is showing (kept across visits)
-const view = { tab: 'library', type: 'all', world: null, folder: null, tag: null, q: '', sort: 'recent', layout: 'shelves', filtersOpen: false };
+const view = { tab: 'library', type: 'all', world: null, folder: null, tag: null, q: '', sort: 'recent', filtersOpen: false };
 try { Object.assign(view, JSON.parse(localStorage.getItem(VIEW_KEY) || '{}'), { q: '', filtersOpen: false }); } catch (e) { /* first run */ }
-const saveView = () => { try { localStorage.setItem(VIEW_KEY, JSON.stringify({ tab: view.tab, type: view.type, world: view.world, folder: view.folder, tag: view.tag, sort: view.sort, layout: view.layout })); } catch (e) { /* private mode */ } };
+const saveView = () => { try { localStorage.setItem(VIEW_KEY, JSON.stringify({ tab: view.tab, type: view.type, world: view.world, folder: view.folder, tag: view.tag, sort: view.sort })); } catch (e) { /* private mode */ } };
 
 // ── Items with their organisation attached ──
 export function libraryRows() {
@@ -92,6 +101,7 @@ export function openLibraryItem(row) {
   markOpened(row.kind, row.id, row.name);
   if (row.kind === 'image') { if (imageOpener) imageOpener(row.id); return; }
   if (row.kind === 'persona') { openPersona(row.id); return; }
+  if (row.kind === 'notebook') { if (notebookOpener) notebookOpener(row.id); return; }
   const info = KIND_INFO[row.kind];
   navigateTo('editor');
   setTimeout(() => {
@@ -113,8 +123,13 @@ function thumb(r) {
   if (r.rec.image) return `<img src="${esc(r.rec.image)}" alt="" loading="lazy">`;
   if (r.kind === 'char' && r.entry.imageData) return `<img src="${esc(r.entry.imageData)}" alt="" loading="lazy">`;
   if (r.kind === 'persona' && r.entry.persona && r.entry.persona.avatar) return `<img src="${esc(r.entry.persona.avatar)}" alt="" loading="lazy">`;
+  if (r.kind === 'notebook' && r.entry.cover) {      // a notebook's own cover (set in the Journal)
+    const c = r.entry.cover, ge = c.t === 'img' ? galleryEntry(c.id) : null;
+    if (ge && ge.thumb) return `<img src="${esc(ge.thumb)}" alt="" loading="lazy">`;
+    if (c.t === 'preset') return `<span class="nb-cv nb-cv-${esc(c.v)} nb-cv-fill"></span>`;
+  }
   if (r.rec.symbol) return `<span class="libx-sym">${esc(sym(r.rec.symbol))}</span>`;
-  return `<span class="libx-sym">${esc(sym(KIND_INFO[r.kind].icon))}</span>`;
+  return `<span class="libx-sym">${kindIcon(r.kind)}</span>`;
 }
 function summaryOf(r) {
   if (r.kind === 'lore') return pluralize(Object.keys((r.entry.lb && r.entry.lb.entries) || {}).length, 'entry', 'entries');
@@ -122,6 +137,7 @@ function summaryOf(r) {
   if (r.kind === 'prompt') return pluralize((((r.entry.pack || {}).modules) || []).length, 'module', 'modules');
   if (r.kind === 'preset') return pluralize((((r.entry.preset || {}).prompts) || []).length, 'prompt', 'prompts');
   if (r.kind === 'persona') return ((r.entry.persona || {}).title) || '';
+  if (r.kind === 'notebook') return pluralize(r.entry.pages || 0, 'page', 'pages');
   return '';
 }
 
@@ -130,7 +146,11 @@ function bookHtml(r, m, i) {
   const w = r.rec.world && m.worlds[r.rec.world];
   const fp = r.rec.folder ? folderPath(m, r.rec.folder).map(f => f.name).join(' › ') : '';
   const tip = [r.name, r.kindLabel, w ? w.name + (fp ? ' › ' + fp : '') : '', r.rec.tags.join(', '), r.rec.note].filter(Boolean).join(' · ');
-  return `<div class="libx-card libx-book kind-${r.kind}${r.rec.pinned ? ' pinned' : ''}${r.rec.color ? ' colored' : ''}"${r.rec.color ? ` style="--bk:${esc(r.rec.color)}"` : ''} data-i="${i}" tabindex="0" role="button" title="${esc(tip)}" aria-label="Open ${esc(r.name)}">
+  // each book on the shelf has its own height and thickness, kept the same every time
+  let hash = 0; for (const ch of String(r.id || r.name)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  const sh = 150 + (hash % 6) * 7, sw = 40 + ((hash >> 3) % 4) * 5 + Math.min(14, Math.floor((r.name || '').length / 6));
+  return `<div class="libx-card libx-book kind-${r.kind}${r.rec.pinned ? ' pinned' : ''}${r.rec.color ? ' colored' : ''}" data-i="${i}" tabindex="0" role="button" title="${esc(tip)}" aria-label="Open ${esc(r.name)}" style="--sh:${sh}px;--sw:${sw}px;--bk:${esc(r.rec.color || kindColor(r.kind))}">
+    <div class="libx-spine" aria-hidden="true"><span class="libx-spine-ico">${kindIcon(r.kind)}</span><span class="libx-spine-title">${esc(r.name || 'Untitled')}</span></div>
     <div class="libx-cover"><div class="libx-thumb">${thumb(r)}</div></div>
     <div class="libx-info">
       <div class="libx-name">${esc(r.name || 'Untitled')}</div>
@@ -151,33 +171,21 @@ export function shelfGroups(shown, v = view) {
   if (!filtering) { const fav = shown.filter(r => r.rec.pinned); if (fav.length) groups.push({ key: 'pinned', label: 'Favourites', icon: '★', rows: fav }); }
   if (v.type === 'pinned') return [{ key: 'pinned', label: 'Favourites', icon: '★', rows: shown }];
   SHELF_ORDER.forEach(k => { const rs = shown.filter(r => r.kind === k); if (rs.length) groups.push({ key: k, label: KIND_INFO[k].plural, icon: KIND_INFO[k].icon, rows: rs }); });
+  const nb = groups.findIndex(g => g.key === 'notebook'); if (nb > 0) groups.unshift(groups.splice(nb, 1)[0]);   // notebooks stand on the top shelf
   return groups;
 }
+// Which shelves are closed is remembered between visits
+const SHELF_KEY = 'loreos_libshelves';
+const shelvesClosed = () => { try { return JSON.parse(localStorage.getItem(SHELF_KEY) || '{}') || {}; } catch (e) { return {}; } };
+const saveShelvesClosed = o => { try { localStorage.setItem(SHELF_KEY, JSON.stringify(o)); } catch (e) { /* private mode */ } };
 function shelvesHtml(shown, m, idx) {
-  return shelfGroups(shown).map(gr => `
-    <section class="libx-shelf" data-shelf="${gr.key}" aria-label="${esc(gr.label)}">
-      <div class="libx-plate"><span class="libx-plate-name">${esc(gr.label)}</span><span class="libx-plate-n">${gr.rows.length}</span></div>
+  const closed = shelvesClosed();
+  const body = shelfGroups(shown).map(gr => `
+    <section class="libx-shelf${closed[gr.key] ? ' closed' : ''}" data-shelf="${gr.key}" aria-label="${esc(gr.label)}">
+      <button type="button" class="libx-plate" data-plate="${gr.key}" aria-expanded="${!closed[gr.key]}" title="Show or hide this shelf"><span class="libx-plate-caret" aria-hidden="true">${px('chevron-down')}</span><span class="libx-plate-name">${esc(gr.label)}</span><span class="libx-plate-n">${gr.rows.length}</span></button>
       <div class="libx-books">${gr.rows.map(r => bookHtml(r, m, idx.get(r))).join('')}</div>
     </section>`).join('');
-}
-
-function cardHtml(r, m, i) {
-  const w = r.rec.world && m.worlds[r.rec.world];
-  const fp = r.rec.folder ? folderPath(m, r.rec.folder).map(f => f.name).join(' › ') : '';
-  return `<div class="libx-card${r.rec.pinned ? ' pinned' : ''}${r.rec.color ? ' colored' : ''}"${r.rec.color ? ` style="--bk:${esc(r.rec.color)}"` : ''} data-i="${i}" tabindex="0" role="button" aria-label="Open ${esc(r.name)}">
-    <div class="libx-thumb">${thumb(r)}</div>
-    <div class="libx-info">
-      <div class="libx-name" title="${esc(r.name)}">${esc(r.name || 'Untitled')}</div>
-      <div class="libx-meta"><span class="libx-kind">${esc(r.kindLabel)}</span>${summaryOf(r) ? ' · ' + esc(summaryOf(r)) : ''}${r.used ? ' · ' + esc(fmtDate(r.used)) : ''}</div>
-      ${w ? `<div class="libx-world"><i style="background:${esc(w.color || '#8a9bd2')}"></i>${esc(w.name)}${fp ? ' › ' + esc(fp) : ''}</div>` : ''}
-      ${r.rec.tags.length ? `<div class="libx-tags">${r.rec.tags.map(t => `<span class="libx-tag" data-tag="${esc(t)}">${esc(t)}</span>`).join('')}</div>` : ''}
-      ${r.rec.note ? `<div class="libx-note">${esc(r.rec.note)}</div>` : ''}
-    </div>
-    <div class="libx-acts">
-      <button class="libx-icon-btn" data-act="pin" title="${r.rec.pinned ? 'Unpin' : 'Pin to the top'}" aria-pressed="${r.rec.pinned}">${r.rec.pinned ? '★' : '☆'}</button>
-      <button class="libx-icon-btn" data-act="details" title="World, folder, tags, picture and notes">⋯</button>
-    </div>
-  </div>`;
+  return `<div class="libx-case">${body}</div>`;
 }
 
 function worldHeadHtml(w, m, rows) {
@@ -201,7 +209,7 @@ function worldHeadHtml(w, m, rows) {
     ${crumbs.map((f, i) => `<span class="libx-sep">›</span><button class="libx-crumb${i === crumbs.length - 1 ? ' here' : ''}" data-folder="${esc(f.id)}">${esc(f.name)}</button>`).join('')}
     <span class="libx-crumb-acts"><button class="btn btn-s btn-sm" id="libxAddFolder">+ New folder</button>${view.folder ? '<button class="btn btn-s btn-sm" id="libxRenameFolder">Rename folder</button><button class="btn btn-err btn-sm" id="libxDeleteFolder">Delete folder</button>' : ''}</span>
   </div>
-  ${folders.length ? `<div class="libx-folders">${folders.map(f => `<button class="libx-folder" data-folder="${esc(f.id)}"><span class="libx-sym">${esc(sym('▸'))}</span><span class="libx-folder-name">${esc(f.name)}</span><span class="libx-folder-n">${countIn(f)}</span></button>`).join('')}</div>` : ''}`;
+  ${folders.length ? `<div class="libx-folders">${folders.map(f => `<button class="libx-folder" data-folder="${esc(f.id)}"><span class="libx-sym">${px('folder')}</span><span class="libx-folder-name">${esc(f.name)}</span><span class="libx-folder-n">${countIn(f)}</span></button>`).join('')}</div>` : ''}`;
 }
 
 export function renderLibraryView() {
@@ -221,11 +229,9 @@ export function renderLibraryView() {
   const noWorld = rows.filter(r => !r.rec.world).length;
   const curWorld = view.world && view.world !== 'none' ? m.worlds[view.world] : null;
   const filtering = view.q.trim() || view.tag || view.world || view.type !== 'all';
-  const pinned = !filtering && view.sort === 'recent' ? shown.filter(r => r.rec.pinned) : [];
-  const rest = pinned.length ? shown.filter(r => !r.rec.pinned) : shown;
   const idx = new Map(shown.map((r, i) => [r, i]));
 
-  const rail = (label, key, count) => `<button class="libx-rail-item${(view.type === key && !view.world && !view.tag) ? ' active' : ''}" data-type="${key}">${label}<span>${count}</span></button>`;
+  const rail = (label, key, count) => `<button class="libx-rail-item${(view.type === key && !view.world && !view.tag) ? ' active' : ''}" data-type="${key}"><span class="libx-rail-lbl">${label}</span><span class="libx-rail-n">${count}</span></button>`;
   el.innerHTML = `
   <div class="libx">
     <div class="libx-top">
@@ -234,12 +240,12 @@ export function renderLibraryView() {
       <select class="fselect libx-sort" id="libxSort" aria-label="Sort">${SORTS.map(([v, l]) => `<option value="${v}"${view.sort === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
       <div class="dd" id="libxNewDd"><button class="btn btn-ok dd-btn" id="libxNewBtn" aria-haspopup="true">+ New</button>
         <div class="dd-menu">
-          <button class="dd-item" data-libnew="char">${sym(KIND_SYMBOL.char)} Character</button><button class="dd-item" data-libnew="lore">${sym(KIND_SYMBOL.lore)} Lorebook</button>
-          <button class="dd-item" data-libnew="preset">${sym(KIND_SYMBOL.preset)} Preset</button><button class="dd-item" data-libnew="prompt">${sym(KIND_SYMBOL.prompt)} Prompt pack</button>
-          <button class="dd-item" data-libnew="regex">${sym(KIND_SYMBOL.regex)} Regex set</button><button class="dd-item" data-libnew="regexscript">${sym(KIND_SYMBOL.regex)} Regex script</button>
-          <button class="dd-item" data-libnew="persona">${sym(KIND_SYMBOL.persona)} Persona</button><button class="dd-item" data-libnew="personafile">Import a persona (JSON)</button>
+          <button class="dd-item" data-libnew="char">${kindIcon('char')} Character</button><button class="dd-item" data-libnew="lore">${kindIcon('lore')} Lorebook</button>
+          <button class="dd-item" data-libnew="preset">${kindIcon('preset')} Preset</button><button class="dd-item" data-libnew="prompt">${kindIcon('prompt')} Prompt pack</button>
+          <button class="dd-item" data-libnew="regex">${kindIcon('regex')} Regex set</button><button class="dd-item" data-libnew="regexscript">${kindIcon('regex')} Regex script</button>
+          <button class="dd-item" data-libnew="notebook">${kindIcon('notebook')} Notebook</button><button class="dd-item" data-libnew="persona">${kindIcon('persona')} Persona</button><button class="dd-item" data-libnew="personafile">Import a persona (JSON)</button>
         </div></div>
-      <div class="libx-layout" role="group" aria-label="Layout"><button class="btn btn-s btn-sm${view.layout === 'shelves' ? ' on' : ''}" id="libxLayoutShelves" aria-pressed="${view.layout === 'shelves'}">Shelves</button><button class="btn btn-s btn-sm${view.layout === 'list' ? ' on' : ''}" id="libxLayoutList" aria-pressed="${view.layout === 'list'}">List</button></div>
+      <button class="btn btn-s btn-sm" id="libxSpineBtn" title="Choose the colour of the books in each category">Book colours</button>
       <button class="btn btn-s btn-sm libx-filter-toggle" id="libxFilterToggle" aria-expanded="${view.filtersOpen}">Filters</button>
     </div>
     <div class="libx-body">
@@ -247,18 +253,16 @@ export function renderLibraryView() {
         <div class="libx-rail-h">Browse</div>
         ${rail('All', 'all', rows.length)}${rail('★ Pinned', 'pinned', pinnedCount)}
         <div class="libx-rail-h">Types</div>
-        ${KINDS.map(k => rail(`<span class="libx-sym">${esc(sym(KIND_INFO[k].icon))}</span> ${KIND_INFO[k].plural}`, k, typeCount(k))).join('')}
+        ${KINDS.map(k => rail(`<span class="libx-sym">${kindIcon(k)}</span> ${KIND_INFO[k].plural}`, k, typeCount(k))).join('')}
         <div class="libx-rail-h">Worlds <button class="libx-icon-btn" id="libxAddWorld" title="New world" aria-label="New world">+</button></div>
-        ${Object.values(m.worlds).sort((a, b) => a.name.localeCompare(b.name)).map(w => `<button class="libx-rail-item${view.world === w.id ? ' active' : ''}" data-world="${esc(w.id)}"><i class="libx-dot" style="background:${esc(w.color || '#8a9bd2')}"></i>${esc(w.name)}<span>${wc[w.id] || 0}</span></button>`).join('')}
-        ${Object.keys(m.worlds).length ? `<button class="libx-rail-item${view.world === 'none' ? ' active' : ''}" data-world="none">No world<span>${noWorld}</span></button>` : '<div class="libx-hint">Worlds group things that belong together, like a story or an AU. Inside a world you can make folders, like one per series.</div>'}
+        ${Object.values(m.worlds).sort((a, b) => a.name.localeCompare(b.name)).map(w => `<button class="libx-rail-item${view.world === w.id ? ' active' : ''}" data-world="${esc(w.id)}"><span class="libx-rail-lbl"><i class="libx-dot" style="background:${esc(w.color || '#8a9bd2')}"></i>${esc(w.name)}</span><span class="libx-rail-n">${wc[w.id] || 0}</span></button>`).join('')}
+        ${Object.keys(m.worlds).length ? `<button class="libx-rail-item${view.world === 'none' ? ' active' : ''}" data-world="none"><span class="libx-rail-lbl">No world</span><span class="libx-rail-n">${noWorld}</span></button>` : '<div class="libx-hint">Worlds group things that belong together, like a story or an AU. Inside a world you can make folders, like one per series.</div>'}
         ${tags.length ? `<div class="libx-rail-h">Tags</div><div class="libx-tagcloud">${tags.map(t => `<button class="libx-tag${view.tag && view.tag.toLowerCase() === t.tag.toLowerCase() ? ' on' : ''}" data-tagf="${esc(t.tag)}">${esc(t.tag)} <span>${t.count}</span></button>`).join('')}</div>` : ''}
       </nav>
       <main class="libx-main">
         ${curWorld ? worldHeadHtml(curWorld, m, rows) : ''}
         ${view.tag ? `<div class="libx-filterline">Tag: <b>${esc(view.tag)}</b> <button class="btn btn-s btn-sm" id="libxClearTag">Clear</button></div>` : ''}
-        ${shown.length ? (view.layout === 'list' ? `
-          ${pinned.length ? `<div class="libx-sec">★ Pinned</div><div class="libx-grid">${pinned.map(r => cardHtml(r, m, idx.get(r))).join('')}</div><div class="libx-sec">Everything else</div>` : ''}
-          <div class="libx-grid">${rest.map(r => cardHtml(r, m, idx.get(r))).join('')}</div>` : shelvesHtml(shown, m, idx))
+        ${shown.length ? shelvesHtml(shown, m, idx)
           : curWorld ? '<div class="lib-view-empty">nothing here yet<br><span style="font-size:.7rem;opacity:.6">use + New, or open an item\'s ⋯ and pick this world or folder</span></div>'
           : `<div class="lib-view-empty">${rows.length ? 'nothing matches that<br><span style="font-size:.7rem;opacity:.6">try another search or clear the filters</span>' : 'nothing in your library yet<br><span style="font-size:.7rem;opacity:.6">use + New to start something, or drop a file anywhere to import it</span>'}</div>`}
       </main>
@@ -282,7 +286,8 @@ export function openItemDetails(row) { openDetails(row); }
 // The Gallery registers how to open one of its pictures
 let imageOpener = null;
 export function setImageOpener(fn) { imageOpener = fn; }
-export function setLibraryLayout(l) { view.layout = l === 'list' ? 'list' : 'shelves'; saveView(); }
+let notebookOpener = null, notebookMaker = null;
+export function setNotebookHooks({ open, make }) { notebookOpener = open; notebookMaker = make; }
 const setWorld = id => { view.world = id; view.folder = null; view.type = 'all'; view.tag = null; view.filtersOpen = false; saveView(); };
 
 // A picture file turned into a small data URL, or '' (and a message) when it is not an image
@@ -308,8 +313,7 @@ function wire(el, shown) {
   let t = null;
   q.addEventListener('input', () => { view.q = q.value; clearTimeout(t); t = setTimeout(() => { refresh(); const n = document.getElementById('libxSearch'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 160); });
   el.querySelector('#libxSort').onchange = e => { view.sort = e.target.value; saveView(); refresh(); };
-  el.querySelector('#libxLayoutShelves').onclick = () => { view.layout = 'shelves'; saveView(); refresh(); };
-  el.querySelector('#libxLayoutList').onclick = () => { view.layout = 'list'; saveView(); refresh(); };
+  el.querySelector('#libxSpineBtn').onclick = openSpineColours;
   el.querySelector('#libxFilterToggle').onclick = () => { view.filtersOpen = !view.filtersOpen; refresh(); };
   el.querySelectorAll('[data-type]').forEach(b => b.onclick = () => { view.type = b.dataset.type; view.world = null; view.folder = null; view.tag = null; view.filtersOpen = false; saveView(); refresh(); });
   el.querySelectorAll('[data-world]').forEach(b => b.onclick = () => { setWorld(b.dataset.world); refresh(); });
@@ -354,6 +358,12 @@ function wire(el, shown) {
   const df = el.querySelector('#libxDeleteFolder');
   if (df) df.onclick = async () => { const mm = metaGet(); const f = mm.folders[view.folder]; if (!f) return; if (!await askConfirm(`Delete the folder "${f.name}"? Everything in it moves up one level.`)) return; const up = f.parent; removeFolder(mm, f.id); metaSet(mm); view.folder = up || null; saveView(); refresh(); };
 
+  el.querySelectorAll('[data-plate]').forEach(b => b.addEventListener('click', () => {
+    const sec = b.closest('.libx-shelf'), closed = shelvesClosed(), key = b.dataset.plate;
+    const now = !sec.classList.contains('closed'); sec.classList.toggle('closed', now); b.setAttribute('aria-expanded', String(!now));
+    if (now) closed[key] = true; else delete closed[key];
+    saveShelvesClosed(closed);
+  }));
   el.querySelectorAll('.libx-card').forEach(card => {
     const row = shown[Number(card.dataset.i)];
     const open = () => openLibraryItem(row);
@@ -361,6 +371,8 @@ function wire(el, shown) {
       const act = e.target.closest('[data-act]'), tag = e.target.closest('.libx-tag');
       if (act) { e.stopPropagation(); if (act.dataset.act === 'pin') { togglePin(row.kind, row.id); refresh(); } else openDetails(row); return; }
       if (tag && tag.dataset.tag) { e.stopPropagation(); view.tag = tag.dataset.tag; saveView(); refresh(); return; }
+      // on a touchscreen a tap pulls the book off the shelf first (there is no hover), and a second tap opens it
+      if (card.closest('.libx-books') && matchMedia('(hover: none)').matches && !card.classList.contains('pulled')) { el.querySelectorAll('.libx-book.pulled').forEach(c => c.classList.remove('pulled')); card.classList.add('pulled'); return; }
       open();
     });
     card.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === card) { e.preventDefault(); open(); } });
@@ -379,6 +391,7 @@ function newThing(kind) {
     const mm = metaGet(); fresh.forEach(i => patchItem(mm, i.kind, i.id, { world: inWorld, folder: inFolder, name: i.name })); metaSet(mm);
   };
   if (kind === 'persona') { const id = createPersona(); adopt(); openPersona(id); refresh(); return; }
+  if (kind === 'notebook') { if (notebookMaker) { const id = notebookMaker(); adopt(); refresh(); void id; } return; }
   if (kind === 'personafile') { document.getElementById('personaImportFile').click(); return; }
   if (kind === 'lore') { navigateTo('editor'); setTimeout(() => switchMode('lore'), 80); toast('Build it in the editor, then Save to Library to see it here.', 'info'); return; }
   navigateTo('editor');
@@ -420,7 +433,7 @@ function paintPicture() {
   g('libxPicBox').style.display = own ? 'none' : '';
   g('libxPicOwn').style.display = own ? '' : 'none';
   if (own) return;
-  g('libxPicPreview').innerHTML = detailDraft.image ? `<img src="${esc(detailDraft.image)}" alt="">` : `<span class="libx-sym">${esc(sym(detailDraft.symbol || KIND_INFO[detailRow.kind].icon))}</span>`;
+  g('libxPicPreview').innerHTML = detailDraft.image ? `<img src="${esc(detailDraft.image)}" alt="">` : (detailDraft.symbol ? `<span class="libx-sym">${esc(sym(detailDraft.symbol))}</span>` : `<span class="libx-sym">${kindIcon(detailRow.kind)}</span>`);
   g('libxPicClear').style.display = detailDraft.image ? '' : 'none';
   g('libxSymClear').style.display = detailDraft.symbol ? '' : 'none';
   g('libxSymGrid').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.sym === detailDraft.symbol));
@@ -533,3 +546,22 @@ registerMarkup(189, `<div id="libxDetailModal" class="modal">
     </div>
   </div>
 </div>`);
+
+// Choose the colour of the books in each category (the default for a book you have not coloured yourself)
+function openSpineColours() {
+  const wrap = document.createElement('div'); wrap.className = 'modal open'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-label', 'Book colours');
+  const draw = () => {
+    wrap.innerHTML = `<div class="modal-box" style="max-width:380px"><div class="modal-head"><h2>Book colours</h2></div><div class="modal-body" style="display:flex;flex-direction:column;gap:.5rem">
+      <div class="rx-none">The colour of the books in each category. A book you colour yourself keeps its own.</div>
+      ${KINDS.map(k => `<label class="pr-row" style="align-items:center"><span class="libx-sc-sw" style="background:${esc(kindColor(k))}"></span><span style="flex:1;font-family:var(--fx);font-size:.8rem">${esc(KIND_INFO[k].plural)}</span><input type="color" data-kc="${k}" value="${esc(kindColor(k))}" aria-label="Colour for ${esc(KIND_INFO[k].plural)}"></label>`).join('')}
+      </div><div class="modal-foot" style="padding:.6rem 1rem;display:flex;gap:.4rem;justify-content:space-between"><button class="btn btn-s" data-reset type="button">Back to the pale defaults</button><button class="btn btn-p" data-done type="button">Done</button></div></div>`;
+  };
+  draw();
+  const save = o => { try { localStorage.setItem(KC_KEY, JSON.stringify(o)); } catch (e) { /* private mode */ } refresh(); };
+  wrap.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.kc; if (!k) return; const o = kindOverrides(); o[k] = e.target.value; save(o); e.target.closest('label').querySelector('.libx-sc-sw').style.background = e.target.value; });
+  wrap.addEventListener('click', e => {
+    if (e.target === wrap || e.target.closest('[data-done]')) { wrap.remove(); return; }
+    if (e.target.closest('[data-reset]')) { save({}); draw(); }
+  });
+  document.body.append(wrap);
+}

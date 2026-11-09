@@ -1,5 +1,5 @@
 // Layout check: no sideways scrolling and no JS errors in any view or editor mode at phone, tablet and desktop widths.
-// Usage: node tests/e2e/layout.js
+// Usage: node tests/e2e/layout.js        (APPEARANCE=standard node tests/e2e/layout.js checks the Standard appearance)
 const { chromium } = require('playwright'); const { ev, init: HINIT } = require('./harness');
 const http = require('http'), fs = require('fs'), path = require('path'); const root = path.resolve(__dirname, '../..');
 const srv = http.createServer((q, s) => { let p = q.url.split('?')[0]; if (p === '/') p = '/index.html'; const f = path.join(root, p); fs.readFile(f, (e, d) => { if (e) { s.writeHead(404); s.end(); return; } s.writeHead(200, { 'content-type': f.endsWith('.js') ? 'text/javascript' : f.endsWith('.html') ? 'text/html' : f.endsWith('.css') ? 'text/css' : 'application/octet-stream' }); s.end(d); }); }).listen(8087);
@@ -7,7 +7,7 @@ const srv = http.createServer((q, s) => { let p = q.url.split('?')[0]; if (p ===
   const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: ['--no-sandbox'] }); let bad = 0;
   // 'wide font' phones widen every letter, like the real pixel fonts do (they are not loaded in these tests)
   for (const [name, w, h, wide] of [['phone', 390, 844], ['small phone', 320, 640], ['wide-font phone', 390, 844, true], ['wide-font small phone', 340, 700, true], ['tablet', 820, 1180], ['desktop', 1440, 900]]) {
-    const ctx = await b.newContext({ viewport: { width: w, height: h }, hasTouch: name !== 'desktop', isMobile: /phone/.test(name) }); const pg = await ctx.newPage(); await pg.addInitScript(HINIT);
+    const ctx = await b.newContext({ viewport: { width: w, height: h }, hasTouch: name !== 'desktop', isMobile: /phone/.test(name) }); const pg = await ctx.newPage(); await pg.addInitScript(HINIT); if (process.env.APPEARANCE) await pg.addInitScript(`try{localStorage.setItem('loreos_appearance','${process.env.APPEARANCE}')}catch(e){}`);
     const errs = []; pg.on('pageerror', e => errs.push(e.message)); await pg.route(/accounts.google|fonts/, r => r.abort());
     await pg.goto('http://localhost:8087/'); await pg.waitForTimeout(800);
     if (wide) await pg.addStyleTag({ content: '*{font-family:"DejaVu Sans Mono",monospace !important;letter-spacing:.06em !important}' });
@@ -25,5 +25,5 @@ const srv = http.createServer((q, s) => { let p = q.url.split('?')[0]; if (p ===
     if (errs.length) { bad++; console.log(`FAIL ${name}: JS errors`, errs.slice(0, 3)); }
     await ctx.close();
   }
-  await b.close(); srv.close(); console.log(bad ? `${bad} problem(s)` : 'layout ok at phone, tablet and desktop'); process.exit(bad ? 1 : 0);
+  await b.close(); srv.close(); console.log(bad ? `${bad} problem(s)` : 'layout ok at phone, tablet and desktop' + (process.env.APPEARANCE ? ' (' + process.env.APPEARANCE + ')' : '')); process.exit(bad ? 1 : 0);
 })();

@@ -3,14 +3,14 @@
 // ═══════════════════════════════════════════════════════
 
 import { createChar, openCharLibrary } from './character.js';
-import { exportCharCharx, exportCharJson, exportCharJsonV2, openCharPngExport } from './character_io.js';
+import { exportCharByaf, exportCharCharx, exportCharCompanion, exportCharJson, exportCharJsonV2, openCharPngExport } from './character_io.js';
 import { openLibrary } from './library.js';
 import { clearEditor, openLoreSettings } from './lorebook.js';
 import { exportJanitorJson, exportJson, exportSaucepanJson, openJanitorPasteModal, openPublicExport } from './lorebook_io.js';
 import { createPreset, makeBlankPrompt, openPresetLibrary, renderPromptList, syncPromptOrder } from './preset.js';
 import { PT, ptRefreshManual } from './pronoun.js';
 import { currentView, navigateTo } from './router.js';
-import { toggleTheme } from './settings.js';
+import { openSettings, toggleTheme } from './settings.js';
 import { state } from './state.js';
 import { openEntryPicker, openTemplateLibrary } from './templates.js';
 import { closeModal, g, openModal, registerMarkup, toast } from './util.js';
@@ -142,7 +142,8 @@ export function wireMobile() {
   // ── Always-on ──
   g('mobEntries').addEventListener('click', openSidebar);
   g('mobTheme').addEventListener('click', toggleTheme);
-  g('mobSettings').addEventListener('click', () => openModal('settingsModal'));
+  g('mobSettings').addEventListener('click', () => openSettings());
+  if (g('mobThemePage')) g('mobThemePage').addEventListener('click', () => { navigateTo('theme'); updateMobViewBtns('theme'); });
 
   // ── LORE buttons ──
   g('mobNewEntry').addEventListener('click', () => { openEntryPicker(); if(isMob()) closeSidebar(); });
@@ -191,6 +192,8 @@ export function wireMobile() {
   if (g('mobCharExportJanitorBtn'))   g('mobCharExportJanitorBtn').addEventListener('click',   () => { closeModal('mobCharExportModal'); exportCharJsonV2(state.activeCharId, { janitor: true }); });
   if (g('mobCharExportJanitorPngBtn')) g('mobCharExportJanitorPngBtn').addEventListener('click', () => { closeModal('mobCharExportModal'); openCharPngExport(state.activeCharId, true, { janitor: true }); });
   if (g('mobCharExportCharxBtn'))     g('mobCharExportCharxBtn').addEventListener('click',     () => { closeModal('mobCharExportModal'); exportCharCharx(state.activeCharId); });
+  if (g('mobCharExportByafBtn')) g('mobCharExportByafBtn').addEventListener('click', () => { closeModal('mobCharExportModal'); exportCharByaf(state.activeCharId); });
+  if (g('mobCharExportCompanionBtn')) g('mobCharExportCompanionBtn').addEventListener('click', () => { closeModal('mobCharExportModal'); exportCharCompanion(state.activeCharId); });
 
   // ── PRESET buttons ──
   g('mobPresetNew').addEventListener('click', () => { createPreset(); if(isMob()) closeSidebar(); });
@@ -332,8 +335,11 @@ registerMarkup(140, `<!-- MOBILE BOTTOM NAV -->
 
   <!-- always-visible: settings/theme -->
   <div id="mob-nav-sep2" style="width:1px;background:var(--bd);margin:.3rem .1rem;flex-shrink:0;align-self:stretch;"></div>
-  <button class="mob-nav-btn" id="mobTheme" title="Toggle theme">
-    <span class="icon">◑</span><span class="mob-nav-lbl">Theme</span>
+  <button class="mob-nav-btn" id="mobTheme" title="Switch between light and dark">
+    <span class="icon">◑</span><span class="mob-nav-lbl">Light/Dark</span>
+  </button>
+  <button class="mob-nav-btn" id="mobThemePage" title="Theme">
+    <span class="icon" data-px="theme"></span><span class="mob-nav-lbl">Theme</span>
   </button>
   <button class="mob-nav-btn" id="mobSettings" title="Settings">
     <span class="icon">⚙︎</span><span class="mob-nav-lbl">Settings</span>
@@ -393,6 +399,8 @@ registerMarkup(180, `<div id="mobCharExportModal" class="modal">
         </div>
       </details>
       <button class="btn btn-s" id="mobCharExportCharxBtn" style="width:100%;justify-content:center;padding:.65rem">.CHARX</button>
+      <button class="btn btn-s" id="mobCharExportByafBtn" style="width:100%;justify-content:center;padding:.65rem">Backyard (.byaf)</button>
+      <button class="btn btn-s" id="mobCharExportCompanionBtn" style="width:100%;justify-content:center;padding:.65rem">SaucepanAI</button>
     </div>
   </div>
 </div>`);

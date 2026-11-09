@@ -1,0 +1,27 @@
+{
+  "id": "00000000-0000-4000-8000-000000000001",
+  "name": "Testy",
+  "display_name": "Testy McTest | Day One",
+  "full_description": "**Public blurb**\n\n## Character File\nA made-up test character.",
+  "short_description": "A made-up test character for the adapter tests.",
+  "tags": ["male", "any_pov", "comedy"],
+  "fandom_tags": [],
+  "image": { "id": "11111111-2222-4333-8444-555555555555" },
+  "image_crop_zoom": null,
+  "sus": false,
+  "card": "CHARACTER OVERVIEW:\n- Full Name: Testy McTest\n- Age: 30\n\nPERSONALITY:\n- Calm",
+  "temperature_offset_percentage": 0,
+  "portraits": [],
+  "example_dialogue": "- Greeting {{user}}: \"Hi there.\"",
+  "locked_starting_message": false,
+  "starting_scenarios": [
+    { "title": "ANYPOV", "message": "The first message.\r\nSecond line.", "portrait_id": null },
+    { "title": "MALEPOV", "message": "An alternate message.", "portrait_id": null }
+  ],
+  "access_level": "public",
+  "formatting_instructions": null,
+  "advanced_prompt": null,
+  "open_definition": true,
+  "hidden_fields": 0,
+  "external_model_policy": "custom_and_vetted"
+}

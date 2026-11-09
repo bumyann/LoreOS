@@ -19,7 +19,7 @@
  state.presetLibrary.p1={id:'p1',name:'Preset One',preset:{prompts:[]},savedAt:new Date(Date.now()-86400000).toISOString()};
  state.promptLibrary.k1={id:'k1',name:'Pack One',pack:{modules:[]},savedAt:new Date(Date.now()-2*86400000).toISOString()};
  state.charLibrary.c1={id:'c1',name:'Mira',card:{data:{name:'Mira'}},imageData:PIC,savedAt:new Date().toISOString()};
- setLibraryLayout('list'); navigateTo('library'); await w(400);
+ navigateTo('library'); await w(400);
  const cardOf=n=>[...document.querySelectorAll('.libx-card')].find(c=>c.querySelector('.libx-name').textContent===n);
  const names=()=>[...document.querySelectorAll('.libx-card .libx-name')].map(e=>e.textContent);
  // picture + symbol on a non-character
@@ -36,7 +36,7 @@
  document.getElementById('libxPicClear').click(); await w(150); document.getElementById('libxDetailDone').click(); await w(300);
  chk('without the picture the symbol shows', cardOf('Preset One').querySelector('.libx-thumb').textContent.includes('☾'));
  cardOf('Pack One').querySelector('[data-act="details"]').click(); await w(200); document.getElementById('libxDetailDone').click(); await w(300);
- chk('default is the kind symbol, not an emoji', /✎/.test(cardOf('Pack One').querySelector('.libx-thumb').textContent) && !/[\u{1F300}-\u{1FAFF}]/u.test(document.getElementById('library-content').textContent));
+ chk('default is the kind pixel icon, not an emoji', !!cardOf('Pack One').querySelector('.libx-thumb svg.px') && !/[\u{1F300}-\u{1FAFF}]/u.test(document.getElementById('library-content').textContent));
  cardOf('Mira').querySelector('[data-act="details"]').click(); await w(200);
  chk('characters use their own picture (no picker)', document.getElementById('libxPicBox').style.display==='none' && !!cardOf('Mira').querySelector('.libx-thumb img'));
  document.getElementById('libxDetailDone').click(); await w(200);

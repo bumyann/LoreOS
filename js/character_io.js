@@ -8,7 +8,10 @@ import { lumiToScript, normalizeScript, scriptToLumi } from './regex_model.js';
 import { charId, normalizeCharCard, openChar, renderCharSidebar, saveChar } from './character.js';
 import { state } from './state.js';
 import { saveCharLibrary } from './storage.js';
-import { dlFile, safeFileName, toast } from './util.js';
+import { byafPaths, fromByaf, imageArchivePath, toByaf } from './adapters/byaf.js';
+import { fromCompanion, toCompanion } from './adapters/saucepan.js';
+import { janitorGreetingsMd, toJanitorData, toV2Card, toV3Card } from './adapters/tavern.js';
+import { dlFile, esc, openModal, registerMarkup, safeFileName, toast } from './util.js';
 import { wsShowItem } from './workshop.js';
 
 // ── Import / Export ──
@@ -52,47 +55,98 @@ export function handleCharCompanionImport(e) {
   const r = new FileReader();
   r.onload = ev => {
     try {
-      const data = JSON.parse(ev.target.result);
-      // SaucepanAI companion.json: the definition lives in `card`; `full_description` and `short_description`
-      // are the public profile blurbs, `formatting_instructions` / `advanced_prompt` are chat settings,
-      // and `starting_scenarios` are the greetings ({title, message}). Older exports used `persona`.
-      if (!data.name && !data.persona && !data.card) { toast('Unrecognized companion.json format.', 'err'); return; }
-      const str = v => typeof v === 'string' ? v : '';
-      const notes = [str(data.short_description), str(data.full_description)].filter(Boolean).join('\n\n');
-      const extra = {};
-      if (str(data.formatting_instructions)) extra.formatting_instructions = data.formatting_instructions;
-      if (str(data.advanced_prompt)) extra.advanced_prompt = data.advanced_prompt;
-      if (str(data.display_name)) extra.display_name = data.display_name;
-      const altGreets = (data.starting_scenarios || []).slice(1).map(s => ({
-        title: s.title || '',
-        message: s.text || s.message || ''
-      }));
-      const firstMes = data.starting_scenarios?.[0]?.text || data.starting_scenarios?.[0]?.message || '';
-      const card = {
-        spec: 'chara_card_v2', spec_version: '2.0',
-        data: {
-          name: data.name || 'Unnamed',
-          description: str(data.card) || str(data.persona) || str(data.description),
-          personality: data.personality || '',
-          scenario: data.scenario || '',
-          first_mes: firstMes,
-          mes_example: str(data.mes_example) || str(data.example_dialogue),
-          system_prompt: data.system_prompt || '',
-          post_history_instructions: data.post_history_instructions || '',
-          creator_notes: data.creator_notes || notes,
-          creator: data.creator || '',
-          character_version: data.character_version || '',
-          tags: data.tags || [],
-          alternate_greetings: altGreets,
-          extensions: { ...(data.extensions || {}), ...(Object.keys(extra).length ? { saucepan: extra } : {}) },
-          character_book: data.character_book || null
-        }
-      };
-      importCharCard(card, file.name);
+      // The mapping lives in js/adapters/saucepan.js (SaucepanAI companion.json <-> a card)
+      importCharCard(fromCompanion(JSON.parse(ev.target.result)), file.name);
     } catch(err) { toast('Companion import error: ' + err.message, 'err'); console.error(err); }
   };
   r.readAsText(file);
   e.target.value = '';
+}
+
+// A short list of what an export left out or still needs, for the export targets that cannot take every field
+registerMarkup(251, `<div id="exportNotesModal" class="modal"><div class="modal-box" style="max-width:520px">
+  <div class="modal-head"><h2 id="exportNotesTitle">Export notes</h2><button class="modal-x" data-close="exportNotesModal">×</button></div>
+  <div class="modal-body"><ul id="exportNotesList" style="margin:0 0 .6rem 1.1rem;display:flex;flex-direction:column;gap:.45rem;font-size:.82rem"></ul>
+  <div style="text-align:right"><button class="btn btn-s btn-sm" data-close="exportNotesModal">Got it</button></div></div></div></div>`);
+export function showExportNotes(title, notes) {
+  const list = document.getElementById('exportNotesList'); if (!list || !notes.length) return;
+  document.getElementById('exportNotesTitle').textContent = title;
+  list.innerHTML = notes.map(n => '<li>' + esc(n) + '</li>').join('');
+  openModal('exportNotesModal');
+}
+
+// ── Backyard AI .byaf (a zip: manifest.json, one character and its images, the scenarios) ──
+const BYAF_MAX_IMAGE = 25 * 1024 * 1024;
+export async function readByaf(buf) {
+  const zip = await JSZip.loadAsync(buf);
+  const mf = zip.file('manifest.json'); if (!mf) throw new Error('This is not a Backyard archive (no manifest.json).');
+  const manifest = JSON.parse(await mf.async('string'));
+  const { characterPath, characterId, scenarioPaths } = byafPaths(manifest);   // only the places the spec names are opened
+  const cf = zip.file(characterPath); if (!cf) throw new Error('The archive has no character file.');
+  const character = JSON.parse(await cf.async('string'));
+  const scenarios = [];
+  for (const p of scenarioPaths) { const f = zip.file(p); if (f) scenarios.push({ path: p, data: JSON.parse(await f.async('string')) }); }
+  const res = fromByaf({ manifest, character, scenarios });
+  let imageData = null;
+  const ip = imageArchivePath(characterId, res.imagePath), imf = ip && zip.file(ip);
+  if (imf) {
+    const b64 = await imf.async('base64');
+    if (b64.length * 0.75 <= BYAF_MAX_IMAGE) imageData = 'data:' + (MIME_BY_EXT[extOf(ip)] || 'image/png') + ';base64,' + b64;
+    else res.notes.push('The picture was over 25 MB, so it was not imported.');
+  }
+  return { ...res, imageData };
+}
+
+export function handleByafImport(e) {
+  const file = e.target.files[0]; if (!file) return;
+  if (typeof JSZip === 'undefined') { toast('JSZip not loaded — check your connection.', 'err'); return; }
+  const r = new FileReader();
+  r.onload = ev => {
+    readByaf(ev.target.result).then(res => {
+      importCharCard(res.card, file.name, res.imageData);
+      toast('Imported Backyard character: ' + res.card.data.name, 'ok');
+      showExportNotes('Imported from Backyard', res.notes);
+    }).catch(err => toast('.byaf import error: ' + err.message, 'err'));
+  };
+  r.readAsArrayBuffer(file);
+  e.target.value = '';
+}
+
+export function exportCharByaf(id) {
+  const entry = state.charLibrary[id]; if (!entry) return;
+  if (typeof JSZip === 'undefined') { toast('JSZip not loaded — check your connection.', 'err'); return; }
+  commitBeforeExport(id);
+  const m = /^data:image\/(png|jpeg|jpg|webp|gif);base64,(.+)$/i.exec(entry.imageData || '');
+  const imageExt = m ? (m[1].toLowerCase() === 'jpeg' ? 'jpg' : m[1].toLowerCase()) : '';
+  const out = toByaf(entry.card.data, { imageExt });
+  const zip = new JSZip();
+  zip.file('manifest.json', JSON.stringify(out.manifest, null, 2));
+  zip.file(out.manifest.characters[0], JSON.stringify(out.character, null, 2));
+  out.scenarios.forEach(s => zip.file(s.path, JSON.stringify(s.data, null, 2)));
+  if (m) {
+    let bytes = Uint8Array.from(atob(m[2]), c => c.charCodeAt(0));
+    if (imageExt === 'png') bytes = stripExistingCharaChunks(bytes);   // no leftover generation prompts or card data in the picture
+    zip.file('characters/' + out.characterId + '/' + out.character.images[0].path, bytes);
+  }
+  const name = safeFileName(entry.card.data.name, 'character');
+  zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }).then(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = name + '.byaf';
+    document.body.append(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    toast('Exported for Backyard AI: ' + name + '.byaf', 'ok');
+    showExportNotes('Backyard export notes', out.notes);
+  }).catch(err => toast('.byaf export error: ' + err.message, 'err'));
+}
+
+// SaucepanAI companion.json
+export function exportCharCompanion(id) {
+  const entry = state.charLibrary[id]; if (!entry) return;
+  commitBeforeExport(id);
+  const { companion, notes } = toCompanion(entry.card.data);
+  const fn = safeFileName(entry.card.data.name, 'character') + '_companion.json';
+  dlFile(JSON.stringify(companion, null, 2), fn, 'application/json');
+  toast('Exported for SaucepanAI: ' + fn, 'ok');
+  showExportNotes('Before you upload to SaucepanAI', notes);
 }
 
 export function importCharCard(data, filename, imageData = null, extra = null) {
@@ -163,77 +217,12 @@ export function exportCharJson(id) {
   toast('Exported: ' + fn, 'ok');
 }
 
-// Build a clean chara_card_v2-shaped card from internal card data.
-// Flattens alternate_greetings from internal {title,message} objects back to
-// plain strings (V2 spec requires string[]) and drops LoreOS-internal fields
-// (top-level `id`, greeting titles, etc.) that aren't part of the V2 spec.
-// JanitorAI reads a card's `description` as the public bio and only `personality`
-// as the character definition. For a Janitor export the definition therefore
-// moves into `personality` (joined with any personality text) and the bio gets
-// the creator notes, if there are any.
-export function toJanitorData(d) {
-  const def = [d.description, d.personality].map(x => (x || '').trim()).filter(Boolean).join('\n\n');
-  return { ...d, description: d.creator_notes || '', personality: def };
-}
-
-// JanitorAI only reads the first message from an imported card, so the other greetings come as a
-// markdown file next to it, ready to paste in.
-export function janitorGreetingsMd(d) {
-  const list = (d.alternate_greetings || []).map(g => (typeof g === 'object' && g ? { title: g.title || '', message: g.message || '' } : { title: '', message: g || '' })).filter(g => g.message.trim());
-  if (!list.length) return '';
-  return '# ' + (d.name || 'Character') + ': alternate greetings\n\n'
-    + 'JanitorAI only imports the first message from a card. Paste these in by hand.\n\n'
-    + list.map((g, i) => '---\n\n## ' + (i + 2) + '. ' + (g.title || 'Greeting ' + (i + 2)) + '\n\n' + g.message.trim() + '\n').join('\n');
-}
+// The pure card builders (toV2Card, toV3Card, JanitorAI helpers) live in js/adapters/tavern.js
+export { toV2Card, toV3Card, toJanitorData, janitorGreetingsMd };
 export function downloadJanitorGreetings(d) {
   const md = janitorGreetingsMd(d); if (!md) return;
   // a moment after the card, so browsers treat it as a second download rather than a duplicate
   setTimeout(() => { dlFile(md, safeFileName(d.name, 'character') + '_janitor_greetings.md', 'text/markdown'); toast('Also saved the ' + (d.alternate_greetings || []).length + ' alternate greeting(s) as a .md to paste into JanitorAI.', 'info'); }, 500);
-}
-
-export function toV2Card(d) {
-  return {
-    spec: 'chara_card_v2',
-    spec_version: '2.0',
-    data: {
-      name:                     d.name || '',
-      description:              d.description || '',
-      personality:              d.personality || '',
-      scenario:                 d.scenario || '',
-      first_mes:                d.first_mes || '',
-      mes_example:              d.mes_example || '',
-      creator_notes:            d.creator_notes || '',
-      system_prompt:            d.system_prompt || '',
-      post_history_instructions:d.post_history_instructions || '',
-      alternate_greetings:      (d.alternate_greetings || []).map(g => typeof g === 'object' ? (g.message || '') : (g || '')),
-      tags:                     d.tags || [],
-      creator:                  d.creator || '',
-      character_version:        d.character_version || '',
-      extensions:               d.extensions || {},
-      ...(d.character_book ? { character_book: d.character_book } : {})
-    }
-  };
-}
-
-// Build a spec-clean chara_card_v3 from the internal card. The editor keeps one
-// canonical card (stored as V3-shaped); every export derives its target format
-// from it. Drops LoreOS-internal fields (top-level `id`, greeting titles) and
-// guarantees the fields the V3 spec requires, which blank/imported cards lack.
-export function toV3Card(card) {
-  const d = (card && card.data) || {};
-  const flat = a => (Array.isArray(a) ? a : []).map(g => typeof g === 'object' && g ? (g.message || '') : (g || ''));
-  return {
-    spec: 'chara_card_v3',
-    spec_version: '3.0',
-    data: {
-      ...d,
-      name: d.name || '',
-      alternate_greetings: flat(d.alternate_greetings),
-      group_only_greetings: flat(d.group_only_greetings),
-      tags: Array.isArray(d.tags) ? d.tags : [],
-      extensions: d.extensions || {},
-    }
-  };
 }
 
 // Export as V2 JSON (chara_card_v2 / spec_version 2.0)
@@ -449,11 +438,11 @@ export function openCharPngExport(id, forceV2 = true, { janitor = false } = {}) 
   const doExport = (arrayBuf) => {
     try {
       const buf = new Uint8Array(arrayBuf);
-      // V2: one `chara` chunk. V3: `ccv3` (the V3 card) plus a V2 `chara` chunk
-      // so older readers still find something, as SillyTavern does.
-      const outBuf = forceV2
-        ? embedCharInPng(buf, toV2Card(janitor ? toJanitorData(entry.card.data) : entry.card.data))
-        : embedCharInPng(buf, toV2Card(entry.card.data), toV3Card(entry.card));
+      // V2: one `chara` chunk. V3: the same V3 card (with the old top-level fields) in both `chara` and `ccv3`, exactly as
+      // SillyTavern writes it. JanitorAI only reads `chara`, and reads a V3 card correctly only when those top-level fields are there.
+      let outBuf;
+      if (forceV2) outBuf = embedCharInPng(buf, toV2Card(janitor ? toJanitorData(entry.card.data) : entry.card.data));
+      else { const v3 = toV3Card(entry.card, { legacy: true }); outBuf = embedCharInPng(buf, v3, v3); }
       const blob = new Blob([outBuf], { type: 'image/png' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
