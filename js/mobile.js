@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════
 
 import { createChar, openCharLibrary } from './character.js';
-import { exportCharByaf, exportCharCharx, exportCharCompanion, exportCharJson, exportCharJsonV2, openCharPngExport } from './character_io.js';
+import { mountCharExportMenu } from './export_targets.js';
 import { openLibrary } from './library.js';
 import { clearEditor, openLoreSettings } from './lorebook.js';
 import { exportJanitorJson, exportJson, exportSaucepanJson, openJanitorPasteModal, openPublicExport } from './lorebook_io.js';
@@ -185,15 +185,7 @@ export function wireMobile() {
 
   // Mobile char export
   g('mobCharExport').addEventListener('click', () => openModal('mobCharExportModal'));
-  if (g('mobCharExportJsonBtn'))      g('mobCharExportJsonBtn').addEventListener('click',      () => { closeModal('mobCharExportModal'); exportCharJson(state.activeCharId); });
-  if (g('mobCharExportV2JsonBtn'))    g('mobCharExportV2JsonBtn').addEventListener('click',    () => { closeModal('mobCharExportModal'); exportCharJsonV2(state.activeCharId); });
-  if (g('mobCharExportV3PngBtn'))     g('mobCharExportV3PngBtn').addEventListener('click',     () => { closeModal('mobCharExportModal'); openCharPngExport(state.activeCharId, false); });
-  if (g('mobCharExportPngBtn'))       g('mobCharExportPngBtn').addEventListener('click',       () => { closeModal('mobCharExportModal'); openCharPngExport(state.activeCharId, true); });
-  if (g('mobCharExportJanitorBtn'))   g('mobCharExportJanitorBtn').addEventListener('click',   () => { closeModal('mobCharExportModal'); exportCharJsonV2(state.activeCharId, { janitor: true }); });
-  if (g('mobCharExportJanitorPngBtn')) g('mobCharExportJanitorPngBtn').addEventListener('click', () => { closeModal('mobCharExportModal'); openCharPngExport(state.activeCharId, true, { janitor: true }); });
-  if (g('mobCharExportCharxBtn'))     g('mobCharExportCharxBtn').addEventListener('click',     () => { closeModal('mobCharExportModal'); exportCharCharx(state.activeCharId); });
-  if (g('mobCharExportByafBtn')) g('mobCharExportByafBtn').addEventListener('click', () => { closeModal('mobCharExportModal'); exportCharByaf(state.activeCharId); });
-  if (g('mobCharExportCompanionBtn')) g('mobCharExportCompanionBtn').addEventListener('click', () => { closeModal('mobCharExportModal'); exportCharCompanion(state.activeCharId); });
+  mountCharExportMenu('mobCharExportList', 'mobChar', () => state.activeCharId, { mobile: true, after: () => closeModal('mobCharExportModal') });
 
   // ── PRESET buttons ──
   g('mobPresetNew').addEventListener('click', () => { createPreset(); if(isMob()) closeSidebar(); });
@@ -387,20 +379,7 @@ registerMarkup(180, `<div id="mobCharExportModal" class="modal">
   <div class="modal-box">
     <div class="modal-head"><h2>Export Card</h2><button class="modal-x" data-close="mobCharExportModal">×</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:.65rem">
-      <button class="btn btn-p" id="mobCharExportV3PngBtn" style="width:100%;justify-content:center;padding:.65rem">V3 PNG</button>
-      <button class="btn btn-s" id="mobCharExportPngBtn" style="width:100%;justify-content:center;padding:.65rem">V2 PNG</button>
-      <button class="btn btn-s" id="mobCharExportJanitorPngBtn" style="width:100%;justify-content:center;padding:.65rem">JanitorAI PNG</button>
-      <details class="dd-group mob-group">
-        <summary>JSON</summary>
-        <div style="display:flex;flex-direction:column;gap:.65rem;margin-top:.65rem">
-          <button class="btn btn-s" id="mobCharExportJsonBtn" style="width:100%;justify-content:center;padding:.65rem">V3 JSON</button>
-          <button class="btn btn-s" id="mobCharExportV2JsonBtn" style="width:100%;justify-content:center;padding:.65rem">V2 JSON</button>
-          <button class="btn btn-s" id="mobCharExportJanitorBtn" style="width:100%;justify-content:center;padding:.65rem">JanitorAI JSON</button>
-        </div>
-      </details>
-      <button class="btn btn-s" id="mobCharExportCharxBtn" style="width:100%;justify-content:center;padding:.65rem">.CHARX</button>
-      <button class="btn btn-s" id="mobCharExportByafBtn" style="width:100%;justify-content:center;padding:.65rem">Backyard (.byaf)</button>
-      <button class="btn btn-s" id="mobCharExportCompanionBtn" style="width:100%;justify-content:center;padding:.65rem">SaucepanAI</button>
+      <div id="mobCharExportList" style="display:flex;flex-direction:column;gap:.65rem"></div>
     </div>
   </div>
 </div>`);

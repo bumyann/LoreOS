@@ -1,32 +1,23 @@
 // ═══════════════════════════════════════════════════════
-// SAUCEPANAI adapter — a SaucepanAI companion.json to and from LoreOS's own card data. Pure functions: no DOM, no storage.
+// SAUCEPANAI adapter (import only) — a SaucepanAI companion.json read into LoreOS card data. Pure: no DOM, no storage.
+// There is no export: Saucepan will not restore a companion file without tags and a picture from its own library, and LoreOS cannot
+// supply that picture. Saucepan does take V2 and V3 cards, so those are the way in.
 //
-// How the two map (checked against a real exported companion.json):
-//   card (the definition)      <->  description        (personality and scenario are folded in under [Headers] on export)
-//   full_description           <->  creator_notes      (the public profile text)
-//   short_description          <->  extensions.saucepan.short_description   (its own field, not merged into notes)
-//   example_dialogue           <->  mes_example
-//   starting_scenarios[]       <->  first_mes + alternate_greetings[]       ({title, message}; the first title is kept too)
-//   tags, fandom_tags          <->  tags, extensions.saucepan.fandom_tags
-//   display_name, formatting_instructions, advanced_prompt, image   <->  extensions.saucepan.*
-// Everything else in the file (id, access_level, flags, banner crops ...) rides along in extensions.saucepan.raw, so a
-// companion imported and exported again comes back whole. Saucepan has no place for a system prompt, post-history
-// instructions or a lorebook, so those are reported as left out.
+// How a companion maps (checked against a real exported companion.json):
+//   card (the definition)      ->  description
+//   full_description           ->  creator_notes (the public profile text)
+//   short_description          ->  extensions.saucepan.short_description (its own field, not merged into notes)
+//   example_dialogue           ->  mes_example
+//   starting_scenarios[]       ->  first_mes + alternate_greetings[]  ({title, message}; the first title is kept too)
+//   tags, fandom_tags          ->  tags, extensions.saucepan.fandom_tags
+//   display_name, formatting_instructions, advanced_prompt, image   ->  extensions.saucepan.*
+// Everything else in the file (id, access_level, flags, banner crops ...) is kept in extensions.saucepan.raw.
 // ═══════════════════════════════════════════════════════
 
-import { countFilled, foldSections, str } from './common.js';
-
-export const SAUCEPAN_CARD_SOFT_LIMIT = 30000;   // Saucepan's own limit for the definition; imports can go past it
-
+const str = v => (typeof v === 'string' ? v : '');
 const MAPPED = new Set(['name', 'display_name', 'full_description', 'short_description', 'tags', 'fandom_tags', 'image', 'card', 'persona', 'description',
   'example_dialogue', 'mes_example', 'starting_scenarios', 'formatting_instructions', 'advanced_prompt', 'personality', 'scenario', 'system_prompt',
   'post_history_instructions', 'creator_notes', 'creator', 'character_version', 'extensions', 'character_book']);
-
-// Saucepan tags are lower-case words joined with underscores (any_pov, time_travel)
-export const slugTag = t => String(t || '').trim().replace(/^#+/, '').toLowerCase().replace(/[\s-]+/g, '_').replace(/[^\p{L}\p{N}_]/gu, '');
-
-// Description, personality and scenario become one definition. With more than one filled in, each gets a [Header]
-export const foldDefinition = d => foldSections([['Description', d.description], ['Personality', d.personality], ['Scenario', d.scenario]]);
 
 export function isCompanion(data) {
   return !!data && typeof data === 'object' && !Array.isArray(data) && (Array.isArray(data.starting_scenarios) || ('card' in data && 'name' in data) || ('persona' in data && 'name' in data));
@@ -68,51 +59,4 @@ export function fromCompanion(data) {
       character_book: data.character_book || null,
     },
   };
-}
-
-const uuid = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID()
-  : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); }));
-
-// LoreOS card data (the `data` part of a card) -> { companion, notes }. `notes` says what Saucepan cannot take or still needs.
-export function toCompanion(d) {
-  const sp = (d.extensions && d.extensions.saucepan) || {};
-  const name = str(d.name) || 'Unnamed';
-  const def = foldDefinition(d);
-  const greetings = (Array.isArray(d.alternate_greetings) ? d.alternate_greetings : []).map(g => (g && typeof g === 'object' ? { title: str(g.title), message: str(g.message) } : { title: '', message: str(g) })).filter(g => g.message.trim());
-  const scenarios = [];
-  if (str(d.first_mes).trim()) scenarios.push({ title: str(sp.first_title), message: d.first_mes, portrait_id: null });
-  else if (greetings.length) scenarios.push({ title: str(sp.first_title), message: '', portrait_id: null });
-  greetings.forEach(g => scenarios.push({ title: g.title, message: g.message, portrait_id: null }));
-  const tags = [...new Set((Array.isArray(d.tags) ? d.tags : []).map(slugTag).filter(Boolean))];
-  const raw = sp.raw && typeof sp.raw === 'object' ? sp.raw : { temperature_offset_percentage: 0, portraits: [], locked_starting_message: false };
-  const companion = {
-    ...raw,
-    id: str(raw.id) || uuid(),
-    name,
-    display_name: str(sp.display_name) || name,
-    full_description: str(d.creator_notes),
-    short_description: str(sp.short_description),
-    tags,
-    fandom_tags: Array.isArray(sp.fandom_tags) ? sp.fandom_tags : [],
-    card: def,
-    example_dialogue: str(d.mes_example) || null,
-    starting_scenarios: scenarios,
-    formatting_instructions: str(sp.formatting_instructions) || null,
-    advanced_prompt: str(sp.advanced_prompt) || null,
-  };
-  if (sp.image) companion.image = sp.image;
-
-  const notes = [];
-  if (!tags.length) notes.push('Saucepan will not restore a companion file without at least one tag. Add some in Tags first.');
-  if (!sp.image) notes.push('Saucepan will not restore a companion file without a picture from its own library, and LoreOS cannot add one. If this card did not come from Saucepan, import its V2 or V3 card there instead; Saucepan takes those.');
-  if (!str(sp.short_description).trim()) notes.push('There is no short description yet. Add one in the SaucepanAI view.');
-  if (def.length > SAUCEPAN_CARD_SOFT_LIMIT) notes.push('The definition is ' + def.length.toLocaleString() + ' characters. Saucepan\'s own limit is about 30,000, though imports can go past it.');
-  if (countFilled(d, ['description', 'personality', 'scenario']) > 1) notes.push('Description, personality and scenario were joined into one definition, each under a [Header].');
-  const left = [];
-  if (str(d.system_prompt).trim()) left.push('system prompt');
-  if (str(d.post_history_instructions).trim()) left.push('post-history instructions');
-  const book = d.character_book;
-  if (book && Array.isArray(book.entries) && book.entries.length) left.push('the lorebook (' + book.entries.length + ' entries; Saucepan lorebooks are separate)');
-  if (left.length) notes.push('Left out, because Saucepan has no place for them: ' + left.join(', ') + '.');
-  return { companion, notes };
 }

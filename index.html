@@ -171,25 +171,11 @@
                 <button class="dd-item" id="charImportPngBtn">Import PNG Card</button>
                 <button class="dd-item" id="charImportSaucepanBtn">Companion.json</button>
                 <button class="dd-item" id="charImportCharxBtn">.CHARX</button>
-                <button class="dd-item" id="charImportByafBtn">Backyard (.byaf)</button>
               </div>
             </div>
             <div class="dd" id="dd-charexport-hdr">
               <button class="btn btn-s dd-btn">&#8657; Export</button>
-              <div class="dd-menu">
-                <button class="dd-item" id="charHdrExportV3PngBtn" title="Same layout SillyTavern writes. Works in SillyTavern, JanitorAI and most apps, and keeps your description as the description.">V3 PNG</button>
-                <button class="dd-item" id="charHdrExportPngBtn" title="Works in most apps. JanitorAI shows a V2 card's description as its public Bio. For JanitorAI use V3 PNG, or the JanitorAI option.">V2 PNG</button>
-                <button class="dd-item" id="charHdrExportJanitorPngBtn" title="For JanitorAI: puts the character definition in Personality (where a V2 card keeps it) and your Creator Notes in the Bio.">JanitorAI PNG</button>
-                <details class="dd-group">
-                  <summary>JSON</summary>
-                  <button class="dd-item" id="charHdrExportJsonBtn">V3 JSON</button>
-                  <button class="dd-item" id="charHdrExportV2JsonBtn" title="Works in most apps. JanitorAI shows a V2 card's description as its public Bio. For JanitorAI use V3 PNG, or the JanitorAI option.">V2 JSON</button>
-                  <button class="dd-item" id="charHdrExportJanitorBtn" title="For JanitorAI: puts the character definition in Personality (where a V2 card keeps it) and your Creator Notes in the Bio.">JanitorAI JSON</button>
-                </details>
-                <button class="dd-item" id="charHdrExportCharxBtn">.CHARX</button>
-                <button class="dd-item" id="charHdrExportByafBtn" title="Backyard AI archive: persona, lore items, the first picture, and each greeting as a scenario.">Backyard (.byaf)</button>
-                <button class="dd-item" id="charHdrExportCompanionBtn" title="Saves a companion.json for SaucepanAI. Description, personality and scenario are joined under [Headers]; the picture is picked on Saucepan.">SaucepanAI</button>
-              </div>
+              <div class="dd-menu" id="charHdrExportMenu"></div>
             </div>
             <button class="btn btn-s hdr-sec" id="charLibraryBtn">Character Library</button>
             <button class="btn btn-s hdr-sec" id="charTemplatesBtn">Templates</button>

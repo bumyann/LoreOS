@@ -4,7 +4,7 @@
 
 import { migrateCharacterBook, openAttachLbModal, updateLbStatus } from './attach_lb.js';
 import { downscaleAvatar } from './avatar.js';
-import { exportCharByaf, exportCharCharx, exportCharCompanion, exportCharJson, exportCharJsonV2, openCharPngExport } from './character_io.js';
+import { mountCharExportMenu } from './export_targets.js';
 import { openFullscreen } from './fullscreen.js';
 import { itemHistoryPush, itemUndoGet, itemUndoPush, openItemHistory, syncItemUndoButtons, wireFieldUndoRedo } from './history.js';
 import { closeMobSidebar } from './mobile.js';
@@ -228,7 +228,6 @@ export function renderCharEditor() {
   const sysPrompt = get('system_prompt', d.system_prompt);
   const phi = get('post_history_instructions', d.post_history_instructions);
   const notes = get('creator_notes', d.creator_notes);
-  const shortDesc = get('shortDesc', ((d.extensions || {}).saucepan || {}).short_description || '');
   const creator = get('creator', d.creator);
   const version = get('character_version', d.character_version);
   const tags = get('tags', (d.tags||[]).join(', '));
@@ -278,12 +277,6 @@ export function renderCharEditor() {
         </div>
       </div>
       <input type="file" id="chImageFileInput" accept="image/png,image/jpeg,image/webp" style="display:none">
-    </div>
-
-    <div class="fg"${isSauce ? '' : ' style="display:none"'}>
-      <label class="flabel">Short description</label>
-      <input id="chShortDesc" class="finput" value="${esc(shortDesc)}" placeholder="One line shown on the character's SaucepanAI page...">
-      <span class="form-note">SaucepanAI keeps this apart from the definition. Your Creator Notes become its full description.</span>
     </div>
 
     <div class="fg">
@@ -358,20 +351,7 @@ export function renderCharEditor() {
       <button class="btn btn-s item-ur-btn" id="chRedoBtn" title="Redo" disabled>Redo ↪</button>
       <div class="dd" id="dd-char-export">
         <button class="btn btn-s dd-btn">&#8657; Export</button>
-        <div class="dd-menu">
-          <button class="dd-item" id="chExportV3PngBtn" title="Same layout SillyTavern writes. Works in SillyTavern, JanitorAI and most apps, and keeps your description as the description.">V3 PNG</button>
-          <button class="dd-item" id="chExportPngBtn" title="Works in most apps. JanitorAI shows a V2 card's description as its public Bio. For JanitorAI use V3 PNG, or the JanitorAI option.">V2 PNG</button>
-          <button class="dd-item" id="chExportJanitorPngBtn" title="For JanitorAI: puts the character definition in Personality (where a V2 card keeps it) and your Creator Notes in the Bio.">JanitorAI PNG</button>
-          <details class="dd-group">
-            <summary>JSON</summary>
-            <button class="dd-item" id="chExportJsonBtn">V3 JSON</button>
-            <button class="dd-item" id="chExportV2JsonBtn" title="Works in most apps. JanitorAI shows a V2 card's description as its public Bio. For JanitorAI use V3 PNG, or the JanitorAI option.">V2 JSON</button>
-            <button class="dd-item" id="chExportJanitorBtn" title="For JanitorAI: puts the character definition in Personality (where a V2 card keeps it) and your Creator Notes in the Bio.">JanitorAI JSON</button>
-          </details>
-          <button class="dd-item" id="chExportCharxBtn">.CHARX</button>
-          <button class="dd-item" id="chExportByafBtn" title="Backyard AI archive: persona, lore items, the first picture, and each greeting as a scenario.">Backyard (.byaf)</button>
-          <button class="dd-item" id="chExportCompanionBtn" title="Saves a companion.json for SaucepanAI. Description, personality and scenario are joined under [Headers]; the picture is picked on Saucepan.">SaucepanAI</button>
-        </div>
+        <div class="dd-menu" id="chExportMenu"></div>
       </div>
       <button class="btn btn-err" id="chDeleteBtn">Delete Character</button>
     </div>
@@ -453,16 +433,8 @@ export function renderCharEditor() {
     renderCharEditor();
     syncItemUndoButtons('char', state.activeCharId);
   });
-  g('chExportJsonBtn').addEventListener('click', () => exportCharJson(state.activeCharId));
-  if (g('chExportV2JsonBtn'))   g('chExportV2JsonBtn').addEventListener('click',   () => exportCharJsonV2(state.activeCharId));
   if (g('chLbManageBtn'))       g('chLbManageBtn').addEventListener('click',       () => openAttachLbModal());
-  g('chExportPngBtn').addEventListener('click', () => openCharPngExport(state.activeCharId, true));
-  if (g('chExportV3PngBtn')) g('chExportV3PngBtn').addEventListener('click', () => openCharPngExport(state.activeCharId, false));
-  if (g('chExportJanitorBtn')) g('chExportJanitorBtn').addEventListener('click', () => exportCharJsonV2(state.activeCharId, { janitor: true }));
-  if (g('chExportJanitorPngBtn')) g('chExportJanitorPngBtn').addEventListener('click', () => openCharPngExport(state.activeCharId, true, { janitor: true }));
-  if (g('chExportCharxBtn')) g('chExportCharxBtn').addEventListener('click', () => exportCharCharx(state.activeCharId));
-  if (g('chExportByafBtn')) g('chExportByafBtn').addEventListener('click', () => exportCharByaf(state.activeCharId));
-  if (g('chExportCompanionBtn')) g('chExportCompanionBtn').addEventListener('click', () => exportCharCompanion(state.activeCharId));
+  mountCharExportMenu('chExportMenu', 'ch', () => state.activeCharId);
   // Wire the char export dropdown
   const ddCharExport = document.getElementById('dd-char-export');
   if (ddCharExport) {
@@ -855,7 +827,6 @@ export function captureCharState() {
   state.charFormState.system_prompt = g('chSysPrompt')?.value;
   state.charFormState.post_history_instructions = g('chPHI')?.value;
   state.charFormState.creator_notes = g('chNotes')?.value;
-  state.charFormState.shortDesc = g('chShortDesc')?.value;
   state.charFormState.creator = g('chCreator')?.value;
   state.charFormState.character_version = g('chVersion')?.value;
   state.charFormState.tags = g('chTags')?.value;
@@ -893,11 +864,6 @@ export function saveChar(opts = {}) {
   card.data.system_prompt = keepEol(s.system_prompt || '', was.system_prompt);
   card.data.post_history_instructions = keepEol(s.post_history_instructions || '', was.post_history_instructions);
   card.data.creator_notes = keepEol(s.creator_notes || '', was.creator_notes);
-  if (s.shortDesc !== undefined) {   // SaucepanAI's short description lives with the rest of its extras
-    const ext = card.data.extensions || (card.data.extensions = {});
-    const sauce = ext.saucepan || {};
-    if (s.shortDesc.trim() || sauce.short_description) ext.saucepan = { ...sauce, short_description: s.shortDesc };
-  }
   card.data.creator = s.creator || '';
   card.data.character_version = s.character_version || '';
   card.data.tags = (s.tags || '').split(',').map(t => t.trim()).filter(Boolean);
@@ -987,7 +953,6 @@ export function closeCharLibraryModal() {
 registerMarkup(30, `<input type="file" id="fileCharInput" accept=".json,.png" style="display:none">`);
 
 registerMarkup(40, `<input type="file" id="fileCharxInput" accept=".charx" style="display:none">`);
-registerMarkup(40, `<input type="file" id="fileByafInput" accept=".byaf" style="display:none">`);
 
 registerMarkup(50, `<input type="file" id="fileCharCompanionInput" accept=".json" style="display:none">`);
 

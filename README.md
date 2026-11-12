@@ -41,7 +41,7 @@ LoreOS is organised into **rooms**, each for a different part of the creative pr
 ### Workshop editors
 
 - **Lorebook:** import and merge, global settings, search and replace, advanced entry settings, templates.
-- **Character:** pronoun and noun to macro converter, attach and merge lorebooks, Lumiverse Variants, Saucepan multi-intros. Export as V2 or V3 JSON, V2 or V3 PNG, SaucepanAI Companion, or `.charx`.
+- **Character:** pronoun and noun to macro converter, attach and merge lorebooks, Lumiverse Variants, Saucepan multi-intros. Import V2/V3 JSON and PNG, `.charx` and SaucepanAI `companion.json`. Export as V2 or V3 PNG or JSON (with JanitorAI versions of each) or `.charx`.
 - **Preset:** variable scanning and renaming, markers, sampler settings, a full prompt tree. Supports Lumiverse **Loom Presets** with a settings panel for their prompt variables.
 - **Prompt:** prompt packs for JanitorAI and SaucepanAI, built from modular parts.
 - **Regex:** sets with a live tester, SillyTavern and Lumiverse scripts, and import from presets and characters.
@@ -112,8 +112,24 @@ Vanilla JavaScript, no framework and no build step for the app itself. Just the 
 | `sw.js` | Service worker for offline use. `build.sh` stamps its cache key on deploy. |
 | `_headers`, `_redirects` | Cloudflare Pages config, including the CSP. |
 | `tools/tiptap/` | Builds `js/tiptap-bundle.js`, the Journal editor. |
+| `js/adapters/` | One file per file format: plain functions that turn a card into that format and back. No browser needed. |
+| `js/export_targets.js` | The list every character Export menu is built from. |
 | `tests/e2e/` | Browser regression suite. |
+| `tests/unit/`, `tests/fixtures/` | Tests for the adapters (`node --test`) and the small sample files they use. |
 | `vendor/` | Bundled third-party libraries. |
+
+**Adding a format**
+
+Each file format is one adapter file, so a new one does not touch the rest of the app much.
+
+1. **Write the adapter** in `js/adapters/yourformat.js`: plain functions, no DOM and no storage, so it can be tested without a browser. `js/adapters/tavern.js` (export) and `js/adapters/saucepan.js` (import) are short examples. Say at the top of the file which fields map where and what the format cannot hold.
+2. **Test it** in `tests/unit/yourformat.test.js` with `node --test`. Cover a round trip (import, export, import again gives the same card), unicode and emoji, Windows line endings, and a bad file. If the platform publishes a spec or JSON Schema, check your output against it.
+3. **Add sample files** to `tests/fixtures/`. Use small made-up cards, never a real person's character, and keep the licence with anything copied from a spec.
+4. **Export:** add one entry to `CHARACTER_EXPORTS` in `js/export_targets.js`. It becomes a menu item in the editor, the header and on phones, tooltip included.
+5. **Import** takes three small edits for now: a button in the Import menu in `index.html`, a file input registered in `js/character.js` and wired in `js/main.js`, and a line in `js/dropimport.js` so dropping the file works.
+6. **Be honest about testing.** If you could not try it in the real app, set `untested: true` on the export entry (the menu then says so) and say so in your pull request. Real exports from the platform are the most useful thing anyone can add.
+
+Add the file to the list in `sw.js` so it works offline.
 
 **Rebuild the Journal editor** (only needed when changing the TipTap setup):
 ```bash
